@@ -1,7 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Hexagon, LayoutDashboard, LifeBuoy, Menu } from 'lucide-react';
+import {
+  LayoutDashboard,
+  LifeBuoy,
+  Menu,
+  ScanLine,
+  Package,
+  Boxes,
+  Users,
+  Truck,
+  BarChart3,
+  Settings,
+  Store,
+} from 'lucide-react';
 import {
   Sidebar,
   readActiveWorkspaceId,
@@ -38,14 +50,33 @@ const SUPPORT_URL = 'https://suppuo.com/portal/malapos';
 
 const SECTIONS: NavSection[] = [
   {
-    label: 'Overview',
-    items: [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }],
-  },
-  // Products add their own sections here, e.g.:
-  // { label: 'Billing', items: [{ href: '/dashboard/billing', label: 'Billing', icon: CreditCard }] },
-  {
-    label: 'Help',
+    label: 'Sell',
     items: [
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/dashboard/sell', label: 'Sell', icon: ScanLine },
+      { href: '/dashboard/sales', label: 'Sales', icon: BarChart3 },
+    ],
+  },
+  {
+    label: 'Catalog',
+    items: [
+      { href: '/dashboard/products', label: 'Products', icon: Package },
+      { href: '/dashboard/inventory', label: 'Inventory', icon: Boxes },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { href: '/dashboard/purchasing', label: 'Purchasing', icon: Truck },
+      { href: '/dashboard/customers', label: 'Customers', icon: Users },
+      { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
+    ],
+  },
+  {
+    label: 'Workspace',
+    items: [
+      { href: '/dashboard/outlets', label: 'Outlets', icon: Store },
+      { href: '/dashboard/settings', label: 'Settings', icon: Settings },
       {
         label: 'Support',
         icon: LifeBuoy,
@@ -112,7 +143,7 @@ export function DashboardShell({
         brandName={BRAND}
         brandColor={BRAND_COLOR}
         brandColorSoft={BRAND_COLOR_SOFT}
-        brandIcon={<Hexagon size={20} strokeWidth={2} />}
+        brandIcon={<Store size={20} strokeWidth={2} />}
         workspacePersist="cookie"
         workspaces={workspaces}
         activeWorkspaceId={activeId}
