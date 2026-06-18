@@ -14,6 +14,11 @@ import {
   Settings,
   Store,
   CreditCard,
+  Building2,
+  BookOpen,
+  FileText,
+  Shield,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -47,8 +52,18 @@ const BRAND_COLOR_SOFT = 'hsl(var(--primary) / 0.15)';
 // Hosted Suppuo support portal for this product's Suppuo workspace — the
 // family helpdesk entry point (ticket history + live chat). Handle = brand
 // slug (Suppuo resolves slug-or-acc); rename.sh rewrites `malapos`.
-// `dropdownLinks` can't force a new tab, so it rides a nav onClick instead.
 const SUPPORT_URL = 'https://suppuo.com/portal/malapos';
+
+// Profile-dropdown links (portal-ui `dropdownLinks`). Passing this overrides
+// the portal-ui defaults, so the standard Documentation/Terms/Privacy links
+// are re-declared here alongside Support — which lives in the profile menu
+// (not the nav) per the family chrome convention.
+const DROPDOWN_LINKS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: '/docs', label: 'Documentation', icon: BookOpen },
+  { href: '/terms', label: 'Terms of Service', icon: FileText },
+  { href: '/privacy', label: 'Privacy Policy', icon: Shield },
+  { href: SUPPORT_URL, label: 'Support', icon: LifeBuoy },
+];
 
 const SECTIONS: NavSection[] = [
   {
@@ -78,13 +93,9 @@ const SECTIONS: NavSection[] = [
     label: 'Workspace',
     items: [
       { href: '/dashboard/outlets', label: 'Outlets', icon: Store },
+      { href: '/dashboard/workspaces', label: 'Workspaces', icon: Building2 },
       { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
       { href: '/dashboard/settings', label: 'Settings', icon: Settings },
-      {
-        label: 'Support',
-        icon: LifeBuoy,
-        onClick: () => window.open(SUPPORT_URL, '_blank', 'noopener'),
-      },
     ],
   },
 ];
@@ -123,13 +134,19 @@ export function DashboardShell({
 
   useEffect(() => {
     const cookieId = readActiveWorkspaceId('cookie', BRAND_SLUG);
-    // Best-effort — the template ships no /account/workspaces endpoint;
-    // a forked product that proxies Huudis workspaces populates it.
-    fetch('/api/v1/account/workspaces', { credentials: 'include' })
+    // Real Huudis workspaces via the IAM proxy (routes/huudis-proxy → Huudis
+    // /account/workspaces). The personal-account fallback always leads so the
+    // switcher works even for a user with no extra workspaces.
+    fetch('/api/v1/huudis/account/workspaces', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((b) => {
-        const list = (b?.data ?? []) as PortalWorkspace[];
-        const ws = Array.isArray(list) && list.length ? list : [fallback];
+        const raw = (b?.data ?? []) as Array<{ id: string; name: string; role?: string }>;
+        const huudis: PortalWorkspace[] = raw.map((w) => ({
+          id: w.id,
+          name: w.name,
+          role: (w.role ?? 'member') as PortalWorkspace['role'],
+        }));
+        const ws = [fallback, ...huudis.filter((w) => w.id !== fallback.id)];
         setWorkspaces(ws);
         setActiveId(cookieId && ws.some((w) => w.id === cookieId) ? cookieId : ws[0].id);
       })
@@ -151,6 +168,7 @@ export function DashboardShell({
         workspaces={workspaces}
         activeWorkspaceId={activeId}
         sections={SECTIONS}
+        dropdownLinks={DROPDOWN_LINKS}
         user={user}
         onLogout={logout}
         open={open}
