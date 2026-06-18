@@ -183,6 +183,29 @@ export function isPaidTier(tier: BillingTier): boolean {
   return tierDef(tier).priceIdr > 0;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Partner-module tier gate. Mirrors storlaunch's tier-limits
+// isModuleAllowedForTier: Free unlocks NO partner modules; every paid
+// tier (starter/growth/business) unlocks all three (payment/Plugipay,
+// fulfillment/Fulkruma, marketing/Ripllo). Keep MODULE_KEYS in sync
+// with the WHITELIST in routes/modules.ts + the MODULES array in the
+// frontend settings/modules page.
+// ─────────────────────────────────────────────────────────────
+
+export const MODULE_KEYS = ['payment', 'fulfillment', 'marketing'] as const;
+export type ModuleKey = (typeof MODULE_KEYS)[number];
+
+/** The partner modules a tier may enable. Free → none; any paid tier
+ *  → all three (gated on `priceIdr > 0` so a future paid tier unlocks
+ *  modules automatically). */
+export function modulesAllowedForTier(tier: BillingTier): readonly ModuleKey[] {
+  return isPaidTier(tier) ? MODULE_KEYS : [];
+}
+
+export function isModuleAllowedForTier(tier: BillingTier, module: ModuleKey): boolean {
+  return modulesAllowedForTier(tier).includes(module);
+}
+
 interface SubscriptionLike {
   tier: string;
   status: string;

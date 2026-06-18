@@ -149,6 +149,18 @@ model PosSettings {
   currency     String       @default("IDR")
   /// Workspace handle for the hosted Suppuo support URLs (slug-or-acc).
   slug         String?      @unique
+  /// Partner-module toggles. `{ payment?, fulfillment?, marketing? }` —
+  /// see services/modules-service.ts. Unknown/legacy keys are preserved
+  /// on write and ignored everywhere else. Empty `{}` = nothing enabled.
+  modulesEnabled Json @default("{}")
+  /// Per-MERCHANT Plugipay workspace minted on first `payment` enable —
+  /// DISTINCT from Malapos's own platform billing subscription. Calls
+  /// scoped to this merchant go through `.forMerchant(...)`.
+  plugipayMerchantAccountId String?
+  /// Per-merchant Fulkruma workspace, minted on first `fulfillment` enable.
+  fulkrumaAccountId String?
+  /// Per-merchant Ripllo workspace, minted on first `marketing` enable.
+  ripploAccountId String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 

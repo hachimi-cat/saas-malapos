@@ -22,6 +22,7 @@ import {
   Shield,
   KeyRound,
   Webhook,
+  Puzzle,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -108,6 +109,7 @@ const SECTIONS: NavSection[] = [
       { href: '/dashboard/outlets', label: 'Outlets', icon: Store },
       { href: '/dashboard/workspaces', label: 'Workspaces', icon: Building2 },
       { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
+      { href: '/dashboard/settings/modules', label: 'Modules', icon: Puzzle },
       { href: '/dashboard/settings', label: 'Settings', icon: Settings },
     ],
   },

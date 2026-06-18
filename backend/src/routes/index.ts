@@ -21,6 +21,7 @@ import reportsRouter from './reports.js';
 import settingsRouter from './settings.js';
 import modifiersRouter from './modifiers.js';
 import billingRouter from './billing.js';
+import modulesRouter from './modules.js';
 import webhooksPlugipayRouter from './webhooks-plugipay.js';
 import apiKeysRouter from './api-keys.js';
 import webhookSubscriptionsRouter from './webhook-subscriptions.js';
@@ -115,6 +116,12 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
   // Billing — public /tiers; per-route requireAuth inside the router for
   // the workspace plan + Plugipay checkout/cancel.
   router.use('/billing', billingRouter);
+
+  // Partner modules — payment/Plugipay, fulfillment/Fulkruma,
+  // marketing/Ripllo. GET registry + POST toggle (requireAuth is
+  // applied per-route inside the router). First enable auto-provisions
+  // the partner workspace.
+  router.use('/modules', modulesRouter);
 
   /** Inbound Plugipay webhooks (tier checkout completion). Signature-
    *  verified inside the handler; no auth middleware. */
