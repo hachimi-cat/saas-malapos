@@ -5,6 +5,7 @@ import { sendOk, sendCreated, sendList, ApiError } from '../lib/http.js';
 import { h as asyncHandler } from '../lib/async-handler.js';
 import { parsePagination, encodeCursor } from '../lib/cursor.js';
 import { createSale, voidSale } from '../lib/sell.js';
+import { refundSale } from '../lib/refund.js';
 
 /*
  * /api/v1/sales — the checkout surface (behind requireAuth).
@@ -26,7 +27,7 @@ const lineSchema = z.object({
   modifiers: z.array(modifierSchema).max(20).optional(),
 });
 const paymentSchema = z.object({
-  method: z.enum(['CASH', 'QRIS', 'CARD', 'OTHER']),
+  method: z.enum(['CASH', 'QRIS', 'CARD', 'GIFT_CARD', 'OTHER']),
   amount: z.number().int().min(0),
   tendered: z.number().int().min(0).optional(),
   reference: z.string().trim().max(200).optional(),
@@ -114,6 +115,39 @@ router.post(
       include: { items: true, payments: true },
     });
     sendOk(res, req, { sale });
+  }),
+);
+
+const refundBody = z.object({
+  lines: z
+    .array(z.object({ transactionItemId: z.string().trim(), qty: z.number().int().positive() }))
+    .max(100)
+    .optional(),
+  amount: z.number().int().positive().optional(),
+  restock: z.boolean().optional(),
+  reason: z.string().trim().max(300).nullish(),
+});
+
+router.post(
+  '/:id/refund',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const body = refundBody.parse(req.body ?? {});
+    const refundId = await refundSale(
+      String(req.params.id),
+      {
+        lines: body.lines,
+        amount: body.amount,
+        restock: body.restock,
+        reason: body.reason ?? null,
+      },
+      { accountId, bySub: (req.auth!.sub as string | undefined) ?? null },
+    );
+    const sale = await prisma.transaction.findUnique({
+      where: { id: String(req.params.id) },
+      include: { items: true, payments: true, refunds: true },
+    });
+    sendOk(res, req, { sale, refundId });
   }),
 );
 

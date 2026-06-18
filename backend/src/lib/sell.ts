@@ -3,6 +3,7 @@ import { prisma } from './db.js';
 import { newId } from './ids.js';
 import { ApiError } from './http.js';
 import { applyMovement } from './inventory.js';
+import { redeemGiftCard } from './giftcards.js';
 import { writeOutbox } from './outbox.js';
 
 /*
@@ -27,10 +28,10 @@ export interface CartLine {
   modifiers?: CartModifier[];
 }
 export interface SalePayment {
-  method: 'CASH' | 'QRIS' | 'CARD' | 'OTHER';
+  method: 'CASH' | 'QRIS' | 'CARD' | 'GIFT_CARD' | 'OTHER';
   amount: number;
   tendered?: number; // CASH: cash handed over (for change)
-  reference?: string;
+  reference?: string; // GIFT_CARD: the gift-card code to redeem
   plugipayRef?: string;
   status?: 'PENDING' | 'PAID' | 'FAILED';
 }
@@ -141,6 +142,11 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
     if (p.method === 'CASH' && p.tendered != null) changeTotal += Math.max(0, p.tendered - p.amount);
   }
 
+  // F&B workspaces route sales/parks to the kitchen display. PosSettings is
+  // keyed by accountId; a non-FNB (or absent) workspace leaves kdsState null.
+  const settings = await prisma.posSettings.findUnique({ where: { accountId } });
+  const kdsState = settings?.businessType === 'FNB' ? 'NEW' : null;
+
   const txnId = newId('txn');
 
   await prisma.$transaction(async (tx) => {
@@ -169,6 +175,7 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
         total,
         paidTotal,
         changeTotal,
+        kdsState,
         note: input.note ?? null,
         completedAt: status === 'COMPLETED' ? new Date() : null,
         items: {
@@ -203,6 +210,17 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
         },
       },
     });
+
+    // Gift-card / store-credit redemption — validate + decrement each
+    // GIFT_CARD payment within the sale transaction so an insufficient
+    // balance (or a void/unknown card) rolls the whole sale back.
+    for (const p of payments) {
+      if (p.method !== 'GIFT_CARD') continue;
+      if ((p.status ?? 'PAID') !== 'PAID') continue;
+      const code = (p.reference ?? '').trim();
+      if (!code) throw new ApiError(422, 'VALIDATION_ERROR', 'Gift-card payment requires a code in `reference`');
+      await redeemGiftCard(tx, { accountId, code, amount: p.amount, transactionId: txnId });
+    }
 
     // Stock deduction — only for COMPLETED sales of tracked goods.
     if (status === 'COMPLETED') {

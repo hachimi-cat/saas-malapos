@@ -310,7 +310,7 @@ function CustomerPicker({ customer, onChange }: { customer: Customer | null; onC
 }
 
 function PaymentModal({ total, onClose, onConfirm }: { total: number; onClose: () => void; onConfirm: (p: unknown[]) => void }) {
-  const [method, setMethod] = useState<'CASH' | 'QRIS' | 'CARD'>('CASH');
+  const [method, setMethod] = useState<'CASH' | 'QRIS' | 'CARD' | 'GIFT_CARD'>('CASH');
   const [tendered, setTendered] = useState<number>(total);
   const [reference, setReference] = useState('');
   const [busy, setBusy] = useState(false);
@@ -322,6 +322,8 @@ function PaymentModal({ total, onClose, onConfirm }: { total: number; onClose: (
     const payment =
       method === 'CASH'
         ? { method, amount: total, tendered }
+        : method === 'GIFT_CARD'
+        ? { method, amount: total, reference: reference.trim(), status: 'PAID' }
         : { method, amount: total, reference: reference || undefined, status: 'PAID' };
     await onConfirm([payment]);
     setBusy(false);
@@ -336,14 +338,14 @@ function PaymentModal({ total, onClose, onConfirm }: { total: number; onClose: (
         </div>
         <p className="mt-1 text-2xl font-bold text-primary">{rupiah(total)}</p>
 
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {(['CASH', 'QRIS', 'CARD'] as const).map((m) => (
+        <div className="mt-4 grid grid-cols-4 gap-2">
+          {(['CASH', 'QRIS', 'CARD', 'GIFT_CARD'] as const).map((m) => (
             <button
               key={m}
               onClick={() => setMethod(m)}
-              className={`rounded-md border py-2 text-sm font-medium ${method === m ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}
+              className={`rounded-md border py-2 text-xs font-medium ${method === m ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}
             >
-              {m === 'CASH' ? 'Cash' : m === 'QRIS' ? 'QRIS' : 'Card'}
+              {m === 'CASH' ? 'Cash' : m === 'QRIS' ? 'QRIS' : m === 'CARD' ? 'Card' : 'Gift card'}
             </button>
           ))}
         </div>
@@ -375,18 +377,29 @@ function PaymentModal({ total, onClose, onConfirm }: { total: number; onClose: (
 
         {method !== 'CASH' && (
           <label className="mt-4 block text-sm">
-            <span className="text-muted-foreground">{method === 'QRIS' ? 'QRIS reference (optional)' : 'Card / EDC reference (optional)'}</span>
+            <span className="text-muted-foreground">
+              {method === 'QRIS'
+                ? 'QRIS reference (optional)'
+                : method === 'GIFT_CARD'
+                ? 'Gift-card code'
+                : 'Card / EDC reference (optional)'}
+            </span>
             <input
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              placeholder={method === 'QRIS' ? 'Plugipay QRIS ref' : 'Approval code'}
+              placeholder={method === 'QRIS' ? 'Plugipay QRIS ref' : method === 'GIFT_CARD' ? 'GC-XXXXXXXXXX' : 'Approval code'}
               className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
             />
+            {method === 'GIFT_CARD' && (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                The card balance must cover {rupiah(total)}. Insufficient balance cancels the sale.
+              </span>
+            )}
           </label>
         )}
 
         <button
-          disabled={busy || (method === 'CASH' && tendered < total)}
+          disabled={busy || (method === 'CASH' && tendered < total) || (method === 'GIFT_CARD' && !reference.trim())}
           onClick={confirm}
           className="mt-5 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
         >

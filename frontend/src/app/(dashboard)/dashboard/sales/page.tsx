@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Receipt, X, Loader2, Ban } from 'lucide-react';
+import { Receipt, X, Loader2, Ban, RotateCcw } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 
@@ -12,7 +12,7 @@ import { rupiah } from '@/lib/money';
  * Completed sales can be voided with an optional reason. Real backend.
  */
 
-type SaleStatus = 'COMPLETED' | 'VOIDED' | 'PARKED' | 'REFUNDED';
+type SaleStatus = 'COMPLETED' | 'VOIDED' | 'PARKED' | 'PARTIALLY_REFUNDED' | 'REFUNDED';
 
 type Outlet = { id: string; name: string };
 
@@ -29,6 +29,15 @@ type SaleRow = {
   _count: { items: number };
 };
 
+type SaleItem = {
+  id: string;
+  productName: string;
+  variantName: string | null;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+};
+
 type SaleDetail = {
   id: string;
   number: string;
@@ -37,9 +46,10 @@ type SaleDetail = {
   taxTotal: number;
   total: number;
   changeTotal: number;
+  refundedTotal: number;
   createdAt: string;
   cashierName: string | null;
-  items: { productName: string; variantName: string | null; quantity: number; unitPrice: number; lineTotal: number }[];
+  items: SaleItem[];
   payments: Payment[];
   outlet: { name: string };
 };
@@ -49,8 +59,14 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'COMPLETED', label: 'Completed' },
   { value: 'PARKED', label: 'Parked' },
   { value: 'VOIDED', label: 'Voided' },
+  { value: 'PARTIALLY_REFUNDED', label: 'Partially refunded' },
   { value: 'REFUNDED', label: 'Refunded' },
 ];
+
+function statusLabel(status: SaleStatus): string {
+  if (status === 'PARTIALLY_REFUNDED') return 'Partially refunded';
+  return status.charAt(0) + status.slice(1).toLowerCase();
+}
 
 function StatusBadge({ status }: { status: SaleStatus }) {
   const cls =
@@ -58,12 +74,12 @@ function StatusBadge({ status }: { status: SaleStatus }) {
       ? 'bg-primary/10 text-primary'
       : status === 'PARKED'
       ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-      : status === 'REFUNDED'
+      : status === 'REFUNDED' || status === 'PARTIALLY_REFUNDED'
       ? 'bg-destructive/10 text-destructive'
       : 'bg-muted text-muted-foreground';
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
-      {status.charAt(0) + status.slice(1).toLowerCase()}
+      {statusLabel(status)}
     </span>
   );
 }
@@ -152,8 +168,8 @@ export default function SalesPage() {
     }
   }
 
-  // After a void, patch the row in place + reflect status in any open modal.
-  function applyVoided(updated: { id: string; status: SaleStatus }) {
+  // After a void/refund, patch the row's status in place.
+  function applyStatus(updated: { id: string; status: SaleStatus }) {
     setRows((r) => r.map((row) => (row.id === updated.id ? { ...row, status: updated.status } : row)));
   }
 
@@ -245,7 +261,7 @@ export default function SalesPage() {
         <ReceiptDetailModal
           saleId={selectedId}
           onClose={() => setSelectedId(null)}
-          onVoided={applyVoided}
+          onStatusChange={applyStatus}
         />
       )}
     </div>
@@ -255,11 +271,11 @@ export default function SalesPage() {
 function ReceiptDetailModal({
   saleId,
   onClose,
-  onVoided,
+  onStatusChange,
 }: {
   saleId: string;
   onClose: () => void;
-  onVoided: (updated: { id: string; status: SaleStatus }) => void;
+  onStatusChange: (updated: { id: string; status: SaleStatus }) => void;
 }) {
   const [sale, setSale] = useState<SaleDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -267,6 +283,16 @@ function ReceiptDetailModal({
   const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState('');
   const [voiding, setVoiding] = useState(false);
+  const [refunding, setRefunding] = useState(false);
+
+  async function load() {
+    try {
+      const res = await api.get<{ sale: SaleDetail }>(`/sales/${saleId}`);
+      setSale(res.data.sale);
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to load receipt');
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -295,7 +321,7 @@ function ReceiptDetailModal({
         reason: reason.trim() || undefined,
       });
       setSale(res.data.sale);
-      onVoided({ id: res.data.sale.id, status: res.data.sale.status });
+      onStatusChange({ id: res.data.sale.id, status: res.data.sale.status });
       setConfirming(false);
       setReason('');
     } catch (e) {
@@ -304,6 +330,10 @@ function ReceiptDetailModal({
       setVoiding(false);
     }
   }
+
+  const refundable = sale ? sale.total - sale.refundedTotal : 0;
+  const canRefund =
+    sale && (sale.status === 'COMPLETED' || sale.status === 'PARTIALLY_REFUNDED') && refundable > 0;
 
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -359,6 +389,12 @@ function ReceiptDetailModal({
                 <span>Total</span>
                 <span className="text-primary">{rupiah(sale.total)}</span>
               </div>
+              {sale.refundedTotal > 0 && (
+                <div className="flex justify-between text-destructive">
+                  <span>Refunded</span>
+                  <span>− {rupiah(sale.refundedTotal)}</span>
+                </div>
+              )}
             </div>
 
             <div className="mt-4 space-y-1 border-t border-border pt-3 text-sm">
@@ -388,7 +424,38 @@ function ReceiptDetailModal({
               <div className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
             )}
 
-            {sale.status === 'COMPLETED' && (
+            {canRefund && !confirming && (
+              <div className="mt-5 border-t border-border pt-4">
+                {!refunding ? (
+                  <button
+                    onClick={() => setRefunding(true)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-border py-2.5 text-sm font-semibold transition-colors hover:bg-accent"
+                  >
+                    <RotateCcw className="h-4 w-4" /> Refund
+                  </button>
+                ) : (
+                  <RefundPanel
+                    items={sale.items}
+                    refundable={refundable}
+                    onCancel={() => setRefunding(false)}
+                    onSubmit={async (payload) => {
+                      setError(null);
+                      try {
+                        const res = await api.post<{ sale: SaleDetail }>(`/sales/${saleId}/refund`, payload);
+                        setSale(res.data.sale);
+                        onStatusChange({ id: res.data.sale.id, status: res.data.sale.status });
+                        setRefunding(false);
+                        await load();
+                      } catch (e) {
+                        setError(e instanceof ApiRequestError ? e.message : 'Failed to refund');
+                      }
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            {sale.status === 'COMPLETED' && !refunding && (
               <div className="mt-5 border-t border-border pt-4">
                 {!confirming ? (
                   <button
@@ -431,6 +498,143 @@ function ReceiptDetailModal({
             )}
           </>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+type RefundPayload = {
+  lines?: { transactionItemId: string; qty: number }[];
+  amount?: number;
+  restock?: boolean;
+  reason?: string;
+};
+
+function RefundPanel({
+  items,
+  refundable,
+  onCancel,
+  onSubmit,
+}: {
+  items: SaleItem[];
+  refundable: number;
+  onCancel: () => void;
+  onSubmit: (payload: RefundPayload) => Promise<void>;
+}) {
+  const [mode, setMode] = useState<'lines' | 'amount'>('lines');
+  const [qtyById, setQtyById] = useState<Record<string, number>>({});
+  const [amount, setAmount] = useState<number>(0);
+  const [restock, setRestock] = useState(true);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const lineEstimate = items.reduce((s, it) => {
+    const q = qtyById[it.id] ?? 0;
+    if (q <= 0) return s;
+    const perUnit = Math.round(it.lineTotal / it.quantity);
+    return s + (q === it.quantity ? it.lineTotal : perUnit * q);
+  }, 0);
+
+  const valid = mode === 'lines' ? lineEstimate > 0 && lineEstimate <= refundable : amount > 0 && amount <= refundable;
+
+  async function submit() {
+    setBusy(true);
+    const payload: RefundPayload =
+      mode === 'lines'
+        ? {
+            lines: items
+              .map((it) => ({ transactionItemId: it.id, qty: qtyById[it.id] ?? 0 }))
+              .filter((l) => l.qty > 0),
+            restock,
+            reason: reason.trim() || undefined,
+          }
+        : { amount, reason: reason.trim() || undefined };
+    await onSubmit(payload);
+    setBusy(false);
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-medium">Refund</p>
+      <p className="text-xs text-muted-foreground">Refundable balance: {rupiah(refundable)}</p>
+
+      <div className="grid grid-cols-2 gap-2">
+        {(['lines', 'amount'] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={`rounded-md border py-1.5 text-sm font-medium ${mode === m ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}
+          >
+            {m === 'lines' ? 'Select items' : 'Amount'}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'lines' ? (
+        <div className="space-y-2">
+          {items.map((it) => {
+            const q = qtyById[it.id] ?? 0;
+            return (
+              <div key={it.id} className="flex items-center gap-2 text-sm">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate">{it.productName}</p>
+                  <p className="text-xs text-muted-foreground">{it.quantity} sold · {rupiah(it.lineTotal)}</p>
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  max={it.quantity}
+                  value={q}
+                  onChange={(e) =>
+                    setQtyById((m) => ({ ...m, [it.id]: Math.max(0, Math.min(it.quantity, Number(e.target.value))) }))
+                  }
+                  className="w-16 rounded-md border border-input bg-background px-2 py-1 text-right text-sm outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            );
+          })}
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={restock} onChange={(e) => setRestock(e.target.checked)} />
+            <span>Return items to stock</span>
+          </label>
+          <p className="text-sm font-medium">Refund {rupiah(lineEstimate)}</p>
+        </div>
+      ) : (
+        <label className="block text-sm">
+          <span className="text-muted-foreground">Amount to refund</span>
+          <input
+            type="number"
+            min={0}
+            max={refundable}
+            value={amount}
+            onChange={(e) => setAmount(Math.max(0, Math.min(refundable, Number(e.target.value))))}
+            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
+          />
+        </label>
+      )}
+
+      <input
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        placeholder="Reason (optional)"
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+      />
+
+      <div className="flex gap-2">
+        <button
+          onClick={onCancel}
+          disabled={busy}
+          className="flex-1 rounded-md border border-border py-2 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-40"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={submit}
+          disabled={busy || !valid}
+          className="flex-1 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+        >
+          {busy ? 'Refunding…' : 'Confirm refund'}
+        </button>
       </div>
     </div>
   );

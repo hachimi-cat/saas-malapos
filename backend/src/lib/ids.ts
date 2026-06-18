@@ -32,6 +32,9 @@ export type IdPrefix =
   | 'poi' // purchase order item
   | 'cus' // customer
   | 'loy' // loyalty ledger entry
+  | 'rfd' // refund (partial / line-item)
+  | 'gft' // gift card / store credit
+  | 'gce' // gift card ledger entry
   | 'bsub' // billing subscription (Plugipay-backed plan)
   | 'ak' // API key
   | 'whs'; // webhook subscription

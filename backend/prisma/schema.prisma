@@ -75,14 +75,32 @@ enum TransactionStatus {
   PARKED // held / open bill (F&B table, layaway)
   COMPLETED
   VOIDED
-  REFUNDED
+  PARTIALLY_REFUNDED // some lines/amount refunded; balance remains
+  REFUNDED // fully refunded (refundedTotal >= total)
 }
 
 enum PaymentMethod {
   CASH
   QRIS // dynamic QR via Plugipay
   CARD // card / EDC — manual reference entry in v1
+  GIFT_CARD // gift card / store credit (reference = the card code)
   OTHER // bank transfer, voucher, etc. (manual note)
+}
+
+/// Lifecycle of a gift card / store-credit balance.
+enum GiftCardStatus {
+  ACTIVE
+  REDEEMED // drained to 0
+  VOID // cancelled / written off
+}
+
+/// Kitchen-display lifecycle of an F&B ticket. `null` kdsState = not a
+/// kitchen ticket (retail/pharmacy sale). SERVED drops off the board.
+enum KdsState {
+  NEW
+  PREPARING
+  READY
+  SERVED
 }
 
 enum PaymentStatus {
@@ -451,6 +469,11 @@ model Transaction {
   total         Int               @default(0) // subtotal − discountTotal + taxTotal
   paidTotal     Int               @default(0) // Σ PAID payments
   changeTotal   Int               @default(0) // cash change given
+  /// Σ of all refunds against this sale, IDR. status flips to
+  /// PARTIALLY_REFUNDED while < total, REFUNDED once >= total.
+  refundedTotal Int               @default(0)
+  /// Kitchen-display state — set to NEW for F&B workspaces, null otherwise.
+  kdsState      KdsState?
   note          String?
   voidReason    String?
   createdAt     DateTime          @default(now())
@@ -462,12 +485,84 @@ model Transaction {
   customer Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
   items    TransactionItem[]
   payments Payment[]
+  refunds  Refund[]
 
   @@unique([outletId, number])
   @@index([accountId, outletId, createdAt])
   @@index([accountId, status])
   @@index([accountId, customerId])
+  @@index([accountId, kdsState, createdAt])
   @@map("transactions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Refunds (partial / line-item)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A refund against a completed sale — either selected line items or a flat
+/// amount. Append-only: a sale can accrue several Refund rows up to its
+/// total. `lines` snapshots what was refunded ([{ transactionItemId, qty,
+/// amount }] for line refunds, or [] for a flat-amount refund). `restocked`
+/// records whether stock was returned (RETURN movements).
+model Refund {
+  id            String   @id // rfd_*
+  accountId     String
+  transactionId String
+  amount        Int // IDR refunded by this row
+  reason        String?
+  restocked     Boolean  @default(false)
+  lines         Json     @default("[]")
+  bySub         String? // Huudis sub of the staff member
+  createdAt     DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, transactionId])
+  @@map("refunds")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Gift cards / store credit
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A prepaid balance. Anonymous (no customerId) = gift card; linked to a
+/// Customer = store credit. Redeemed as a GIFT_CARD payment at checkout
+/// (the payment `reference` carries the code). `balance` is the fast read;
+/// GiftCardEntry is the append-only ledger.
+model GiftCard {
+  id             String         @id // gft_*
+  accountId      String
+  code           String
+  initialBalance Int // IDR issued
+  balance        Int // IDR remaining
+  status         GiftCardStatus @default(ACTIVE)
+  customerId     String? // set → store credit; null → anonymous gift card
+  note           String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  entries GiftCardEntry[]
+
+  @@unique([accountId, code])
+  @@index([accountId, customerId])
+  @@map("gift_cards")
+}
+
+/// Append-only ledger of every balance change on a gift card. `delta` is
+/// signed: + on issue/top-up, − on redemption.
+model GiftCardEntry {
+  id            String   @id // gce_*
+  accountId     String
+  giftCardId    String
+  delta         Int // signed IDR
+  transactionId String? // the sale that redeemed (when delta < 0)
+  reason        String // "issue" | "redeem" | "void" | "adjust"
+  createdAt     DateTime @default(now())
+
+  giftCard GiftCard @relation(fields: [giftCardId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, giftCardId])
+  @@map("gift_card_entries")
 }
 
 model TransactionItem {

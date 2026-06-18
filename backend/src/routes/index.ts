@@ -24,6 +24,8 @@ import billingRouter from './billing.js';
 import webhooksPlugipayRouter from './webhooks-plugipay.js';
 import apiKeysRouter from './api-keys.js';
 import webhookSubscriptionsRouter from './webhook-subscriptions.js';
+import giftCardsRouter from './gift-cards.js';
+import kdsRouter from './kds.js';
 
 /**
  * Route factory. Ported from saas-plugipay.
@@ -101,6 +103,8 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
   router.use('/suppliers', requireAuth, suppliersRouter);
   router.use('/purchase-orders', requireAuth, purchaseOrdersRouter);
   router.use('/customers', requireAuth, customersRouter);
+  router.use('/gift-cards', requireAuth, giftCardsRouter);
+  router.use('/kds', requireAuth, kdsRouter);
   router.use('/reports', requireAuth, reportsRouter);
   router.use('/settings', requireAuth, settingsRouter);
   // Developer surface — programmatic API keys + outbound webhook

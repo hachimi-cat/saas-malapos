@@ -14,6 +14,8 @@ import {
   Settings,
   Store,
   CreditCard,
+  ChefHat,
+  Gift,
   Building2,
   BookOpen,
   FileText,
@@ -86,8 +88,10 @@ const SECTIONS: NavSection[] = [
   {
     label: 'Operations',
     items: [
+      { href: '/dashboard/kds', label: 'Kitchen display', icon: ChefHat },
       { href: '/dashboard/purchasing', label: 'Purchasing', icon: Truck },
       { href: '/dashboard/customers', label: 'Customers', icon: Users },
+      { href: '/dashboard/gift-cards', label: 'Gift cards', icon: Gift },
       { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
     ],
   },
