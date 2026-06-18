@@ -11,6 +11,14 @@ import outletsRouter from './outlets.js';
 import categoriesRouter from './categories.js';
 import productsRouter from './products.js';
 import salesRouter from './sales.js';
+import inventoryRouter from './inventory.js';
+import shiftsRouter from './shifts.js';
+import suppliersRouter from './suppliers.js';
+import purchaseOrdersRouter from './purchase-orders.js';
+import customersRouter from './customers.js';
+import reportsRouter from './reports.js';
+import settingsRouter from './settings.js';
+import modifiersRouter from './modifiers.js';
 
 /**
  * Route factory. Ported from saas-plugipay.
@@ -76,7 +84,15 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
   router.use('/outlets', requireAuth, outletsRouter);
   router.use('/categories', requireAuth, categoriesRouter);
   router.use('/products', requireAuth, productsRouter);
+  router.use('/modifiers', requireAuth, modifiersRouter);
   router.use('/sales', requireAuth, salesRouter);
+  router.use('/inventory', requireAuth, inventoryRouter);
+  router.use('/shifts', requireAuth, shiftsRouter);
+  router.use('/suppliers', requireAuth, suppliersRouter);
+  router.use('/purchase-orders', requireAuth, purchaseOrdersRouter);
+  router.use('/customers', requireAuth, customersRouter);
+  router.use('/reports', requireAuth, reportsRouter);
+  router.use('/settings', requireAuth, settingsRouter);
 
   // Products mount their own routers here, e.g.:
   //   router.use('/widgets', widgetsRouter);
