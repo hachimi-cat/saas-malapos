@@ -1,8 +1,16 @@
-// Forjio service template — minimal Prisma schema.
+// Malapos — POS for Indonesian SMEs (retail + F&B + pharmacy).
 //
-// Ships with only the outbox plumbing required by ADR-0006. Each product
-// adds its own domain models on top. Cross-service models (User, Account,
-// etc.) live in Huudis and are referenced by ID only — never replicated.
+// Multi-tenant: every row is scoped by `accountId` (the Huudis workspace /
+// merchant id from req.auth.accountId). Identity, members, and auth live in
+// Huudis — this DB owns ONLY the POS domain. Cross-service refs are string
+// ids (no FKs across services).
+//
+// MONEY: all amounts are whole Indonesian rupiah (IDR has no sub-unit in
+// practice) stored as `Int`. A field named `*price`/`*amount`/`*total`/
+// `*cost`/`*float` is rupiah. No floats, ever.
+//
+// Outbox (ADR-0006): state changes that other services may care about write
+// an OutboxEvent in the same transaction. Event type: malapos.<agg>.<verb>.v1.
 
 generator client {
   provider = "prisma-client-js"
@@ -13,22 +21,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Outbox / idempotency (ADR-0006) — template baseline, do not duplicate.
+// ─────────────────────────────────────────────────────────────────────────
+
 /// Transactional outbox — ADR-0006.
-/// Every state change that other services may care about writes a row
-/// here inside the same transaction as the change itself. A polling
-/// worker reads unpublished rows and fans out to HTTP subscribers.
 model OutboxEvent {
-  id           String   @id // ULID, globally unique (evt_*)
-  type         String   // e.g. "malapos.entity.verb.v1"
-  accountId    String?  // event scope; null for global events
-  aggregateId  String?  // top-level aggregate id (for indexed queries per entity)
-  occurredAt   DateTime
-  data         Json
-  metadata     Json     @default("{}")
-  createdAt    DateTime @default(now())
-  publishedAt  DateTime?
-  attempts     Int      @default(0)
-  lastError    String?
+  id          String    @id // evt_*
+  type        String // e.g. "malapos.sale.completed.v1"
+  accountId   String? // event scope; null for global events
+  aggregateId String? // top-level aggregate id
+  occurredAt  DateTime
+  data        Json
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+  attempts    Int       @default(0)
+  lastError   String?
 
   @@index([publishedAt, createdAt], name: "ix_outbox_unpublished")
   @@index([accountId, type])
@@ -37,12 +46,550 @@ model OutboxEvent {
 }
 
 /// Consumer-side idempotency record — ADR-0006.
-/// When this service consumes an event, the handler inserts a row here
-/// inside its own transaction. Replay attempts hit the PK unique and
-/// exit cleanly.
 model ProcessedEvent {
   eventId     String   @id
   processedAt DateTime @default(now())
 
   @@map("processed_events")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────
+
+/// What kind of business a workspace runs — drives sell-screen affordances
+/// (barcode for retail, modifiers for F&B, batch/expiry for pharmacy).
+enum BusinessType {
+  RETAIL
+  FNB
+  PHARMACY
+  GENERAL
+}
+
+enum ProductKind {
+  GOODS // a stockable physical item
+  SERVICE // no stock tracking (e.g. a haircut, a delivery fee)
+}
+
+enum TransactionStatus {
+  PARKED // held / open bill (F&B table, layaway)
+  COMPLETED
+  VOIDED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  QRIS // dynamic QR via Plugipay
+  CARD // card / EDC — manual reference entry in v1
+  OTHER // bank transfer, voucher, etc. (manual note)
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+/// Signed ledger of every stock change. `qtyDelta` is + for inbound, − for
+/// outbound. StockLevel is the denormalized running balance.
+enum StockMovementType {
+  SALE // − sold
+  RETURN // + refunded/voided back to shelf
+  ADJUSTMENT // ± manual stock-take correction
+  PURCHASE // + goods received against a PO
+  TRANSFER_IN // + received from another outlet
+  TRANSFER_OUT // − sent to another outlet
+  WASTE // − spoilage / breakage / expiry
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  PARTIAL // some lines received
+  RECEIVED
+  CANCELLED
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Workspace settings
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Per-workspace POS settings (one row per accountId). The product slug +
+/// branding for the Suppuo help center / hosted surfaces also live here as
+/// the family pattern, but the POS only needs the business profile in v1.
+model PosSettings {
+  id           String       @id // pos_*
+  accountId    String       @unique
+  businessName String?
+  businessType BusinessType @default(GENERAL)
+  currency     String       @default("IDR")
+  /// Workspace handle for the hosted Suppuo support URLs (slug-or-acc).
+  slug         String?      @unique
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("pos_settings")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Outlets (multi-location)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A physical store / counter. Stock, shifts, sequential receipt numbers,
+/// and tax are all scoped per outlet.
+model Outlet {
+  id            String   @id // out_*
+  accountId     String
+  name          String
+  address       String?
+  phone         String?
+  timezone      String   @default("Asia/Jakarta")
+  /// Tax applied at checkout (e.g. 1100 = 11% PPN, 1000 = 10% PB1). Basis
+  /// points of 10000 so 11% = 1100. 0 = no tax.
+  taxRateBps    Int      @default(0)
+  /// true → listed prices already include tax (back it out for reporting).
+  taxInclusive  Boolean  @default(false)
+  receiptHeader String?
+  receiptFooter String?
+  /// Monotonic counter for human-friendly receipt numbers per outlet.
+  receiptSeq    Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  stockLevels    StockLevel[]
+  stockMovements StockMovement[]
+  shifts         Shift[]
+  transactions   Transaction[]
+  purchaseOrders PurchaseOrder[]
+  batches        StockBatch[]
+
+  @@index([accountId])
+  @@map("outlets")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Catalog
+// ─────────────────────────────────────────────────────────────────────────
+
+model Category {
+  id        String   @id // cat_*
+  accountId String
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+
+  @@index([accountId])
+  @@map("categories")
+}
+
+/// A catalog item. Price/sku/barcode/stock live on its variants — a simple
+/// product has exactly one (auto-created) variant.
+model Product {
+  id            String      @id // prd_*
+  accountId     String
+  categoryId    String?
+  name          String
+  description   String?
+  kind          ProductKind @default(GOODS)
+  /// Track on-hand stock for this product's variants. SERVICE → false.
+  trackStock    Boolean     @default(true)
+  /// Pharmacy: sell from dated batches (FEFO) and warn near expiry.
+  requiresBatch Boolean     @default(false)
+  imageUrl      String?
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  category       Category?              @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  variants       ProductVariant[]
+  modifierGroups ProductModifierGroup[]
+
+  @@index([accountId, categoryId])
+  @@index([accountId, isActive])
+  @@map("products")
+}
+
+/// The actually-sold unit (a SKU). Carries price, cost, barcode.
+model ProductVariant {
+  id        String   @id // var_*
+  accountId String
+  productId String
+  name      String   @default("Default") // e.g. "Large", "Red / XL"
+  sku       String?
+  barcode   String?
+  price     Int      @default(0) // sell price, IDR
+  cost      Int      @default(0) // last/avg purchase cost, IDR (margin + COGS)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product          Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stockLevels      StockLevel[]
+  stockMovements   StockMovement[]
+  batches          StockBatch[]
+  transactionItems TransactionItem[]
+  purchaseItems    PurchaseOrderItem[]
+
+  @@index([accountId, productId])
+  @@index([accountId, barcode])
+  @@index([accountId, sku])
+  @@map("product_variants")
+}
+
+// ── F&B modifiers (e.g. "Sugar level", "Extra shot") ──
+
+model ModifierGroup {
+  id        String   @id // mdg_*
+  accountId String
+  name      String
+  /// Selection bounds: 0/1 = optional single; 1/1 = required single; n/m = multi.
+  minSelect Int      @default(0)
+  maxSelect Int      @default(1)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  modifiers Modifier[]
+  products  ProductModifierGroup[]
+
+  @@index([accountId])
+  @@map("modifier_groups")
+}
+
+model Modifier {
+  id        String   @id // mod_*
+  accountId String
+  groupId   String
+  name      String
+  price     Int      @default(0) // surcharge, IDR (can be 0)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  group ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, groupId])
+  @@map("modifiers")
+}
+
+/// Many-to-many: which modifier groups apply to a product.
+model ProductModifierGroup {
+  productId String
+  groupId   String
+  sortOrder Int    @default(0)
+
+  product Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  group   ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([productId, groupId])
+  @@map("product_modifier_groups")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Inventory
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Denormalized on-hand quantity per (outlet, variant). The fast read path;
+/// StockMovement is the authoritative append-only ledger.
+model StockLevel {
+  id           String   @id // lvl_*
+  accountId    String
+  outletId     String
+  variantId    String
+  quantity     Int      @default(0)
+  /// Reorder threshold for low-stock alerts (0 = no alert).
+  reorderPoint Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  outlet  Outlet         @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([outletId, variantId])
+  @@index([accountId, outletId])
+  @@map("stock_levels")
+}
+
+/// Append-only stock ledger. Every sale/return/adjustment/receipt/transfer.
+model StockMovement {
+  id           String            @id // stk_*
+  accountId    String
+  outletId     String
+  variantId    String
+  batchId      String?
+  type         StockMovementType
+  qtyDelta     Int // signed
+  balanceAfter Int // running balance snapshot at this outlet+variant
+  refType      String? // "transaction" | "purchase_order" | "transfer" | "stock_take"
+  refId        String?
+  reason       String?
+  bySub        String? // Huudis sub of the staff member
+  createdAt    DateTime          @default(now())
+
+  outlet  Outlet         @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  batch   StockBatch?    @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, outletId, variantId])
+  @@index([accountId, createdAt])
+  @@index([refType, refId])
+  @@map("stock_movements")
+}
+
+/// Pharmacy: a dated lot of a variant at an outlet. Sales draw FEFO
+/// (first-expiry-first-out); near-expiry surfaces in alerts.
+model StockBatch {
+  id           String    @id // bat_*
+  accountId    String
+  outletId     String
+  variantId    String
+  batchNo      String?
+  expiryDate   DateTime?
+  qtyRemaining Int       @default(0)
+  cost         Int       @default(0) // unit cost for this lot, IDR
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  outlet    Outlet          @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  variant   ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  movements StockMovement[]
+
+  @@index([accountId, outletId, variantId, expiryDate])
+  @@map("stock_batches")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Cashier shifts (cash reconciliation)
+// ─────────────────────────────────────────────────────────────────────────
+
+model Shift {
+  id             String      @id // shf_*
+  accountId      String
+  outletId       String
+  cashierSub     String // Huudis sub of the cashier who opened it
+  cashierName    String?
+  status         ShiftStatus @default(OPEN)
+  openingFloat   Int         @default(0) // starting cash, IDR
+  openedAt       DateTime    @default(now())
+  closedAt       DateTime?
+  /// Reconciliation at close:
+  expectedCash   Int? // openingFloat + cash sales − cash refunds/payouts
+  countedCash    Int? // what the cashier physically counted
+  cashDifference Int? // countedCash − expectedCash (over/short)
+  notes          String?
+
+  outlet       Outlet        @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([accountId, outletId, status])
+  @@index([accountId, cashierSub])
+  @@map("shifts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Sales
+// ─────────────────────────────────────────────────────────────────────────
+
+model Transaction {
+  id            String            @id // txn_*
+  accountId     String
+  outletId      String
+  shiftId       String?
+  customerId    String?
+  cashierSub    String?
+  cashierName   String?
+  /// Human receipt number, unique per outlet (e.g. "INV-000123").
+  number        String
+  status        TransactionStatus @default(COMPLETED)
+  /// Money (IDR). subtotal = Σ line totals (pre-tax, post line-discount).
+  subtotal      Int               @default(0)
+  discountTotal Int               @default(0) // order-level discount
+  taxTotal      Int               @default(0)
+  total         Int               @default(0) // subtotal − discountTotal + taxTotal
+  paidTotal     Int               @default(0) // Σ PAID payments
+  changeTotal   Int               @default(0) // cash change given
+  note          String?
+  voidReason    String?
+  createdAt     DateTime          @default(now())
+  completedAt   DateTime?
+  voidedAt      DateTime?
+
+  outlet   Outlet            @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  shift    Shift?            @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  customer Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items    TransactionItem[]
+  payments Payment[]
+
+  @@unique([outletId, number])
+  @@index([accountId, outletId, createdAt])
+  @@index([accountId, status])
+  @@index([accountId, customerId])
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id            String   @id // tli_*
+  accountId     String
+  transactionId String
+  variantId     String?
+  /// Snapshots so historical receipts never change when the catalog does.
+  productName   String
+  variantName   String?
+  sku           String?
+  unitPrice     Int // IDR at time of sale
+  quantity      Int
+  discount      Int      @default(0) // per-line discount, IDR
+  /// Chosen modifiers snapshot: [{ name, price }]. Surcharges fold into total.
+  modifiers     Json     @default("[]")
+  lineTotal     Int // (unitPrice * qty) + modifier surcharges − discount
+  batchId       String? // pharmacy: which lot this line drew from
+  createdAt     DateTime @default(now())
+
+  transaction Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, transactionId])
+  @@index([accountId, variantId])
+  @@map("transaction_items")
+}
+
+model Payment {
+  id            String        @id // pay_*
+  accountId     String
+  transactionId String
+  method        PaymentMethod
+  status        PaymentStatus @default(PAID)
+  amount        Int // IDR
+  tendered      Int? // cash given (CASH only)
+  change        Int? // cash change (CASH only)
+  reference     String? // card/EDC ref or manual note
+  plugipayRef   String? // Plugipay checkout/charge id (QRIS)
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, transactionId])
+  @@index([plugipayRef])
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Suppliers + purchasing
+// ─────────────────────────────────────────────────────────────────────────
+
+model Supplier {
+  id        String   @id // sup_*
+  accountId String
+  name      String
+  contact   String?
+  phone     String?
+  email     String?
+  address   String?
+  note      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+
+  @@index([accountId])
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id         String              @id // pur_*
+  accountId  String
+  outletId   String
+  supplierId String?
+  number     String
+  status     PurchaseOrderStatus @default(DRAFT)
+  total      Int                 @default(0) // Σ line (cost*qty), IDR
+  note       String?
+  orderedAt  DateTime?
+  receivedAt DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  outlet   Outlet              @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  supplier Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  items    PurchaseOrderItem[]
+
+  @@unique([accountId, number])
+  @@index([accountId, status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id          String    @id // poi_*
+  accountId   String
+  purchaseId  String
+  variantId   String
+  quantity    Int
+  receivedQty Int       @default(0)
+  cost        Int // unit cost, IDR
+  batchNo     String? // pharmacy
+  expiryDate  DateTime? // pharmacy
+  createdAt   DateTime  @default(now())
+
+  purchase PurchaseOrder  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  variant  ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, purchaseId])
+  @@map("purchase_order_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Customers + loyalty
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A POS customer (walk-in directory + loyalty). This is product-native CRM
+/// context — NOT a Plugipay payment-customer and NOT a Huudis identity — so
+/// it rightly lives here (see CLAUDE.md "DO NOT add a Customer model" note).
+model Customer {
+  id            String   @id // cus_*
+  accountId     String
+  name          String
+  phone         String?
+  email         String?
+  note          String?
+  loyaltyPoints Int      @default(0)
+  totalSpent    Int      @default(0) // lifetime, IDR
+  visits        Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  transactions   Transaction[]
+  loyaltyEntries LoyaltyEntry[]
+
+  @@index([accountId])
+  @@index([accountId, phone])
+  @@map("customers")
+}
+
+/// Append-only loyalty points ledger (earn on sale, redeem at checkout).
+model LoyaltyEntry {
+  id            String   @id // loy_*
+  accountId     String
+  customerId    String
+  points        Int // signed: + earned, − redeemed
+  reason        String // "earn" | "redeem" | "adjust"
+  transactionId String?
+  createdAt     DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, customerId])
+  @@map("loyalty_entries")
 }

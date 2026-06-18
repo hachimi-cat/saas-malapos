@@ -10,7 +10,27 @@ import { ulid } from 'ulid';
 export type IdPrefix =
   | 'evt' // outbox event
   | 'req' // request id (prefer the request-id middleware)
-  | 'idem'; // idempotency fallback
+  | 'idem' // idempotency fallback
+  // ── Malapos POS domain ──
+  | 'pos' // workspace POS settings
+  | 'out' // outlet
+  | 'cat' // category
+  | 'prd' // product
+  | 'var' // product variant
+  | 'mdg' // modifier group
+  | 'mod' // modifier
+  | 'lvl' // stock level
+  | 'stk' // stock movement
+  | 'bat' // stock batch (pharmacy)
+  | 'shf' // cashier shift
+  | 'txn' // sale transaction
+  | 'tli' // transaction line item
+  | 'pay' // payment
+  | 'sup' // supplier
+  | 'pur' // purchase order
+  | 'poi' // purchase order item
+  | 'cus' // customer
+  | 'loy'; // loyalty ledger entry
 
 export function newId(prefix: IdPrefix): string {
   return `${prefix}_${ulid().toLowerCase()}`;
