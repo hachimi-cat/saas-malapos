@@ -6,7 +6,6 @@ import {
   Check,
   ChevronDown,
   CircleDollarSign,
-  Code2,
   Hexagon,
   Layers,
   Megaphone,
@@ -58,22 +57,22 @@ export default function HomePage() {
             />
 
             <h1 className="mt-5 text-[36px] leading-[1.05] md:text-[56px] md:leading-[1.02] font-semibold tracking-[-0.025em]">
-              One line that says
+              The POS for shops,
               <br />
-              what{' '}
+              cafes &amp;{' '}
               <span className="relative whitespace-nowrap">
-                <span className="relative z-10">Malapos</span>
+                <span className="relative z-10">pharmacies</span>
                 <span
                   aria-hidden
                   className="absolute inset-x-0 bottom-1 h-3 md:h-4 bg-primary/60 dark:bg-primary/30 -z-0 rounded-sm"
                 />
-              </span>{' '}
-              does.
+              </span>.
             </h1>
 
             <p className="mt-5 text-[15px] md:text-base leading-relaxed text-muted-foreground max-w-[60ch] mx-auto">
-              A second line clarifying who Malapos is for and why they&apos;d switch
-              from whatever they use today. Priced in IDR. Part of the Forjio family.
+              Ring up sales, track every item of stock, and run multiple outlets from one
+              screen. Built for Indonesian retail, F&amp;B, and pharmacy. Priced in rupiah.
+              Part of the Forjio family.
             </p>
 
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
@@ -81,14 +80,14 @@ export default function HomePage() {
                 href="/signup"
                 className="inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
               >
-                Get started
+                Start free
                 <ArrowRight className="size-4" strokeWidth={1.5} />
               </Link>
               <a
                 href="#hero-mockup"
                 className="inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-lg text-sm font-medium border border-border bg-card hover:bg-card/80 transition-colors backdrop-blur-sm"
               >
-                View live demo
+                See the sell screen
               </a>
             </div>
           </div>
@@ -105,10 +104,11 @@ export default function HomePage() {
           <div className="max-w-2xl">
             <SectionEyebrow>How it works</SectionEyebrow>
             <h2 className="text-[28px] md:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em]">
-              Three steps, under a minute.
+              Open the till and start selling.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground max-w-[52ch]">
-              Describe the fastest path from sign-up to first value. Free tier needs no card.
+              Sign in with your Forjio account, add your products, and ring up the first sale.
+              The free plan needs no card.
             </p>
           </div>
 
@@ -117,20 +117,20 @@ export default function HomePage() {
               {
                 num: '01',
                 Icon: Settings,
-                title: 'Step one',
-                body: 'What the user does first. One or two sentences — concrete, not aspirational.',
+                title: 'Add your catalog',
+                body: 'Enter products, variants, and categories — or set F&B modifiers like sugar level and extra shot. Scan a barcode to add an item fast.',
               },
               {
                 num: '02',
                 Icon: Workflow,
-                title: 'Step two',
-                body: 'The middle step. Keep it to the single action that moves them forward.',
+                title: 'Ring up a sale',
+                body: 'Search or scan into the cart, then take payment by cash with change, QRIS, or card. Print or share the receipt.',
               },
               {
                 num: '03',
                 Icon: Activity,
-                title: 'Step three',
-                body: 'The payoff — what the user gets at the end. This is the value proposition.',
+                title: 'Track stock & outlets',
+                body: 'Every sale updates live stock. Add more outlets, open and close cashier shifts, and read your sales reports as you grow.',
               },
             ].map(({ num, Icon, title, body }) => (
               <div key={num} className="rounded-lg border border-border bg-card p-6">
@@ -159,18 +159,18 @@ export default function HomePage() {
               Everything Malapos ships.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground max-w-[52ch]">
-              Six concrete capabilities. Only list what runs in production today — no roadmap fluff.
+              Six things your counter actually does every day — all running today, no roadmap fluff.
             </p>
           </div>
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { Icon: Boxes, title: 'Feature one', body: 'A concrete capability and what the user gets from it. 1–2 sentences.' },
-              { Icon: Layers, title: 'Feature two', body: 'Another shipped capability. Name it specifically; avoid marketing adjectives.' },
-              { Icon: Activity, title: 'Feature three', body: 'Something measurable or observable — analytics, a report, an export.' },
-              { Icon: ShieldCheck, title: 'Feature four', body: 'A trust or compliance capability if the product has one.' },
-              { Icon: Zap, title: 'Feature five', body: 'A speed or automation capability — what the product does for the user.' },
-              { Icon: Code2, title: 'API + CLI', body: 'REST API with idempotency keys, type-safe SDKs (Node, Python, Go), and a CLI.' },
+              { Icon: CircleDollarSign, title: 'Sell screen', body: 'Search or scan into the cart and take cash with change, QRIS, or card. Print or share a receipt on the spot.' },
+              { Icon: Layers, title: 'Catalog & modifiers', body: 'Products, variants, and categories — plus F&B modifiers like sugar level and extra shot for cafe orders.' },
+              { Icon: Boxes, title: 'Inventory', body: 'Live stock levels with an append-only movement ledger, low-stock alerts, manual adjustments, and inter-outlet transfers.' },
+              { Icon: ShieldCheck, title: 'Pharmacy batches', body: 'Track dated stock batches, sell first-expiry-first-out, and get alerted before medicine expires.' },
+              { Icon: Activity, title: 'Shifts & reports', body: 'Open and close cashier shifts with cash reconciliation. Read sales summaries, top products, and payment-method mix.' },
+              { Icon: Zap, title: 'Customers & purchasing', body: 'Earn and redeem loyalty points at the till, and receive supplier purchase orders straight into stock.' },
             ].map(({ Icon, title, body }) => (
               <div key={title} className="rounded-lg border border-border bg-card p-6">
                 <div className="size-10 rounded-md flex items-center justify-center bg-primary/10 text-primary mb-4">
@@ -192,44 +192,53 @@ export default function HomePage() {
           <div className="text-center max-w-3xl mx-auto">
             <SectionEyebrow>Pricing</SectionEyebrow>
             <h2 className="text-[28px] md:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em]">
-              Honest tiers. IDR pricing.
+              One flat price per store. In rupiah.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground max-w-[62ch] mx-auto">
-              Free is genuinely free, not a trial. International customers pay in USD via PayPal —
-              Midtrans doesn&apos;t process USD.
+              Pay per workspace, not per cashier. Malapos is in early access, so every plan
+              is free right now — these are the launch prices, shown for transparency.
             </p>
           </div>
         </div>
         <div className="max-w-5xl mx-auto px-4 md:px-6 pt-12 pb-16">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
               {
                 name: 'Free',
                 idr: 0,
                 usdCents: 0,
                 priceUnit: 'forever',
-                who: 'For testing the waters before you commit.',
-                features: ['Core capability, limited', '1 team seat', 'Community support', 'Read-only API access'],
+                who: 'For a single counter getting started.',
+                features: ['1 outlet', 'Up to 50 products', 'Cash, QRIS & card', 'Printed & shareable receipts', '2 cashier seats'],
                 cta: { label: 'Start free', href: '/signup' },
               },
               {
-                name: 'Pro',
-                idr: 79_000,
-                usdCents: 500,
+                name: 'Starter',
+                idr: 99_000,
+                usdCents: 700,
                 priceUnit: '/ month',
-                who: 'For solo operators ready to go further.',
+                who: 'For one busy store that needs stock + customers.',
                 featured: true,
-                features: ['Core capability, expanded', 'Custom branding', 'Full API access', 'Email support'],
-                cta: { label: 'Start Pro', href: '/signup' },
+                features: ['Everything in Free', 'Unlimited products', 'Inventory + low-stock alerts', 'Cashier shifts + cash reconciliation', 'Customers + loyalty points', 'Hide Malapos branding', '5 cashier seats'],
+                cta: { label: 'Start free', href: '/signup' },
+              },
+              {
+                name: 'Growth',
+                idr: 199_000,
+                usdCents: 1_400,
+                priceUnit: '/ month',
+                who: 'For multi-outlet retail, F&B & pharmacy.',
+                features: ['Everything in Starter', 'Up to 5 outlets + stock transfers', 'Suppliers + purchase orders', 'Batch & expiry tracking', '15 cashier seats'],
+                cta: { label: 'Start free', href: '/signup' },
               },
               {
                 name: 'Business',
-                idr: 299_000,
-                usdCents: 1_900,
+                idr: 449_000,
+                usdCents: 3_000,
                 priceUnit: '/ month',
-                who: 'For teams that need shared workspaces.',
-                features: ['Everything unlimited', '5 workspace members', 'Higher API rate limits', 'Priority support'],
-                cta: { label: 'Start Business', href: '/signup' },
+                who: 'For chains running many outlets.',
+                features: ['Everything in Growth', 'Unlimited outlets', '50 cashier seats', 'Priority support'],
+                cta: { label: 'Start free', href: '/signup' },
               },
             ].map((tier) => (
               <div
@@ -285,11 +294,11 @@ export default function HomePage() {
           <div className="text-center max-w-2xl mx-auto">
             <SectionEyebrow>Compare</SectionEyebrow>
             <h2 className="text-[28px] md:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em]">
-              How Malapos stacks up.
+              More than a cash register.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground max-w-[60ch] mx-auto">
-              Name the two alternatives your buyers actually evaluate, and the capabilities that
-              genuinely differ. Don&apos;t invent advantages.
+              A basic cash drawer rings up sales and stops there. A traditional boxed POS does
+              more but rarely covers pharmacy or multiple outlets out of the box.
             </p>
           </div>
 
@@ -301,18 +310,18 @@ export default function HomePage() {
                     Capability
                   </th>
                   <th className="px-4 py-3 font-semibold text-primary">Malapos</th>
-                  <th className="px-4 py-3 font-medium text-muted-foreground">Alternative A</th>
-                  <th className="px-4 py-3 font-medium text-muted-foreground">Alternative B</th>
+                  <th className="px-4 py-3 font-medium text-muted-foreground">Cash register</th>
+                  <th className="px-4 py-3 font-medium text-muted-foreground">Boxed POS</th>
                 </tr>
               </thead>
               <tbody>
                 {[
-                  { cap: 'Lowest paid tier', s: 'Rp 79k/mo', a: '~Rp 565k/mo', b: '~Rp 145k/mo' },
-                  { cap: 'IDR pricing', s: true, a: false, b: false },
-                  { cap: 'Capability one', s: true, a: true, b: false },
-                  { cap: 'Capability two', s: true, a: false, b: false },
-                  { cap: 'API + CLI + SDKs', s: true, a: false, b: false },
-                  { cap: 'One login for sister products', s: true, a: false, b: false },
+                  { cap: 'Cash, QRIS & card at the till', s: true, a: true, b: true },
+                  { cap: 'Live inventory + low-stock alerts', s: true, a: false, b: true },
+                  { cap: 'Multi-outlet + stock transfers', s: true, a: false, b: false },
+                  { cap: 'Batch & expiry tracking (pharmacy)', s: true, a: false, b: false },
+                  { cap: 'Customers + loyalty points', s: true, a: false, b: false },
+                  { cap: 'Priced in IDR, per workspace', s: true, a: false, b: false },
                 ].map((row) => (
                   <tr key={row.cap} className="border-b border-border last:border-b-0">
                     <td className="px-4 py-3 text-foreground/90">{row.cap}</td>
@@ -334,20 +343,21 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-16 md:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-start">
             <div>
-              <SectionEyebrow>For developers</SectionEyebrow>
+              <SectionEyebrow>Your numbers</SectionEyebrow>
               <h2 className="text-[28px] md:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em]">
-                CLI-first. Type-safe SDKs. Idempotency keys.
+                Your numbers, clear at a glance.
               </h2>
               <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground max-w-[52ch]">
-                A real CLI, type-safe SDKs for Node.js, Python, and Go, and a REST API with
-                idempotency keys. Wire Malapos into your stack without writing glue.
+                Every sale and stock movement belongs to your workspace — and Malapos shows it
+                back to you in clear, filterable reports built into the dashboard. Know what sold,
+                what&apos;s running low, and how the till reconciled.
               </p>
               <ul className="mt-6 space-y-3">
                 {[
-                  'Every core action scriptable from the CLI',
-                  'OpenAPI spec + type-safe SDKs (Node, Python, Go)',
-                  'Bulk operations in a single request',
-                  'Per-workspace API keys with scoped permissions',
+                  'Sales summary, sales-by-day, and top products',
+                  'Payment-method mix and low-stock reports',
+                  'An append-only stock movement ledger you can audit',
+                  'Filter every report by outlet and date range',
                 ].map((b) => (
                   <li key={b} className="flex items-start gap-2 text-sm text-foreground/90 leading-relaxed">
                     <Check className="size-4 mt-0.5 shrink-0 text-primary" strokeWidth={2.25} />
@@ -355,69 +365,55 @@ export default function HomePage() {
                   </li>
                 ))}
               </ul>
+              <p className="mt-6 text-[13px] leading-relaxed text-muted-foreground max-w-[52ch]">
+                A developer API, integrations, and data export are on the roadmap — they&apos;re
+                not live yet, and we won&apos;t pretend otherwise.
+              </p>
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <Link
-                  href="/docs"
+                  href="/signup"
                   className="inline-flex items-center gap-1.5 h-10 px-5 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
                 >
-                  Read the docs
+                  Start free
                   <ArrowRight className="size-4" strokeWidth={1.5} />
                 </Link>
-                <a
-                  href="https://github.com/hachimi-cat/malapos"
+                <Link
+                  href="/features"
                   className="inline-flex items-center gap-1.5 h-10 px-5 rounded-lg text-sm font-medium border border-border bg-card hover:bg-muted transition-colors"
                 >
-                  <Code2 className="size-4" strokeWidth={1.5} />
-                  View SDK on GitHub
-                </a>
+                  <Boxes className="size-4" strokeWidth={1.5} />
+                  See all features
+                </Link>
               </div>
             </div>
 
             <div className="space-y-4">
-              <TerminalCard label="malapos">
-                <span className="text-white/40"># Install once</span>
+              <TerminalCard label="Reports · Sales by day">
+                <span className="text-white/40"># date · gross · transactions · top method</span>
                 {'\n'}
-                <span className="text-white/90">$ npm i -g @forjio/malapos-cli</span>
+                <span className="text-white/90">2026-06-01 · 4.820.000 · 142 · QRIS</span>
+                {'\n'}
+                <span className="text-white/90">2026-06-02 · 3.190.000 · 98 · cash</span>
+                {'\n'}
+                <span className="text-white/90">2026-06-03 · 5.510.000 · 167 · card</span>
                 {'\n\n'}
-                <span className="text-white/40"># Log in with your Forjio account</span>
+                <span className="text-white/40"># Filter by outlet and date range</span>
                 {'\n'}
-                <span className="text-white/90">$ malapos auth login</span>
-                {'\n'}
-                <span className="text-green-300">✔ Authenticated as you@example.com via Huudis</span>
-                {'\n\n'}
-                <span className="text-white/40"># Run the core action</span>
-                {'\n'}
-                <span className="text-white/90">$ malapos create --name "demo"</span>
-                {'\n'}
-                <span className="text-green-300">✔ Created.</span>
+                <span className="text-green-300">✔ Last 30 days</span>
               </TerminalCard>
 
-              <TerminalCard label="example.ts">
-                <span className="text-purple-300">import</span>
-                <span className="text-white/90">{' { ForjioBrand } '}</span>
-                <span className="text-purple-300">from</span>
-                <span className="text-green-300">{' "@forjio/malapos"'}</span>
-                <span className="text-white/90">;</span>
+              <TerminalCard label="Inventory · Stock ledger">
+                <span className="text-white/40"># item, change, reason, balance</span>
+                {'\n'}
+                <span className="text-white/90">Kopi Susu 250ml, -1, sale, 47</span>
+                {'\n'}
+                <span className="text-white/90">Paracetamol 500mg, +200, purchase order, 612</span>
+                {'\n'}
+                <span className="text-white/90">Beras 5kg, -3, transfer to Outlet 2, 24</span>
                 {'\n\n'}
-                <span className="text-purple-300">const</span>
-                <span className="text-white/90">{' client = '}</span>
-                <span className="text-purple-300">new</span>
-                <span className="text-white/90">{' ForjioBrand({'}</span>
+                <span className="text-white/40"># Append-only — every movement is kept</span>
                 {'\n'}
-                <span className="text-white/90">{'  apiKey: process.env.MALAPOS_KEY!,'}</span>
-                {'\n'}
-                <span className="text-white/90">{'});'}</span>
-                {'\n\n'}
-                <span className="text-purple-300">const</span>
-                <span className="text-white/90">{' result = '}</span>
-                <span className="text-purple-300">await</span>
-                <span className="text-white/90">{' client.things.create({'}</span>
-                {'\n'}
-                <span className="text-white/90">{'  name: '}</span>
-                <span className="text-green-300">{'"demo"'}</span>
-                <span className="text-white/90">,</span>
-                {'\n'}
-                <span className="text-white/90">{'});'}</span>
+                <span className="text-green-300">✔ Full audit history</span>
               </TerminalCard>
             </div>
           </div>
@@ -436,8 +432,8 @@ export default function HomePage() {
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground max-w-[60ch] mx-auto">
               Malapos shares its account system with the rest of the Forjio family through
-              Huudis SSO. Add a teammate here and they&apos;re already part of your other
-              Forjio workspaces.
+              Huudis SSO. Add a cashier here and they sign in with the same Forjio account
+              across every product.
             </p>
           </div>
 
@@ -510,24 +506,24 @@ export default function HomePage() {
           <ul className="mt-10 divide-y divide-border rounded-lg border border-border bg-card overflow-hidden">
             {[
               {
-                q: 'Is the free tier really free?',
-                a: 'Yes — describe the free tier honestly. It is a tier, not a trial. State the real limit.',
+                q: 'Is Malapos really free right now?',
+                a: 'Yes. Malapos is in early access, so every plan is free today — no card needed. Founding merchants lock in launch pricing when paid plans go live, and the Free plan stays free after that.',
+              },
+              {
+                q: 'What kind of shops is it for?',
+                a: 'Retail, F&B, and pharmacy. Ring up sales by cash, QRIS, or card; set F&B modifiers like sugar level; or track dated medicine batches and sell first-expiry-first-out. Everything is priced in rupiah.',
+              },
+              {
+                q: 'Can I run more than one outlet?',
+                a: 'Yes, from the Growth plan up. Manage multiple store locations with per-outlet tax and receipt numbering, and move stock between them with inter-outlet transfers.',
               },
               {
                 q: 'Who owns my data?',
-                a: 'You do. Records belong to your workspace; export anytime as CSV or via the API. Forjio never sells or repackages merchant data.',
+                a: 'You do. Sales, stock movements, and reports belong to your workspace, and you can review them anytime in clear in-dashboard reports. Forjio never sells or repackages merchant data.',
               },
               {
-                q: 'How does billing work?',
-                a: 'IDR pricing via the Indonesian rails (QRIS / VA / e-wallet / cards). International customers pay in USD via PayPal. Billing runs through Plugipay.',
-              },
-              {
-                q: 'Can my team share a workspace?',
-                a: 'Yes. Describe the seat model per tier — owner / admin / member roles, added or removed via the dashboard or CLI.',
-              },
-              {
-                q: 'What happens if I downgrade?',
-                a: 'Existing data stays. Explain exactly which limits apply going forward versus retroactively.',
+                q: 'How do my cashiers sign in?',
+                a: 'Through Huudis, the single sign-on shared across the Forjio family. Each plan includes a set number of cashier seats — 2 on Free, up to 50 on Business.',
               },
             ].map((faq) => (
               <li key={faq.q}>
@@ -559,10 +555,11 @@ export default function HomePage() {
               <Hexagon className="size-6" strokeWidth={2} />
             </div>
             <h2 className="text-[28px] md:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em] max-w-[24ch]">
-              Get started with Malapos today.
+              Open your till with Malapos today.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground max-w-[52ch]">
-              Free forever on the starter tier. No card. Upgrade when you outgrow it.
+              Free during early access. No card needed. Set up your shop and ring up your first
+              sale in minutes.
             </p>
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
               <Link
@@ -644,8 +641,8 @@ function HeroPreview() {
         </div>
 
         <div className="p-5">
-          <p className="text-[13px] font-semibold text-foreground">This week</p>
-          <p className="mt-0.5 text-[12px] text-muted-foreground">A live look at your workspace.</p>
+          <p className="text-[13px] font-semibold text-foreground">Today&apos;s sales</p>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">A live look at your counter.</p>
 
           <div className="mt-4">
             <svg
@@ -668,22 +665,22 @@ function HeroPreview() {
 
           <div className="mt-3 grid grid-cols-3 gap-3 text-[11px] font-mono">
             <div>
-              <span className="text-muted-foreground uppercase">Total</span>
-              <div className="text-foreground text-[15px] font-semibold tabular-nums">1,247</div>
+              <span className="text-muted-foreground uppercase">Sales</span>
+              <div className="text-foreground text-[15px] font-semibold tabular-nums">Rp 4,8jt</div>
             </div>
             <div>
-              <span className="text-muted-foreground uppercase">Today</span>
-              <div className="text-foreground text-[15px] font-semibold tabular-nums">+82</div>
+              <span className="text-muted-foreground uppercase">Receipts</span>
+              <div className="text-foreground text-[15px] font-semibold tabular-nums">142</div>
             </div>
             <div>
-              <span className="text-muted-foreground uppercase">Top region</span>
-              <div className="text-foreground text-[15px] font-semibold">Jakarta</div>
+              <span className="text-muted-foreground uppercase">Top method</span>
+              <div className="text-foreground text-[15px] font-semibold">QRIS</div>
             </div>
           </div>
         </div>
       </div>
       <p className="mt-3 text-xs text-muted-foreground text-center">
-        Swap this mockup for a real screenshot of your portal once seed-demo data is in.
+        A look at the Malapos dashboard.
       </p>
     </div>
   );

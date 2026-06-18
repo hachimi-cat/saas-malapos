@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Boxes, Layers, Activity, ShieldCheck, Zap, Code2, ArrowRight } from 'lucide-react';
+import {
+  CircleDollarSign,
+  Layers,
+  Boxes,
+  ShieldCheck,
+  Users,
+  Activity,
+  ArrowRight,
+} from 'lucide-react';
 
 /*
  * FORKERS: replace the placeholder feature copy with what Malapos
@@ -10,54 +18,75 @@ import { Boxes, Layers, Activity, ShieldCheck, Zap, Code2, ArrowRight } from 'lu
 
 export const metadata: Metadata = {
   title: 'Features',
-  description: 'Everything Malapos ships — replace this with your real feature summary.',
+  description:
+    'Everything Malapos ships — a point-of-sale for Indonesian retail, F&B, and pharmacy. Sell, track stock, and run multiple outlets, priced in rupiah.',
 };
 
 const features = [
   {
-    Icon: Boxes,
-    title: 'Feature one',
-    body: 'A concrete capability and what the user gets from it. One or two sentences.',
+    Icon: CircleDollarSign,
+    title: 'Sell screen',
+    body: 'Ring up a sale fast. Search or scan into the cart and take payment however your customer pays.',
     details: [
-      'A specific sub-capability',
-      'Another concrete detail',
-      'A third, measurable detail',
-      'A fourth if you have one',
+      'Cash with automatic change, QRIS, or card',
+      'Barcode scan-to-add',
+      'Printed and shareable receipts',
+      'F&B modifiers like sugar level and extra shot',
     ],
   },
   {
     Icon: Layers,
-    title: 'Feature two',
-    body: 'Another shipped capability. Name it specifically; avoid marketing adjectives.',
-    details: ['Sub-capability', 'Concrete detail', 'Measurable detail', 'One more'],
+    title: 'Catalog',
+    body: 'Build your menu or shelf once. Organise products with variants and categories that show up on the sell screen.',
+    details: [
+      'Products, variants, and categories',
+      'Per-product pricing',
+      'Modifiers for F&B orders',
+      'Works for retail, cafe, and pharmacy items',
+    ],
   },
   {
-    Icon: Activity,
-    title: 'Feature three',
-    body: 'Something measurable or observable — analytics, a report, an export.',
-    details: ['Live, no batch delay', 'Per-record breakdown', 'Time-series view', 'CSV export'],
+    Icon: Boxes,
+    title: 'Inventory',
+    body: 'Track every item of stock. Each sale, adjustment, and transfer is recorded so your counts always add up.',
+    details: [
+      'Live stock levels',
+      'Append-only stock movement ledger',
+      'Low-stock alerts and manual adjustments',
+      'Inter-outlet stock transfers',
+    ],
   },
   {
     Icon: ShieldCheck,
-    title: 'Feature four',
-    body: 'A trust or compliance capability if the product has one.',
-    details: ['Concrete guarantee', 'How it is enforced', 'What the user controls', 'Audit trail'],
-  },
-  {
-    Icon: Zap,
-    title: 'Feature five',
-    body: 'A speed or automation capability — what the product does for the user.',
-    details: ['What is automated', 'What it replaces', 'How fast', 'Where it runs'],
-  },
-  {
-    Icon: Code2,
-    title: 'API + CLI',
-    body: 'REST API with idempotency keys, type-safe SDKs (Node, Python, Go), and a CLI: npm i -g @forjio/malapos-cli.',
+    title: 'Pharmacy',
+    body: 'Track every strip and bottle. Sell by expiry so the soonest-to-expire stock leaves first.',
     details: [
-      'REST + idempotency keys',
-      'SDKs for Node, Python, Go',
-      '@forjio/malapos-cli on npm',
-      'Per-workspace API keys with scoped permissions',
+      'Dated stock batches',
+      'First-expiry-first-out selling',
+      'Expiry alerts before medicine lapses',
+      'Built alongside retail and F&B',
+    ],
+  },
+  {
+    Icon: Activity,
+    title: 'Outlets, shifts & reports',
+    body: 'Run more than one store and keep the till honest. Close every shift against the cash drawer and read what sold.',
+    details: [
+      'Multiple outlets with per-outlet tax and receipt numbering',
+      'Cashier shifts with cash reconciliation',
+      'Sales summary, sales-by-day, and top products',
+      'Payment-method mix and low-stock reports',
+    ],
+  },
+  {
+    Icon: Users,
+    title: 'Customers & purchasing',
+    body: 'Keep regulars coming back and shelves stocked. Reward loyalty at the till and receive supplier deliveries into stock.',
+    details: [
+      'Customer directory with loyalty points',
+      'Earn on sale, adjust or redeem by hand',
+      'Suppliers and purchase orders',
+      'Receive goods to stock-in and update cost',
     ],
   },
 ];
@@ -67,11 +96,12 @@ export default function FeaturesPage() {
     <div className="mx-auto max-w-7xl px-4 py-20 md:px-6">
       <div className="text-center">
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Everything you need from Malapos.
+          Everything your counter needs.
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-          Replace this with a one-paragraph summary of what the product does and which
-          capabilities are free versus paid.
+          Malapos is a point-of-sale for Indonesian retail, F&amp;B, and pharmacy. Sell on the
+          Free plan today; unlock inventory, customers, multi-outlet, and pharmacy batches as
+          your shop grows. Priced in rupiah.
         </p>
       </div>
 
@@ -99,10 +129,11 @@ export default function FeaturesPage() {
 
       <div className="mt-20 text-center">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          Try the free tier — no card required.
+          Start free — no card required.
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-          Describe the free plan honestly. Upgrade only when you outgrow it.
+          Malapos is in early access, so every plan is free right now. Set up your shop and
+          ring up your first sale in minutes.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <Link

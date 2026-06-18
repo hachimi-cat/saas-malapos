@@ -4,35 +4,41 @@ import { Check, Minus } from 'lucide-react';
 import { Price } from '@forjio/website-ui';
 
 /*
- * FORKERS: the tier names (Free / Pro / Business) and the IDR + USD
- * dual-pricing are the family standard. Replace the comparison rows
- * with the real per-tier limits of Malapos. usdCents should
- * mirror backend/src/config/plans.ts once that exists.
+ * Pricing mirrors backend/src/lib/billing.ts (TIER_DEFS) — the single
+ * source of truth for plan limits + bullets. Four flat per-workspace
+ * monthly IDR tiers: Free / Starter / Growth / Business. Malapos is in
+ * early access, so every plan is free today; the amounts below are the
+ * launch proposals shown for transparency (see the banner).
  */
 
 export const metadata: Metadata = {
   title: 'Pricing',
-  description: 'Transparent pricing for Malapos. Start free, upgrade when you need to.',
+  description:
+    'One flat price per store, in rupiah. Free during early access — Free, Starter, Growth, and Business plans for Indonesian retail, F&B, and pharmacy.',
 };
 
 const tiers = [
-  { name: 'Free',     idr: 0,       usdCents: 0,     description: 'For side projects and personal use.', cta: 'Start Free',   highlight: false },
-  { name: 'Pro',      idr: 79_000,  usdCents: 500,   description: 'For solo operators and small teams.', cta: 'Get Pro',      highlight: true  },
-  { name: 'Business', idr: 299_000, usdCents: 1_900, description: 'For teams that need scale.',          cta: 'Get Business', highlight: false },
+  { name: 'Free',     idr: 0,       usdCents: 0,     description: 'For a single counter getting started.',       cta: 'Start free', highlight: false },
+  { name: 'Starter',  idr: 99_000,  usdCents: 700,   description: 'For one busy store that needs stock + customers.', cta: 'Start free', highlight: true  },
+  { name: 'Growth',   idr: 199_000, usdCents: 1_400, description: 'For multi-outlet retail, F&B & pharmacy.',     cta: 'Start free', highlight: false },
+  { name: 'Business', idr: 449_000, usdCents: 3_000, description: 'For chains running many outlets.',            cta: 'Start free', highlight: false },
 ];
 
 const comparisonRows = [
-  { feature: 'Core capability / month', free: 'Limited', pro: 'Expanded', business: 'Unlimited' },
-  { feature: 'Workspace members', free: '1', pro: '1', business: '5' },
-  { feature: 'Owned workspaces', free: '1', pro: '3', business: 'Unlimited' },
-  { feature: 'Custom branding', free: false, pro: true, business: true },
-  { feature: 'Analytics retention', free: '30 days', pro: '1 year', business: 'Unlimited' },
-  { feature: 'CLI access', free: true, pro: true, business: true },
-  { feature: 'API rate limit', free: '60 req/min', pro: '600 req/min', business: '2,000 req/min' },
-  { feature: 'Data export (CSV / JSON)', free: 'CSV only', pro: 'CSV + JSON', business: 'CSV + JSON' },
-  { feature: 'Priority support', free: false, pro: false, business: true },
-  { feature: 'Payment methods (IDR)', free: '—', pro: 'QRIS · VA · e-wallet · card', business: 'QRIS · VA · e-wallet · card' },
-  { feature: 'Payment methods (USD intl)', free: '—', pro: 'PayPal', business: 'PayPal' },
+  { feature: 'Outlets (store locations)', free: '1', starter: '1', growth: '5', business: 'Unlimited' },
+  { feature: 'Products', free: 'Up to 50', starter: 'Unlimited', growth: 'Unlimited', business: 'Unlimited' },
+  { feature: 'Cashier seats', free: '2', starter: '5', growth: '15', business: '50' },
+  { feature: 'Sell screen — cash, QRIS & card', free: true, starter: true, growth: true, business: true },
+  { feature: 'Printed & shareable receipts', free: true, starter: true, growth: true, business: true },
+  { feature: 'Inventory + low-stock alerts', free: false, starter: true, growth: true, business: true },
+  { feature: 'Cashier shifts + cash reconciliation', free: false, starter: true, growth: true, business: true },
+  { feature: 'Customers + loyalty points', free: false, starter: true, growth: true, business: true },
+  { feature: 'Full sales reports', free: 'Daily only', starter: true, growth: true, business: true },
+  { feature: 'Multi-outlet + stock transfers', free: false, starter: false, growth: true, business: true },
+  { feature: 'Suppliers + purchase orders', free: false, starter: false, growth: true, business: true },
+  { feature: 'Batch & expiry tracking (pharmacy)', free: false, starter: false, growth: true, business: true },
+  { feature: 'Hide Malapos branding on receipts', free: false, starter: true, growth: true, business: true },
+  { feature: 'Priority support', free: false, starter: false, growth: false, business: true },
 ];
 
 function CellValue({ value }: { value: string | boolean }) {
@@ -45,17 +51,22 @@ export default function PricingPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-20 md:px-6">
       <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Transparent pricing</h1>
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">One price per store</h1>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-          No hidden fees. No annual lock-in. Start free, pay only when you need more.
-        </p>
-        <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-          Indonesian customers pay in IDR. International customers pay in USD via PayPal —
-          Midtrans doesn&apos;t process USD.
+          Flat monthly pricing per workspace, in rupiah — not per cashier. Pick the plan that
+          fits your shop and add cashier seats within it.
         </p>
       </div>
 
-      <div className="mt-16 grid gap-8 sm:grid-cols-3">
+      <div className="mx-auto mt-8 max-w-2xl rounded-lg border border-primary/30 bg-primary/5 px-5 py-4 text-center">
+        <p className="text-sm text-foreground">
+          <span className="font-semibold">Malapos is in early access — every plan is free right now.</span>{' '}
+          Founding merchants lock in launch pricing when paid plans go live. The amounts below
+          are launch proposals shown for transparency, free today.
+        </p>
+      </div>
+
+      <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {tiers.map((tier) => (
           <div
             key={tier.name}
@@ -98,7 +109,8 @@ export default function PricingPage() {
               <tr className="border-b border-border">
                 <th className="pb-4 pr-6 text-sm font-medium text-muted-foreground">Feature</th>
                 <th className="pb-4 text-center text-sm font-medium">Free</th>
-                <th className="pb-4 text-center text-sm font-medium text-primary">Pro</th>
+                <th className="pb-4 text-center text-sm font-medium text-primary">Starter</th>
+                <th className="pb-4 text-center text-sm font-medium">Growth</th>
                 <th className="pb-4 text-center text-sm font-medium">Business</th>
               </tr>
             </thead>
@@ -107,7 +119,8 @@ export default function PricingPage() {
                 <tr key={row.feature} className="border-b border-border/50">
                   <td className="py-4 pr-6 text-sm">{row.feature}</td>
                   <td className="py-4 text-center"><CellValue value={row.free} /></td>
-                  <td className="py-4 text-center"><CellValue value={row.pro} /></td>
+                  <td className="py-4 text-center"><CellValue value={row.starter} /></td>
+                  <td className="py-4 text-center"><CellValue value={row.growth} /></td>
                   <td className="py-4 text-center"><CellValue value={row.business} /></td>
                 </tr>
               ))}

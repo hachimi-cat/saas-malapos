@@ -19,6 +19,7 @@ import customersRouter from './customers.js';
 import reportsRouter from './reports.js';
 import settingsRouter from './settings.js';
 import modifiersRouter from './modifiers.js';
+import billingRouter from './billing.js';
 
 /**
  * Route factory. Ported from saas-plugipay.
@@ -93,6 +94,8 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
   router.use('/customers', requireAuth, customersRouter);
   router.use('/reports', requireAuth, reportsRouter);
   router.use('/settings', requireAuth, settingsRouter);
+  // Public plan catalog (no auth — the /pricing page + dashboard read it).
+  router.use('/billing', billingRouter);
 
   // Products mount their own routers here, e.g.:
   //   router.use('/widgets', widgetsRouter);
