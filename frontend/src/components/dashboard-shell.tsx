@@ -18,6 +18,8 @@ import {
   BookOpen,
   FileText,
   Shield,
+  KeyRound,
+  Webhook,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -87,6 +89,13 @@ const SECTIONS: NavSection[] = [
       { href: '/dashboard/purchasing', label: 'Purchasing', icon: Truck },
       { href: '/dashboard/customers', label: 'Customers', icon: Users },
       { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
+    ],
+  },
+  {
+    label: 'Developer',
+    items: [
+      { href: '/dashboard/api-keys', label: 'API Keys', icon: KeyRound },
+      { href: '/dashboard/webhooks', label: 'Webhooks', icon: Webhook },
     ],
   },
   {

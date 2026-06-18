@@ -616,3 +616,40 @@ model BillingSubscription {
   @@index([plugipayCheckoutSessionId])
   @@map("billing_subscriptions")
 }
+
+/// Merchant-minted programmatic access key. The plaintext (`sk_live_…`)
+/// is shown ONCE at creation; only the sha256 hex digest is persisted,
+/// and Bearer lookups (middleware/auth.ts Path 1) hash the presented
+/// token and match on the unique `keyHash` column.
+model ApiKey {
+  id         String    @id // ak_<ulid>
+  accountId  String
+  name       String
+  /// Display-safe prefix shown in the portal (e.g. "sk_live_3fa9").
+  keyPrefix  String
+  /// sha256 hex digest of the full plaintext key.
+  keyHash    String    @unique
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([accountId])
+  @@map("api_keys")
+}
+
+/// A customer endpoint subscribed to malapos.* events. The signing
+/// secret (`whsec_<hex>`) is shown ONCE at creation; deliveries carry
+/// `Malapos-Signature: t=<unix>,v1=<hmac-sha256>`.
+model WebhookSubscription {
+  id        String   @id // whs_<ulid>
+  accountId String
+  url       String
+  secret    String
+  /// Event-type allowlist as a JSON string array; ["*"] = everything.
+  events    Json     @default("[\"*\"]")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountId, active])
+  @@map("webhook_subscriptions")
+}

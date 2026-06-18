@@ -31,7 +31,9 @@ export type IdPrefix =
   | 'poi' // purchase order item
   | 'cus' // customer
   | 'loy' // loyalty ledger entry
-  | 'bsub'; // billing subscription (Plugipay-backed plan)
+  | 'bsub' // billing subscription (Plugipay-backed plan)
+  | 'ak' // API key
+  | 'whs'; // webhook subscription
 
 export function newId(prefix: IdPrefix): string {
   return `${prefix}_${ulid().toLowerCase()}`;

@@ -22,6 +22,8 @@ import settingsRouter from './settings.js';
 import modifiersRouter from './modifiers.js';
 import billingRouter from './billing.js';
 import webhooksPlugipayRouter from './webhooks-plugipay.js';
+import apiKeysRouter from './api-keys.js';
+import webhookSubscriptionsRouter from './webhook-subscriptions.js';
 
 /**
  * Route factory. Ported from saas-plugipay.
@@ -101,6 +103,11 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
   router.use('/customers', requireAuth, customersRouter);
   router.use('/reports', requireAuth, reportsRouter);
   router.use('/settings', requireAuth, settingsRouter);
+  // Developer surface — programmatic API keys + outbound webhook
+  // subscriptions (the keys themselves authenticate API callers via
+  // middleware/auth.ts Path 1; deliveries fan out from the outbox worker).
+  router.use('/api-keys', requireAuth, apiKeysRouter);
+  router.use('/webhook-subscriptions', requireAuth, webhookSubscriptionsRouter);
   // Billing — public /tiers; per-route requireAuth inside the router for
   // the workspace plan + Plugipay checkout/cancel.
   router.use('/billing', billingRouter);
