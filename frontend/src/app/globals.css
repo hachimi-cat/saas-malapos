@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Family-default palette. This is the Forjio dark-navy theme shared by
+ * linksnap/plugipay/etc. After forking, retune --primary / --ring to
+ * your brand accent (the accent-hex passed to scripts/rename.sh) — the
+ * rest of the scale can usually stay. All values are HSL triplets so
+ * Tailwind's `hsl(var(--x))` theme bindings resolve correctly.
+ */
+@layer base {
+  :root {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 215 28% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 215 28% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 215 25% 27%;
+    --input: 215 19% 35%;
+    --ring: 217 91% 60%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  /* The .marketing-site :is(h1...h6) display-font rule ships from
+     @forjio/website-ui/styles/marketing.css (imported in app/layout.tsx).
+     Don't re-declare it here. */
+}

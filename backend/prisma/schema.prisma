@@ -1,0 +1,48 @@
+// Forjio service template — minimal Prisma schema.
+//
+// Ships with only the outbox plumbing required by ADR-0006. Each product
+// adds its own domain models on top. Cross-service models (User, Account,
+// etc.) live in Huudis and are referenced by ID only — never replicated.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Transactional outbox — ADR-0006.
+/// Every state change that other services may care about writes a row
+/// here inside the same transaction as the change itself. A polling
+/// worker reads unpublished rows and fans out to HTTP subscribers.
+model OutboxEvent {
+  id           String   @id // ULID, globally unique (evt_*)
+  type         String   // e.g. "malapos.entity.verb.v1"
+  accountId    String?  // event scope; null for global events
+  aggregateId  String?  // top-level aggregate id (for indexed queries per entity)
+  occurredAt   DateTime
+  data         Json
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now())
+  publishedAt  DateTime?
+  attempts     Int      @default(0)
+  lastError    String?
+
+  @@index([publishedAt, createdAt], name: "ix_outbox_unpublished")
+  @@index([accountId, type])
+  @@index([aggregateId, type])
+  @@map("outbox_events")
+}
+
+/// Consumer-side idempotency record — ADR-0006.
+/// When this service consumes an event, the handler inserts a row here
+/// inside its own transaction. Replay attempts hit the PK unique and
+/// exit cleanly.
+model ProcessedEvent {
+  eventId     String   @id
+  processedAt DateTime @default(now())
+
+  @@map("processed_events")
+}

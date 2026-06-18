@@ -1,0 +1,11 @@
+[
+  {
+    "version": "0.1.0",
+    "date": "[DATE]",
+    "title": "Initial release",
+    "changes": [
+      "First public release of Malapos.",
+      "Replace this entry with your real changelog — one object per release, newest first."
+    ]
+  }
+]

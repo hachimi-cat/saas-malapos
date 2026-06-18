@@ -1,0 +1,40 @@
+{
+  "name": "malapos-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3190",
+    "build": "next build",
+    "start": "next start -p 3190",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "lint": "tsc --noEmit",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@forjio/auth-ui": "^0.4.2",
+    "@forjio/portal-ui": "^0.5.0",
+    "@forjio/sdk": "^0.9.0",
+    "@forjio/website-ui": "^0.2.3",
+    "gray-matter": "^4.0.3",
+    "lucide-react": "^0.400.0",
+    "marked": "^18.0.3",
+    "next": "^15.5.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
