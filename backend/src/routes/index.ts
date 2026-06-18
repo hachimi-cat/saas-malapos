@@ -5,7 +5,12 @@ import { prisma } from '../lib/db.js';
 import authRouter from './auth.js';
 import huudisProxyRouter from './huudis-proxy.js';
 import { adminGuard } from '../middleware/admin-guard.js';
+import { requireAuth } from '../middleware/auth.js';
 import adminCustomersRouter from './admin-customers.js';
+import outletsRouter from './outlets.js';
+import categoriesRouter from './categories.js';
+import productsRouter from './products.js';
+import salesRouter from './sales.js';
 
 /**
  * Route factory. Ported from saas-plugipay.
@@ -66,6 +71,12 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
    *  via the product's OIDC client creds. Proxied from the admin portal
    *  at /api/v1/console/customers. */
   router.use('/admin/customers', adminGuard, adminCustomersRouter);
+
+  // ── Malapos POS domain (all behind the Huudis session / Bearer auth) ──
+  router.use('/outlets', requireAuth, outletsRouter);
+  router.use('/categories', requireAuth, categoriesRouter);
+  router.use('/products', requireAuth, productsRouter);
+  router.use('/sales', requireAuth, salesRouter);
 
   // Products mount their own routers here, e.g.:
   //   router.use('/widgets', widgetsRouter);
