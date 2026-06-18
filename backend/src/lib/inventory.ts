@@ -1,4 +1,5 @@
 import type { Prisma, StockMovementType } from '@prisma/client';
+import { prisma } from './db.js';
 import { newId } from './ids.js';
 
 /*
@@ -64,4 +65,41 @@ export async function applyMovement(
   });
 
   return level.quantity;
+}
+
+/**
+ * How many of a COMPOSITE variant can be assembled at an outlet, given current
+ * component stock. = min over components of floor(componentStock / qtyNeeded).
+ *
+ * A composite tracks no stock of its own; this derives sellable units from the
+ * scarcest component. Components that don't track stock (services) are ignored.
+ * Returns `null` when the variant isn't a composite or has no components, so
+ * callers can fall back to the variant's own StockLevel.
+ */
+export async function compositeAvailable(
+  accountId: string,
+  outletId: string,
+  parentVariantId: string,
+): Promise<number | null> {
+  const components = await prisma.recipeComponent.findMany({
+    where: { accountId, parentVariantId },
+    include: { component: { include: { product: true } } },
+  });
+  if (!components.length) return null;
+
+  let min = Infinity;
+  for (const c of components) {
+    if (c.component.product.kind === 'SERVICE' || !c.component.product.trackStock) continue;
+    if (c.quantity <= 0) continue;
+    const level = await prisma.stockLevel.findUnique({
+      where: { outletId_variantId: { outletId, variantId: c.componentVariantId } },
+      select: { quantity: true },
+    });
+    const onHand = level?.quantity ?? 0;
+    const canMake = Math.floor(onHand / c.quantity);
+    if (canMake < min) min = canMake;
+  }
+  // All components were untracked/zero-qty → effectively unlimited; report 0
+  // rather than Infinity so the number is always finite.
+  return Number.isFinite(min) ? Math.max(0, min) : 0;
 }

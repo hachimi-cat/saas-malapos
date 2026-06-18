@@ -207,7 +207,43 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
     // Stock deduction — only for COMPLETED sales of tracked goods.
     if (status === 'COMPLETED') {
       for (const l of lines) {
-        if (l.v.product.kind === 'SERVICE' || !l.v.product.trackStock) continue;
+        if (l.v.product.kind === 'SERVICE') continue;
+        if (l.v.isComposite) {
+          // Composite: track NO stock of the variant itself; instead deduct
+          // each component (component.quantity × line.quantity) through the
+          // ledger. Covers F&B recipes, retail kits and break-bulk uniformly.
+          const components = await tx.recipeComponent.findMany({
+            where: { accountId, parentVariantId: l.v.id },
+            include: { component: { include: { product: true } } },
+          });
+          for (const c of components) {
+            if (c.component.product.kind === 'SERVICE' || !c.component.product.trackStock) continue;
+            const qty = c.quantity * l.line.quantity;
+            const allocs = await allocate(
+              tx,
+              accountId,
+              outlet.id,
+              c.componentVariantId,
+              c.component.product.requiresBatch,
+              qty,
+            );
+            for (const a of allocs) {
+              await applyMovement(tx, {
+                accountId,
+                outletId: outlet.id,
+                variantId: c.componentVariantId,
+                type: 'SALE',
+                qtyDelta: -a.qty,
+                batchId: a.batchId,
+                refType: 'recipe',
+                refId: txnId,
+                bySub: ctx.cashierSub ?? null,
+              });
+            }
+          }
+          continue;
+        }
+        if (!l.v.product.trackStock) continue;
         const allocs = await allocate(
           tx,
           accountId,
@@ -292,7 +328,33 @@ export async function voidSale(
     });
     for (const it of txn.items) {
       if (!it.variantId || !it.variant) continue;
-      if (it.variant.product.kind === 'SERVICE' || !it.variant.product.trackStock) continue;
+      if (it.variant.product.kind === 'SERVICE') continue;
+      if (it.variant.isComposite) {
+        // Mirror the composite deduction in createSale: return each component
+        // (component.quantity × line.quantity) rather than the composite itself
+        // (which tracks no stock). Batch is not restored to a specific lot —
+        // FEFO already consumed it; the level + ledger are what matter.
+        const components = await tx.recipeComponent.findMany({
+          where: { accountId, parentVariantId: it.variantId },
+          include: { component: { include: { product: true } } },
+        });
+        for (const c of components) {
+          if (c.component.product.kind === 'SERVICE' || !c.component.product.trackStock) continue;
+          await applyMovement(tx, {
+            accountId,
+            outletId: txn.outletId,
+            variantId: c.componentVariantId,
+            type: 'RETURN',
+            qtyDelta: c.quantity * it.quantity,
+            refType: 'recipe',
+            refId: txn.id,
+            reason: 'void',
+            bySub,
+          });
+        }
+        continue;
+      }
+      if (!it.variant.product.trackStock) continue;
       await applyMovement(tx, {
         accountId,
         outletId: txn.outletId,

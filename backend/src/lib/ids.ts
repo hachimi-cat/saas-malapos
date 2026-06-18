@@ -17,6 +17,7 @@ export type IdPrefix =
   | 'cat' // category
   | 'prd' // product
   | 'var' // product variant
+  | 'rcp' // recipe component (composite item / bill-of-materials line)
   | 'mdg' // modifier group
   | 'mod' // modifier
   | 'lvl' // stock level

@@ -5,7 +5,7 @@ import { newId } from '../lib/ids.js';
 import { sendOk, sendCreated, sendList, ApiError } from '../lib/http.js';
 import { h as asyncHandler } from '../lib/async-handler.js';
 import { parsePagination, encodeCursor } from '../lib/cursor.js';
-import { applyMovement } from '../lib/inventory.js';
+import { applyMovement, compositeAvailable } from '../lib/inventory.js';
 
 /*
  * /api/v1/inventory — stock levels, adjustments, transfers, the movement
@@ -64,6 +64,33 @@ router.get(
       take: 200,
     });
     sendOk(res, req, { levels });
+  }),
+);
+
+/** Derived availability for COMPOSITE variants at an outlet. Composites carry
+ *  no StockLevel row, so their sellable count is computed from components:
+ *  min over components of floor(componentStock / qty). ?outletId required. */
+router.get(
+  '/composites',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const { outletId } = req.query as Record<string, string | undefined>;
+    if (!outletId) throw new ApiError(422, 'VALIDATION_ERROR', 'outletId is required');
+    await assertOutlet(accountId, outletId);
+    const composites = await prisma.productVariant.findMany({
+      where: { accountId, isComposite: true, isActive: true },
+      select: { id: true, name: true, sku: true, product: { select: { name: true } } },
+    });
+    const items = await Promise.all(
+      composites.map(async (v) => ({
+        variantId: v.id,
+        name: v.name,
+        sku: v.sku,
+        productName: v.product.name,
+        available: (await compositeAvailable(accountId, outletId, v.id)) ?? 0,
+      })),
+    );
+    sendOk(res, req, { composites: items });
   }),
 );
 

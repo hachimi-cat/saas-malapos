@@ -232,6 +232,11 @@ model ProductVariant {
   cost      Int      @default(0) // last/avg purchase cost, IDR (margin + COGS)
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
+  /// Composite (bill-of-materials): a sellable variant assembled from
+  /// component variants. Composites track NO stock of their own — selling
+  /// one deducts each component through the stock ledger. Generalizes F&B
+  /// recipes, retail bundles/kits, and pharmacy compounding/break-bulk.
+  isComposite Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -241,11 +246,36 @@ model ProductVariant {
   batches          StockBatch[]
   transactionItems TransactionItem[]
   purchaseItems    PurchaseOrderItem[]
+  /// Components this variant is built from (only when isComposite).
+  recipeComponents RecipeComponent[]   @relation("CompositeParent")
+  /// Composites that consume THIS variant as a component.
+  usedInRecipes    RecipeComponent[]   @relation("CompositeComponent")
 
   @@index([accountId, productId])
   @@index([accountId, barcode])
   @@index([accountId, sku])
   @@map("product_variants")
+}
+
+/// One line of a composite variant's bill-of-materials: "to make 1 of the
+/// parent, consume `quantity` of `componentVariant`". Decimal quantity covers
+/// break-bulk (1 tablet = 0.01 of a box of 100) and F&B (0.05 kg lettuce)
+/// without a unit-conversion engine. `unit` is a free-text label for the UI.
+model RecipeComponent {
+  id                 String   @id // rcp_*
+  accountId          String
+  parentVariantId    String
+  componentVariantId String
+  quantity           Float    @default(1)
+  unit               String? // free-text label, e.g. "kg", "tablet", "ml"
+  createdAt          DateTime @default(now())
+
+  parent    ProductVariant @relation("CompositeParent", fields: [parentVariantId], references: [id], onDelete: Cascade)
+  component ProductVariant @relation("CompositeComponent", fields: [componentVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([parentVariantId, componentVariantId])
+  @@index([accountId, parentVariantId])
+  @@map("recipe_components")
 }
 
 // ── F&B modifiers (e.g. "Sugar level", "Extra shot") ──
@@ -308,9 +338,11 @@ model StockLevel {
   accountId    String
   outletId     String
   variantId    String
-  quantity     Int      @default(0)
+  /// Fractional to support break-bulk / compounding components (e.g. 0.01 of
+  /// a "box of 100"); whole-unit goods just carry integral values.
+  quantity     Float    @default(0)
   /// Reorder threshold for low-stock alerts (0 = no alert).
-  reorderPoint Int      @default(0)
+  reorderPoint Float    @default(0)
   updatedAt    DateTime @updatedAt
 
   outlet  Outlet         @relation(fields: [outletId], references: [id], onDelete: Cascade)
@@ -329,8 +361,8 @@ model StockMovement {
   variantId    String
   batchId      String?
   type         StockMovementType
-  qtyDelta     Int // signed
-  balanceAfter Int // running balance snapshot at this outlet+variant
+  qtyDelta     Float // signed (fractional for break-bulk / compounding)
+  balanceAfter Float // running balance snapshot at this outlet+variant
   refType      String? // "transaction" | "purchase_order" | "transfer" | "stock_take"
   refId        String?
   reason       String?
@@ -356,7 +388,7 @@ model StockBatch {
   variantId    String
   batchNo      String?
   expiryDate   DateTime?
-  qtyRemaining Int       @default(0)
+  qtyRemaining Float     @default(0)
   cost         Int       @default(0) // unit cost for this lot, IDR
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

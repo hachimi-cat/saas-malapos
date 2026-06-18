@@ -21,6 +21,7 @@ type Variant = {
   price: number;
   cost: number | null;
   isActive: boolean;
+  isComposite?: boolean;
 };
 
 type Product = {
@@ -493,10 +494,13 @@ function ProductModal({
           )}
 
           {editing ? (
-            <p className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
-              Variants and pricing are not editable here. This form updates the product&apos;s
-              core details only.
-            </p>
+            <>
+              <p className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                Variants and pricing are not editable here. This form updates the product&apos;s
+                core details only.
+              </p>
+              <RecipeEditor product={product!} />
+            </>
           ) : (
             <div>
               <div className="mb-2 flex items-center justify-between">
@@ -583,6 +587,214 @@ function ProductModal({
             {busy ? 'Saving…' : editing ? 'Save changes' : 'Create product'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+type RecipeComponentRow = {
+  id?: string;
+  componentVariantId: string;
+  componentName?: string;
+  quantity: number;
+  unit: string;
+};
+
+type VariantOption = { id: string; label: string };
+
+/*
+ * Composite / bill-of-materials editor for a single-variant product. A
+ * composite ("recipe", "bundle", "kit", compounded item) tracks no stock of
+ * its own — selling it deducts each component. Generic across F&B, retail and
+ * pharmacy: decimal quantities + free-text units cover break-bulk too.
+ */
+function RecipeEditor({ product }: { product: Product }) {
+  // Recipe is managed per-variant; the editor targets the product's first
+  // variant (the common single-variant case for composites — bundles/recipes).
+  const variant = product.variants[0];
+  const [isComposite, setIsComposite] = useState(false);
+  const [rows, setRows] = useState<RecipeComponentRow[]>([]);
+  const [options, setOptions] = useState<VariantOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!variant) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const [recipe, all] = await Promise.all([
+          api.get<{ isComposite: boolean; components: RecipeComponentRow[] }>(
+            `/products/${product.id}/variants/${variant.id}/recipe`,
+          ),
+          api.get<{ products: Product[] }>('/products?active=true'),
+        ]);
+        if (cancelled) return;
+        setIsComposite(recipe.data.isComposite);
+        setRows(
+          recipe.data.components.map((c) => ({
+            id: c.id,
+            componentVariantId: c.componentVariantId,
+            componentName: c.componentName,
+            quantity: c.quantity,
+            unit: c.unit ?? '',
+          })),
+        );
+        // Candidate components: every active variant except this one and other
+        // composites (no nesting).
+        const opts: VariantOption[] = [];
+        for (const p of all.data.products) {
+          for (const v of p.variants) {
+            if (v.id === variant.id) continue;
+            if (v.isComposite) continue;
+            opts.push({
+              id: v.id,
+              label: `${p.name}${v.name && v.name !== 'Default' ? ` — ${v.name}` : ''}`,
+            });
+          }
+        }
+        setOptions(opts);
+      } catch (e) {
+        if (!cancelled) setErr(e instanceof ApiRequestError ? e.message : 'Failed to load recipe');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [product.id, variant?.id]);
+
+  function addRow() {
+    setRows((rs) => [...rs, { componentVariantId: '', quantity: 1, unit: '' }]);
+  }
+  function updateRow(i: number, patch: Partial<RecipeComponentRow>) {
+    setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
+  function removeRow(i: number) {
+    setRows((rs) => rs.filter((_, idx) => idx !== i));
+  }
+
+  async function save() {
+    if (!variant) return;
+    setErr(null);
+    setMsg(null);
+    const components = rows
+      .filter((r) => r.componentVariantId && r.quantity > 0)
+      .map((r) => ({
+        componentVariantId: r.componentVariantId,
+        quantity: r.quantity,
+        unit: r.unit.trim() || undefined,
+      }));
+    if (isComposite && !components.length) {
+      setErr('A composite needs at least one component.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.put(`/products/${product.id}/variants/${variant.id}/recipe`, {
+        isComposite,
+        components,
+      });
+      setMsg('Recipe saved.');
+    } catch (e) {
+      setErr(e instanceof ApiRequestError ? e.message : 'Save failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!variant) return null;
+
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">Recipe / components</span>
+        <Toggle checked={isComposite} onChange={setIsComposite} label="Composite item" />
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        A composite (recipe, bundle, kit, compounded item) holds no stock of its own — selling it
+        deducts each component. Use decimals + a unit for break-bulk (e.g. 0.01 “box”).
+      </p>
+
+      {isComposite && (
+        <div className="mt-3 space-y-2">
+          {loading ? (
+            <p className="text-xs text-muted-foreground">Loading…</p>
+          ) : (
+            <>
+              {rows.map((r, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2">
+                  <select
+                    value={r.componentVariantId}
+                    onChange={(e) => updateRow(i, { componentVariantId: e.target.value })}
+                    className="col-span-6 min-w-0 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="">Select component…</option>
+                    {r.componentVariantId &&
+                      !options.some((o) => o.id === r.componentVariantId) && (
+                        <option value={r.componentVariantId}>{r.componentName ?? r.componentVariantId}</option>
+                      )}
+                    {options.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    step="any"
+                    value={r.quantity || ''}
+                    onChange={(e) => updateRow(i, { quantity: Number(e.target.value) })}
+                    placeholder="Qty"
+                    className="col-span-3 min-w-0 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <input
+                    value={r.unit}
+                    onChange={(e) => updateRow(i, { unit: e.target.value })}
+                    placeholder="Unit"
+                    className="col-span-2 min-w-0 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeRow(i)}
+                    className="col-span-1 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive"
+                    title="Remove component"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addRow}
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add component
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {err && <p className="mt-2 text-xs text-destructive">{err}</p>}
+      {msg && <p className="mt-2 text-xs text-primary">{msg}</p>}
+
+      <div className="mt-3 flex justify-end">
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy || loading}
+          className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-40"
+        >
+          {busy ? 'Saving…' : 'Save recipe'}
+        </button>
       </div>
     </div>
   );

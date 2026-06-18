@@ -248,4 +248,123 @@ router.delete(
   }),
 );
 
+// ── Composite items / bill-of-materials (recipes, bundles, compounding) ──
+
+/** Assert a variant belongs to the product + account; return it (or 404). */
+async function findVariant(accountId: string, productId: string, variantId: string) {
+  const variant = await prisma.productVariant.findFirst({
+    where: { id: variantId, productId, accountId },
+  });
+  if (!variant) throw new ApiError(404, 'NOT_FOUND', 'Variant not found');
+  return variant;
+}
+
+router.get(
+  '/:id/variants/:vid/recipe',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const variant = await findVariant(accountId, String(req.params.id), String(req.params.vid));
+    const rows = await prisma.recipeComponent.findMany({
+      where: { accountId, parentVariantId: variant.id },
+      include: { component: { include: { product: { select: { name: true } } } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    const components = rows.map((r) => ({
+      id: r.id,
+      componentVariantId: r.componentVariantId,
+      componentName: `${r.component.product.name}${r.component.name && r.component.name !== 'Default' ? ` — ${r.component.name}` : ''}`,
+      quantity: r.quantity,
+      unit: r.unit,
+    }));
+    sendOk(res, req, { isComposite: variant.isComposite, components });
+  }),
+);
+
+const recipeComponentInput = z.object({
+  componentVariantId: z.string().trim().min(1),
+  quantity: z.number().positive(),
+  unit: z.string().trim().max(40).nullish(),
+});
+const recipePut = z.object({
+  isComposite: z.boolean(),
+  components: z.array(recipeComponentInput).max(100).optional().default([]),
+});
+
+/** Replace-all the components of a variant + set its isComposite flag. */
+router.put(
+  '/:id/variants/:vid/recipe',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const variant = await findVariant(accountId, String(req.params.id), String(req.params.vid));
+    const body = recipePut.parse(req.body);
+
+    // De-dupe by componentVariantId (the @@unique would reject otherwise).
+    const seen = new Set<string>();
+    for (const c of body.components) {
+      if (c.componentVariantId === variant.id)
+        throw new ApiError(422, 'VALIDATION_ERROR', 'A variant cannot be a component of itself');
+      if (seen.has(c.componentVariantId))
+        throw new ApiError(422, 'VALIDATION_ERROR', 'Duplicate component variant');
+      seen.add(c.componentVariantId);
+    }
+
+    if (body.isComposite && !body.components.length)
+      throw new ApiError(422, 'VALIDATION_ERROR', 'A composite needs at least one component');
+
+    // Every component must belong to this account.
+    if (body.components.length) {
+      const owned = await prisma.productVariant.findMany({
+        where: { accountId, id: { in: [...seen] } },
+        select: { id: true, isComposite: true },
+      });
+      const ownedById = new Map(owned.map((v) => [v.id, v]));
+      for (const c of body.components) {
+        const cv = ownedById.get(c.componentVariantId);
+        if (!cv) throw new ApiError(422, 'VALIDATION_ERROR', `Component ${c.componentVariantId} not found`);
+        // Block the simplest cycle: a composite made of this very composite.
+        if (cv.isComposite)
+          throw new ApiError(
+            422,
+            'VALIDATION_ERROR',
+            'A composite cannot be built from another composite',
+          );
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.recipeComponent.deleteMany({ where: { accountId, parentVariantId: variant.id } });
+      if (body.components.length) {
+        await tx.recipeComponent.createMany({
+          data: body.components.map((c) => ({
+            id: newId('rcp'),
+            accountId,
+            parentVariantId: variant.id,
+            componentVariantId: c.componentVariantId,
+            quantity: c.quantity,
+            unit: c.unit ?? null,
+          })),
+        });
+      }
+      await tx.productVariant.update({
+        where: { id: variant.id },
+        data: { isComposite: body.isComposite },
+      });
+    });
+
+    const rows = await prisma.recipeComponent.findMany({
+      where: { accountId, parentVariantId: variant.id },
+      include: { component: { include: { product: { select: { name: true } } } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    const components = rows.map((r) => ({
+      id: r.id,
+      componentVariantId: r.componentVariantId,
+      componentName: `${r.component.product.name}${r.component.name && r.component.name !== 'Default' ? ` — ${r.component.name}` : ''}`,
+      quantity: r.quantity,
+      unit: r.unit,
+    }));
+    sendOk(res, req, { isComposite: body.isComposite, components });
+  }),
+);
+
 export default router;
