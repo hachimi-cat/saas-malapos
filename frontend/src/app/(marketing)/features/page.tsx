@@ -132,8 +132,8 @@ export default function FeaturesPage() {
           Start free — no card required.
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-          Malapos is in early access, so every plan is free right now. Set up your shop and
-          ring up your first sale in minutes.
+          Start on the Free plan — Rp0, no card needed — and upgrade as your shop grows. Set up
+          your shop and ring up your first sale in minutes.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <Link

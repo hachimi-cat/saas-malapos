@@ -6,15 +6,14 @@ import { Price } from '@forjio/website-ui';
 /*
  * Pricing mirrors backend/src/lib/billing.ts (TIER_DEFS) — the single
  * source of truth for plan limits + bullets. Four flat per-workspace
- * monthly IDR tiers: Free / Starter / Growth / Business. Malapos is in
- * early access, so every plan is free today; the amounts below are the
- * launch proposals shown for transparency (see the banner).
+ * monthly IDR tiers: Free / Starter / Growth / Business. Free is Rp0
+ * with no card; the paid tiers add outlets, products, and features.
  */
 
 export const metadata: Metadata = {
   title: 'Pricing',
   description:
-    'One flat price per store, in rupiah. Free during early access — Free, Starter, Growth, and Business plans for Indonesian retail, F&B, and pharmacy.',
+    'One flat price per store, in rupiah. Start free, then Starter, Growth, and Business plans for Indonesian retail, F&B, and pharmacy.',
 };
 
 const tiers = [
@@ -60,9 +59,9 @@ export default function PricingPage() {
 
       <div className="mx-auto mt-8 max-w-2xl rounded-lg border border-primary/30 bg-primary/5 px-5 py-4 text-center">
         <p className="text-sm text-foreground">
-          <span className="font-semibold">Malapos is in early access — every plan is free right now.</span>{' '}
-          Founding merchants lock in launch pricing when paid plans go live. The amounts below
-          are launch proposals shown for transparency, free today.
+          <span className="font-semibold">Start on Free — upgrade when you&apos;re ready.</span>{' '}
+          The Free plan is Rp0 with no card. Move up to a paid plan whenever you need more
+          outlets, products, and features.
         </p>
       </div>
 

@@ -195,8 +195,8 @@ export default function HomePage() {
               One flat price per store. In rupiah.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground max-w-[62ch] mx-auto">
-              Pay per workspace, not per cashier. Malapos is in early access, so every plan
-              is free right now — these are the launch prices, shown for transparency.
+              Pay per workspace, not per cashier — a flat monthly price in rupiah. Start free,
+              then upgrade to Starter, Growth, or Business as your shop grows.
             </p>
           </div>
         </div>
@@ -506,8 +506,8 @@ export default function HomePage() {
           <ul className="mt-10 divide-y divide-border rounded-lg border border-border bg-card overflow-hidden">
             {[
               {
-                q: 'Is Malapos really free right now?',
-                a: 'Yes. Malapos is in early access, so every plan is free today — no card needed. Founding merchants lock in launch pricing when paid plans go live, and the Free plan stays free after that.',
+                q: 'Is there a free plan?',
+                a: 'Yes. The Free plan is free forever — Rp0, no card needed. Paid plans (Starter, Growth, Business) add more outlets, products, cashier seats, and features as your shop grows.',
               },
               {
                 q: 'What kind of shops is it for?',
@@ -558,7 +558,7 @@ export default function HomePage() {
               Open your till with Malapos today.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground max-w-[52ch]">
-              Free during early access. No card needed. Set up your shop and ring up your first
+              Start free — no card needed. Set up your shop and ring up your first
               sale in minutes.
             </p>
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">

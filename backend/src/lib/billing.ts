@@ -22,8 +22,11 @@ import { writeOutbox } from './outbox.js';
 export const BILLING_TIERS = ['free', 'starter', 'growth', 'business'] as const;
 export type BillingTier = (typeof BILLING_TIERS)[number];
 
-/** Early access: no plan is charged yet; the pricing page shows a banner. */
-export const EARLY_ACCESS = true;
+/** Paid launch (2026-06-18): plans are live and charged via Plugipay.
+ *  Flipping this back to `true` reverts to free-for-all + no checkout +
+ *  no limit enforcement (see entitlements.ts + the dashboard billing
+ *  card, both of which read `earlyAccess` from GET /billing). */
+export const EARLY_ACCESS = false;
 
 export interface TierDef {
   id: BillingTier;
