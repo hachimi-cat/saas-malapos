@@ -13,6 +13,7 @@ import {
   BarChart3,
   Settings,
   Store,
+  CreditCard,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -76,6 +77,7 @@ const SECTIONS: NavSection[] = [
     label: 'Workspace',
     items: [
       { href: '/dashboard/outlets', label: 'Outlets', icon: Store },
+      { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
       { href: '/dashboard/settings', label: 'Settings', icon: Settings },
       {
         label: 'Support',
