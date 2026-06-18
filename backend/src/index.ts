@@ -3,7 +3,7 @@ import { startOutboxWorker } from './services/outbox-worker.js';
 
 const app = createApp();
 
-const port = Number(process.env.PORT ?? 4190);
+const port = Number(process.env.PORT ?? 4191);
 app.listen(port, () => {
   console.log(`[api] ${process.env.FORJIO_SERVICE ?? 'malapos'} listening on ${port}`);
 });

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 // Read backend URL at test time so both playwright.config.ts (local
 // dev) and playwright.ci.config.ts (CI against staging) work without
 // cross-imports. Defaults to the local dev port when unset.
-const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:4190/api/v1';
+const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:4191/api/v1';
 
 test('backend /api/v1/health returns Forjio envelope', async ({ request }) => {
   const res = await request.get(`${BACKEND_URL}/health`);

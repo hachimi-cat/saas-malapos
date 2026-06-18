@@ -16,7 +16,7 @@ import type { NextConfig } from 'next';
  * string did not match the expected pattern" when JSON.parse hit the
  * HTML 404 page). Template bug found spawning suppuo.
  */
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4190';
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4191';
 const API_ORIGIN_ABSOLUTE = /^https?:\/\//.test(API_ORIGIN);
 
 const nextConfig: NextConfig = {

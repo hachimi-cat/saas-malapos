@@ -23,14 +23,14 @@ import { NextRequest } from 'next/server';
  *   /api/v1/console/<anything>   → /api/v1/admin/<anything>
  *
  * FORKERS: `scripts/rename.sh` rewrites the `malapos` slug and
- * `:4190`.
+ * `:4191`.
  */
 
 // Server-side fetches need an ABSOLUTE origin; the CI build sets
 // NEXT_PUBLIC_API_URL to the RELATIVE '/api/v1' (browser-only).
 // Strip the suffix and fall back to the co-located backend.
-const BACKEND = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4190').replace(/\/api\/v1\/?$/, '') ||
-  'http://127.0.0.1:4190';
+const BACKEND = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4191').replace(/\/api\/v1\/?$/, '') ||
+  'http://127.0.0.1:4191';
 const ROLE_HEADER = 'x-malapos-role';
 
 /** Map a `/console/*` browser path to the backend path. `auth/*` is a

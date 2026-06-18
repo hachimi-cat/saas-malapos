@@ -34,8 +34,8 @@ const ROLE_HEADER = 'x-malapos-role';
 // Server-side fetches need an ABSOLUTE origin; the CI build sets
 // NEXT_PUBLIC_API_URL to the RELATIVE '/api/v1' (browser-only).
 // Strip the suffix and fall back to the co-located backend.
-const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4190').replace(/\/api\/v1\/?$/, '') ||
-  'http://127.0.0.1:4190';
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4191').replace(/\/api\/v1\/?$/, '') ||
+  'http://127.0.0.1:4191';
 
 async function fetchAdminUser(cookieHeader: string): Promise<SessionUser | null> {
   try {

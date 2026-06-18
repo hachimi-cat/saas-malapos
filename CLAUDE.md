@@ -51,7 +51,7 @@ copy this file into the forked repo and replace `MALAPOS` /
 ### CI/CD — shared staging E2E pattern
 
 - `.github/workflows/ci-cd.yml` carries the `malapos` /
-  `malapos` / `:4190` / `:3190` placeholders — `scripts/rename.sh`
+  `malapos` / `:4191` / `:3190` placeholders — `scripts/rename.sh`
   rewrites them when forking; the rest is mechanical.
 - Job sequence: `lint → test → build → deploy-staging → e2e-staging →
   deploy-production → release`.

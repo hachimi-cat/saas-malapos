@@ -18,8 +18,8 @@ const SESSION_COOKIE = 'malapos_session';
 // NEXT_PUBLIC_API_URL to the RELATIVE '/api/v1' (browser-only) and Node
 // fetch throws on relative URLs — which bounced every real login.
 // Strip the suffix and fall back to the co-located backend.
-const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4190').replace(/\/api\/v1\/?$/, '') ||
-  'http://127.0.0.1:4190';
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4191').replace(/\/api\/v1\/?$/, '') ||
+  'http://127.0.0.1:4191';
 
 type Resolved = { user: SessionUser; accountId: string };
 

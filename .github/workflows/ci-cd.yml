@@ -190,7 +190,7 @@ jobs:
             # Wait for backend to be healthy
             echo "Waiting for backend health..."
             for i in $(seq 1 30); do
-              if curl -sf http://localhost:4190/api/v1/health > /dev/null 2>&1; then
+              if curl -sf http://localhost:4191/api/v1/health > /dev/null 2>&1; then
                 echo "Backend healthy after ${i}s"
                 break
               fi

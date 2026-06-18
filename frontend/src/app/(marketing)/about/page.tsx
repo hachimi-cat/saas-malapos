@@ -1,14 +1,10 @@
 import type { Metadata } from 'next';
 import { LogoMark } from '@/components/brand/logo';
 
-/*
- * FORKERS: replace the placeholder origin story + principles with the
- * real "why this product exists." Keep the structure.
- */
-
 export const metadata: Metadata = {
   title: 'About',
-  description: 'Malapos is built by Forjio — replace this with your real about copy.',
+  description:
+    'Malapos is a point-of-sale for Indonesian retail, F&B, and pharmacy businesses — built by Forjio.',
 };
 
 export default function AboutPage() {
@@ -22,37 +18,51 @@ export default function AboutPage() {
 
         <div className="mt-10 space-y-6 text-muted-foreground">
           <p className="text-lg">
-            One sentence on the problem Malapos exists to solve.
+            Most point-of-sale software in Indonesia is either a cash drawer with a
+            screen or an enterprise suite priced per terminal. Malapos is the middle
+            most shops actually need.
           </p>
 
           <p>
-            A paragraph on who built it and what gap they hit with the existing options —
-            too expensive, missing a CLI, built on an abandoned stack. Make it concrete.
+            Small retailers, restaurants, and pharmacies run real operations — multiple
+            outlets, stock that has to reconcile, cashier shifts that have to balance,
+            batches that expire — but get sold either a glorified calculator or a system
+            that charges by the till and takes a week to set up. Malapos is a
+            browser-based POS that does the real work without the enterprise weight or
+            the per-terminal bill.
           </p>
 
           <p>
-            A paragraph on what Malapos is, in plain terms — the core capability, who
-            it&apos;s for, and the one thing it does better than the alternatives.
+            Ring up sales with cash, QRIS, or card; manage a catalog with variants,
+            categories, and F&amp;B modifiers; track stock across outlets with an
+            append-only movement ledger and pharmacy batch/expiry (FEFO); run cashier
+            shifts with cash reconciliation; handle suppliers and purchase orders; keep a
+            customer list with loyalty; and read it all back in reports. Retail, food, and
+            pharmacy — one tool.
           </p>
 
           <h2 className="pt-4 text-2xl font-bold text-foreground">Our principles</h2>
 
           <ul className="space-y-4">
             <li>
-              <strong className="text-foreground">Principle one.</strong>{' '}
-              A belief that shapes the product — and the concrete way it shows up.
+              <strong className="text-foreground">Priced per shop, not per till.</strong>{' '}
+              One flat monthly price per workspace covers your whole team — add cashiers
+              without adding to the bill.
             </li>
             <li>
-              <strong className="text-foreground">Principle two.</strong>{' '}
-              Another. Keep these honest; they should be falsifiable against the product.
+              <strong className="text-foreground">Built for Indonesia.</strong>{' '}
+              Rupiah throughout, QRIS at the counter, and pharmacy batch + expiry
+              tracking — not bolted onto a foreign template.
             </li>
             <li>
-              <strong className="text-foreground">No vendor lock-in.</strong>{' '}
-              Export everything as CSV or JSON. Your data is yours.
+              <strong className="text-foreground">One Forjio account.</strong>{' '}
+              Sign in once with Huudis and your identity works across every Forjio
+              product; billing runs through Plugipay.
             </li>
             <li>
-              <strong className="text-foreground">Transparent pricing.</strong>{' '}
-              IDR pricing for our market. Monthly billing. No hidden fees. Cancel anytime.
+              <strong className="text-foreground">Start free.</strong>{' '}
+              The Free plan is genuinely free — no card. Upgrade only when you need more
+              outlets, products, or features.
             </li>
           </ul>
 

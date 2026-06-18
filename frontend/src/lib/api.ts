@@ -39,7 +39,7 @@ export class ApiRequestError extends Error {
 
 const BASE_URL =
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) ||
-  'http://localhost:4190';
+  'http://localhost:4191';
 
 const API_PREFIX = '/api/v1';
 
