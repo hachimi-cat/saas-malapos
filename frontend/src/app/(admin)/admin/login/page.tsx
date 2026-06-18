@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Hexagon } from 'lucide-react';
 import { AuthForm, fetchSocialProviders } from '@forjio/auth-ui';
+import { LogoMark } from '@/components/brand/logo';
 
 /*
  * Admin portal login. Server Component — resolves which social
@@ -39,7 +39,7 @@ export default async function AdminLoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Link href="/admin/login" className="inline-flex" aria-label={`${brand} admin`}>
-            <Hexagon className="h-9 w-9 text-primary" strokeWidth={2} />
+            <LogoMark size={36} className="text-primary" />
           </Link>
           <span className="mt-4 block font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
             Admin portal

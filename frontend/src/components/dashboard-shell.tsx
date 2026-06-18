@@ -22,6 +22,7 @@ import {
   type SessionUser,
   type NavSection,
 } from '@forjio/portal-ui';
+import { LogoMark } from '@/components/brand/logo';
 
 /*
  * Dashboard shell — the authenticated portal chrome. `@forjio/portal-ui`
@@ -145,7 +146,7 @@ export function DashboardShell({
         brandName={BRAND}
         brandColor={BRAND_COLOR}
         brandColorSoft={BRAND_COLOR_SOFT}
-        brandIcon={<Store size={20} strokeWidth={2} />}
+        brandIcon={<LogoMark size={20} />}
         workspacePersist="cookie"
         workspaces={workspaces}
         activeWorkspaceId={activeId}

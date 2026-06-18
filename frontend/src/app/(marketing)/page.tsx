@@ -6,7 +6,6 @@ import {
   Check,
   ChevronDown,
   CircleDollarSign,
-  Hexagon,
   Layers,
   Megaphone,
   MoreHorizontal,
@@ -19,6 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { HeroBadge, SectionEyebrow, Price } from '@forjio/website-ui';
+import { LogoMark } from '@/components/brand/logo';
 
 /*
  * Forjio family marketing home page.
@@ -51,7 +51,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4 md:px-6 pt-14 md:pt-20 pb-12 md:pb-16">
           <div className="max-w-3xl mx-auto text-center flex flex-col items-center">
             <HeroBadge
-              brandIcon={<Hexagon className="size-3 text-primary" strokeWidth={1.5} />}
+              brandIcon={<LogoMark size={12} className="text-primary" />}
               primary="Forjio family"
               secondary="One account across every product"
             />
@@ -449,7 +449,7 @@ export default function HomePage() {
 
               <div className="mt-8 grid grid-cols-3 gap-3">
                 {[
-                  { name: 'Malapos', icon: Hexagon, current: true, label: 'this product' },
+                  { name: 'Malapos', icon: LogoMark, current: true, label: 'this product' },
                   { name: 'Storlaunch', icon: Zap, label: 'storefront' },
                   { name: 'Plugipay', icon: CircleDollarSign, label: 'payments' },
                   { name: 'Fulkruma', icon: Boxes, label: 'fulfillment' },
@@ -552,7 +552,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-4 md:px-6 py-16 md:py-20 text-center">
           <div className="flex flex-col items-center">
             <div className="inline-flex items-center justify-center size-12 rounded-xl bg-primary/10 text-primary mb-6">
-              <Hexagon className="size-6" strokeWidth={2} />
+              <LogoMark size={24} />
             </div>
             <h2 className="text-[28px] md:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em] max-w-[24ch]">
               Open your till with Malapos today.
@@ -632,7 +632,7 @@ function HeroPreview() {
             <span className="size-2.5 rounded-full bg-red-500/70" />
             <span className="size-2.5 rounded-full bg-amber-400/70" />
             <span className="size-2.5 rounded-full bg-primary/70" />
-            <Hexagon className="ml-2 size-3.5 text-muted-foreground" strokeWidth={1.5} />
+            <LogoMark size={14} className="ml-2 text-muted-foreground" />
             <span className="text-[11px] text-muted-foreground font-mono">
               malapos.com / dashboard
             </span>

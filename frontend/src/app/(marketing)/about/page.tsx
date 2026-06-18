@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Hexagon } from 'lucide-react';
+import { LogoMark } from '@/components/brand/logo';
 
 /*
  * FORKERS: replace the placeholder origin story + principles with the
@@ -16,7 +16,7 @@ export default function AboutPage() {
     <div className="mx-auto max-w-7xl px-4 py-20 md:px-6">
       <div className="mx-auto max-w-3xl">
         <div className="flex items-center gap-3">
-          <Hexagon className="h-8 w-8 text-primary" />
+          <LogoMark size={32} className="text-primary" />
           <h1 className="text-4xl font-bold tracking-tight">About Malapos</h1>
         </div>
 

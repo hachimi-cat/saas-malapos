@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Hexagon, LayoutDashboard, Menu, Users } from 'lucide-react';
+import { LayoutDashboard, Menu, Users } from 'lucide-react';
 import { Sidebar, type SessionUser, type NavSection } from '@forjio/portal-ui';
+import { LogoMark } from '@/components/brand/logo';
 
 /*
  * Admin portal shell — the authenticated chrome for the built-in admin
@@ -74,7 +75,7 @@ export function AdminShell({
         brandHref="/admin/dashboard"
         brandColor={BRAND_COLOR}
         brandColorSoft={BRAND_COLOR_SOFT}
-        brandIcon={<Hexagon size={20} strokeWidth={2} />}
+        brandIcon={<LogoMark size={20} />}
         sections={SECTIONS}
         user={user}
         onLogout={logout}

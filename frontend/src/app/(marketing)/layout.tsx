@@ -1,13 +1,13 @@
 import Script from 'next/script';
-import { Hexagon } from 'lucide-react';
 import { MarketingShell, MarketingNav, MarketingFooter } from '@forjio/website-ui';
+import { LogoMark } from '@/components/brand/logo';
 
 /*
  * Marketing route-group layout — the shared Forjio family chrome
  * (navbar + footer) wrapping every marketing page.
  *
- * After forking: swap <Hexagon> for your product's lucide icon and set
- * brandTagline to your one-liner. Everything else is family-locked.
+ * The brand mark is <LogoMark> (components/brand/logo.tsx); brandTagline
+ * is the product one-liner. Everything else is family-locked.
  *
  * SUPPUO — the family helpdesk. Every Forjio product embeds Suppuo's
  * support widget + links to its hosted help center, the same way every
@@ -64,12 +64,12 @@ export default function MarketingLayout({
   return (
     <MarketingShell>
       <MarketingNav
-        brandIcon={<Hexagon className="h-6 w-6 text-primary" />}
+        brandIcon={<LogoMark size={24} className="text-primary" />}
         brandName={brand}
       />
       <main className="flex-1">{children}</main>
       <MarketingFooter
-        brandIcon={<Hexagon className="h-5 w-5 text-primary" />}
+        brandIcon={<LogoMark size={20} className="text-primary" />}
         brandName={brand}
         brandTagline={`${brand} — part of the Forjio family.`}
         copyrightSuffix="part of the Forjio family."
