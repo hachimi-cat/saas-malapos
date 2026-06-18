@@ -5,6 +5,7 @@ import { newId } from '../lib/ids.js';
 import { sendOk, sendCreated, ApiError } from '../lib/http.js';
 import { h as asyncHandler } from '../lib/async-handler.js';
 import { productCreate, productPatch, variantInput } from '../lib/catalog.js';
+import { enforceLimit } from '../lib/entitlements.js';
 
 /*
  * /api/v1/products — the catalog (behind requireAuth).
@@ -83,6 +84,8 @@ router.post(
     const accountId = req.auth!.accountId as string;
     const input = productCreate.parse(req.body);
     const kind = input.kind ?? 'GOODS';
+    const existing = await prisma.product.count({ where: { accountId } });
+    await enforceLimit(accountId, 'productLimit', existing);
     const product = await prisma.product.create({
       data: {
         id: newId('prd'),

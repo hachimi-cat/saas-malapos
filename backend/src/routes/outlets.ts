@@ -4,6 +4,7 @@ import { prisma } from '../lib/db.js';
 import { newId } from '../lib/ids.js';
 import { sendOk, sendCreated, ApiError } from '../lib/http.js';
 import { h as asyncHandler } from '../lib/async-handler.js';
+import { enforceLimit } from '../lib/entitlements.js';
 
 /*
  * /api/v1/outlets — store locations (behind requireAuth). Stock, shifts,
@@ -47,6 +48,8 @@ router.post(
   asyncHandler(async (req, res) => {
     const accountId = req.auth!.accountId as string;
     const body = createBody.parse(req.body);
+    const existing = await prisma.outlet.count({ where: { accountId } });
+    await enforceLimit(accountId, 'outletLimit', existing);
     const outlet = await prisma.outlet.create({
       data: { id: newId('out'), accountId, ...body },
     });

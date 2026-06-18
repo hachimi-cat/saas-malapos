@@ -30,7 +30,8 @@ export type IdPrefix =
   | 'pur' // purchase order
   | 'poi' // purchase order item
   | 'cus' // customer
-  | 'loy'; // loyalty ledger entry
+  | 'loy' // loyalty ledger entry
+  | 'bsub'; // billing subscription (Plugipay-backed plan)
 
 export function newId(prefix: IdPrefix): string {
   return `${prefix}_${ulid().toLowerCase()}`;

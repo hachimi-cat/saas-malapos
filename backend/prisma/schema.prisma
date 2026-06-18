@@ -593,3 +593,26 @@ model LoyaltyEntry {
   @@index([accountId, customerId])
   @@map("loyalty_entries")
 }
+
+/// One row per paying workspace; absence of a row IS the free tier.
+/// Tier ids + outlet/product/member limits live in src/lib/billing.ts.
+/// Written ONLY by the Plugipay checkout-completed webhook (keyed on
+/// plugipayCheckoutSessionId for idempotency). Plugipay-backed,
+/// own-tier subscription — no per-seller reseller workspaces.
+model BillingSubscription {
+  id                        String    @id // bsub_*
+  accountId                 String    @unique
+  /// free | starter | growth | business
+  tier                      String    @default("free")
+  /// active | past_due | canceled
+  status                    String    @default("active")
+  /// Last Plugipay checkout session that (re)activated this
+  /// subscription — the webhook's idempotency guard keys on it.
+  plugipayCheckoutSessionId String?
+  currentPeriodEnd          DateTime?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  @@index([plugipayCheckoutSessionId])
+  @@map("billing_subscriptions")
+}

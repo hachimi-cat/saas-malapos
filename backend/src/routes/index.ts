@@ -7,6 +7,7 @@ import huudisProxyRouter from './huudis-proxy.js';
 import { adminGuard } from '../middleware/admin-guard.js';
 import { requireAuth } from '../middleware/auth.js';
 import adminCustomersRouter from './admin-customers.js';
+import adminCrmRouter from './admin-crm.js';
 import outletsRouter from './outlets.js';
 import categoriesRouter from './categories.js';
 import productsRouter from './products.js';
@@ -20,6 +21,7 @@ import reportsRouter from './reports.js';
 import settingsRouter from './settings.js';
 import modifiersRouter from './modifiers.js';
 import billingRouter from './billing.js';
+import webhooksPlugipayRouter from './webhooks-plugipay.js';
 
 /**
  * Route factory. Ported from saas-plugipay.
@@ -81,6 +83,11 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
    *  at /api/v1/console/customers. */
   router.use('/admin/customers', adminGuard, adminCustomersRouter);
 
+  /** Admin CRM — the standardized Forjio stats/customers/transactions
+   *  contract for the central admin portal (malapos semantics: merchant
+   *  workspaces + their POS sales). */
+  router.use('/admin/crm', adminGuard, adminCrmRouter);
+
   // ── Malapos POS domain (all behind the Huudis session / Bearer auth) ──
   router.use('/outlets', requireAuth, outletsRouter);
   router.use('/categories', requireAuth, categoriesRouter);
@@ -94,8 +101,13 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
   router.use('/customers', requireAuth, customersRouter);
   router.use('/reports', requireAuth, reportsRouter);
   router.use('/settings', requireAuth, settingsRouter);
-  // Public plan catalog (no auth — the /pricing page + dashboard read it).
+  // Billing — public /tiers; per-route requireAuth inside the router for
+  // the workspace plan + Plugipay checkout/cancel.
   router.use('/billing', billingRouter);
+
+  /** Inbound Plugipay webhooks (tier checkout completion). Signature-
+   *  verified inside the handler; no auth middleware. */
+  router.use('/webhooks/plugipay', webhooksPlugipayRouter);
 
   // Products mount their own routers here, e.g.:
   //   router.use('/widgets', widgetsRouter);

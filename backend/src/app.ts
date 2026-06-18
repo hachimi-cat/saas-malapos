@@ -21,6 +21,16 @@ export interface CreateAppOptions {
   enableTestOnlyRoutes?: boolean;
 }
 
+declare module 'express-serve-static-core' {
+  interface Request {
+    /** Exact bytes of the JSON request body, captured by the body
+     *  parser's `verify` hook. Webhook signature verification (e.g.
+     *  routes/webhooks-plugipay.ts) MUST run over these — HMACs are
+     *  computed on the wire bytes, not a re-serialization. */
+    rawBody?: string;
+  }
+}
+
 function normalizeEmptyBody(req: Request, _res: Response, next: NextFunction) {
   if (
     req.body &&
@@ -36,7 +46,14 @@ function normalizeEmptyBody(req: Request, _res: Response, next: NextFunction) {
 export function createApp(opts: CreateAppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '1mb' }));
+  app.use(
+    express.json({
+      limit: '1mb',
+      verify: (req, _res, buf) => {
+        (req as Request).rawBody = buf.toString('utf8');
+      },
+    }),
+  );
   app.use(cookieParser());
   app.use(normalizeEmptyBody);
   app.use(requestId);
