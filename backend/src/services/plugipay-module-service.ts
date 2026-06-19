@@ -142,3 +142,31 @@ export async function requirePaymentClient(accountId: string): Promise<PlugipayC
   }
   return plugipayForMerchant(row.plugipayMerchantAccountId);
 }
+
+/**
+ * Non-throwing module probe — mirrors marketingClientIfEnabled. Returns
+ * the per-merchant Plugipay client when the Payments module is on AND the
+ * platform PLUGIPAY_* env is configured, else `null`. Used by the
+ * gift-card facade (and the sell/refund flows through it) so the
+ * Plugipay-backed gift-card path is taken only when the module is on;
+ * otherwise the caller falls back to the LOCAL implementation unchanged.
+ * Never throws: a missing merchant workspace or a misconfigured platform
+ * key must not break a counter sale or a build with no Plugipay env
+ * (local dev / tests / CI) — the probe simply returns null → local path.
+ */
+export async function paymentClientIfEnabled(
+  accountId: string,
+): Promise<PlugipayClient | null> {
+  try {
+    const row = await prisma.posSettings.findUnique({
+      where: { accountId },
+      select: { plugipayMerchantAccountId: true, modulesEnabled: true },
+    });
+    const modules = (row?.modulesEnabled as { payment?: boolean } | null) ?? {};
+    if (modules.payment !== true || !row?.plugipayMerchantAccountId) return null;
+    if (!process.env.PLUGIPAY_KEY_ID || !process.env.PLUGIPAY_SECRET) return null;
+    return plugipayForMerchant(row.plugipayMerchantAccountId);
+  } catch {
+    return null;
+  }
+}

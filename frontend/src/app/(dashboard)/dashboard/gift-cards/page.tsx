@@ -23,6 +23,10 @@ type GiftCard = {
   customerId: string | null;
   note: string | null;
   createdAt: string;
+  // 'plugipay' when the Payments module is on (card lives in the merchant's
+  // Plugipay workspace), 'local' otherwise. The backend route is module-aware
+  // and returns the same shape either way, so the page is source-blind.
+  source?: 'plugipay' | 'local';
 };
 
 function StatusBadge({ status }: { status: GiftCardStatus }) {

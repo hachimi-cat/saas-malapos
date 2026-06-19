@@ -4,8 +4,10 @@ import { newId } from './ids.js';
 import { ApiError } from './http.js';
 import { applyMovement } from './inventory.js';
 import { redeemGiftCard } from './giftcards.js';
+import { redeemGiftCardPlugipay } from './giftcards-plugipay.js';
 import { writeOutbox } from './outbox.js';
 import { marketingClientIfEnabled } from '../services/ripllo-module-service.js';
+import { paymentClientIfEnabled } from '../services/plugipay-module-service.js';
 
 /*
  * The sell flow — the load-bearing path. Builds a Transaction from a cart,
@@ -496,6 +498,29 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
   const settings = await prisma.posSettings.findUnique({ where: { accountId } });
   const kdsState = settings?.businessType === 'FNB' ? 'NEW' : null;
 
+  // ── Gift-card / store-credit tender source-of-truth ──────────────────
+  // When the Payments module is ON, gift cards live in the merchant's
+  // Plugipay workspace and can't be redeemed inside the local sale txn.
+  // Probe up front (non-throwing → null when off / no env / no workspace).
+  // If ON and the cart pays with a GIFT_CARD tender, redeem via Plugipay
+  // BEFORE opening the local sale txn so an insufficient-balance / void /
+  // unknown-card failure aborts the sale cleanly (mirrors the local
+  // in-transaction roll-back). Module OFF → the in-transaction local
+  // redeem below runs unchanged.
+  const paymentClient =
+    (status === 'COMPLETED') && payments.some((p) => p.method === 'GIFT_CARD')
+      ? await paymentClientIfEnabled(accountId)
+      : null;
+  if (paymentClient) {
+    for (const p of payments) {
+      if (p.method !== 'GIFT_CARD') continue;
+      if ((p.status ?? 'PAID') !== 'PAID') continue;
+      const code = (p.reference ?? '').trim();
+      if (!code) throw new ApiError(422, 'VALIDATION_ERROR', 'Gift-card payment requires a code in `reference`');
+      await redeemGiftCardPlugipay(paymentClient, { code, amount: p.amount, transactionId: txnId });
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
     // Receipt number — bump the per-outlet counter atomically.
     const bumped = await tx.outlet.update({
@@ -560,13 +585,17 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
 
     // Gift-card / store-credit redemption — validate + decrement each
     // GIFT_CARD payment within the sale transaction so an insufficient
-    // balance (or a void/unknown card) rolls the whole sale back.
-    for (const p of payments) {
-      if (p.method !== 'GIFT_CARD') continue;
-      if ((p.status ?? 'PAID') !== 'PAID') continue;
-      const code = (p.reference ?? '').trim();
-      if (!code) throw new ApiError(422, 'VALIDATION_ERROR', 'Gift-card payment requires a code in `reference`');
-      await redeemGiftCard(tx, { accountId, code, amount: p.amount, transactionId: txnId });
+    // balance (or a void/unknown card) rolls the whole sale back. LOCAL
+    // path only: when the Payments module is ON (`paymentClient` set) the
+    // card lives in Plugipay and was already redeemed above, pre-txn.
+    if (!paymentClient) {
+      for (const p of payments) {
+        if (p.method !== 'GIFT_CARD') continue;
+        if ((p.status ?? 'PAID') !== 'PAID') continue;
+        const code = (p.reference ?? '').trim();
+        if (!code) throw new ApiError(422, 'VALIDATION_ERROR', 'Gift-card payment requires a code in `reference`');
+        await redeemGiftCard(tx, { accountId, code, amount: p.amount, transactionId: txnId });
+      }
     }
 
     // Stock deduction + loyalty + completed event — only for COMPLETED

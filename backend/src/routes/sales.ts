@@ -145,6 +145,7 @@ const refundBody = z.object({
     .optional(),
   amount: z.number().int().positive().optional(),
   restock: z.boolean().optional(),
+  refundToStoreCredit: z.boolean().optional(),
   reason: z.string().trim().max(300).nullish(),
 });
 
@@ -159,6 +160,7 @@ router.post(
         lines: body.lines,
         amount: body.amount,
         restock: body.restock,
+        refundToStoreCredit: body.refundToStoreCredit,
         reason: body.reason ?? null,
       },
       { accountId, bySub: (req.auth!.sub as string | undefined) ?? null },

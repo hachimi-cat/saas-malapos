@@ -4,6 +4,8 @@ import { ApiError } from './http.js';
 import { applyMovement } from './inventory.js';
 import { writeOutbox } from './outbox.js';
 import { clawbackMarketing } from './sell.js';
+import { paymentClientIfEnabled } from '../services/plugipay-module-service.js';
+import { refundToStoreCreditPlugipay } from './giftcards-plugipay.js';
 
 /*
  * Partial / line-item refunds. Where voidSale reverses a whole sale, refundSale
@@ -28,6 +30,14 @@ export interface RefundInput {
   amount?: number;
   /** Return refunded goods to stock (RETURN movements). */
   restock?: boolean;
+  /**
+   * Refund the money as STORE CREDIT to the sale's customer rather than the
+   * original tender. When the Payments module is ON this issues/tops-up a
+   * customer-linked Plugipay gift card for `amount`; best-effort (the
+   * monetary refund record already committed). Ignored when the module is
+   * off or the sale has no customer.
+   */
+  refundToStoreCredit?: boolean;
   reason?: string | null;
 }
 export interface RefundContext {
@@ -188,6 +198,31 @@ export async function refundSale(
       },
     });
   });
+
+  // Store-credit refund — issue/top-up a customer-linked Plugipay gift card
+  // for the refunded amount, keyed by refundId for idempotency. Module-gated
+  // (no-op when Payments is off → null client) and BEST-EFFORT: the monetary
+  // Refund row already committed, so a Plugipay hiccup must never throw and
+  // surface as a failed refund. Requires a customer on the sale.
+  if (input.refundToStoreCredit && txn.customerId) {
+    try {
+      const paymentClient = await paymentClientIfEnabled(accountId);
+      if (paymentClient) {
+        await refundToStoreCreditPlugipay(paymentClient, {
+          customerId: txn.customerId,
+          amount,
+          refundId,
+          note: input.reason ?? `Store credit from refund ${refundId}`,
+        });
+      }
+    } catch (err) {
+      console.error('[refund] plugipay store-credit issue failed (non-fatal):', {
+        transactionId: txn.id,
+        refundId,
+        message: (err as Error).message,
+      });
+    }
+  }
 
   // Marketing (Ripllo) claw-back — only on a FULL refund (status flips to
   // REFUNDED), since Ripllo's loyalty void is all-or-nothing per
