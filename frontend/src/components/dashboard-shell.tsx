@@ -113,7 +113,6 @@ const STATIC_SECTIONS: NavSection[] = [
       { href: '/dashboard/kds', label: 'Kitchen display', icon: ChefHat },
       { href: '/dashboard/purchasing', label: 'Purchasing', icon: Truck },
       { href: '/dashboard/customers', label: 'Customers', icon: Users },
-      { href: '/dashboard/gift-cards', label: 'Gift cards', icon: Gift },
       { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
     ],
   },
@@ -153,6 +152,7 @@ const PAYMENTS_MODULE: NavModule = {
       items: [
         { href: '/dashboard/payments', label: 'Transactions', icon: Receipt },
         { href: '/dashboard/payments/payouts', label: 'Payouts', icon: Landmark },
+        { href: '/dashboard/payments/gift-cards', label: 'Gift cards', icon: Gift },
       ],
     },
     {
