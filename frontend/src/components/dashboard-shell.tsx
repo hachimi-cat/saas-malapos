@@ -10,6 +10,7 @@ import {
   Boxes,
   Users,
   Truck,
+  Send,
   BarChart3,
   Settings,
   Store,
@@ -90,6 +91,7 @@ const SECTIONS: NavSection[] = [
     label: 'Operations',
     items: [
       { href: '/dashboard/kds', label: 'Kitchen display', icon: ChefHat },
+      { href: '/dashboard/delivery', label: 'Delivery', icon: Send },
       { href: '/dashboard/purchasing', label: 'Purchasing', icon: Truck },
       { href: '/dashboard/customers', label: 'Customers', icon: Users },
       { href: '/dashboard/gift-cards', label: 'Gift cards', icon: Gift },

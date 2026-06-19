@@ -22,7 +22,9 @@ import settingsRouter from './settings.js';
 import modifiersRouter from './modifiers.js';
 import billingRouter from './billing.js';
 import modulesRouter from './modules.js';
+import deliveryRouter from './delivery.js';
 import webhooksPlugipayRouter from './webhooks-plugipay.js';
+import webhooksFulkrumaRouter from './webhooks-fulkruma.js';
 import apiKeysRouter from './api-keys.js';
 import webhookSubscriptionsRouter from './webhook-subscriptions.js';
 import giftCardsRouter from './gift-cards.js';
@@ -123,9 +125,18 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
   // the partner workspace.
   router.use('/modules', modulesRouter);
 
+  /** Fulfillment (Fulkruma) delivery surface — proxy over the gated
+   *  per-merchant Fulkruma client. requireAuth is applied per-route
+   *  inside the router; calls 409 when the Fulfillment module is off. */
+  router.use('/delivery', deliveryRouter);
+
   /** Inbound Plugipay webhooks (tier checkout completion). Signature-
    *  verified inside the handler; no auth middleware. */
   router.use('/webhooks/plugipay', webhooksPlugipayRouter);
+
+  /** Inbound Fulkruma webhooks (shipment status → sale delivery status).
+   *  Signature-verified inside the handler; no auth middleware. */
+  router.use('/webhooks/fulkruma', webhooksFulkrumaRouter);
 
   // Products mount their own routers here, e.g.:
   //   router.use('/widgets', widgetsRouter);

@@ -488,6 +488,13 @@ model Transaction {
   kdsState      KdsState?
   note          String?
   voidReason    String?
+  /// Fulkruma (Biteship) shipment id when this sale is dispatched for
+  /// delivery via the Fulfillment module. Null for in-store sales.
+  fulkrumaShipmentId String?
+  /// Mirror of the Fulkruma/Biteship driver status (confirmed → picking_up
+  /// → dropping_off → delivered → cancelled). Updated by the inbound
+  /// fulkruma webhook. Null until the sale becomes a delivery order.
+  deliveryStatus     String?
   createdAt     DateTime          @default(now())
   completedAt   DateTime?
   voidedAt      DateTime?
@@ -504,6 +511,7 @@ model Transaction {
   @@index([accountId, status])
   @@index([accountId, customerId])
   @@index([accountId, kdsState, createdAt])
+  @@index([fulkrumaShipmentId])
   @@map("transactions")
 }
 
