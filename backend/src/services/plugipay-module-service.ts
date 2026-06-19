@@ -54,7 +54,7 @@ export function plugipayForMerchant(plugipayMerchantAccountId: string): Plugipay
 export async function provisionPaymentWorkspace(opts: {
   malaposAccountId: string;
   brandName: string;
-  businessEmail: string;
+  businessEmail?: string;
 }): Promise<string> {
   const client = getPaymentPlatformClient();
   const ws = await client.admin.provisionWorkspace({
@@ -66,7 +66,7 @@ export async function provisionPaymentWorkspace(opts: {
     partner: 'malapos' as 'storlaunch' | 'fulkruma' | 'ripllo',
     discountRate: PLUGIPAY_DISCOUNT_RATE,
     brandName: opts.brandName,
-    businessEmail: opts.businessEmail,
+    ...(opts.businessEmail ? { businessEmail: opts.businessEmail } : {}),
   });
   return ws.accountId;
 }

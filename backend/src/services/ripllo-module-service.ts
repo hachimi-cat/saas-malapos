@@ -45,7 +45,7 @@ export function ripploForMerchant(ripploAccountId: string): RiplloClient {
 export async function provisionMarketingWorkspace(opts: {
   malaposAccountId: string;
   brandName: string;
-  businessEmail: string;
+  businessEmail?: string;
 }): Promise<string> {
   const client = getMarketingPlatformClient();
   const ws = await client.admin.provisionWorkspace({
@@ -53,7 +53,7 @@ export async function provisionMarketingWorkspace(opts: {
     partner: 'malapos',
     discountRate: RIPLLO_DISCOUNT_RATE,
     brandName: opts.brandName,
-    businessEmail: opts.businessEmail,
+    ...(opts.businessEmail ? { businessEmail: opts.businessEmail } : {}),
   });
   return ws.accountId;
 }

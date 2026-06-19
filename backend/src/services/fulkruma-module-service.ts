@@ -45,7 +45,7 @@ export function fulkrumaForMerchant(fulkrumaAccountId: string): FulkrumaClient {
 export async function provisionFulfillmentWorkspace(opts: {
   malaposAccountId: string;
   brandName: string;
-  businessEmail: string;
+  businessEmail?: string;
 }): Promise<string> {
   const client = getFulfillmentPlatformClient();
   const ws = await client.admin.provisionWorkspace({
@@ -53,7 +53,7 @@ export async function provisionFulfillmentWorkspace(opts: {
     partner: 'malapos',
     discountRate: FULKRUMA_DISCOUNT_RATE,
     brandName: opts.brandName,
-    businessEmail: opts.businessEmail,
+    ...(opts.businessEmail ? { businessEmail: opts.businessEmail } : {}),
   });
   return ws.accountId;
 }

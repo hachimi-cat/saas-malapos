@@ -80,7 +80,11 @@ export async function setModuleEnabled(
   const next: ModulesState = { ...current, [module]: enabled };
 
   const brandName = settings.businessName ?? accountId;
-  const businessEmail = '';
+  // Partners validate businessEmail as an email when present — malapos has
+  // no merchant email on PosSettings, so pass undefined (the partner
+  // provisionWorkspace treats it as optional) rather than '' (which fails
+  // the partner's email validation and blocks the whole enable).
+  const businessEmail: string | undefined = undefined;
 
   let plugipayMerchantAccountId = settings.plugipayMerchantAccountId;
   let plugipayWebhookSecret = settings.plugipayWebhookSecret;
