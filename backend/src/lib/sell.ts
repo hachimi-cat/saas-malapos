@@ -95,6 +95,270 @@ async function allocate(
   return out;
 }
 
+/** Resolved sale line for the completion side-effects — a thin snapshot
+ *  of the variant's stock flags so the settle path (which re-fetches from
+ *  the DB) and the create path (which has them in hand) share one helper. */
+interface CompletionLine {
+  variantId: string;
+  kind: string;
+  isComposite: boolean;
+  trackStock: boolean;
+  requiresBatch: boolean;
+  quantity: number;
+}
+
+/**
+ * The side-effects that fire when a sale becomes COMPLETED: stock
+ * deduction (FEFO across batches, composite component expansion),
+ * local loyalty accrual + lifetime stats, and the
+ * malapos.sale.completed.v1 outbox event — all inside the caller's
+ * transaction. Shared by createSale (immediate COMPLETED) and
+ * settleParkedSale (dynamic-QRIS confirm). Extracted verbatim from the
+ * original createSale block so existing behavior is unchanged.
+ */
+async function applyCompletionEffects(
+  tx: Prisma.TransactionClient,
+  args: {
+    accountId: string;
+    outletId: string;
+    txnId: string;
+    number: string;
+    total: number;
+    customerId: string | null;
+    lines: CompletionLine[];
+    cashierSub: string | null;
+    earnLocalLoyalty: boolean;
+  },
+): Promise<void> {
+  const { accountId, outletId, txnId } = args;
+  for (const l of args.lines) {
+    if (l.kind === 'SERVICE') continue;
+    if (l.isComposite) {
+      // Composite: track NO stock of the variant itself; instead deduct
+      // each component (component.quantity × line.quantity) through the
+      // ledger. Covers F&B recipes, retail kits and break-bulk uniformly.
+      const components = await tx.recipeComponent.findMany({
+        where: { accountId, parentVariantId: l.variantId },
+        include: { component: { include: { product: true } } },
+      });
+      for (const c of components) {
+        if (c.component.product.kind === 'SERVICE' || !c.component.product.trackStock) continue;
+        const qty = c.quantity * l.quantity;
+        const allocs = await allocate(
+          tx,
+          accountId,
+          outletId,
+          c.componentVariantId,
+          c.component.product.requiresBatch,
+          qty,
+        );
+        for (const a of allocs) {
+          await applyMovement(tx, {
+            accountId,
+            outletId,
+            variantId: c.componentVariantId,
+            type: 'SALE',
+            qtyDelta: -a.qty,
+            batchId: a.batchId,
+            refType: 'recipe',
+            refId: txnId,
+            bySub: args.cashierSub,
+          });
+        }
+      }
+      continue;
+    }
+    if (!l.trackStock) continue;
+    const allocs = await allocate(tx, accountId, outletId, l.variantId, l.requiresBatch, l.quantity);
+    for (const a of allocs) {
+      await applyMovement(tx, {
+        accountId,
+        outletId,
+        variantId: l.variantId,
+        type: 'SALE',
+        qtyDelta: -a.qty,
+        batchId: a.batchId,
+        refType: 'transaction',
+        refId: txnId,
+        bySub: args.cashierSub,
+      });
+    }
+  }
+
+  // Loyalty + lifetime stats. CRM stats (totalSpent/visits) always accrue
+  // locally. Points have a source-of-truth: module OFF → local ledger
+  // earns; module ON → Ripllo is authoritative (the local grant is
+  // skipped and the earn is stamped to Ripllo after commit).
+  if (args.customerId) {
+    const earned = args.earnLocalLoyalty ? Math.floor(args.total / LOYALTY_POINTS_PER_IDR) : 0;
+    await tx.customer.update({
+      where: { id: args.customerId },
+      data: {
+        totalSpent: { increment: args.total },
+        visits: { increment: 1 },
+        ...(earned > 0 ? { loyaltyPoints: { increment: earned } } : {}),
+      },
+    });
+    if (earned > 0) {
+      await tx.loyaltyEntry.create({
+        data: {
+          id: newId('loy'),
+          accountId,
+          customerId: args.customerId,
+          points: earned,
+          reason: 'earn',
+          transactionId: txnId,
+        },
+      });
+    }
+  }
+
+  await writeOutbox(tx, {
+    type: 'malapos.sale.completed.v1',
+    accountId,
+    aggregateId: txnId,
+    data: { transactionId: txnId, outletId, total: args.total, number: args.number },
+  });
+}
+
+/**
+ * Settle a PARKED dynamic-QRIS sale once the Plugipay checkout completes
+ * (called from lib/order-payment.ts applyOrderPaymentCompleted, driven by
+ * the merchant-order webhook branch). Inside ONE transaction, with a
+ * SELECT-then-guard for idempotency:
+ *   - re-assert the sale is still PARKED (else no-op → false),
+ *   - mark the QRIS payment PAID (+ bump the transaction's paidTotal),
+ *   - flip the transaction → COMPLETED (completedAt now),
+ *   - run applyCompletionEffects (stock + loyalty + completed event).
+ *
+ * Returns true when it settled, false when it was already settled (a
+ * webhook retry / double delivery). NON-FATAL Ripllo earn stamping is
+ * fired post-commit, mirroring createSale.
+ */
+export async function settleParkedSale(input: {
+  accountId: string;
+  transactionId: string;
+  paymentId: string;
+  sessionId: string;
+}): Promise<boolean> {
+  const { accountId } = input;
+  // Module-on check up front — drives whether local loyalty earns (skip
+  // it when Ripllo is authoritative). Best-effort: a marketing hiccup
+  // must never block a payment settlement, so fall back to local earn.
+  let ripllo: Awaited<ReturnType<typeof marketingClientIfEnabled>> = null;
+  try {
+    ripllo = await marketingClientIfEnabled(accountId);
+  } catch {
+    ripllo = null;
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const txn = await tx.transaction.findFirst({
+      where: { id: input.transactionId, accountId },
+      include: {
+        outlet: { select: { id: true } },
+        items: { include: { variant: { include: { product: true } } } },
+      },
+    });
+    if (!txn || txn.status !== 'PARKED') return null; // already settled
+
+    const payment = await tx.payment.findFirst({
+      where: { id: input.paymentId, transactionId: txn.id },
+      select: { id: true, amount: true, status: true },
+    });
+    if (!payment) return null;
+
+    const now = new Date();
+    if (payment.status !== 'PAID') {
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: { status: 'PAID', paidAt: now, plugipayCheckoutSessionId: input.sessionId },
+      });
+    }
+    await tx.transaction.update({
+      where: { id: txn.id },
+      data: {
+        status: 'COMPLETED',
+        completedAt: now,
+        paidTotal: { increment: payment.status !== 'PAID' ? payment.amount : 0 },
+      },
+    });
+
+    await applyCompletionEffects(tx, {
+      accountId,
+      outletId: txn.outletId,
+      txnId: txn.id,
+      number: txn.number,
+      total: txn.total,
+      customerId: txn.customerId,
+      lines: txn.items
+        .filter((it) => it.variantId && it.variant)
+        .map((it) => ({
+          variantId: it.variantId!,
+          kind: it.variant!.product.kind,
+          isComposite: it.variant!.isComposite,
+          trackStock: it.variant!.product.trackStock,
+          requiresBatch: it.variant!.product.requiresBatch,
+          quantity: it.quantity,
+        })),
+      cashierSub: txn.cashierSub,
+      earnLocalLoyalty: !ripllo,
+    });
+
+    return { total: txn.total, customerId: txn.customerId };
+  });
+
+  if (!result) return false;
+
+  // Post-commit Ripllo earn (module-on only, non-fatal — same stance as
+  // createSale; the sale is already durably settled).
+  if (ripllo && result.customerId && result.total > 0) {
+    try {
+      await ripllo.loyalty.earn({
+        customerId: result.customerId,
+        orderGrossIdr: result.total,
+        externalSource: 'malapos',
+        externalRef: input.transactionId,
+        orderId: input.transactionId,
+      });
+    } catch (err) {
+      console.error('[sell] ripllo loyalty earn failed on QRIS settle (non-fatal):', {
+        transactionId: input.transactionId,
+        message: (err as Error).message,
+      });
+    }
+  }
+  return true;
+}
+
+/**
+ * Discard a PARKED sale (e.g. a dynamic-QRIS sale the customer never
+ * paid, or the cashier abandoned). A parked sale never deducted stock or
+ * earned loyalty, so this is a pure status flip → VOIDED — NO stock
+ * return (that path is voidSale, for COMPLETED sales). Idempotent: an
+ * already-VOIDED parked sale is a no-op. A COMPLETED sale is rejected
+ * (use voidSale).
+ */
+export async function discardParkedSale(
+  accountId: string,
+  transactionId: string,
+  reason: string | null,
+): Promise<void> {
+  const txn = await prisma.transaction.findFirst({
+    where: { id: transactionId, accountId },
+    select: { id: true, status: true },
+  });
+  if (!txn) throw new ApiError(404, 'NOT_FOUND', 'Transaction not found');
+  if (txn.status === 'VOIDED') return;
+  if (txn.status !== 'PARKED') {
+    throw new ApiError(409, 'CONFLICT', `Cannot discard a ${txn.status.toLowerCase()} sale`);
+  }
+  await prisma.transaction.update({
+    where: { id: txn.id },
+    data: { status: 'VOIDED', voidedAt: new Date(), voidReason: reason, kdsState: null },
+  });
+}
+
 export async function createSale(input: CreateSaleInput, ctx: SaleContext): Promise<string> {
   const { accountId } = ctx;
   if (!input.items.length) throw new ApiError(422, 'VALIDATION_ERROR', 'Cart is empty');
@@ -305,106 +569,31 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
       await redeemGiftCard(tx, { accountId, code, amount: p.amount, transactionId: txnId });
     }
 
-    // Stock deduction — only for COMPLETED sales of tracked goods.
+    // Stock deduction + loyalty + completed event — only for COMPLETED
+    // sales. The same side-effects run later from settleParkedSale when a
+    // dynamic-QRIS sale (parked at ring-up) is confirmed by the Plugipay
+    // webhook; both share applyCompletionEffects so the two paths stay
+    // identical.
     if (status === 'COMPLETED') {
-      for (const l of lines) {
-        if (l.v.product.kind === 'SERVICE') continue;
-        if (l.v.isComposite) {
-          // Composite: track NO stock of the variant itself; instead deduct
-          // each component (component.quantity × line.quantity) through the
-          // ledger. Covers F&B recipes, retail kits and break-bulk uniformly.
-          const components = await tx.recipeComponent.findMany({
-            where: { accountId, parentVariantId: l.v.id },
-            include: { component: { include: { product: true } } },
-          });
-          for (const c of components) {
-            if (c.component.product.kind === 'SERVICE' || !c.component.product.trackStock) continue;
-            const qty = c.quantity * l.line.quantity;
-            const allocs = await allocate(
-              tx,
-              accountId,
-              outlet.id,
-              c.componentVariantId,
-              c.component.product.requiresBatch,
-              qty,
-            );
-            for (const a of allocs) {
-              await applyMovement(tx, {
-                accountId,
-                outletId: outlet.id,
-                variantId: c.componentVariantId,
-                type: 'SALE',
-                qtyDelta: -a.qty,
-                batchId: a.batchId,
-                refType: 'recipe',
-                refId: txnId,
-                bySub: ctx.cashierSub ?? null,
-              });
-            }
-          }
-          continue;
-        }
-        if (!l.v.product.trackStock) continue;
-        const allocs = await allocate(
-          tx,
-          accountId,
-          outlet.id,
-          l.v.id,
-          l.v.product.requiresBatch,
-          l.line.quantity,
-        );
-        for (const a of allocs) {
-          await applyMovement(tx, {
-            accountId,
-            outletId: outlet.id,
-            variantId: l.v.id,
-            type: 'SALE',
-            qtyDelta: -a.qty,
-            batchId: a.batchId,
-            refType: 'transaction',
-            refId: txnId,
-            bySub: ctx.cashierSub ?? null,
-          });
-        }
-      }
-
-      // Loyalty + lifetime stats. CRM stats (totalSpent/visits) always
-      // accrue locally. Points, however, have a source-of-truth:
-      //   - module OFF (`ripllo` null) → the LOCAL ledger earns, exactly
-      //     as before (no regression).
-      //   - module ON  (`ripllo` set)  → Ripllo is authoritative; the
-      //     local point grant is SKIPPED here and the earn is stamped to
-      //     Ripllo after commit (best-effort, below).
-      if (input.customerId) {
-        const earnLocal = !ripllo;
-        const earned = earnLocal ? Math.floor(total / LOYALTY_POINTS_PER_IDR) : 0;
-        await tx.customer.update({
-          where: { id: input.customerId },
-          data: {
-            totalSpent: { increment: total },
-            visits: { increment: 1 },
-            ...(earned > 0 ? { loyaltyPoints: { increment: earned } } : {}),
-          },
-        });
-        if (earned > 0) {
-          await tx.loyaltyEntry.create({
-            data: {
-              id: newId('loy'),
-              accountId,
-              customerId: input.customerId,
-              points: earned,
-              reason: 'earn',
-              transactionId: txnId,
-            },
-          });
-        }
-      }
-
-      await writeOutbox(tx, {
-        type: 'malapos.sale.completed.v1',
+      await applyCompletionEffects(tx, {
         accountId,
-        aggregateId: txnId,
-        data: { transactionId: txnId, outletId: outlet.id, total, number },
+        outletId: outlet.id,
+        txnId,
+        number,
+        total,
+        customerId: input.customerId ?? null,
+        lines: lines.map((l) => ({
+          variantId: l.v.id,
+          kind: l.v.product.kind,
+          isComposite: l.v.isComposite,
+          trackStock: l.v.product.trackStock,
+          requiresBatch: l.v.product.requiresBatch,
+          quantity: l.line.quantity,
+        })),
+        cashierSub: ctx.cashierSub ?? null,
+        // Module ON → Ripllo is authoritative; skip the local point grant
+        // (stamped to Ripllo post-commit, below). Module OFF → earn locally.
+        earnLocalLoyalty: !ripllo,
       });
     }
   });

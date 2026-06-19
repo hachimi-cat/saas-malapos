@@ -9,7 +9,8 @@
 import { prisma } from '../src/lib/db.js';
 import { newId } from '../src/lib/ids.js';
 import { applyMovement } from '../src/lib/inventory.js';
-import { createSale } from '../src/lib/sell.js';
+import { createSale, settleParkedSale } from '../src/lib/sell.js';
+import { applyOrderPaymentCompleted, parseOrderCheckoutMetadata } from '../src/lib/order-payment.js';
 
 const ACC = 'acc_smoke_malapos';
 
@@ -105,6 +106,87 @@ async function main() {
     where: { outletId: outlet.id, variantId: variant.id },
   });
   assert(level2.quantity === 10, `void returns stock → ${level2.quantity}`);
+
+  // ─── Dynamic-QRIS parked-sale settle (Payment module) ───────────────
+  // Mirrors the QRIS flow: a parked sale with a PENDING QRIS payment is
+  // settled by the merchant Plugipay webhook (settleParkedSale) →
+  // Payment PAID + Transaction COMPLETED + stock deducted + event.
+  console.log('\nQRIS settle smoke:');
+  assert(
+    parseOrderCheckoutMetadata({ saleAccountId: ACC, saleId: 'txn_x' })?.saleId === 'txn_x',
+    'parseOrderCheckoutMetadata reads {saleAccountId, saleId}',
+  );
+  assert(
+    parseOrderCheckoutMetadata({ accountId: ACC, tier: 'growth' }) === null,
+    'parseOrderCheckoutMetadata rejects billing metadata (disjoint)',
+  );
+
+  const qrisSaleId = await createSale(
+    {
+      outletId: outlet.id,
+      items: [{ variantId: variant.id, quantity: 2 }],
+      status: 'PARKED',
+      payments: [{ method: 'QRIS', amount: 33300, status: 'PENDING' }],
+    },
+    { accountId: ACC, cashierSub: 'huudis|smoke', cashierName: 'Smoke Cashier' },
+  );
+  const parked = await prisma.transaction.findUniqueOrThrow({
+    where: { id: qrisSaleId },
+    include: { payments: true },
+  });
+  assert(parked.status === 'PARKED', 'QRIS sale starts PARKED');
+  assert(parked.payments[0]!.status === 'PENDING', 'QRIS payment starts PENDING');
+  const stockBefore = (
+    await prisma.stockLevel.findFirstOrThrow({ where: { outletId: outlet.id, variantId: variant.id } })
+  ).quantity;
+  assert(stockBefore === 10, 'parked QRIS sale did NOT deduct stock yet');
+
+  // Webhook settle (simulated). The session id matches what
+  // POST /payments/qris would have stamped.
+  const sessionId = `cs_qris_${Date.now()}`;
+  await prisma.payment.update({
+    where: { id: parked.payments[0]!.id },
+    data: { plugipayCheckoutSessionId: sessionId },
+  });
+  const r1 = await settleParkedSale({
+    accountId: ACC,
+    transactionId: qrisSaleId,
+    paymentId: parked.payments[0]!.id,
+    sessionId,
+  });
+  assert(r1 === true, 'settleParkedSale → applied');
+
+  const settled = await prisma.transaction.findUniqueOrThrow({
+    where: { id: qrisSaleId },
+    include: { payments: true },
+  });
+  assert(settled.status === 'COMPLETED', 'sale flips to COMPLETED');
+  assert(!!settled.completedAt, 'completedAt stamped');
+  assert(settled.payments[0]!.status === 'PAID', 'QRIS payment flips to PAID');
+  assert(settled.paidTotal === 33300, `paidTotal accrues = ${settled.paidTotal}`);
+  const stockAfter = (
+    await prisma.stockLevel.findFirstOrThrow({ where: { outletId: outlet.id, variantId: variant.id } })
+  ).quantity;
+  assert(stockAfter === 8, `settle deducts stock 10 − 2 = ${stockAfter}`);
+  const qrisEvent = await prisma.outboxEvent.findFirst({
+    where: { accountId: ACC, type: 'malapos.sale.completed.v1', aggregateId: qrisSaleId },
+  });
+  assert(!!qrisEvent, 'malapos.sale.completed.v1 emitted on settle');
+
+  // Idempotent: a webhook replay must not double-deduct.
+  const r2 = await settleParkedSale({
+    accountId: ACC,
+    transactionId: qrisSaleId,
+    paymentId: parked.payments[0]!.id,
+    sessionId,
+  });
+  assert(r2 === false, 'replayed settle → duplicate no-op');
+  const r3 = await applyOrderPaymentCompleted({ sessionId, accountId: ACC, saleId: qrisSaleId });
+  assert(r3.outcome === 'duplicate', 'applyOrderPaymentCompleted on settled sale → duplicate');
+  const stockReplay = (
+    await prisma.stockLevel.findFirstOrThrow({ where: { outletId: outlet.id, variantId: variant.id } })
+  ).quantity;
+  assert(stockReplay === 8, 'replay did NOT double-deduct stock');
 
   await wipe();
   console.log('\n✅ sell-flow smoke PASSED\n');

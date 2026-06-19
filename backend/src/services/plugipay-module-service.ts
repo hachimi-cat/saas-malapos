@@ -71,6 +71,52 @@ export async function provisionPaymentWorkspace(opts: {
   return ws.accountId;
 }
 
+const MALAPOS_PUBLIC_URL = () => process.env.MALAPOS_PUBLIC_URL ?? 'https://malapos.com';
+
+/**
+ * Register (idempotently) a WebhookEndpoint on the MERCHANT's Plugipay
+ * workspace pointing at Malapos's webhook route, so dynamic-QRIS checkout
+ * completions for that merchant's sales reach us. The endpoint secret is
+ * returned ONCE at create — we persist it on
+ * PosSettings.plugipayWebhookSecret; the inbound webhook route verifies
+ * merchant-order events with it (env PLUGIPAY_WEBHOOK_SECRET only covers
+ * Malapos's OWN billing workspace endpoint). Mirrors serront's
+ * ensureSellerWebhookEndpoint.
+ *
+ * Returns the (possibly newly minted) secret, or null on any failure —
+ * the caller treats registration as BEST-EFFORT so a Plugipay hiccup
+ * never blocks enabling the module (QRIS still works via the poll path;
+ * the webhook can be re-registered on a later enable).
+ */
+export async function ensureMerchantWebhookEndpoint(
+  client: PlugipayClient,
+  currentSecret: string | null,
+): Promise<string | null> {
+  const url = `${MALAPOS_PUBLIC_URL()}/api/v1/webhooks/plugipay`;
+  try {
+    const existing = await client.webhookEndpoints.list();
+    const ours = existing.find((e) => e.url === url && e.active);
+    if (ours) {
+      if (currentSecret) return currentSecret;
+      // Endpoint exists but we never captured its secret (a previous
+      // enable crashed between create and persist). Re-mint: delete +
+      // create so the stored secret matches what Plugipay signs with.
+      await client.webhookEndpoints.delete(ours.id);
+    }
+    const created = await client.webhookEndpoints.create({
+      url,
+      events: ['plugipay.checkout_session.completed.v1'],
+      description: 'Malapos — QRIS sale settlement',
+    });
+    return created.secret ?? currentSecret;
+  } catch (err) {
+    console.error('[plugipay-module] webhook endpoint registration failed (non-fatal):', {
+      message: (err as Error).message,
+    });
+    return currentSecret;
+  }
+}
+
 /**
  * Gated client factory — throws `payment_module_disabled` (status 409)
  * when the merchant hasn't enabled the Payments module. Malapos routes

@@ -157,6 +157,12 @@ model PosSettings {
   /// DISTINCT from Malapos's own platform billing subscription. Calls
   /// scoped to this merchant go through `.forMerchant(...)`.
   plugipayMerchantAccountId String?
+  /// Secret of the WebhookEndpoint registered on the merchant's Plugipay
+  /// workspace at first `payment` enable — distinct from Malapos's OWN
+  /// billing endpoint secret (env PLUGIPAY_WEBHOOK_SECRET). The inbound
+  /// webhook route verifies merchant-order events with this (serront's
+  /// two-secret `verifyAgainstKnownSecrets` pattern). Null until enabled.
+  plugipayWebhookSecret String?
   /// Per-merchant Fulkruma workspace, minted on first `fulfillment` enable.
   fulkrumaAccountId String?
   /// Per-merchant Ripllo workspace, minted on first `marketing` enable.
@@ -621,7 +627,12 @@ model Payment {
   tendered      Int? // cash given (CASH only)
   change        Int? // cash change (CASH only)
   reference     String? // card/EDC ref or manual note
-  plugipayRef   String? // Plugipay checkout/charge id (QRIS)
+  plugipayRef   String? // Plugipay checkout/charge id (QRIS, manual ref)
+  /// Plugipay checkout-session id minted for a dynamic-QRIS payment via the
+  /// merchant's Payment-module workspace. The inbound webhook matches the
+  /// completed session back to THIS payment to settle the sale. Null for
+  /// cash/card/gift-card and for module-off manual-reference QRIS.
+  plugipayCheckoutSessionId String?
   paidAt        DateTime?
   createdAt     DateTime      @default(now())
 
@@ -629,6 +640,7 @@ model Payment {
 
   @@index([accountId, transactionId])
   @@index([plugipayRef])
+  @@index([plugipayCheckoutSessionId])
   @@map("payments")
 }
 

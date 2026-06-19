@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Minus, Trash2, Receipt, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Search, Plus, Minus, Trash2, Receipt, X, QrCode, Loader2, CheckCircle2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 
@@ -38,6 +38,9 @@ export default function SellPage() {
   const [paying, setPaying] = useState(false);
   const [receipt, setReceipt] = useState<Sale | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Dynamic-QRIS (Payment module) state — set when the cashier picks QRIS
+  // and the module is on; drives the QR modal + status polling.
+  const [qris, setQris] = useState<{ saleId: string; sessionId: string; qrUrl: string; amount: number } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -226,6 +229,65 @@ export default function SellPage() {
               setError(e instanceof ApiRequestError ? e.message : 'Sale failed');
             }
           }}
+          // Dynamic QRIS — module ON. Park the sale with a PENDING QRIS
+          // payment, mint a checkout session, and hand back the QR for the
+          // customer to scan. Returns true on success; false → the modal
+          // falls back to today's manual-reference QRIS (module OFF).
+          onQris={async () => {
+            setError(null);
+            let saleId: string;
+            try {
+              const sale = await api.post<{ sale: Sale }>('/sales', {
+                outletId,
+                customerId: customer?.id ?? null,
+                items: cart.map((l) => ({ variantId: l.variantId, quantity: l.qty })),
+                status: 'PARKED',
+                payments: [{ method: 'QRIS', amount: total, status: 'PENDING' }],
+              });
+              saleId = sale.data.sale.id;
+            } catch (e) {
+              setError(e instanceof ApiRequestError ? e.message : 'Could not start the sale');
+              return false;
+            }
+            try {
+              const q = await api.post<{ sessionId: string; qrUrl: string; amount: number }>(
+                '/payments/qris',
+                { transactionId: saleId },
+              );
+              setQris({ saleId, sessionId: q.data.sessionId, qrUrl: q.data.qrUrl, amount: q.data.amount });
+              setPaying(false);
+              return true;
+            } catch (e) {
+              // Module off (409) or Plugipay hiccup → void the parked sale
+              // and let the cashier complete via manual QRIS ref / cash.
+              await api.post(`/sales/${saleId}/discard`, { reason: 'qris_unavailable' }).catch(() => {});
+              if (e instanceof ApiRequestError && e.status === 409) return false; // fall back to manual
+              setError(e instanceof ApiRequestError ? e.message : 'Could not generate the QR');
+              return false;
+            }
+          }}
+        />
+      )}
+
+      {qris && (
+        <QrisModal
+          qris={qris}
+          onCancel={async () => {
+            // Cashier abandons the QR before payment — void the parked sale.
+            await api.post(`/sales/${qris.saleId}/discard`, { reason: 'qris_cancelled' }).catch(() => {});
+            setQris(null);
+          }}
+          onPaid={async () => {
+            try {
+              const res = await api.get<{ sale: Sale }>(`/sales/${qris.saleId}`);
+              setReceipt(res.data.sale);
+            } catch {
+              /* the sale settled server-side; the receipt fetch is cosmetic */
+            }
+            setCart([]);
+            setCustomer(null);
+            setQris(null);
+          }}
         />
       )}
 
@@ -309,7 +371,20 @@ function CustomerPicker({ customer, onChange }: { customer: Customer | null; onC
   );
 }
 
-function PaymentModal({ total, onClose, onConfirm }: { total: number; onClose: () => void; onConfirm: (p: unknown[]) => void }) {
+function PaymentModal({
+  total,
+  onClose,
+  onConfirm,
+  onQris,
+}: {
+  total: number;
+  onClose: () => void;
+  onConfirm: (p: unknown[]) => void;
+  /** Dynamic QRIS (Payment module ON). Returns true when a QR was minted
+   *  (this modal then closes); false when the module is off / unavailable,
+   *  in which case we fall back to today's manual-reference QRIS. */
+  onQris: () => Promise<boolean>;
+}) {
   const [method, setMethod] = useState<'CASH' | 'QRIS' | 'CARD' | 'GIFT_CARD'>('CASH');
   const [tendered, setTendered] = useState<number>(total);
   const [reference, setReference] = useState('');
@@ -319,6 +394,17 @@ function PaymentModal({ total, onClose, onConfirm }: { total: number; onClose: (
 
   async function confirm() {
     setBusy(true);
+    // QRIS with no manual reference → try dynamic QRIS first (module ON);
+    // if it succeeds the QR modal takes over. If it returns false (module
+    // OFF / hiccup) OR the cashier typed a manual ref, take the existing
+    // manual-reference path (PAID immediately) — no regression.
+    if (method === 'QRIS' && !reference.trim()) {
+      const minted = await onQris();
+      if (minted) {
+        setBusy(false);
+        return;
+      }
+    }
     const payment =
       method === 'CASH'
         ? { method, amount: total, tendered }
@@ -395,6 +481,12 @@ function PaymentModal({ total, onClose, onConfirm }: { total: number; onClose: (
                 The card balance must cover {rupiah(total)}. Insufficient balance cancels the sale.
               </span>
             )}
+            {method === 'QRIS' && (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Leave blank to generate a live QR (Payments module) — the customer scans and the
+                sale settles automatically. Enter a reference to record a manual QRIS payment.
+              </span>
+            )}
           </label>
         )}
 
@@ -403,8 +495,119 @@ function PaymentModal({ total, onClose, onConfirm }: { total: number; onClose: (
           onClick={confirm}
           className="mt-5 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
         >
-          {busy ? 'Processing…' : 'Complete sale'}
+          {busy
+            ? 'Processing…'
+            : method === 'QRIS' && !reference.trim()
+            ? 'Generate QR'
+            : 'Complete sale'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Dynamic-QRIS modal — shows the live QR for the customer to scan and
+ * polls the checkout-session status until it completes (the merchant
+ * webhook settles the sale server-side). The hostedUrl is Plugipay's
+ * hosted checkout, which renders the real QRIS; we surface it as a
+ * scannable link + a big "Open QR" button (and embed it for the
+ * customer-facing screen). On `completed` → onPaid (fetch the receipt).
+ */
+function QrisModal({
+  qris,
+  onCancel,
+  onPaid,
+}: {
+  qris: { saleId: string; sessionId: string; qrUrl: string; amount: number };
+  onCancel: () => void;
+  onPaid: () => void;
+}) {
+  const [status, setStatus] = useState<'waiting' | 'paid' | 'error'>('waiting');
+  const paidRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      while (!cancelled && !paidRef.current) {
+        try {
+          const res = await api.get<{ status: string }>(`/payments/qris/${qris.sessionId}`);
+          const s = res.data.status;
+          if (s === 'completed') {
+            paidRef.current = true;
+            setStatus('paid');
+            // Brief "paid" flash, then close into the receipt.
+            setTimeout(() => !cancelled && onPaid(), 1200);
+            return;
+          }
+          if (s === 'expired' || s === 'canceled') {
+            setStatus('error');
+            return;
+          }
+        } catch {
+          /* transient — keep polling */
+        }
+        await new Promise((r) => setTimeout(r, 2500));
+      }
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+    };
+  }, [qris.sessionId, onPaid]);
+
+  return (
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 text-center">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Scan to pay</h2>
+          <button onClick={onCancel} aria-label="Cancel">
+            <X className="h-5 w-5 text-muted-foreground" />
+          </button>
+        </div>
+        <p className="mt-1 text-2xl font-bold text-primary">{rupiah(qris.amount)}</p>
+
+        {status === 'paid' ? (
+          <div className="my-8 flex flex-col items-center gap-2">
+            <CheckCircle2 className="h-14 w-14 text-green-600" />
+            <p className="font-medium">Payment received</p>
+          </div>
+        ) : status === 'error' ? (
+          <div className="my-8 flex flex-col items-center gap-2">
+            <X className="h-12 w-12 text-destructive" />
+            <p className="text-sm text-muted-foreground">
+              The QR expired or was canceled. Close and try again, or take cash.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="my-5 flex flex-col items-center gap-3">
+              <div className="flex h-44 w-44 items-center justify-center rounded-lg border border-dashed border-border bg-muted/40">
+                <QrCode className="h-16 w-16 text-primary" />
+              </div>
+              <a
+                href={qris.qrUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+              >
+                <QrCode className="h-4 w-4" /> Open QR for customer
+              </a>
+            </div>
+            <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Waiting for the customer to pay…
+            </p>
+          </>
+        )}
+
+        {status !== 'paid' && (
+          <button
+            onClick={onCancel}
+            className="mt-5 w-full rounded-md border border-border py-2.5 text-sm font-medium hover:bg-muted"
+          >
+            Cancel sale
+          </button>
+        )}
       </div>
     </div>
   );

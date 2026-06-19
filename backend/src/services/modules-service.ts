@@ -20,7 +20,11 @@
 import { prisma } from '../lib/db.js';
 import { newId } from '../lib/ids.js';
 import { MODULE_KEYS, modulesAllowedForTier, type ModuleKey, type BillingTier } from '../lib/billing.js';
-import { provisionPaymentWorkspace } from './plugipay-module-service.js';
+import {
+  provisionPaymentWorkspace,
+  ensureMerchantWebhookEndpoint,
+  plugipayForMerchant,
+} from './plugipay-module-service.js';
 import { provisionFulfillmentWorkspace } from './fulkruma-module-service.js';
 import { provisionMarketingWorkspace } from './ripllo-module-service.js';
 
@@ -79,18 +83,30 @@ export async function setModuleEnabled(
   const businessEmail = '';
 
   let plugipayMerchantAccountId = settings.plugipayMerchantAccountId;
+  let plugipayWebhookSecret = settings.plugipayWebhookSecret;
   let fulkrumaAccountId = settings.fulkrumaAccountId;
   let ripploAccountId = settings.ripploAccountId;
 
   // First-enable provisioning. Each partner workspace is minted once
   // and reused thereafter (the partner /admin/workspaces endpoint is
   // itself idempotent on accountId).
-  if (module === 'payment' && enabled && !plugipayMerchantAccountId) {
-    plugipayMerchantAccountId = await provisionPaymentWorkspace({
-      malaposAccountId: accountId,
-      brandName,
-      businessEmail,
-    });
+  if (module === 'payment' && enabled) {
+    if (!plugipayMerchantAccountId) {
+      plugipayMerchantAccountId = await provisionPaymentWorkspace({
+        malaposAccountId: accountId,
+        brandName,
+        businessEmail,
+      });
+    }
+    // Register the inbound webhook on the merchant's workspace so QRIS
+    // checkout completions settle the parked sale. BEST-EFFORT — the
+    // helper swallows its own failures and returns the prior secret, so a
+    // Plugipay hiccup never blocks enabling the module (QRIS still works
+    // via the poll path; re-registration happens on a later enable).
+    plugipayWebhookSecret = await ensureMerchantWebhookEndpoint(
+      plugipayForMerchant(plugipayMerchantAccountId),
+      plugipayWebhookSecret,
+    );
   }
   if (module === 'fulfillment' && enabled && !fulkrumaAccountId) {
     fulkrumaAccountId = await provisionFulfillmentWorkspace({
@@ -112,6 +128,7 @@ export async function setModuleEnabled(
     data: {
       modulesEnabled: next,
       ...(plugipayMerchantAccountId ? { plugipayMerchantAccountId } : {}),
+      ...(plugipayWebhookSecret ? { plugipayWebhookSecret } : {}),
       ...(fulkrumaAccountId ? { fulkrumaAccountId } : {}),
       ...(ripploAccountId ? { ripploAccountId } : {}),
     },

@@ -24,6 +24,7 @@ import billingRouter from './billing.js';
 import modulesRouter from './modules.js';
 import deliveryRouter from './delivery.js';
 import marketingRouter from './marketing.js';
+import paymentsRouter from './payments.js';
 import webhooksPlugipayRouter from './webhooks-plugipay.js';
 import webhooksFulkrumaRouter from './webhooks-fulkruma.js';
 import apiKeysRouter from './api-keys.js';
@@ -138,6 +139,13 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
    *  module is off. The sell-flow loyalty/discount stamping lives in
    *  lib/sell.ts + lib/refund.ts. */
   router.use('/marketing', requireAuth, marketingRouter);
+
+  /** Payment (Plugipay) module — dynamic-QRIS at the sell screen + a
+   *  workspace payments overview. Pure proxy over the gated per-merchant
+   *  Plugipay client; requireAuth is applied per-route inside the router;
+   *  calls 409 when the Payment module is off. The QRIS-settle webhook
+   *  lives in /webhooks/plugipay (merchant-order branch). */
+  router.use('/payments', paymentsRouter);
 
   /** Inbound Plugipay webhooks (tier checkout completion). Signature-
    *  verified inside the handler; no auth middleware. */

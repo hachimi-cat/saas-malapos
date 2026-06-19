@@ -4,7 +4,7 @@ import { prisma } from '../lib/db.js';
 import { sendOk, sendCreated, sendList, ApiError } from '../lib/http.js';
 import { h as asyncHandler } from '../lib/async-handler.js';
 import { parsePagination, encodeCursor } from '../lib/cursor.js';
-import { createSale, voidSale } from '../lib/sell.js';
+import { createSale, voidSale, discardParkedSale } from '../lib/sell.js';
 import { refundSale } from '../lib/refund.js';
 
 /*
@@ -113,6 +113,23 @@ router.post(
     const accountId = req.auth!.accountId as string;
     const reason = z.object({ reason: z.string().trim().max(300).nullish() }).parse(req.body ?? {}).reason ?? null;
     await voidSale(accountId, String(req.params.id), reason, (req.auth!.sub as string | undefined) ?? null);
+    const sale = await prisma.transaction.findUnique({
+      where: { id: String(req.params.id) },
+      include: { items: true, payments: true },
+    });
+    sendOk(res, req, { sale });
+  }),
+);
+
+/** POST /:id/discard — abandon a PARKED sale (e.g. an unpaid dynamic-QRIS
+ *  sale). Pure status flip → VOIDED; no stock return (parked sales never
+ *  deducted). Distinct from /void, which reverses a COMPLETED sale. */
+router.post(
+  '/:id/discard',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const reason = z.object({ reason: z.string().trim().max(300).nullish() }).parse(req.body ?? {}).reason ?? null;
+    await discardParkedSale(accountId, String(req.params.id), reason);
     const sale = await prisma.transaction.findUnique({
       where: { id: String(req.params.id) },
       include: { items: true, payments: true },
