@@ -145,14 +145,14 @@ const TRAILING_SECTIONS: NavSection[] = [
 // only filters which modules reach <Sidebar>. Sub-pages are grounded in
 // the real backend routes (/payments/*, /delivery/*, /marketing/*).
 const PAYMENTS_MODULE: NavModule = {
-  label: 'Payments',
+  label: 'Payment',
   icon: Wallet,
   groups: [
     {
       items: [
         { href: '/dashboard/payments', label: 'Transactions', icon: Receipt },
         { href: '/dashboard/payments/payouts', label: 'Payouts', icon: Landmark },
-        { href: '/dashboard/payments/gift-cards', label: 'Gift cards', icon: Gift },
+        { href: '/dashboard/gift-cards', label: 'Gift cards', icon: Gift },
       ],
     },
     {

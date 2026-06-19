@@ -51,7 +51,7 @@ export function useModules(): { modules: ModulesState; loading: boolean } {
 // Routes gated by the Payment (Plugipay) module. Typed URL access to any
 // of these while the module is off sends the merchant to
 // /dashboard/settings/modules?gated=payment.
-export const PAYMENT_GATED_PREFIXES = ['/dashboard/payments'];
+export const PAYMENT_GATED_PREFIXES = ['/dashboard/payments', '/dashboard/gift-cards'];
 
 export function isPaymentGatedPath(pathname: string): boolean {
   return PAYMENT_GATED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
