@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   LifeBuoy,
@@ -26,6 +27,11 @@ import {
   KeyRound,
   Webhook,
   Puzzle,
+  Receipt,
+  Landmark,
+  Ticket,
+  MapPin,
+  Loader2,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -34,8 +40,16 @@ import {
   type PortalWorkspace,
   type SessionUser,
   type NavSection,
+  type NavModule,
 } from '@forjio/portal-ui';
 import { LogoMark } from '@/components/brand/logo';
+import {
+  useModules,
+  type ModulesState,
+  isPaymentGatedPath,
+  isFulfillmentGatedPath,
+  isMarketingGatedPath,
+} from '@/hooks/use-modules';
 
 /*
  * Dashboard shell — the authenticated portal chrome. `@forjio/portal-ui`
@@ -73,7 +87,11 @@ const DROPDOWN_LINKS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: SUPPORT_URL, label: 'Support', icon: LifeBuoy },
 ];
 
-const SECTIONS: NavSection[] = [
+// Static (always-on) nav — everything except the module-gated "Modules"
+// section, which is assembled per-merchant in the host below. The flat
+// Payments / Delivery / Marketing items that used to live under
+// Operations now ship as gated accordions in the Modules section.
+const STATIC_SECTIONS: NavSection[] = [
   {
     label: 'Sell',
     items: [
@@ -93,15 +111,15 @@ const SECTIONS: NavSection[] = [
     label: 'Operations',
     items: [
       { href: '/dashboard/kds', label: 'Kitchen display', icon: ChefHat },
-      { href: '/dashboard/payments', label: 'Payments', icon: Wallet },
-      { href: '/dashboard/delivery', label: 'Delivery', icon: Send },
-      { href: '/dashboard/marketing', label: 'Marketing', icon: Megaphone },
       { href: '/dashboard/purchasing', label: 'Purchasing', icon: Truck },
       { href: '/dashboard/customers', label: 'Customers', icon: Users },
       { href: '/dashboard/gift-cards', label: 'Gift cards', icon: Gift },
       { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
     ],
   },
+];
+
+const TRAILING_SECTIONS: NavSection[] = [
   {
     label: 'Developer',
     items: [
@@ -119,6 +137,70 @@ const SECTIONS: NavSection[] = [
       { href: '/dashboard/settings', label: 'Settings', icon: Settings },
     ],
   },
+];
+
+// ── Partner-module accordions ────────────────────────────────────────
+// The three collapsible module accordions in the "Modules" section, each
+// gated by the `ModulesState` flag below. portal-ui renders the
+// accordions + handles active-highlight/auto-expand internally — the host
+// only filters which modules reach <Sidebar>. Sub-pages are grounded in
+// the real backend routes (/payments/*, /delivery/*, /marketing/*).
+const PAYMENTS_MODULE: NavModule = {
+  label: 'Payments',
+  icon: Wallet,
+  groups: [
+    {
+      items: [
+        { href: '/dashboard/payments', label: 'Transactions', icon: Receipt },
+        { href: '/dashboard/payments/payouts', label: 'Payouts', icon: Landmark },
+      ],
+    },
+    {
+      label: 'Settings',
+      items: [
+        { href: '/dashboard/payments/settings', label: 'Payment settings', icon: Settings },
+      ],
+    },
+  ],
+};
+
+const DELIVERY_MODULE: NavModule = {
+  label: 'Delivery',
+  icon: Send,
+  groups: [
+    {
+      items: [{ href: '/dashboard/delivery', label: 'Shipments', icon: Truck }],
+    },
+    {
+      label: 'Settings',
+      items: [
+        { href: '/dashboard/delivery/settings', label: 'Origin & couriers', icon: MapPin },
+      ],
+    },
+  ],
+};
+
+const MARKETING_MODULE: NavModule = {
+  label: 'Marketing',
+  icon: Megaphone,
+  groups: [
+    {
+      label: 'Promotions',
+      items: [{ href: '/dashboard/marketing', label: 'Discount codes', icon: Ticket }],
+    },
+    {
+      label: 'Loyalty',
+      items: [{ href: '/dashboard/marketing/loyalty', label: 'Loyalty program', icon: Gift }],
+    },
+  ],
+};
+
+// Each module accordion paired with the ModulesState flag that gates its
+// visibility. The host strips out the ones the merchant has off.
+const GATED_MODULES: { module: NavModule; key: keyof ModulesState }[] = [
+  { module: PAYMENTS_MODULE, key: 'payment' },
+  { module: DELIVERY_MODULE, key: 'fulfillment' },
+  { module: MARKETING_MODULE, key: 'marketing' },
 ];
 
 async function logout() {
@@ -142,6 +224,36 @@ export function DashboardShell({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const { modules, loading: modulesLoading } = useModules();
+
+  // Route guard: typing a gated module URL while the module is off bounces
+  // the merchant to the Modules settings page. Lives here (not the
+  // server-component layout) because useModules is client-side. Mirrors
+  // storlaunch's layout guard.
+  useEffect(() => {
+    if (modulesLoading) return;
+    if (isPaymentGatedPath(pathname) && modules.payment !== true) {
+      router.replace('/dashboard/settings/modules?gated=payment');
+    } else if (isFulfillmentGatedPath(pathname) && modules.fulfillment !== true) {
+      router.replace('/dashboard/settings/modules?gated=fulfillment');
+    } else if (isMarketingGatedPath(pathname) && modules.marketing !== true) {
+      router.replace('/dashboard/settings/modules?gated=marketing');
+    }
+  }, [modulesLoading, modules.payment, modules.fulfillment, modules.marketing, pathname, router]);
+
+  // Host-side module gating: keep only the accordions the merchant has
+  // enabled. portal-ui renders what it is given.
+  const enabledModules = GATED_MODULES.filter(({ key }) => modules[key] === true).map(
+    ({ module }) => module,
+  );
+
+  const sections: NavSection[] = [
+    ...STATIC_SECTIONS,
+    ...(enabledModules.length > 0 ? [{ label: 'Modules', modules: enabledModules }] : []),
+    ...TRAILING_SECTIONS,
+  ];
 
   // The user always has at least their own account — so the switcher
   // shows a real name even before a product ships /account/workspaces.
@@ -177,6 +289,15 @@ export function DashboardShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Suppress the brief window where a gated sub-page mounts + fires its
+  // module-scoped fetches before the redirect effect lands — without this
+  // e.g. /dashboard/payments would burst a 409 before the bounce kicks in.
+  const isGatedAndDisallowed =
+    !modulesLoading &&
+    ((isPaymentGatedPath(pathname) && modules.payment !== true) ||
+      (isFulfillmentGatedPath(pathname) && modules.fulfillment !== true) ||
+      (isMarketingGatedPath(pathname) && modules.marketing !== true));
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar
@@ -188,7 +309,7 @@ export function DashboardShell({
         workspacePersist="cookie"
         workspaces={workspaces}
         activeWorkspaceId={activeId}
-        sections={SECTIONS}
+        sections={sections}
         dropdownLinks={DROPDOWN_LINKS}
         user={user}
         onLogout={logout}
@@ -203,7 +324,15 @@ export function DashboardShell({
             <Menu className="h-5 w-5" />
           </button>
         </div>
-        <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+        <main className="min-w-0 flex-1 p-4 md:p-6">
+          {modulesLoading || isGatedAndDisallowed ? (
+            <div className="flex items-center justify-center py-24 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : (
+            children
+          )}
+        </main>
       </div>
     </div>
   );

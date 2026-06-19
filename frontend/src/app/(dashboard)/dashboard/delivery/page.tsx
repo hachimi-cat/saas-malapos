@@ -5,38 +5,29 @@ import Link from 'next/link';
 import {
   Send,
   Loader2,
-  MapPin,
   Package,
   Plus,
   X,
   RefreshCw,
   Truck,
   ExternalLink,
+  Settings,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 
 /*
  * Delivery dashboard — the Fulfillment (Fulkruma → Biteship) module's
- * deep-link target. Set/show the merchant's shipping origin, list
- * shipments with their live driver status, and create a delivery
- * shipment for a recent sale (quote rates → pick a courier → dispatch).
+ * deep-link target (its "Shipments" sub-page). Lists shipments with their
+ * live driver status and creates a delivery shipment for a recent sale
+ * (quote rates → pick a courier → dispatch). The shipping origin + courier
+ * list now live on the Delivery → Settings sub-page.
  *
  * Everything proxies through /api/v1/delivery, which is gated on the
  * Fulfillment module: when it's OFF the backend returns 409
  * FULFILLMENT_MODULE_DISABLED and this page shows the enable empty
  * state. Built against the real backend; no mock data.
  */
-
-type ShippingOrigin = {
-  contactName?: string | null;
-  contactPhone?: string | null;
-  address?: string | null;
-  postal?: string | null;
-  city?: string | null;
-  province?: string | null;
-  [key: string]: unknown;
-} | null;
 
 type Shipment = {
   id: string;
@@ -90,7 +81,6 @@ function formatDate(iso: string): string {
 }
 
 export default function DeliveryPage() {
-  const [origin, setOrigin] = useState<ShippingOrigin>(null);
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [moduleOff, setModuleOff] = useState(false);
@@ -102,11 +92,7 @@ export default function DeliveryPage() {
     setError(null);
     setModuleOff(false);
     try {
-      const [originRes, shipmentsRes] = await Promise.all([
-        api.get<ShippingOrigin>('/delivery/origin'),
-        api.get<Shipment[]>('/delivery/shipments'),
-      ]);
-      setOrigin(originRes.data);
+      const shipmentsRes = await api.get<Shipment[]>('/delivery/shipments');
       setShipments(shipmentsRes.data ?? []);
     } catch (e) {
       if (e instanceof ApiRequestError && e.status === 409) {
@@ -168,6 +154,12 @@ export default function DeliveryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/delivery/settings"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
+          >
+            <Settings className="h-4 w-4" /> Settings
+          </Link>
           <button
             type="button"
             onClick={() => void load()}
@@ -190,8 +182,6 @@ export default function DeliveryPage() {
           {error}
         </div>
       )}
-
-      <OriginCard origin={origin} onSaved={(o) => setOrigin(o)} onError={setError} />
 
       <div className="rounded-lg border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
@@ -253,129 +243,6 @@ export default function DeliveryPage() {
           }}
         />
       )}
-    </div>
-  );
-}
-
-// ── Shipping origin card ────────────────────────────────────────────
-function OriginCard({
-  origin,
-  onSaved,
-  onError,
-}: {
-  origin: ShippingOrigin;
-  onSaved: (o: ShippingOrigin) => void;
-  onError: (msg: string | null) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    contactName: origin?.contactName ?? '',
-    contactPhone: origin?.contactPhone ?? '',
-    address: origin?.address ?? '',
-    postal: origin?.postal ?? '',
-  });
-
-  useEffect(() => {
-    setForm({
-      contactName: origin?.contactName ?? '',
-      contactPhone: origin?.contactPhone ?? '',
-      address: origin?.address ?? '',
-      postal: origin?.postal ?? '',
-    });
-  }, [origin]);
-
-  async function save() {
-    setSaving(true);
-    onError(null);
-    try {
-      const { data } = await api.patch<ShippingOrigin>('/delivery/origin', form);
-      onSaved(data);
-      setEditing(false);
-    } catch (e) {
-      onError(e instanceof ApiRequestError ? e.message : 'Failed to save origin');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const hasOrigin = origin && (origin.address || origin.contactName);
-
-  return (
-    <div className="rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <h2 className="flex items-center gap-2 font-semibold">
-          <MapPin className="h-4 w-4 text-muted-foreground" /> Shipping origin
-        </h2>
-        {!editing && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            {hasOrigin ? 'Edit' : 'Set origin'}
-          </button>
-        )}
-      </div>
-      <div className="px-6 py-4">
-        {editing ? (
-          <div className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field
-                label="Contact name"
-                value={form.contactName}
-                onChange={(v) => setForm({ ...form, contactName: v })}
-              />
-              <Field
-                label="Contact phone"
-                value={form.contactPhone}
-                onChange={(v) => setForm({ ...form, contactPhone: v })}
-              />
-            </div>
-            <Field
-              label="Address"
-              value={form.address}
-              onChange={(v) => setForm({ ...form, address: v })}
-            />
-            <Field
-              label="Postal code"
-              value={form.postal}
-              onChange={(v) => setForm({ ...form, postal: v })}
-            />
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void save()}
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-              >
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save origin
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditing(false)}
-                className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : hasOrigin ? (
-          <div className="text-sm">
-            <div className="font-medium">{origin?.contactName}</div>
-            <div className="text-muted-foreground">{origin?.contactPhone}</div>
-            <div className="mt-1 text-muted-foreground">
-              {origin?.address}
-              {origin?.postal ? ` · ${origin.postal}` : ''}
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No shipping origin set. Add your pickup address so couriers know where to collect
-            parcels.
-          </p>
-        )}
-      </div>
     </div>
   );
 }
