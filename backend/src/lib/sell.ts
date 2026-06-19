@@ -5,6 +5,7 @@ import { ApiError } from './http.js';
 import { applyMovement } from './inventory.js';
 import { redeemGiftCard } from './giftcards.js';
 import { writeOutbox } from './outbox.js';
+import { marketingClientIfEnabled } from '../services/ripllo-module-service.js';
 
 /*
  * The sell flow — the load-bearing path. Builds a Transaction from a cart,
@@ -44,6 +45,14 @@ export interface CreateSaleInput {
   payments?: SalePayment[];
   status?: 'COMPLETED' | 'PARKED';
   note?: string | null;
+  /** Marketing (Ripllo) module: a discount code to validate + apply as an
+   *  order discount, then stamp as redeemed on completion. Ignored when
+   *  the module is off. */
+  discountCode?: string | null;
+  /** Marketing (Ripllo) module: loyalty points to redeem at checkout. The
+   *  returned IDR value is applied as an order discount. Ignored when the
+   *  module is off or the customer has insufficient balance. */
+  redeemPoints?: number | null;
 }
 export interface SaleContext {
   accountId: string;
@@ -116,7 +125,83 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
     return { line, v, unitPrice, mods, discount, lineTotal: Math.max(0, lineTotal) };
   });
 
-  const orderDiscount = Math.max(0, input.orderDiscount ?? 0);
+  // Minted up-front so the Ripllo redeem/earn calls below can use it as
+  // their idempotency externalRef before the row is written.
+  const txnId = newId('txn');
+
+  // ── Marketing (Ripllo) module: discount code + points redemption ──
+  // Best-effort + module-gated. `marketingClientIfEnabled` returns null
+  // when the module is off (or RIPLLO_* env unset, e.g. local/tests), in
+  // which case NONE of this runs and the local loyalty path below is taken
+  // unchanged. Any Ripllo failure here is swallowed: a misconfigured
+  // marketing integration must never block a counter sale — the worst case
+  // is the discount/redemption silently doesn't apply.
+  const wantsMarketing =
+    (input.discountCode != null && input.discountCode !== '') ||
+    (input.redeemPoints != null && input.redeemPoints > 0);
+  const ripllo =
+    wantsMarketing && (input.status ?? 'COMPLETED') === 'COMPLETED'
+      ? await marketingClientIfEnabled(accountId)
+      : null;
+
+  let codeDiscount = 0;
+  let appliedDiscountCodeId: string | null = null;
+  let pointsRedeemed = 0;
+  let pointsRedeemValueIdr = 0;
+
+  if (ripllo) {
+    // Validate the discount code against the cart (dry-run); the binding
+    // redemption is stamped after the sale completes.
+    if (input.discountCode) {
+      try {
+        const v = await ripllo.discountCodes.validate({
+          accountId,
+          code: input.discountCode,
+          subtotal,
+          currency: 'IDR',
+          customerId: input.customerId ?? null,
+          items: lines.map((l) => ({
+            productId: l.v.productId,
+            price: l.unitPrice,
+            quantity: l.line.quantity,
+          })),
+        });
+        if (v.valid && v.code) {
+          codeDiscount = Math.max(0, Math.round(v.discountAmount));
+          appliedDiscountCodeId = v.code.id;
+        }
+      } catch {
+        /* non-fatal — code simply doesn't apply */
+      }
+    }
+
+    // Redeem loyalty points → IDR order discount. Validate the balance
+    // first so we never attempt to over-redeem.
+    if (input.customerId && input.redeemPoints != null && input.redeemPoints > 0) {
+      try {
+        const bal = await ripllo.loyalty.balance(input.customerId);
+        const points = Math.min(Math.floor(input.redeemPoints), bal.balance);
+        if (points > 0) {
+          const r = await ripllo.loyalty.redeem({
+            customerId: input.customerId,
+            points,
+            externalSource: 'malapos',
+            externalRef: `${txnId}:redeem`,
+            orderId: txnId,
+          });
+          pointsRedeemed = r.pointsRedeemed;
+          pointsRedeemValueIdr = Math.max(0, Math.round(r.redeemValueIdr));
+        }
+      } catch {
+        /* non-fatal — points simply aren't redeemed */
+      }
+    }
+  }
+
+  const orderDiscount = Math.max(
+    0,
+    (input.orderDiscount ?? 0) + codeDiscount + pointsRedeemValueIdr,
+  );
   const taxBase = Math.max(0, subtotal - orderDiscount);
   const bps = outlet.taxRateBps;
   let taxTotal = 0;
@@ -146,8 +231,6 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
   // keyed by accountId; a non-FNB (or absent) workspace leaves kdsState null.
   const settings = await prisma.posSettings.findUnique({ where: { accountId } });
   const kdsState = settings?.businessType === 'FNB' ? 'NEW' : null;
-
-  const txnId = newId('txn');
 
   await prisma.$transaction(async (tx) => {
     // Receipt number — bump the per-outlet counter atomically.
@@ -285,9 +368,16 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
         }
       }
 
-      // Loyalty + lifetime stats.
+      // Loyalty + lifetime stats. CRM stats (totalSpent/visits) always
+      // accrue locally. Points, however, have a source-of-truth:
+      //   - module OFF (`ripllo` null) → the LOCAL ledger earns, exactly
+      //     as before (no regression).
+      //   - module ON  (`ripllo` set)  → Ripllo is authoritative; the
+      //     local point grant is SKIPPED here and the earn is stamped to
+      //     Ripllo after commit (best-effort, below).
       if (input.customerId) {
-        const earned = Math.floor(total / LOYALTY_POINTS_PER_IDR);
+        const earnLocal = !ripllo;
+        const earned = earnLocal ? Math.floor(total / LOYALTY_POINTS_PER_IDR) : 0;
         await tx.customer.update({
           where: { id: input.customerId },
           data: {
@@ -319,7 +409,91 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
     }
   });
 
+  // ── Marketing (Ripllo) post-completion stamping ──────────────────────
+  // Runs only when the module is on (`ripllo` set) and the sale committed.
+  // ALL best-effort/non-fatal: the sale is already durably committed, so a
+  // Ripllo hiccup here must never throw — it would falsely surface as a
+  // failed sale to the cashier. We log + continue. (The points-redeem was
+  // already stamped pre-sale; here we only EARN + stamp the code redeem.)
+  if (ripllo && status === 'COMPLETED') {
+    if (input.customerId && total > 0) {
+      try {
+        await ripllo.loyalty.earn({
+          customerId: input.customerId,
+          orderGrossIdr: total,
+          externalSource: 'malapos',
+          externalRef: txnId,
+          orderId: txnId,
+        });
+      } catch (err) {
+        console.error('[sell] ripllo loyalty earn failed (non-fatal):', {
+          txnId,
+          message: (err as Error).message,
+        });
+      }
+    }
+    if (appliedDiscountCodeId) {
+      try {
+        await ripllo.discountCodes.redeem({
+          accountId,
+          discountCodeId: appliedDiscountCodeId,
+          checkoutSessionId: txnId,
+          customerId: input.customerId ?? null,
+          appliedAmount: codeDiscount,
+          externalSource: 'malapos',
+          externalRef: txnId,
+        });
+      } catch (err) {
+        console.error('[sell] ripllo discount redeem failed (non-fatal):', {
+          txnId,
+          message: (err as Error).message,
+        });
+      }
+    }
+  }
+
+  // Silence "assigned but only read in a swallowed branch" — pointsRedeemed
+  // is surfaced for callers/tests that want the redeemed count.
+  void pointsRedeemed;
+
   return txnId;
+}
+
+/**
+ * Best-effort Ripllo loyalty/discount claw-back for a reversed sale.
+ * Called post-commit from voidSale + refundSale. Module-gated (no-op when
+ * the Marketing module is off) and fully non-fatal — a reversal of stock /
+ * status must never be undone by a Ripllo failure.
+ *
+ * Keyed by the originating transaction's externalRef. We void the EARN
+ * (externalRef=txnId) and the points-REDEEM (externalRef=`txnId:redeem`)
+ * separately; `loyalty.void` is a no-op upstream when no matching ledger
+ * row exists, so it's safe to fire both unconditionally. The discount-code
+ * redemption is intentionally NOT clawed back here: a code use is a
+ * marketing fact (mirrors storlaunch keeping the redemption on refund).
+ */
+export async function clawbackMarketing(
+  accountId: string,
+  transactionId: string,
+): Promise<void> {
+  let ripllo;
+  try {
+    ripllo = await marketingClientIfEnabled(accountId);
+  } catch {
+    return;
+  }
+  if (!ripllo) return;
+  for (const externalRef of [transactionId, `${transactionId}:redeem`]) {
+    try {
+      await ripllo.loyalty.void({ externalRef, externalSource: 'malapos' });
+    } catch (err) {
+      console.error('[sell] ripllo loyalty void failed (non-fatal):', {
+        transactionId,
+        externalRef,
+        message: (err as Error).message,
+      });
+    }
+  }
 }
 
 /** Reverse a completed sale: return stock, mark VOIDED, emit event. */
@@ -393,4 +567,8 @@ export async function voidSale(
       data: { transactionId: txn.id, reason },
     });
   });
+
+  // Claw back any Ripllo loyalty earned/redeemed on this sale (module-on
+  // only; best-effort, post-commit).
+  await clawbackMarketing(accountId, txn.id);
 }

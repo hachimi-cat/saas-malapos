@@ -11,6 +11,7 @@ import {
   Users,
   Truck,
   Send,
+  Megaphone,
   BarChart3,
   Settings,
   Store,
@@ -92,6 +93,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { href: '/dashboard/kds', label: 'Kitchen display', icon: ChefHat },
       { href: '/dashboard/delivery', label: 'Delivery', icon: Send },
+      { href: '/dashboard/marketing', label: 'Marketing', icon: Megaphone },
       { href: '/dashboard/purchasing', label: 'Purchasing', icon: Truck },
       { href: '/dashboard/customers', label: 'Customers', icon: Users },
       { href: '/dashboard/gift-cards', label: 'Gift cards', icon: Gift },

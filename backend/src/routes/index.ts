@@ -23,6 +23,7 @@ import modifiersRouter from './modifiers.js';
 import billingRouter from './billing.js';
 import modulesRouter from './modules.js';
 import deliveryRouter from './delivery.js';
+import marketingRouter from './marketing.js';
 import webhooksPlugipayRouter from './webhooks-plugipay.js';
 import webhooksFulkrumaRouter from './webhooks-fulkruma.js';
 import apiKeysRouter from './api-keys.js';
@@ -129,6 +130,14 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
    *  per-merchant Fulkruma client. requireAuth is applied per-route
    *  inside the router; calls 409 when the Fulfillment module is off. */
   router.use('/delivery', deliveryRouter);
+
+  /** Marketing (Ripllo) surface — discount-code CRUD + cart-preview
+   *  validate + loyalty program config + member balance/history. Pure
+   *  proxy over the gated per-merchant Ripllo client; requireAuth is
+   *  applied per-route inside the router; calls 409 when the Marketing
+   *  module is off. The sell-flow loyalty/discount stamping lives in
+   *  lib/sell.ts + lib/refund.ts. */
+  router.use('/marketing', requireAuth, marketingRouter);
 
   /** Inbound Plugipay webhooks (tier checkout completion). Signature-
    *  verified inside the handler; no auth middleware. */

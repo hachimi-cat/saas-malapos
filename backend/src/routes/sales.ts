@@ -43,6 +43,9 @@ const createBody = z.object({
   payments: z.array(paymentSchema).max(10).optional(),
   status: z.enum(['COMPLETED', 'PARKED']).optional(),
   note: z.string().trim().max(500).nullish(),
+  // Marketing (Ripllo) module — ignored when the module is off.
+  discountCode: z.string().trim().max(50).nullish(),
+  redeemPoints: z.number().int().min(0).nullish(),
 });
 
 router.post(

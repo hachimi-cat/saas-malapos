@@ -74,3 +74,29 @@ export async function requireMarketingClient(accountId: string): Promise<RiplloC
   }
   return ripploForMerchant(row.ripploAccountId);
 }
+
+/**
+ * Non-throwing module probe for the sell/void/refund flow. Returns the
+ * per-merchant Ripllo client when the Marketing module is on AND the
+ * RIPLLO_* env is configured, else `null`. Used by lib/sell.ts so the
+ * loyalty/discount proxy is purely ADDITIVE — when the module is off (or
+ * env unset, e.g. local dev / tests) we get `null` and the existing local
+ * loyalty path is taken unchanged. Never throws: a misconfigured platform
+ * key must not break a counter sale.
+ */
+export async function marketingClientIfEnabled(
+  accountId: string,
+): Promise<RiplloClient | null> {
+  try {
+    const row = await prisma.posSettings.findUnique({
+      where: { accountId },
+      select: { ripploAccountId: true, modulesEnabled: true },
+    });
+    const modules = (row?.modulesEnabled as { marketing?: boolean } | null) ?? {};
+    if (modules.marketing !== true || !row?.ripploAccountId) return null;
+    if (!process.env.RIPLLO_KEY_ID || !process.env.RIPLLO_SECRET) return null;
+    return ripploForMerchant(row.ripploAccountId);
+  } catch {
+    return null;
+  }
+}

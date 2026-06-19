@@ -3,6 +3,7 @@ import { newId } from './ids.js';
 import { ApiError } from './http.js';
 import { applyMovement } from './inventory.js';
 import { writeOutbox } from './outbox.js';
+import { clawbackMarketing } from './sell.js';
 
 /*
  * Partial / line-item refunds. Where voidSale reverses a whole sale, refundSale
@@ -187,6 +188,14 @@ export async function refundSale(
       },
     });
   });
+
+  // Marketing (Ripllo) claw-back — only on a FULL refund (status flips to
+  // REFUNDED), since Ripllo's loyalty void is all-or-nothing per
+  // externalRef and a partial refund shouldn't reverse the whole earn.
+  // Module-gated + best-effort (no-op when the module is off).
+  if (nextStatus === 'REFUNDED') {
+    await clawbackMarketing(accountId, txn.id);
+  }
 
   return refundId;
 }
