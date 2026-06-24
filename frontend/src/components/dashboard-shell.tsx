@@ -143,7 +143,7 @@ const TRAILING_SECTIONS: NavSection[] = [
 // gated by the `ModulesState` flag below. portal-ui renders the
 // accordions + handles active-highlight/auto-expand internally — the host
 // only filters which modules reach <Sidebar>. Sub-pages are grounded in
-// the real backend routes (/payments/*, /delivery/*, /marketing/*).
+// the real backend routes (/payments/*, /fulfillment/*, /marketing/*).
 const PAYMENTS_MODULE: NavModule = {
   label: 'Payment',
   icon: Wallet,
@@ -152,7 +152,7 @@ const PAYMENTS_MODULE: NavModule = {
       items: [
         { href: '/dashboard/payments', label: 'Transactions', icon: Receipt },
         { href: '/dashboard/payments/payouts', label: 'Payouts', icon: Landmark },
-        { href: '/dashboard/gift-cards', label: 'Gift cards', icon: Gift },
+        { href: '/dashboard/payments/gift-cards', label: 'Gift cards', icon: Gift },
       ],
     },
     {
@@ -164,17 +164,17 @@ const PAYMENTS_MODULE: NavModule = {
   ],
 };
 
-const DELIVERY_MODULE: NavModule = {
-  label: 'Delivery',
+const FULFILLMENT_MODULE: NavModule = {
+  label: 'Fulfillment',
   icon: Send,
   groups: [
     {
-      items: [{ href: '/dashboard/delivery', label: 'Shipments', icon: Truck }],
+      items: [{ href: '/dashboard/fulfillment', label: 'Shipments', icon: Truck }],
     },
     {
       label: 'Settings',
       items: [
-        { href: '/dashboard/delivery/settings', label: 'Origin & couriers', icon: MapPin },
+        { href: '/dashboard/fulfillment/settings', label: 'Origin & couriers', icon: MapPin },
       ],
     },
   ],
@@ -199,7 +199,7 @@ const MARKETING_MODULE: NavModule = {
 // visibility. The host strips out the ones the merchant has off.
 const GATED_MODULES: { module: NavModule; key: keyof ModulesState }[] = [
   { module: PAYMENTS_MODULE, key: 'payment' },
-  { module: DELIVERY_MODULE, key: 'fulfillment' },
+  { module: FULFILLMENT_MODULE, key: 'fulfillment' },
   { module: MARKETING_MODULE, key: 'marketing' },
 ];
 

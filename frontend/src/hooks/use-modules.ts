@@ -51,7 +51,7 @@ export function useModules(): { modules: ModulesState; loading: boolean } {
 // Routes gated by the Payment (Plugipay) module. Typed URL access to any
 // of these while the module is off sends the merchant to
 // /dashboard/settings/modules?gated=payment.
-export const PAYMENT_GATED_PREFIXES = ['/dashboard/payments', '/dashboard/gift-cards'];
+export const PAYMENT_GATED_PREFIXES = ['/dashboard/payments'];
 
 export function isPaymentGatedPath(pathname: string): boolean {
   return PAYMENT_GATED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -60,7 +60,7 @@ export function isPaymentGatedPath(pathname: string): boolean {
 // Routes gated by the Fulfillment (Fulkruma) module. Typed URL access to
 // any of these while fulfillment is off sends the merchant to
 // /dashboard/settings/modules?gated=fulfillment.
-export const FULFILLMENT_GATED_PREFIXES = ['/dashboard/delivery'];
+export const FULFILLMENT_GATED_PREFIXES = ['/dashboard/fulfillment'];
 
 export function isFulfillmentGatedPath(pathname: string): boolean {
   return FULFILLMENT_GATED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));

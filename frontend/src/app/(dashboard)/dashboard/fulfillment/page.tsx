@@ -147,7 +147,7 @@ export default function DeliveryPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <Send className="h-6 w-6 text-primary" /> Delivery
+            <Send className="h-6 w-6 text-primary" /> Fulfillment
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Dispatch sales for delivery and track couriers in real time. Powered by Fulkruma.
@@ -155,7 +155,7 @@ export default function DeliveryPage() {
         </div>
         <div className="flex items-center gap-2">
           <Link
-            href="/dashboard/delivery/settings"
+            href="/dashboard/fulfillment/settings"
             className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
           >
             <Settings className="h-4 w-4" /> Settings

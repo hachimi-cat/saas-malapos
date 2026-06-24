@@ -9,7 +9,7 @@ import { api, ApiRequestError } from '@/lib/api';
  * Delivery settings — the Fulfillment (Fulkruma) module's "Settings"
  * sub-page. Set the merchant's shipping origin (GET/PATCH
  * /delivery/origin) and list the couriers available to the workspace
- * (GET /delivery/couriers). The main /dashboard/delivery page is the
+ * (GET /delivery/couriers). The main /dashboard/fulfillment page is the
  * shipments list; origin editing lives here. When the Fulfillment module
  * is OFF the backend returns 409 and this page shows the enable empty
  * state. Built against the real backend; no mock data.

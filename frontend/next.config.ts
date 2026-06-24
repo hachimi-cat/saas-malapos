@@ -21,6 +21,20 @@ const API_ORIGIN_ABSOLUTE = /^https?:\/\//.test(API_ORIGIN);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  /**
+   * Back-compat redirects for the 2026-06 module-namespace migration:
+   * every module-gated page now lives under its module's URL prefix
+   * (`/dashboard/payments/*`, `/dashboard/fulfillment/*`,
+   * `/dashboard/marketing/*`) so the module gate collapses to a single
+   * prefix. These 308s keep old bookmarks / deep links resolving.
+   */
+  async redirects() {
+    return [
+      { source: '/dashboard/gift-cards', destination: '/dashboard/payments/gift-cards', permanent: true },
+      { source: '/dashboard/delivery', destination: '/dashboard/fulfillment', permanent: true },
+      { source: '/dashboard/delivery/:path*', destination: '/dashboard/fulfillment/:path*', permanent: true },
+    ];
+  },
   async rewrites() {
     if (!API_ORIGIN_ABSOLUTE) return []; // prod: nginx owns /api
     return [

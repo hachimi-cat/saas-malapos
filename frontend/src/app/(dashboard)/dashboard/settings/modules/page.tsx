@@ -48,7 +48,7 @@ const MODULES: ModuleDef[] = [
     description:
       'Indonesian shipping (Biteship) — courier rates, labels & tracking for delivery orders. Powered by Fulkruma.',
     pricing: '0.5% of fulfilled order value — rolls into your Malapos invoice.',
-    deepLink: '/dashboard/delivery',
+    deepLink: '/dashboard/fulfillment',
     icon: Truck,
   },
   {
