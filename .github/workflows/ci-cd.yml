@@ -111,6 +111,9 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: /api/v1
           NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
+          # Cloudflare Turnstile — inlined at build so @forjio/auth-ui renders
+          # the widget on every (auth)/ + (admin)/ form. Empty => widget hidden.
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
         run: cd frontend && npm ci && npm run build
       - name: Upload backend dist
         uses: actions/upload-artifact@v6
@@ -185,6 +188,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 root@100.123.65.113 'bash -se' <<'SCRIPT'
           cd /opt/saas/malapos/backend
+          grep -q '^TURNSTILE_SECRET_KEY=' .env 2>/dev/null || echo 'TURNSTILE_SECRET_KEY=${{ secrets.TURNSTILE_SECRET_KEY }}' >> .env
           npm ci --omit=dev
           npx prisma migrate deploy
           pm2 restart malapos || pm2 start dist/index.js --name malapos -i 1
@@ -408,6 +412,7 @@ jobs:
           command_timeout: 30m
           script: |
             cd /opt/saas/malapos/backend
+            grep -q '^TURNSTILE_SECRET_KEY=' .env 2>/dev/null || echo 'TURNSTILE_SECRET_KEY=${{ secrets.TURNSTILE_SECRET_KEY }}' >> .env
             npm ci --omit=dev
             npx prisma generate
             npx prisma migrate deploy

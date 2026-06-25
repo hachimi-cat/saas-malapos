@@ -12,7 +12,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@forjio/auth-ui": "^0.4.2",
+    "@forjio/auth-ui": "^0.5.0",
     "@forjio/portal-ui": "^0.5.0",
     "@forjio/sdk": "^0.9.0",
     "@forjio/website-ui": "^0.2.3",
