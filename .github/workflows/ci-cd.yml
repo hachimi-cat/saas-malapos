@@ -189,6 +189,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 root@100.123.65.113 'bash -se' <<'SCRIPT'
           cd /opt/saas/malapos/backend
           grep -q '^TURNSTILE_SECRET_KEY=' .env 2>/dev/null || echo 'TURNSTILE_SECRET_KEY=${{ secrets.TURNSTILE_SECRET_KEY }}' >> .env
+          grep -q '^TURNSTILE_ALLOWED_HOSTNAMES=' .env 2>/dev/null || echo 'TURNSTILE_ALLOWED_HOSTNAMES=${{ secrets.TURNSTILE_ALLOWED_HOSTNAMES }}' >> .env
           npm ci --omit=dev
           npx prisma migrate deploy
           pm2 restart malapos || pm2 start dist/index.js --name malapos -i 1
@@ -413,6 +414,7 @@ jobs:
           script: |
             cd /opt/saas/malapos/backend
             grep -q '^TURNSTILE_SECRET_KEY=' .env 2>/dev/null || echo 'TURNSTILE_SECRET_KEY=${{ secrets.TURNSTILE_SECRET_KEY }}' >> .env
+            grep -q '^TURNSTILE_ALLOWED_HOSTNAMES=' .env 2>/dev/null || echo 'TURNSTILE_ALLOWED_HOSTNAMES=${{ secrets.TURNSTILE_ALLOWED_HOSTNAMES }}' >> .env
             npm ci --omit=dev
             npx prisma generate
             npx prisma migrate deploy
