@@ -24,6 +24,12 @@ import billingRouter from './billing.js';
 import modulesRouter from './modules.js';
 import deliveryRouter from './delivery.js';
 import marketingRouter from './marketing.js';
+import marketingProxyRouter from './marketing-proxy.js';
+import marketingBlogRouter from './marketing/blog.js';
+import marketingFeedsRouter from './marketing/feeds.js';
+import marketingPixelsRouter from './marketing/pixels.js';
+import marketingAbandonedCartRouter from './marketing/abandoned-cart.js';
+import marketingReferralsRouter from './marketing/referrals.js';
 import paymentsRouter from './payments.js';
 import paymentPlansRouter from './payment/plans.js';
 import paymentSubscriptionsRouter from './payment/subscriptions.js';
@@ -172,6 +178,28 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
    *  module is off. The sell-flow loyalty/discount stamping lives in
    *  lib/sell.ts + lib/refund.ts. */
   router.use('/marketing', requireAuth, marketingRouter);
+
+  /** Marketing (Ripllo) full merchant surface — the storlaunch-parity
+   *  Ripllo menu (campaigns, creators, briefs, contracts, programs,
+   *  affiliate approvals, inbox, audience, channels, compose, funnels,
+   *  referrals, abandoned-cart, pixels, feeds, blog). A generic
+   *  passthrough forwards the WHOLE Ripllo merchant API verbatim
+   *  (routes/marketing-proxy.ts) and a handful of thin typed routes wrap
+   *  the SDK for the surfaces the portal consumes with typed clients
+   *  (blog/feeds/pixels/abandoned-cart/referrals). Each is gated by
+   *  requireMarketingClient → 409 MARKETING_MODULE_DISABLED when the
+   *  module is off. requireAuth is applied at the mount here.
+   *
+   *  These live in the disjoint `/account/*` namespace, so they NEVER
+   *  shadow the typed `/marketing/*` routes above (discount-codes +
+   *  POS-native loyalty), which stay the source of truth for the
+   *  sell-flow stamping. No route collision. */
+  router.use('/account/marketing', requireAuth, marketingProxyRouter);
+  router.use('/account/blog/posts', requireAuth, marketingBlogRouter);
+  router.use('/account/feeds', requireAuth, marketingFeedsRouter);
+  router.use('/account/pixels', requireAuth, marketingPixelsRouter);
+  router.use('/account/abandoned-cart', requireAuth, marketingAbandonedCartRouter);
+  router.use('/account/referrals', requireAuth, marketingReferralsRouter);
 
   /** Payment (Plugipay) module — dynamic-QRIS at the sell screen + a
    *  workspace payments overview. Pure proxy over the gated per-merchant

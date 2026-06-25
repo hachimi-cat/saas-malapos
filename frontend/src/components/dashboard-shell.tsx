@@ -40,6 +40,19 @@ import {
   Download,
   KeySquare,
   Warehouse,
+  UserSearch,
+  FileSignature,
+  Network,
+  UserCheck,
+  Inbox,
+  Radio,
+  PenSquare,
+  Filter,
+  Share2,
+  ShoppingCart,
+  Crosshair,
+  Rss,
+  Newspaper,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -215,12 +228,45 @@ const MARKETING_MODULE: NavModule = {
   icon: Megaphone,
   groups: [
     {
-      label: 'Promotions',
-      items: [{ href: '/dashboard/marketing', label: 'Discount codes', icon: Ticket }],
+      label: 'Campaigns',
+      items: [{ href: '/dashboard/marketing/campaigns', label: 'All campaigns', icon: Megaphone }],
     },
     {
-      label: 'Loyalty',
-      items: [{ href: '/dashboard/marketing/loyalty', label: 'Loyalty program', icon: Gift }],
+      label: 'Marketplace',
+      items: [
+        { href: '/dashboard/marketing/creators', label: 'Creators', icon: UserSearch },
+        { href: '/dashboard/marketing/creator-briefs', label: 'Creator briefs', icon: FileText },
+        { href: '/dashboard/marketing/contracts', label: 'Contracts', icon: FileSignature },
+        { href: '/dashboard/marketing/programs', label: 'Affiliate programs', icon: Network },
+        { href: '/dashboard/marketing/affiliate-approvals', label: 'Affiliate approvals', icon: UserCheck },
+      ],
+    },
+    {
+      label: 'Channels & Audience',
+      items: [
+        { href: '/dashboard/marketing/inbox', label: 'Inbox', icon: Inbox },
+        { href: '/dashboard/marketing/audience', label: 'Audience', icon: Users },
+        { href: '/dashboard/marketing/channels', label: 'Channels', icon: Radio },
+        { href: '/dashboard/marketing/compose', label: 'Compose', icon: PenSquare },
+        { href: '/dashboard/marketing/funnels', label: 'Funnels', icon: Filter },
+      ],
+    },
+    {
+      label: 'Growth',
+      items: [
+        { href: '/dashboard/marketing/discount-codes', label: 'Discount codes', icon: Ticket },
+        { href: '/dashboard/marketing/referrals', label: 'Referrals', icon: Share2 },
+        { href: '/dashboard/marketing/abandoned-cart', label: 'Abandoned cart', icon: ShoppingCart },
+        { href: '/dashboard/marketing/loyalty', label: 'Loyalty program', icon: Gift },
+      ],
+    },
+    {
+      label: 'Storefront',
+      items: [
+        { href: '/dashboard/marketing/pixels', label: 'Pixels & tracking', icon: Crosshair },
+        { href: '/dashboard/marketing/feeds', label: 'Product feeds', icon: Rss },
+        { href: '/dashboard/marketing/blog', label: 'Blog', icon: Newspaper },
+      ],
     },
   ],
 };
