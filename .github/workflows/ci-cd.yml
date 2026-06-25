@@ -299,6 +299,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Staging is tailnet-only — join + map the staging host(s) to the
+      # box's tailnet IP before any step contacts staging.
+      - name: Connect to tailnet (ephemeral CI node)
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          hostname: malapos-visual-ci
+      - name: Route staging host over the tailnet
+        run: |
+          echo "100.123.65.113 ${{ secrets.STAGING_HOST }}" | sudo tee -a /etc/hosts
+          echo "100.123.65.113 staging-malapos.forjio.com" | sudo tee -a /etc/hosts
       - uses: actions/checkout@v5
         with:
           # Need a writable checkout for the baseline-update branch.
