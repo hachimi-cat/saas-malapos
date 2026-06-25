@@ -35,6 +35,13 @@ import paymentPayoutsRouter from './payment/payouts.js';
 import paymentLedgerRouter from './payment/ledger.js';
 import paymentReportsRouter from './payment/reports.js';
 import paymentSettingsProxyRouter from './payment/plugipay-settings-proxy.js';
+import fulfillmentShipmentsRouter from './fulfillment/shipments.js';
+import fulfillmentShippingRouter from './fulfillment/shipping.js';
+import fulfillmentWarehousesRouter from './fulfillment/warehouses.js';
+import fulfillmentInventoryRouter from './fulfillment/inventory.js';
+import fulfillmentShippingCreditsRouter from './fulfillment/shipping-credits.js';
+import fulfillmentLicensesRouter from './fulfillment/licenses.js';
+import fulfillmentDeliveriesRouter from './fulfillment/deliveries.js';
 import webhooksPlugipayRouter from './webhooks-plugipay.js';
 import webhooksFulkrumaRouter from './webhooks-fulkruma.js';
 import apiKeysRouter from './api-keys.js';
@@ -141,6 +148,22 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
    *  per-merchant Fulkruma client. requireAuth is applied per-route
    *  inside the router; calls 409 when the Fulfillment module is off. */
   router.use('/delivery', deliveryRouter);
+
+  /** Fulfillment (Fulkruma) merchant resource surface — the full Fulkruma
+   *  merchant menu (Digital deliveries, Licenses, Shipments, Shipping
+   *  credits, Inventory, Warehouses, Shipping). Each is a pure proxy over
+   *  the gated per-merchant Fulkruma client (requireMerchantClient → 409
+   *  FULFILLMENT_MODULE_DISABLED when the module is off). requireAuth is
+   *  applied at the mount here. These coexist with the POS sell-flow
+   *  delivery surface on `/delivery` above (routes/delivery.ts) — no route
+   *  collision: that surface stays the create-from-sale path. */
+  router.use('/fulfillment/shipments', requireAuth, fulfillmentShipmentsRouter);
+  router.use('/fulfillment/shipping-credits', requireAuth, fulfillmentShippingCreditsRouter);
+  router.use('/fulfillment/shipping', requireAuth, fulfillmentShippingRouter);
+  router.use('/fulfillment/warehouses', requireAuth, fulfillmentWarehousesRouter);
+  router.use('/fulfillment/inventory', requireAuth, fulfillmentInventoryRouter);
+  router.use('/fulfillment/licenses', requireAuth, fulfillmentLicensesRouter);
+  router.use('/fulfillment/deliveries', requireAuth, fulfillmentDeliveriesRouter);
 
   /** Marketing (Ripllo) surface — discount-code CRUD + cart-preview
    *  validate + loyalty program config + member balance/history. Pure

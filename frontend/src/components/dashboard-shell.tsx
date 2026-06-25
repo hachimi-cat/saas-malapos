@@ -37,6 +37,9 @@ import {
   Zap,
   ShoppingBag,
   Loader2,
+  Download,
+  KeySquare,
+  Warehouse,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -188,12 +191,20 @@ const FULFILLMENT_MODULE: NavModule = {
   icon: Send,
   groups: [
     {
-      items: [{ href: '/dashboard/fulfillment', label: 'Shipments', icon: Truck }],
+      label: 'Digital',
+      items: [
+        { href: '/dashboard/fulfillment/deliveries', label: 'Digital deliveries', icon: Download },
+        { href: '/dashboard/fulfillment/licenses', label: 'Licenses', icon: KeySquare },
+      ],
     },
     {
-      label: 'Settings',
+      label: 'Physical',
       items: [
-        { href: '/dashboard/fulfillment/settings', label: 'Origin & couriers', icon: MapPin },
+        { href: '/dashboard/fulfillment/shipments', label: 'Shipments', icon: Truck },
+        { href: '/dashboard/fulfillment/shipping-credits', label: 'Shipping Credits', icon: Wallet },
+        { href: '/dashboard/fulfillment/inventory', label: 'Inventory', icon: Boxes },
+        { href: '/dashboard/fulfillment/warehouses', label: 'Warehouses', icon: Warehouse },
+        { href: '/dashboard/fulfillment/shipping', label: 'Shipping', icon: MapPin },
       ],
     },
   ],
