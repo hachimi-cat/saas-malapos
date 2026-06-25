@@ -144,6 +144,15 @@ jobs:
     needs: build
     if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.repository != 'hachimi-cat/forjio-service-template'
     steps:
+      # Staging lives on the SHARED box reached only over the tailnet
+      # (taila71a7b.ts.net). Join as an ephemeral CI node so rsync/SSH below
+      # can reach 100.74.232.76. Ephemeral key → the node auto-removes when
+      # the job ends.
+      - name: Connect to tailnet (ephemeral CI node)
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          hostname: malapos-deploy-ci
       - uses: actions/download-artifact@v7
         with:
           name: backend-dist
@@ -161,13 +170,16 @@ jobs:
           switches: -avz --delete --exclude node_modules --exclude .git --exclude .env --exclude .npmrc --exclude frontend/.next/cache
           path: ./
           remote_path: /opt/saas/malapos/
-          remote_host: ${{ secrets.STAGING_HOST }}
+          # Tailnet IP of the shared staging box (private; only routable on
+          # the tailnet via the Tailscale step above). SSH/rsync don't need
+          # the staging hostname — only the e2e job does (nginx vhost match).
+          remote_host: 100.74.232.76
           remote_user: root
           remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
       - name: Migrate + restart
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.STAGING_HOST }}
+          host: 100.74.232.76
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 30m
@@ -217,10 +229,20 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v5
-      # Staging runs on the SHARED box (consolidation 2026-06-15), reached
-      # over PUBLIC http: set STAGING_HOST = staging-<brand>.forjio.com
-      # (nginx :80, UFW open), with E2E_BYPASS_SECRET gating auth. No
-      # Tailscale — the e2e here talks straight to the public host.
+      # Staging runs on the SHARED box reached only over the tailnet
+      # (taila71a7b.ts.net). Join as an ephemeral CI node, then map the
+      # staging hostname → the box's tailnet IP in the runner's /etc/hosts.
+      # We KEEP the hostname (not the raw IP) because nginx routes the ~10
+      # products' staging vhosts by Host header — so e2e must send
+      # Host: staging-<brand>.forjio.com while the connection rides the
+      # tailnet. E2E_BYPASS_SECRET still gates auth.
+      - name: Connect to tailnet (ephemeral CI node)
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          hostname: malapos-e2e-ci
+      - name: Route staging host over the tailnet
+        run: echo "100.74.232.76 ${{ secrets.STAGING_HOST }}" | sudo tee -a /etc/hosts
       - uses: actions/setup-node@v5
         with:
           node-version: 22
