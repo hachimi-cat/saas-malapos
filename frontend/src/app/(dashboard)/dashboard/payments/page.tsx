@@ -1,218 +1,306 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Wallet, Loader2, RefreshCw, ExternalLink, QrCode, Banknote } from 'lucide-react';
-import { api, ApiRequestError } from '@/lib/api';
-import { rupiah } from '@/lib/money';
+import { useEffect, useState } from 'react';
+import { checkoutSessionsApi, CheckoutSession } from '@/lib/payments-api';
+import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { Plus, ExternalLink, Loader2, X, Copy, Check } from 'lucide-react';
+import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 
-/*
- * Payments dashboard — the Payment (Plugipay) module's deep-link target.
- * Shows the workspace's available balance, recent dynamic-QRIS checkout
- * sessions, and recent payouts via the gated per-merchant Plugipay client.
- *
- * Everything proxies through /api/v1/payments/overview, which is gated on
- * the Payment module: when it's OFF the backend returns 409
- * PAYMENT_MODULE_DISABLED and this page shows the enable empty state.
- * Built against the real backend; no mock data.
- */
-
-type CheckoutSession = {
-  id: string;
-  amount: number;
-  currency: string;
-  status: string;
-  createdAt: string;
-  completedAt: string | null;
-};
-type Payout = {
-  id: string;
-  amount: number;
-  currency: string;
-  status: string;
-  createdAt: string;
-};
-type AvailableBalance = { balance: number; currency: string } | null;
-
-type Overview = {
-  balance: AvailableBalance;
-  sessions: CheckoutSession[];
-  payouts: Payout[];
+const STATUS_COLOR: Record<string, string> = {
+  open: 'bg-yellow-500/10 text-yellow-400',
+  completed: 'bg-green-500/10 text-green-400',
+  expired: 'bg-muted text-muted-foreground',
+  refunded: 'bg-red-500/10 text-red-400',
 };
 
-function statusClass(status: string): string {
-  const s = status.toLowerCase();
-  if (s === 'completed' || s === 'paid')
-    return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-  if (s === 'expired' || s === 'canceled' || s === 'failed')
-    return 'bg-destructive/10 text-destructive';
-  if (s === 'open' || s === 'pending' || s === 'in_transit')
-    return 'bg-primary/10 text-primary';
-  return 'bg-muted text-muted-foreground';
-}
+const STATUS_OPTIONS = [
+  { value: 'open', label: 'Open' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'refunded', label: 'Refunded' },
+];
 
-function prettyStatus(status: string): string {
-  return status
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
+function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (s: CheckoutSession) => void }) {
+  const [form, setForm] = useState({
+    amount: '',
+    currency: 'IDR',
+    description: '',
+    customerEmail: '',
+    successUrl: 'https://example.com/success',
+    cancelUrl: 'https://example.com/cancel',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-export default function PaymentsPage() {
-  const [data, setData] = useState<Overview | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [moduleOff, setModuleOff] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function load() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!form.amount || isNaN(Number(form.amount))) {
+      setError('Amount must be a valid number');
+      return;
+    }
     setLoading(true);
-    setError(null);
-    setModuleOff(false);
     try {
-      const res = await api.get<Overview>('/payments/overview');
-      setData(res.data);
-    } catch (e) {
-      if (e instanceof ApiRequestError && e.status === 409) {
-        setModuleOff(true);
-      } else {
-        setError(e instanceof ApiRequestError ? e.message : 'Failed to load payments');
-      }
+      const res = await checkoutSessionsApi.create({
+        amount: Number(form.amount),
+        currency: form.currency,
+        successUrl: form.successUrl,
+        cancelUrl: form.cancelUrl,
+      });
+      onCreated(res.data as unknown as CheckoutSession);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      setError(msg || 'Failed to create checkout session');
     } finally {
       setLoading(false);
     }
   }
 
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-lg border border-border bg-card p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">New Checkout Session</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Amount</label>
+              <input
+                type="number"
+                required
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="50000"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Currency</label>
+              <select
+                value={form.currency}
+                onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="IDR">IDR</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Description</label>
+            <input
+              type="text"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="Pro Plan - Monthly"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Customer Email</label>
+            <input
+              type="email"
+              value={form.customerEmail}
+              onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
+              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="buyer@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Success URL</label>
+            <input
+              type="url"
+              required
+              value={form.successUrl}
+              onChange={(e) => setForm({ ...form, successUrl: e.target.value })}
+              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Cancel URL</label>
+            <input
+              type="url"
+              required
+              value={form.cancelUrl}
+              onChange={(e) => setForm({ ...form, cancelUrl: e.target.value })}
+              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          {error && <p className="text-xs text-red-400">{error}</p>}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded border border-border py-2 text-sm font-medium hover:bg-accent"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex flex-1 items-center justify-center gap-2 rounded bg-primary py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Create Session
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+  return (
+    <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground" title="Copy URL">
+      {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+    </button>
+  );
+}
+
+export default function PaymentsPage() {
+  const [sessions, setSessions] = useState<CheckoutSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+
   useEffect(() => {
-    void load();
+    checkoutSessionsApi
+      .list({ limit: 100 })
+      .then((res) => setSessions((res.data as unknown as { data?: CheckoutSession[] })?.data ?? (res.data as unknown as CheckoutSession[])))
+      .catch(() => setSessions([]))
+      .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 p-6 text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading payments…
-      </div>
-    );
+  function handleCreated(session: CheckoutSession) {
+    setSessions((prev) => [session, ...prev]);
+    setShowCreate(false);
   }
 
-  if (moduleOff) {
-    return (
-      <div className="mx-auto max-w-6xl">
-        <div className="rounded-lg border border-border bg-card px-8 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <Wallet className="h-6 w-6 text-primary" />
-          </div>
-          <h1 className="text-lg font-semibold">Enable the Payments module</h1>
-          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Payments uses Plugipay to accept real dynamic QRIS at the sell screen — the customer
-            scans, the sale settles automatically. Turn on the Payments module to take live QRIS
-            and see your balance, transactions, and payouts here.
-          </p>
-          <Link
-            href="/dashboard/settings/modules"
-            className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Go to Modules <ExternalLink className="h-4 w-4" />
-          </Link>
+  const columns: Column<CheckoutSession>[] = [
+    {
+      key: 'id',
+      header: 'ID',
+      sortable: true,
+      sortValue: (r) => r.id,
+      searchValue: (r) => `${r.id} ${r.description ?? ''}`,
+      cell: (r) => (
+        <Link href={`/dashboard/payments/${r.id}`} className="font-mono text-primary hover:underline">
+          {r.id}
+        </Link>
+      ),
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      align: 'right',
+      sortable: true,
+      sortValue: (r) => r.amount,
+      cell: (r) => (
+        <span className="font-semibold">
+          {r.currency === 'IDR' ? formatCurrency(r.amount) : `$${r.amount}`}
+        </span>
+      ),
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      sortable: true,
+      sortValue: (r) => r.description ?? '',
+      cell: (r) => <span className="text-muted-foreground">{r.description || '—'}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      sortValue: (r) => r.status,
+      cell: (r) => (
+        <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_COLOR[r.status] || 'bg-muted text-muted-foreground')}>
+          {r.status}
+        </span>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: 'Created',
+      sortable: true,
+      sortValue: (r) => new Date(r.createdAt).getTime(),
+      cell: (r) => <span className="text-muted-foreground">{formatDate(r.createdAt)}</span>,
+    },
+    {
+      key: 'link',
+      header: 'Link',
+      cell: (r) => (
+        <div className="flex items-center gap-2">
+          <CopyButton text={r.checkoutUrl} />
+          <a href={r.checkoutUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
         </div>
-      </div>
-    );
-  }
+      ),
+    },
+  ];
+
+  const filters: FilterDef<CheckoutSession>[] = [
+    { key: 'status', label: 'Status', accessor: (r) => r.status, options: STATUS_OPTIONS },
+  ];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
+      {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />}
+
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Payments</h1>
-          <p className="text-sm text-muted-foreground">
-            Live QRIS, balance, and payouts from your Plugipay workspace.
-          </p>
+          <h1 className="text-xl font-bold sm:text-2xl">Checkout Sessions</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Manage and create hosted payment sessions</p>
         </div>
         <button
-          onClick={() => void load()}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
         >
-          <RefreshCw className="h-4 w-4" /> Refresh
+          <Plus className="h-4 w-4" /> New Session
         </button>
       </div>
 
-      {error && (
-        <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>
+      {loading ? (
+        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : sessions.length === 0 ? (
+        <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card">
+          <p className="text-sm text-muted-foreground">No checkout sessions found</p>
+          <button onClick={() => setShowCreate(true)} className="text-xs text-primary hover:underline">
+            Create your first session
+          </button>
+        </div>
+      ) : (
+        <DataTable
+          rows={sessions}
+          columns={columns}
+          filters={filters}
+          rowKey={(r) => r.id}
+          searchPlaceholder="Search id, description…"
+          defaultSort={{ key: 'createdAt', dir: 'desc' }}
+          empty="No sessions match."
+        />
       )}
-
-      {/* Balance */}
-      <div className="rounded-lg border border-border bg-card p-5">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Banknote className="h-4 w-4" /> Available balance
-        </div>
-        <p className="mt-1 text-2xl font-bold text-primary">
-          {data?.balance ? rupiah(data.balance.balance) : '—'}
-        </p>
-        {!data?.balance && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            No balance yet — once a customer pays a QRIS sale it lands here.
-          </p>
-        )}
-      </div>
-
-      {/* Recent QRIS sessions */}
-      <div className="rounded-lg border border-border bg-card">
-        <div className="flex items-center gap-2 border-b border-border px-5 py-3 text-sm font-medium">
-          <QrCode className="h-4 w-4 text-primary" /> Recent QRIS transactions
-        </div>
-        {data?.sessions.length ? (
-          <div className="divide-y divide-border">
-            {data.sessions.map((s) => (
-              <div key={s.id} className="flex items-center justify-between px-5 py-3 text-sm">
-                <div>
-                  <p className="font-medium">{rupiah(s.amount)}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(s.createdAt)}</p>
-                </div>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusClass(s.status)}`}>
-                  {prettyStatus(s.status)}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="px-5 py-8 text-center text-sm text-muted-foreground">
-            No QRIS transactions yet. Charge a sale with QRIS at the{' '}
-            <Link href="/dashboard/sell" className="text-primary underline">
-              sell screen
-            </Link>
-            .
-          </p>
-        )}
-      </div>
-
-      {/* Recent payouts */}
-      <div className="rounded-lg border border-border bg-card">
-        <div className="flex items-center gap-2 border-b border-border px-5 py-3 text-sm font-medium">
-          <Wallet className="h-4 w-4 text-primary" /> Recent payouts
-        </div>
-        {data?.payouts.length ? (
-          <div className="divide-y divide-border">
-            {data.payouts.map((p) => (
-              <div key={p.id} className="flex items-center justify-between px-5 py-3 text-sm">
-                <div>
-                  <p className="font-medium">{rupiah(p.amount)}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(p.createdAt)}</p>
-                </div>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusClass(p.status)}`}>
-                  {prettyStatus(p.status)}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="px-5 py-8 text-center text-sm text-muted-foreground">
-            No payouts yet.
-          </p>
-        )}
-      </div>
     </div>
   );
 }

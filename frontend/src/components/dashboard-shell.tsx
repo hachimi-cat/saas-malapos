@@ -31,6 +31,11 @@ import {
   Landmark,
   Ticket,
   MapPin,
+  Layers,
+  RefreshCcw,
+  BookOpenCheck,
+  Zap,
+  ShoppingBag,
   Loader2,
   type LucideIcon,
 } from 'lucide-react';
@@ -150,15 +155,29 @@ const PAYMENTS_MODULE: NavModule = {
   groups: [
     {
       items: [
-        { href: '/dashboard/payments', label: 'Transactions', icon: Receipt },
-        { href: '/dashboard/payments/payouts', label: 'Payouts', icon: Landmark },
+        { href: '/dashboard/payments', label: 'Checkout Sessions', icon: CreditCard },
+        { href: '/dashboard/payments/plans', label: 'Plans', icon: Layers },
+        { href: '/dashboard/payments/subscriptions', label: 'Subscriptions', icon: RefreshCcw },
+        { href: '/dashboard/payments/invoices', label: 'Invoices', icon: Receipt },
+        { href: '/dashboard/payments/receipts', label: 'Receipts', icon: Receipt },
+        { href: '/dashboard/payments/customers', label: 'Customers', icon: Users },
         { href: '/dashboard/payments/gift-cards', label: 'Gift cards', icon: Gift },
+      ],
+    },
+    {
+      label: 'Money',
+      items: [
+        { href: '/dashboard/payments/payouts', label: 'Payouts', icon: Landmark },
+        { href: '/dashboard/payments/ledger', label: 'Ledger', icon: BookOpenCheck },
+        { href: '/dashboard/payments/reports', label: 'Reports', icon: BarChart3 },
       ],
     },
     {
       label: 'Settings',
       items: [
-        { href: '/dashboard/payments/settings', label: 'Payment settings', icon: Settings },
+        { href: '/dashboard/payments/settings/providers', label: 'Providers', icon: Zap },
+        { href: '/dashboard/payments/settings/payment-methods', label: 'Payment methods', icon: ShoppingBag },
+        { href: '/dashboard/payments/settings/templates', label: 'Templates', icon: FileText },
       ],
     },
   ],

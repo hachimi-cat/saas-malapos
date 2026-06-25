@@ -25,6 +25,16 @@ import modulesRouter from './modules.js';
 import deliveryRouter from './delivery.js';
 import marketingRouter from './marketing.js';
 import paymentsRouter from './payments.js';
+import paymentPlansRouter from './payment/plans.js';
+import paymentSubscriptionsRouter from './payment/subscriptions.js';
+import paymentInvoicesRouter from './payment/invoices.js';
+import paymentReceiptsRouter from './payment/receipts.js';
+import paymentCustomersRouter from './payment/customers.js';
+import paymentCheckoutSessionsRouter from './payment/checkout-sessions.js';
+import paymentPayoutsRouter from './payment/payouts.js';
+import paymentLedgerRouter from './payment/ledger.js';
+import paymentReportsRouter from './payment/reports.js';
+import paymentSettingsProxyRouter from './payment/plugipay-settings-proxy.js';
 import webhooksPlugipayRouter from './webhooks-plugipay.js';
 import webhooksFulkrumaRouter from './webhooks-fulkruma.js';
 import apiKeysRouter from './api-keys.js';
@@ -146,6 +156,25 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
    *  calls 409 when the Payment module is off. The QRIS-settle webhook
    *  lives in /webhooks/plugipay (merchant-order branch). */
   router.use('/payments', paymentsRouter);
+
+  /** Payment (Plugipay) merchant resource surface — the full Plugipay
+   *  merchant menu (Checkout sessions, Plans, Subscriptions, Invoices,
+   *  Receipts, Customers, Payouts, Ledger, Reports, and a generic
+   *  settings passthrough for Providers/Payment methods/Templates). Each
+   *  is a pure proxy over the gated per-merchant Plugipay client
+   *  (requireMerchantClient → 409 PAYMENT_MODULE_DISABLED when the module
+   *  is off). requireAuth is applied at the mount here. These coexist
+   *  with the POS dynamic-QRIS surface on `/payments` above. */
+  router.use('/payments/checkout-sessions', requireAuth, paymentCheckoutSessionsRouter);
+  router.use('/payments/plans', requireAuth, paymentPlansRouter);
+  router.use('/payments/subscriptions', requireAuth, paymentSubscriptionsRouter);
+  router.use('/payments/invoices', requireAuth, paymentInvoicesRouter);
+  router.use('/payments/receipts', requireAuth, paymentReceiptsRouter);
+  router.use('/payments/customers', requireAuth, paymentCustomersRouter);
+  router.use('/payments/payouts', requireAuth, paymentPayoutsRouter);
+  router.use('/payments/ledger', requireAuth, paymentLedgerRouter);
+  router.use('/payments/reports', requireAuth, paymentReportsRouter);
+  router.use('/payments/plugipay-settings', requireAuth, paymentSettingsProxyRouter);
 
   /** Inbound Plugipay webhooks (tier checkout completion). Signature-
    *  verified inside the handler; no auth middleware. */
