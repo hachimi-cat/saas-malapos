@@ -161,62 +161,48 @@ jobs:
         with:
           name: frontend-out
           path: frontend/
-      - name: Deploy via rsync
-        uses: burnett01/rsync-deployments@7.0.1
-        with:
-          # node_modules excluded — the droplet installs runtime deps with
-          # `npm ci --omit=dev` for both backend and frontend. .next/cache
-          # excluded so the build cache never ships.
-          switches: -avz --delete --exclude node_modules --exclude .git --exclude .env --exclude .npmrc --exclude frontend/.next/cache
-          path: ./
-          remote_path: /opt/saas/malapos/
-          # Tailnet IP of the shared staging box (private; only routable on
-          # the tailnet via the Tailscale step above). SSH/rsync don't need
-          # the staging hostname — only the e2e job does (nginx vhost match).
-          remote_host: 100.74.232.76
-          remote_user: root
-          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
-      - name: Migrate + restart
-        uses: appleboy/ssh-action@v1
-        with:
-          host: 100.74.232.76
-          username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 30m
-          script: |
-            cd /opt/saas/malapos/backend
-            # --omit=dev — runtime deps only. dist/ + prisma client are
-            # already in the artifact from the Build job, so we just need
-            # the production node_modules tree here.
-            npm ci --omit=dev
-            npx prisma migrate deploy
-            pm2 restart malapos || pm2 start dist/index.js --name malapos -i 1
-            cd /opt/saas/malapos/frontend
-            # Dynamic Next app — `.next/` is pre-built in the artifact
-            # (no on-box `next build`; that step OOMed on the 1GB box and
-            # added ~5min to every deploy). Install runtime deps + run
-            # `next start` under pm2.
-            npm ci --omit=dev
-            pm2 restart malapos-frontend || pm2 start npm --name malapos-frontend -- start
-            pm2 save
-            # Wait for backend to be healthy
-            echo "Waiting for backend health..."
-            for i in $(seq 1 30); do
-              if curl -sf http://localhost:4191/api/v1/health > /dev/null 2>&1; then
-                echo "Backend healthy after ${i}s"
-                break
-              fi
-              sleep 1
-            done
-            # Wait for frontend to be serving
-            echo "Waiting for frontend..."
-            for i in $(seq 1 30); do
-              if curl -sf http://localhost:3190/ > /dev/null 2>&1; then
-                echo "Frontend healthy after ${i}s"
-                break
-              fi
-              sleep 1
-            done
+      - name: Set up deploy SSH key
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+      # De-containerized rsync/ssh. The burnett01/appleboy actions run inside
+      # Docker WITHOUT the runner host's tailnet route, so they time out
+      # reaching 100.74.232.76 (the box's tailnet IP — private, only routable
+      # over the tailnet joined above). Plain rsync/ssh run on the host, so
+      # they route over tailscale0. node_modules/.next/cache excluded — the
+      # box installs runtime deps via `npm ci --omit=dev` per the script below.
+      - name: Deploy via rsync (over tailnet)
+        run: |
+          rsync -avz --delete \
+            --exclude node_modules --exclude .git --exclude .env --exclude .npmrc --exclude frontend/.next/cache \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
+            ./ root@100.74.232.76:/opt/saas/malapos/
+      # bash -se: -e aborts (and fails the job, blocking prod) if
+      # `prisma migrate deploy` fails — replacing appleboy's silent
+      # script-continue. -s reads the script from the heredoc on stdin.
+      - name: Migrate + restart (over tailnet)
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 root@100.74.232.76 'bash -se' <<'SCRIPT'
+          cd /opt/saas/malapos/backend
+          npm ci --omit=dev
+          npx prisma migrate deploy
+          pm2 restart malapos || pm2 start dist/index.js --name malapos -i 1
+          cd /opt/saas/malapos/frontend
+          npm ci --omit=dev
+          pm2 restart malapos-frontend || pm2 start npm --name malapos-frontend -- start
+          pm2 save
+          echo "Waiting for backend health..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4191/api/v1/health > /dev/null 2>&1; then echo "Backend healthy after ${i}s"; break; fi
+            sleep 1
+          done
+          echo "Waiting for frontend..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3190/ > /dev/null 2>&1; then echo "Frontend healthy after ${i}s"; break; fi
+            sleep 1
+          done
+          SCRIPT
 
   e2e-staging:
     name: E2E Tests (Staging)
