@@ -141,7 +141,7 @@ export default function MarketingCampaignDetailPage() {
 
   if (!campaign) {
     return (
-      <div>
+      <div className="mx-auto max-w-6xl">
         <BackLink href="/dashboard/marketing/campaigns" label="All campaigns" />
         {error ? <ErrorBox>{error}</ErrorBox> : <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
       </div>

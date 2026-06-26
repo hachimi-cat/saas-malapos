@@ -87,7 +87,7 @@ export default function CampaignsPage() {
   const enabled = plan?.isForjioInternal || plan?.plan === 'growth' || plan?.plan === 'scale';
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <PageHeader
         icon={Megaphone}
         title="Creator briefs"

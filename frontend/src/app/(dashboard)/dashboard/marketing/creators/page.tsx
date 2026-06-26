@@ -85,7 +85,7 @@ export default function MerchantCreatorDirectory() {
   const activeFilterCount = (niche ? 1 : 0) + (country ? 1 : 0);
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <PageHeader
         icon={Users}
         title="Creator directory"

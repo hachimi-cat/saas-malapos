@@ -32,7 +32,7 @@ export default function BlogPostEditPage() {
   }
   if (error || !post) {
     return (
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         <div className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700">{error || 'Post not found'}</div>
       </div>
     );

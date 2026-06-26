@@ -44,7 +44,7 @@ export default function FunnelsPage() {
   useEffect(() => { load(); }, []);
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <PageHeader
         icon={Megaphone}
         title="Funnels"

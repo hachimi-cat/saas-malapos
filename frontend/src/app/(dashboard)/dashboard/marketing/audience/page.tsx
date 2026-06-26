@@ -148,7 +148,7 @@ export default function AudiencePage() {
   ];
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <PageHeader
         icon={Users}
         title="Audience"

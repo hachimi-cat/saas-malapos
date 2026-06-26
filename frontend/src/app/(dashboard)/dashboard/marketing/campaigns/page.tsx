@@ -151,7 +151,7 @@ export default function MarketingCampaignsHubPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <PageHeader
         icon={Megaphone}
         title="Campaigns"

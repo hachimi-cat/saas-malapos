@@ -156,7 +156,7 @@ export default function ComposePage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <PageHeader
         icon={Mail}
         title="Compose"

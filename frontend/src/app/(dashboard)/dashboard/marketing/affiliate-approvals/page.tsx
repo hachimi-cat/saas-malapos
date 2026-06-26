@@ -116,7 +116,7 @@ export default function AffiliateApprovalsPage() {
   const pendingCommissionCount = commissions?.filter((c) => c.status === 'pending').length ?? 0;
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <PageHeader
         icon={Coins}
         title="Affiliate approvals"

@@ -156,7 +156,7 @@ export default function ProgramDetailPage() {
   if (!program) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <BackLink href="/dashboard/marketing/programs" label="All programs" />
       <PageHeader
         icon={Handshake}

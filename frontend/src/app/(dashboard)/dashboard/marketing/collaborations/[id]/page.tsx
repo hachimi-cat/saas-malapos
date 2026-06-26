@@ -133,7 +133,7 @@ export default function MerchantCollabDetailPage() {
   const canApproveCollab = (collab.status === 'active' || collab.status === 'delivered') && allApproved;
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <BackLink href="/dashboard/marketing/collaborations" label="All collaborations" />
       <PageHeader
         icon={Handshake}

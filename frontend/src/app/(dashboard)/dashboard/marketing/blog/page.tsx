@@ -39,7 +39,7 @@ export default function BlogListPage() {
     : posts;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Blog</h1>

@@ -173,7 +173,7 @@ export default function ChannelsPage() {
   const connectedKeys = new Set((channels ?? []).filter((c) => c.status !== 'revoked').map((c) => c.provider));
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <PageHeader
         icon={Plug}
         title="Channels"

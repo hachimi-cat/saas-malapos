@@ -80,7 +80,7 @@ export default function InboxPage() {
   });
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <PageHeader
         icon={Inbox}
         title="Inbox"

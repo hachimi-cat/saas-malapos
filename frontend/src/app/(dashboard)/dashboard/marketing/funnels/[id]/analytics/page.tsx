@@ -58,7 +58,7 @@ export default function FunnelAnalyticsPage() {
   const peakTouched = Math.max(1, ...data.steps.map((s) => s.touched));
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <BackLink href={`/dashboard/marketing/funnels/${id}`} label="Back to funnel" />
       <PageHeader
         icon={BarChart3}

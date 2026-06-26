@@ -107,7 +107,7 @@ export default function ProgramsPage() {
   const enabled = plan?.isForjioInternal || plan?.plan === 'starter' || plan?.plan === 'growth' || plan?.plan === 'scale';
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl">
       <PageHeader
         icon={Handshake}
         title="Affiliate Programs"
