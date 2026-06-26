@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Check, Minus } from 'lucide-react';
 import { Price } from '@forjio/website-ui';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 /*
  * Pricing mirrors backend/src/lib/billing.ts (TIER_DEFS) — the single
@@ -67,16 +70,16 @@ export default function PricingPage() {
 
       <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {tiers.map((tier) => (
-          <div
+          <Card
             key={tier.name}
-            className={`relative rounded-lg border p-8 ${
+            className={`relative p-8 ${
               tier.highlight ? 'border-primary shadow-lg shadow-primary/10' : 'border-border/50'
             }`}
           >
             {tier.highlight && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-medium text-primary-foreground">
+              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-0.5 text-xs font-medium">
                 Most Popular
-              </span>
+              </Badge>
             )}
             <h2 className="text-xl font-bold">{tier.name}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{tier.description}</p>
@@ -86,17 +89,14 @@ export default function PricingPage() {
                 <span className="text-base font-normal text-muted-foreground">/mo</span>
               )}
             </p>
-            <Link
-              href="/signup"
-              className={`mt-8 block rounded-md py-2.5 text-center text-sm font-medium ${
-                tier.highlight
-                  ? 'bg-primary text-primary-foreground hover:opacity-90'
-                  : 'border border-border hover:bg-accent'
-              }`}
+            <Button
+              asChild
+              variant={tier.highlight ? 'default' : 'outline'}
+              className="mt-8 w-full"
             >
-              {tier.cta}
-            </Link>
-          </div>
+              <Link href="/signup">{tier.cta}</Link>
+            </Button>
+          </Card>
         ))}
       </div>
 

@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Boxes,
   Check,
-  ChevronDown,
   CircleDollarSign,
   Layers,
   Megaphone,
@@ -19,6 +18,15 @@ import {
 } from 'lucide-react';
 import { HeroBadge, SectionEyebrow, Price } from '@forjio/website-ui';
 import { LogoMark } from '@/components/brand/logo';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 
 /*
  * Forjio family marketing home page.
@@ -76,19 +84,15 @@ export default function HomePage() {
             </p>
 
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href="/signup"
-                className="inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-              >
-                Start free
-                <ArrowRight className="size-4" strokeWidth={1.5} />
-              </Link>
-              <a
-                href="#hero-mockup"
-                className="inline-flex items-center justify-center gap-1.5 h-10 px-5 rounded-lg text-sm font-medium border border-border bg-card hover:bg-card/80 transition-colors backdrop-blur-sm"
-              >
-                See the sell screen
-              </a>
+              <Button asChild size="lg">
+                <Link href="/signup">
+                  Start free
+                  <ArrowRight strokeWidth={1.5} />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="backdrop-blur-sm">
+                <a href="#hero-mockup">See the sell screen</a>
+              </Button>
             </div>
           </div>
 
@@ -133,7 +137,7 @@ export default function HomePage() {
                 body: 'Every sale updates live stock. Add more outlets, open and close cashier shifts, and read your sales reports as you grow.',
               },
             ].map(({ num, Icon, title, body }) => (
-              <div key={num} className="rounded-lg border border-border bg-card p-6">
+              <Card key={num} className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="inline-flex items-center justify-center size-8 rounded-md bg-primary/10 text-primary text-[12px] font-mono font-semibold">
                     {num}
@@ -142,7 +146,7 @@ export default function HomePage() {
                 </div>
                 <h3 className="text-[17px] font-semibold tracking-[-0.01em] mb-2">{title}</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">{body}</p>
-              </div>
+              </Card>
             ))}
           </div>
         </div>
@@ -172,13 +176,13 @@ export default function HomePage() {
               { Icon: Activity, title: 'Shifts & reports', body: 'Open and close cashier shifts with cash reconciliation. Read sales summaries, top products, and payment-method mix.' },
               { Icon: Zap, title: 'Customers & purchasing', body: 'Earn and redeem loyalty points at the till, and receive supplier purchase orders straight into stock.' },
             ].map(({ Icon, title, body }) => (
-              <div key={title} className="rounded-lg border border-border bg-card p-6">
+              <Card key={title} className="p-6">
                 <div className="size-10 rounded-md flex items-center justify-center bg-primary/10 text-primary mb-4">
                   <Icon className="size-5" strokeWidth={1.5} />
                 </div>
                 <h3 className="text-[17px] font-semibold tracking-[-0.01em] mb-2">{title}</h3>
                 <p className="text-sm leading-relaxed text-muted-foreground">{body}</p>
-              </div>
+              </Card>
             ))}
           </div>
         </div>
@@ -241,16 +245,16 @@ export default function HomePage() {
                 cta: { label: 'Start free', href: '/signup' },
               },
             ].map((tier) => (
-              <div
+              <Card
                 key={tier.name}
-                className={`relative rounded-xl border p-5 flex flex-col ${
-                  tier.featured ? 'border-primary bg-card shadow-lg shadow-primary/5' : 'border-border bg-card'
+                className={`relative p-5 flex flex-col ${
+                  tier.featured ? 'border-primary shadow-lg shadow-primary/5' : ''
                 }`}
               >
                 {tier.featured && (
-                  <span className="absolute -top-2.5 left-5 inline-flex items-center rounded-full bg-primary text-primary-foreground px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                  <Badge className="absolute -top-2.5 left-5 rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-wide">
                     Most popular
-                  </span>
+                  </Badge>
                 )}
                 <h3 className="text-[18px] font-semibold tracking-tight">{tier.name}</h3>
                 <p className="mt-1.5 text-[12.5px] text-muted-foreground leading-snug min-h-[40px]">
@@ -270,17 +274,14 @@ export default function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <Link
-                  href={tier.cta.href}
-                  className={`mt-6 inline-flex items-center justify-center w-full h-9 px-4 rounded-md text-sm font-medium transition-colors ${
-                    tier.featured
-                      ? 'bg-primary text-primary-foreground hover:opacity-90'
-                      : 'bg-card border border-border hover:bg-muted'
-                  }`}
+                <Button
+                  asChild
+                  variant={tier.featured ? 'default' : 'outline'}
+                  className="mt-6 w-full"
                 >
-                  {tier.cta.label}
-                </Link>
-              </div>
+                  <Link href={tier.cta.href}>{tier.cta.label}</Link>
+                </Button>
+              </Card>
             ))}
           </div>
         </div>
@@ -302,7 +303,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="mt-10 overflow-x-auto overflow-y-hidden -mx-4 md:mx-0 rounded-xl border border-border bg-card shadow-sm">
+          <Card className="mt-10 overflow-x-auto overflow-y-hidden -mx-4 md:mx-0 p-0 shadow-sm">
             <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-muted/50 border-b border-border">
                 <tr>
@@ -332,7 +333,7 @@ export default function HomePage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </Card>
         </div>
       </section>
 
@@ -370,20 +371,18 @@ export default function HomePage() {
                 not live yet, and we won&apos;t pretend otherwise.
               </p>
               <div className="mt-7 flex flex-wrap items-center gap-3">
-                <Link
-                  href="/signup"
-                  className="inline-flex items-center gap-1.5 h-10 px-5 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-                >
-                  Start free
-                  <ArrowRight className="size-4" strokeWidth={1.5} />
-                </Link>
-                <Link
-                  href="/features"
-                  className="inline-flex items-center gap-1.5 h-10 px-5 rounded-lg text-sm font-medium border border-border bg-card hover:bg-muted transition-colors"
-                >
-                  <Boxes className="size-4" strokeWidth={1.5} />
-                  See all features
-                </Link>
+                <Button asChild size="lg">
+                  <Link href="/signup">
+                    Start free
+                    <ArrowRight strokeWidth={1.5} />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg">
+                  <Link href="/features">
+                    <Boxes strokeWidth={1.5} />
+                    See all features
+                  </Link>
+                </Button>
               </div>
             </div>
 
@@ -438,7 +437,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-12 max-w-2xl mx-auto">
-            <div className="rounded-xl border border-border bg-card shadow-sm p-8">
+            <Card className="p-8 shadow-sm">
               <div className="flex flex-col items-center">
                 <div className="inline-flex items-center justify-center size-16 rounded-2xl bg-primary/10 text-primary border border-primary/20 mb-2">
                   <ShieldCheck className="size-7" strokeWidth={1.5} />
@@ -478,7 +477,7 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
 
             <p className="mt-6 text-sm text-muted-foreground text-center">
               Powered by{' '}
@@ -503,7 +502,11 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <ul className="mt-10 divide-y divide-border rounded-lg border border-border bg-card overflow-hidden">
+          <Accordion
+            type="single"
+            collapsible
+            className="mt-10 rounded-lg border border-border bg-card px-6 overflow-hidden"
+          >
             {[
               {
                 q: 'Is there a free plan?',
@@ -525,23 +528,17 @@ export default function HomePage() {
                 q: 'How do my cashiers sign in?',
                 a: 'Through Huudis, the single sign-on shared across the Forjio family. Each plan includes a set number of cashier seats — 2 on Free, up to 50 on Business.',
               },
-            ].map((faq) => (
-              <li key={faq.q}>
-                <details className="group">
-                  <summary className="flex items-center justify-between gap-4 cursor-pointer list-none px-6 py-5 hover:bg-muted/30 transition-colors [&::-webkit-details-marker]:hidden">
-                    <span className="text-[15px] font-medium text-foreground">{faq.q}</span>
-                    <ChevronDown
-                      className="size-4 text-muted-foreground transition-transform group-open:rotate-180 shrink-0"
-                      strokeWidth={1.5}
-                    />
-                  </summary>
-                  <div className="px-6 pb-5 -mt-1 text-sm leading-relaxed text-muted-foreground">
-                    {faq.a}
-                  </div>
-                </details>
-              </li>
+            ].map((faq, i) => (
+              <AccordionItem key={faq.q} value={`faq-${i}`} className="last:border-b-0">
+                <AccordionTrigger className="py-5 text-[15px] font-medium text-foreground hover:no-underline">
+                  {faq.q}
+                </AccordionTrigger>
+                <AccordionContent className="pb-5 text-sm leading-relaxed text-muted-foreground">
+                  {faq.a}
+                </AccordionContent>
+              </AccordionItem>
             ))}
-          </ul>
+          </Accordion>
         </div>
       </section>
 
@@ -562,19 +559,15 @@ export default function HomePage() {
               sale in minutes.
             </p>
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href="/signup"
-                className="inline-flex items-center gap-1.5 h-10 px-5 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-              >
-                Start free
-                <ArrowRight className="size-4" strokeWidth={1.5} />
-              </Link>
-              <Link
-                href="/contact"
-                className="inline-flex items-center gap-1.5 h-10 px-5 rounded-lg text-sm font-medium border border-border bg-card hover:bg-muted transition-colors"
-              >
-                Talk to a human
-              </Link>
+              <Button asChild size="lg">
+                <Link href="/signup">
+                  Start free
+                  <ArrowRight strokeWidth={1.5} />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg">
+                <Link href="/contact">Talk to a human</Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -626,7 +619,7 @@ function HeroPreview() {
 
   return (
     <div id="hero-mockup" className="mt-12 md:mt-14 max-w-2xl mx-auto">
-      <div className="rounded-xl border border-border bg-card shadow-lg shadow-primary/5 overflow-hidden">
+      <Card className="shadow-lg shadow-primary/5 overflow-hidden p-0">
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5 bg-muted/50">
           <div className="flex items-center gap-2">
             <span className="size-2.5 rounded-full bg-red-500/70" />
@@ -678,7 +671,7 @@ function HeroPreview() {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
       <p className="mt-3 text-xs text-muted-foreground text-center">
         A look at the Malapos dashboard.
       </p>

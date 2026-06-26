@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import releases from '@/data/changelog.json';
+import { Badge } from '@/components/ui/badge';
 
 /*
  * FORKERS: changelog entries live in src/data/changelog.json. Each
@@ -25,9 +26,9 @@ export default function ChangelogPage() {
             <article key={release.version} className="relative border-l-2 border-border pl-8">
               <div className="absolute -left-2.5 top-0 h-5 w-5 rounded-full border-2 border-primary bg-background" />
               <div className="flex items-center gap-3">
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-mono font-medium text-primary">
+                <Badge className="rounded-full bg-primary/10 px-3 py-1 text-sm font-mono font-medium text-primary hover:bg-primary/10">
                   v{release.version}
-                </span>
+                </Badge>
                 <time className="text-sm text-muted-foreground">{release.date}</time>
               </div>
               <h2 className="mt-3 text-xl font-semibold">{release.title}</h2>

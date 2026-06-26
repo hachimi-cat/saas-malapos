@@ -9,6 +9,8 @@ import {
   Activity,
   ArrowRight,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 /*
  * FORKERS: replace the placeholder feature copy with what Malapos
@@ -108,7 +110,7 @@ export default function FeaturesPage() {
       <div className="mt-16">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {features.map(({ Icon, title, body, details }) => (
-            <article key={title} className="rounded-xl border border-border bg-card p-6 md:p-8">
+            <Card key={title} className="p-6 md:p-8">
               <div className="mb-5 flex size-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Icon className="size-6" strokeWidth={1.5} />
               </div>
@@ -122,7 +124,7 @@ export default function FeaturesPage() {
                   </li>
                 ))}
               </ul>
-            </article>
+            </Card>
           ))}
         </div>
       </div>
@@ -136,18 +138,14 @@ export default function FeaturesPage() {
           your shop and ring up your first sale in minutes.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            Start free <ArrowRight className="size-4" />
-          </Link>
-          <Link
-            href="/pricing"
-            className="inline-flex items-center gap-2 rounded-md border border-border px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-accent"
-          >
-            View pricing
-          </Link>
+          <Button asChild size="lg">
+            <Link href="/signup">
+              Start free <ArrowRight />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="lg">
+            <Link href="/pricing">View pricing</Link>
+          </Button>
         </div>
       </div>
     </div>

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { Mail, Phone, MapPin, MessageCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 // Suppuo hosted help center (live chat + ticket form) for this product.
 // Handle = brand slug (Suppuo resolves slug-or-acc); rename.sh rewrites
@@ -36,15 +38,12 @@ export default function ContactPage() {
             Start a live chat or open a support ticket in our help center — the fastest way to reach
             us.
           </p>
-          <a
-            href={SUPPUO_SUPPORT_URL}
-            target="_blank"
-            rel="noopener"
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <MessageCircle size={16} />
-            Visit the help center
-          </a>
+          <Button asChild className="mt-4">
+            <a href={SUPPUO_SUPPORT_URL} target="_blank" rel="noopener">
+              <MessageCircle />
+              Visit the help center
+            </a>
+          </Button>
         </div>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
@@ -80,7 +79,7 @@ export default function ContactPage() {
           />
         </div>
 
-        <div className="mt-10 rounded-lg border border-border/50 bg-card/50 p-6 text-sm text-muted-foreground">
+        <Card className="mt-10 border-border/50 bg-card/50 p-6 text-sm text-muted-foreground">
           <p className="font-medium text-foreground">What to send for a faster reply</p>
           <ul className="mt-3 list-disc space-y-1.5 pl-5">
             <li>
@@ -101,7 +100,7 @@ export default function ContactPage() {
               [legal].
             </li>
           </ul>
-        </div>
+        </Card>
       </div>
     </div>
   );
@@ -121,7 +120,7 @@ function ContactCard({
   note?: string;
 }) {
   return (
-    <div className="rounded-lg border border-border/50 bg-card/30 p-5">
+    <Card className="border-border/50 bg-card/30 p-5">
       <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {icon}
         {label}
@@ -136,6 +135,6 @@ function ContactCard({
         )}
       </div>
       {note ? <p className="mt-2 text-xs text-muted-foreground">{note}</p> : null}
-    </div>
+    </Card>
   );
 }
