@@ -502,10 +502,10 @@ function CreateShipmentModal({
                 Set your shipping origin before quoting couriers — Fulkruma needs it to calculate rates.
               </p>
               <Link
-                href="/dashboard/fulfillment/settings"
+                href="/dashboard/fulfillment/shipping"
                 className="mt-2 inline-flex items-center gap-1 text-primary hover:underline"
               >
-                Go to Fulfillment settings <ExternalLink className="h-3.5 w-3.5" />
+                Set pickup origin <ExternalLink className="h-3.5 w-3.5" />
               </Link>
             </div>
           ) : (
