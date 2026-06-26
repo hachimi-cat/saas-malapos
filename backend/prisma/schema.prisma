@@ -84,8 +84,9 @@ enum PaymentMethod {
   QRIS // dynamic QR via Plugipay
   VA // virtual-account, Plugipay-processed (same parked-then-settle flow as QRIS)
   CARD // card / EDC — manual reference entry in v1
+  TRANSFER // bank transfer to the store's transfer account — manual, confirm-received tender (like CASH, no Plugipay checkout)
   GIFT_CARD // gift card / store credit (reference = the card code)
-  OTHER // bank transfer, voucher, etc. (manual note)
+  OTHER // voucher, etc. (manual note)
 }
 
 /// How a sale is served. DINE_IN sales are held on a Table as an open bill
@@ -187,6 +188,14 @@ model PosSettings {
   /// lib/sale-payment-record.ts. Null until the first non-checkout sale is
   /// recorded.
   plugipayPosCustomerId String?
+  /// Store bank account the cashier shows a customer when they pay by bank
+  /// TRANSFER at the counter — DISTINCT from the Plugipay PAYOUT account (where
+  /// Plugipay settles the merchant; see routes/payment/payouts.ts). Purely
+  /// informational: the cashier reads these out / the customer transfers, then
+  /// taps "Confirm received" to complete the sale. Null until configured.
+  transferBankName          String?
+  transferBankAccountNumber String?
+  transferBankAccountHolder String?
   /// Per-merchant Fulkruma workspace, minted on first `fulfillment` enable.
   fulkrumaAccountId String?
   /// Per-merchant Ripllo workspace, minted on first `marketing` enable.

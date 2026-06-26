@@ -18,7 +18,10 @@ import {
   PauseCircle,
   Split,
   StickyNote,
+  Landmark,
+  Copy,
 } from 'lucide-react';
+import Link from 'next/link';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { useBusinessType } from '@/hooks/use-business-type';
@@ -34,6 +37,11 @@ import { useRealtime } from '@/hooks/use-realtime';
 type Variant = { id: string; name: string; price: number; sku: string | null; barcode: string | null };
 type Product = { id: string; name: string; kind: string; isActive: boolean; imageUrl: string | null; variants: Variant[] };
 type Outlet = { id: string; name: string; taxRateBps: number };
+type TransferAccount = {
+  transferBankName: string | null;
+  transferBankAccountNumber: string | null;
+  transferBankAccountHolder: string | null;
+};
 type Customer = { id: string; name: string; phone: string | null };
 
 type CartLine = { variantId: string; productId: string; name: string; variantName: string; unitPrice: number; qty: number; note?: string };
@@ -120,17 +128,27 @@ export default function SellPage() {
   // or VA and the module is on; drives the checkout modal + status polling.
   // `method` selects QRIS (scan a QR) vs VA (pay a virtual-account number).
   const [qris, setQris] = useState<{ saleId: string; sessionId: string; qrUrl: string; amount: number; method: 'qris' | 'va' } | null>(null);
+  // Store bank-transfer account (PosSettings) shown in the charge modal when the
+  // cashier picks Transfer. Null/blank fields → the modal shows a "not
+  // configured" notice instead of letting them confirm.
+  const [transferAccount, setTransferAccount] = useState<TransferAccount | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [o, p] = await Promise.all([
+        const [o, p, s] = await Promise.all([
           api.get<{ outlets: Outlet[] }>('/outlets'),
           api.get<{ products: Product[] }>('/products?active=true'),
+          api.get<{ settings: TransferAccount }>('/settings'),
         ]);
         setOutlets(o.data.outlets);
         setOutletId(o.data.outlets[0]?.id ?? '');
         setProducts(p.data.products.filter((x) => x.isActive && x.variants.length));
+        setTransferAccount({
+          transferBankName: s.data.settings.transferBankName ?? null,
+          transferBankAccountNumber: s.data.settings.transferBankAccountNumber ?? null,
+          transferBankAccountHolder: s.data.settings.transferBankAccountHolder ?? null,
+        });
       } catch (e) {
         setError(e instanceof ApiRequestError ? e.message : 'Failed to load');
       } finally {
@@ -826,6 +844,7 @@ export default function SellPage() {
       {paying && (
         <PaymentModal
           total={due}
+          transferAccount={transferAccount}
           onClose={() => setPaying(false)}
           onConfirm={async (payments) => {
             setError(null);
@@ -944,6 +963,7 @@ export default function SellPage() {
           total={split.total}
           initialPaid={split.initialPaid}
           lines={split.lines}
+          transferAccount={transferAccount}
           onClose={() => setSplit(null)}
           onComplete={finishSplit}
           onError={(m) => setError(m)}
@@ -1359,11 +1379,16 @@ function CustomerPicker({ customer, onChange }: { customer: Customer | null; onC
 
 function PaymentModal({
   total,
+  transferAccount,
   onClose,
   onConfirm,
   onCheckout,
 }: {
   total: number;
+  /** The store bank-transfer account (PosSettings). Null/blank when the
+   *  merchant hasn't configured it yet → the Transfer tab shows a notice
+   *  linking to Settings instead of a "Confirm received" action. */
+  transferAccount: TransferAccount | null;
   onClose: () => void;
   onConfirm: (p: unknown[]) => void;
   /** Dynamic checkout (Payment module ON) for QRIS or VA. Returns true when a
@@ -1372,16 +1397,26 @@ function PaymentModal({
    *  reference payment of the same method. */
   onCheckout: (channel: 'qris' | 'va') => Promise<boolean>;
 }) {
-  const [method, setMethod] = useState<'CASH' | 'QRIS' | 'VA' | 'CARD' | 'GIFT_CARD'>('CASH');
+  const [method, setMethod] = useState<'CASH' | 'QRIS' | 'VA' | 'CARD' | 'TRANSFER' | 'GIFT_CARD'>('CASH');
   const [tendered, setTendered] = useState<number>(total);
   const [reference, setReference] = useState('');
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
   const change = Math.max(0, tendered - total);
   const quick = [total, 50000, 100000, 150000, 200000].filter((v, i, a) => a.indexOf(v) === i);
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
+  // The Transfer tender needs a configured store account (bank + number) before
+  // the cashier can confirm; account holder is optional.
+  const transferConfigured = Boolean(
+    transferAccount?.transferBankName?.trim() && transferAccount?.transferBankAccountNumber?.trim(),
+  );
+
   const canConfirm =
-    !busy && !(method === 'CASH' && tendered < total) && !(method === 'GIFT_CARD' && !reference.trim());
+    !busy &&
+    !(method === 'CASH' && tendered < total) &&
+    !(method === 'GIFT_CARD' && !reference.trim()) &&
+    !(method === 'TRANSFER' && !transferConfigured);
 
   // Autofocus the first field on open + Enter charges / Esc closes. The page's
   // global hotkeys stand down while this modal is open, so it owns the keyboard.
@@ -1436,14 +1471,24 @@ function PaymentModal({
         </div>
         <p className="mt-1 text-2xl font-bold text-primary">{rupiah(total)}</p>
 
-        <div className="mt-4 grid grid-cols-5 gap-2">
-          {(['CASH', 'QRIS', 'VA', 'CARD', 'GIFT_CARD'] as const).map((m) => (
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {(['CASH', 'QRIS', 'VA', 'CARD', 'TRANSFER', 'GIFT_CARD'] as const).map((m) => (
             <button
               key={m}
               onClick={() => setMethod(m)}
               className={`rounded-md border py-2 text-xs font-medium ${method === m ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}
             >
-              {m === 'CASH' ? 'Cash' : m === 'QRIS' ? 'QRIS' : m === 'VA' ? 'VA' : m === 'CARD' ? 'Card' : 'Gift card'}
+              {m === 'CASH'
+                ? 'Cash'
+                : m === 'QRIS'
+                ? 'QRIS'
+                : m === 'VA'
+                ? 'VA'
+                : m === 'CARD'
+                ? 'Card'
+                : m === 'TRANSFER'
+                ? 'Transfer'
+                : 'Gift card'}
             </button>
           ))}
         </div>
@@ -1474,7 +1519,70 @@ function PaymentModal({
           </div>
         )}
 
-        {method !== 'CASH' && (
+        {method === 'TRANSFER' && (
+          <div className="mt-4 space-y-3">
+            {transferConfigured ? (
+              <div className="rounded-md border border-border bg-muted/30 p-3">
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <Landmark className="h-4 w-4" /> Transfer to this account
+                </div>
+                <dl className="mt-2 space-y-1.5 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <dt className="text-muted-foreground">Bank</dt>
+                    <dd className="font-medium">{transferAccount?.transferBankName}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <dt className="text-muted-foreground">Account no.</dt>
+                    <dd className="flex items-center gap-2 font-mono font-semibold">
+                      {transferAccount?.transferBankAccountNumber}
+                      <button
+                        type="button"
+                        title="Copy account number"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(
+                              transferAccount?.transferBankAccountNumber ?? '',
+                            );
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 1500);
+                          } catch {
+                            /* clipboard blocked — cashier can read it out */
+                          }
+                        }}
+                        className="text-muted-foreground hover:text-primary"
+                      >
+                        {copied ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </button>
+                    </dd>
+                  </div>
+                  {transferAccount?.transferBankAccountHolder?.trim() && (
+                    <div className="flex items-center justify-between gap-2">
+                      <dt className="text-muted-foreground">Holder</dt>
+                      <dd className="font-medium">{transferAccount.transferBankAccountHolder}</dd>
+                    </div>
+                  )}
+                </dl>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Have the customer transfer {rupiah(total)}, then tap Confirm received once the
+                  funds arrive.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                <p className="font-medium">No transfer account set up yet</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Add your store bank-transfer account in{' '}
+                  <Link href="/dashboard/settings" className="font-medium text-primary underline">
+                    Settings → Business profile
+                  </Link>{' '}
+                  before accepting bank transfers.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {method !== 'CASH' && method !== 'TRANSFER' && (
           <label className="mt-4 block text-sm">
             <span className="text-muted-foreground">
               {method === 'QRIS'
@@ -1514,7 +1622,12 @@ function PaymentModal({
         )}
 
         <button
-          disabled={busy || (method === 'CASH' && tendered < total) || (method === 'GIFT_CARD' && !reference.trim())}
+          disabled={
+            busy ||
+            (method === 'CASH' && tendered < total) ||
+            (method === 'GIFT_CARD' && !reference.trim()) ||
+            (method === 'TRANSFER' && !transferConfigured)
+          }
           onClick={confirm}
           className="mt-5 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
         >
@@ -1524,6 +1637,8 @@ function PaymentModal({
             ? 'Generate QR'
             : method === 'VA' && !reference.trim()
             ? 'Generate VA'
+            : method === 'TRANSFER'
+            ? 'Confirm received'
             : 'Complete sale'}
         </button>
       </div>
@@ -1577,6 +1692,7 @@ function SplitModal({
   total,
   initialPaid,
   lines,
+  transferAccount,
   onClose,
   onComplete,
   onError,
@@ -1585,6 +1701,7 @@ function SplitModal({
   total: number;
   initialPaid: number;
   lines: CartLine[];
+  transferAccount: TransferAccount | null;
   onClose: () => void;
   onComplete: () => void;
   onError: (msg: string) => void;
@@ -1826,6 +1943,7 @@ function SplitModal({
       {activeIdx !== null && (
         <PaymentModal
           total={checks[activeIdx].amount}
+          transferAccount={transferAccount}
           onClose={() => setActiveIdx(null)}
           onConfirm={(payments) => payCheck(activeIdx, payments[0] as Record<string, unknown>)}
           // Split checks settle with manual tenders only — a dynamic checkout

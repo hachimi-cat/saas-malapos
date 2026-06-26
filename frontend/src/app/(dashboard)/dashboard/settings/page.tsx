@@ -17,6 +17,9 @@ type SettingsRecord = {
   businessName: string;
   businessType: BusinessType;
   currency: string;
+  transferBankName: string | null;
+  transferBankAccountNumber: string | null;
+  transferBankAccountHolder: string | null;
 };
 
 const TYPE_OPTIONS: { value: BusinessType; label: string; hint: string }[] = [
@@ -90,6 +93,9 @@ function BusinessSection() {
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState<BusinessType>('GENERAL');
   const [currency, setCurrency] = useState('IDR');
+  const [transferBankName, setTransferBankName] = useState('');
+  const [transferBankAccountNumber, setTransferBankAccountNumber] = useState('');
+  const [transferBankAccountHolder, setTransferBankAccountHolder] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -103,6 +109,9 @@ function BusinessSection() {
         setBusinessName(s.businessName ?? '');
         setBusinessType(s.businessType ?? 'GENERAL');
         setCurrency(s.currency ?? 'IDR');
+        setTransferBankName(s.transferBankName ?? '');
+        setTransferBankAccountNumber(s.transferBankAccountNumber ?? '');
+        setTransferBankAccountHolder(s.transferBankAccountHolder ?? '');
       } catch (e) {
         setError(e instanceof ApiRequestError ? e.message : 'Failed to load settings');
       } finally {
@@ -121,10 +130,16 @@ function BusinessSection() {
         businessName: businessName.trim(),
         businessType,
         currency,
+        transferBankName: transferBankName.trim(),
+        transferBankAccountNumber: transferBankAccountNumber.trim(),
+        transferBankAccountHolder: transferBankAccountHolder.trim(),
       });
       const s = res.data.settings;
       setBusinessName(s.businessName ?? '');
       setBusinessType(s.businessType ?? 'GENERAL');
+      setTransferBankName(s.transferBankName ?? '');
+      setTransferBankAccountNumber(s.transferBankAccountNumber ?? '');
+      setTransferBankAccountHolder(s.transferBankAccountHolder ?? '');
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
@@ -183,6 +198,44 @@ function BusinessSection() {
               Only IDR (Indonesian Rupiah) is supported in v1.
             </span>
           </label>
+
+          <div className="space-y-4 rounded-md border border-border bg-muted/20 p-4">
+            <div>
+              <h3 className="text-sm font-semibold">Bank transfer account</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Shown to a customer who pays by bank transfer on the sell screen. This is
+                separate from your Plugipay payout account — it&apos;s the account customers
+                transfer to at the counter.
+              </p>
+            </div>
+            <label className="block">
+              <span className="text-sm font-medium">Bank name</span>
+              <input
+                value={transferBankName}
+                onChange={(e) => setTransferBankName(e.target.value)}
+                placeholder="e.g. BCA"
+                className={inputCls}
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium">Account number</span>
+              <input
+                value={transferBankAccountNumber}
+                onChange={(e) => setTransferBankAccountNumber(e.target.value)}
+                placeholder="e.g. 1234567890"
+                className={inputCls}
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium">Account holder</span>
+              <input
+                value={transferBankAccountHolder}
+                onChange={(e) => setTransferBankAccountHolder(e.target.value)}
+                placeholder="e.g. Toko Sumber Rejeki"
+                className={inputCls}
+              />
+            </label>
+          </div>
 
           <div className="flex items-center gap-3 pt-1">
             <button

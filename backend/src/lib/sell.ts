@@ -36,7 +36,7 @@ export interface CartLine {
   note?: string | null;
 }
 export interface SalePayment {
-  method: 'CASH' | 'QRIS' | 'VA' | 'CARD' | 'GIFT_CARD' | 'OTHER';
+  method: 'CASH' | 'QRIS' | 'VA' | 'CARD' | 'TRANSFER' | 'GIFT_CARD' | 'OTHER';
   amount: number;
   tendered?: number; // CASH: cash handed over (for change)
   reference?: string; // GIFT_CARD: the gift-card code to redeem

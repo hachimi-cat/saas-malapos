@@ -20,6 +20,11 @@ const updateBody = z.object({
   businessName: z.string().trim().max(120).nullish(),
   businessType: z.enum(['RETAIL', 'FNB', 'PHARMACY', 'GENERAL']).optional(),
   currency: z.string().trim().min(1).max(8).optional(),
+  // Store bank account shown to a customer paying by TRANSFER (distinct from
+  // the Plugipay payout account). Empty string clears the field.
+  transferBankName: z.string().trim().max(120).nullish(),
+  transferBankAccountNumber: z.string().trim().max(60).nullish(),
+  transferBankAccountHolder: z.string().trim().max(120).nullish(),
 });
 
 router.get(
