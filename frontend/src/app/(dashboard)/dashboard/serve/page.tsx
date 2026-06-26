@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Utensils, Loader2, CheckCircle2, Hand } from 'lucide-react';
+import { Utensils, Loader2, CheckCircle2, Hand, Clock, User, StickyNote } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { useRealtime } from '@/hooks/use-realtime';
 
 /*
  * "Ready to serve" — the SERVER's expo board for the dine-in serve step. The
@@ -30,6 +31,10 @@ type ReadyItem = {
 type ReadyTicket = {
   transactionId: string;
   number: string;
+  readyAt: string;
+  customerName: string | null;
+  note: string | null;
+  orderType: string;
   items: ReadyItem[];
 };
 
@@ -39,7 +44,33 @@ type ReadyGroup = {
   tickets: ReadyTicket[];
 };
 
-const POLL_MS = 5000;
+// SSE drives instant updates; this poll is only a fallback for a dropped
+// stream, so it can be slow.
+const POLL_MS = 30000;
+
+// Minutes a ticket has been waiting, from its readyAt timestamp.
+function waitingMinutes(iso: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+}
+
+function waitingLabel(mins: number): string {
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
+// Older tickets get a louder badge so a busy expo screen surfaces the wait.
+function waitingBadgeCls(mins: number): string {
+  if (mins >= 15) return 'bg-destructive/15 text-destructive';
+  if (mins >= 8) return 'bg-amber-500/15 text-amber-600 dark:text-amber-400';
+  return 'bg-muted text-muted-foreground';
+}
+
+const ORDER_TYPE_LABEL: Record<string, string> = {
+  DINE_IN: 'Dine-in',
+  TAKEAWAY: 'Takeaway',
+  DELIVERY: 'Delivery',
+};
 
 export default function ServePage() {
   const [groups, setGroups] = useState<ReadyGroup[]>([]);
@@ -69,6 +100,14 @@ export default function ServePage() {
     const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
   }, [load]);
+
+  // Realtime: refetch the instant a dish becomes ready / is served / a bill
+  // closes out.
+  useRealtime({
+    onChange: (topic) => {
+      if (topic === 'serve') load();
+    },
+  });
 
   const act = useCallback(
     async (key: string, path: string, fallback: string) => {
@@ -126,17 +165,50 @@ export default function ServePage() {
                 key={key}
                 className="flex flex-col rounded-lg border border-t-4 border-border border-t-emerald-500 bg-card p-4"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-base font-semibold">{g.tableLabel}</span>
-                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                {/* Table label is the headline — it's where the server walks
+                    the plate. Big + bold so it's scannable across the pass. */}
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-2xl font-bold leading-none">{g.tableLabel}</span>
+                  <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                     {itemCount} ready
                   </span>
                 </div>
 
                 <div className="mt-3 flex flex-1 flex-col gap-3">
-                  {g.tickets.map((t) => (
+                  {g.tickets.map((t) => {
+                    const mins = waitingMinutes(t.readyAt);
+                    return (
                     <div key={t.transactionId}>
-                      <p className="mb-1 text-xs font-medium text-muted-foreground">{t.number}</p>
+                      {/* Ticket meta line: wait time + order type + receipt #,
+                          then customer + note when present. */}
+                      <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-semibold ${waitingBadgeCls(mins)}`}
+                          title="Waiting time"
+                        >
+                          <Clock className="h-3 w-3" /> {waitingLabel(mins)}
+                        </span>
+                        <span className="rounded bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
+                          {ORDER_TYPE_LABEL[t.orderType] ?? t.orderType}
+                        </span>
+                        <span className="font-medium text-muted-foreground">{t.number}</span>
+                      </div>
+                      {(t.customerName || t.note) && (
+                        <div className="mb-1.5 space-y-0.5">
+                          {t.customerName && (
+                            <p className="flex items-center gap-1 text-xs font-medium text-foreground">
+                              <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              {t.customerName}
+                            </p>
+                          )}
+                          {t.note && (
+                            <p className="flex items-start gap-1 text-xs italic text-muted-foreground">
+                              <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
+                              <span>“{t.note}”</span>
+                            </p>
+                          )}
+                        </div>
+                      )}
                       <ul className="space-y-1.5 text-sm">
                         {t.items.map((it) => {
                           const itemBusy = busy === `item:${it.id}`;
@@ -174,7 +246,8 @@ export default function ServePage() {
                         })}
                       </ul>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {g.tableId && (

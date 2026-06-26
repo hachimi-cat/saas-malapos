@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChefHat, ArrowRight, Loader2, CheckCircle2, Undo2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { useRealtime } from '@/hooks/use-realtime';
 
 /*
  * Kitchen Display System (KDS) for F&B. A live board of active tickets
@@ -37,7 +38,9 @@ type Ticket = {
   outlet: { id: string; name: string };
 };
 
-const POLL_MS = 5000;
+// SSE pushes board changes instantly; this poll is only a belt-and-suspenders
+// fallback for a dropped stream, so it can be slow.
+const POLL_MS = 30000;
 
 const NEXT_LABEL: Record<KdsState, string> = {
   NEW: 'Start preparing',
@@ -97,6 +100,13 @@ export default function KdsPage() {
     const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
   }, [load]);
+
+  // Realtime: refetch the instant a kitchen-ticket mutation fires.
+  useRealtime({
+    onChange: (topic) => {
+      if (topic === 'kds') load();
+    },
+  });
 
   const act = useCallback(
     async (key: string, path: string, fallback: string) => {

@@ -56,6 +56,7 @@ import apiKeysRouter from './api-keys.js';
 import webhookSubscriptionsRouter from './webhook-subscriptions.js';
 import giftCardsRouter from './gift-cards.js';
 import kdsRouter from './kds.js';
+import eventsRouter from './events.js';
 import uploadsRouter from './uploads.js';
 
 /**
@@ -137,6 +138,9 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
   router.use('/customers', requireAuth, customersRouter);
   router.use('/gift-cards', requireAuth, giftCardsRouter);
   router.use('/kds', requireAuth, kdsRouter);
+  // Realtime SSE stream powering the live F&B boards (KDS / floor / serve).
+  // Account-scoped; emits a `change` event whenever a mutation touches a board.
+  router.use('/events', requireAuth, eventsRouter);
   // Presigned direct-to-Spaces image uploads (product images).
   router.use('/uploads', requireAuth, uploadsRouter);
   router.use('/reports', requireAuth, reportsRouter);

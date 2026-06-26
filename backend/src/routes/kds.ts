@@ -4,6 +4,7 @@ import { prisma } from '../lib/db.js';
 import { sendOk, sendList, ApiError } from '../lib/http.js';
 import { h as asyncHandler } from '../lib/async-handler.js';
 import { writeOutbox } from '../lib/outbox.js';
+import { emitFnbChange } from '../lib/realtime.js';
 
 /*
  * /api/v1/kds — Kitchen Display System for F&B (behind requireAuth).
@@ -142,6 +143,7 @@ router.get(
           orderBy: { createdAt: 'asc' },
         },
         table: { select: { id: true, label: true } },
+        customer: { select: { name: true } },
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       take: 200,
@@ -155,7 +157,18 @@ router.get(
       modifiers: unknown;
       kdsState: KdsState | null;
     };
-    type ReadyTicket = { transactionId: string; number: string; items: ReadyItem[] };
+    type ReadyTicket = {
+      transactionId: string;
+      number: string;
+      /** When the order was opened — drives the "waiting Xm" badge. (Simplest
+       *  reliable proxy for when the kitchen plated it; tickets only surface
+       *  here once they carry a READY item.) */
+      readyAt: string;
+      customerName: string | null;
+      note: string | null;
+      orderType: string;
+      items: ReadyItem[];
+    };
     type ReadyGroup = { tableId: string | null; tableLabel: string; tickets: ReadyTicket[] };
 
     // Map preserves insertion (= oldest-first) order; dine-in tickets sharing a
@@ -166,6 +179,10 @@ router.get(
       const ticket: ReadyTicket = {
         transactionId: t.id,
         number: t.number,
+        readyAt: t.createdAt.toISOString(),
+        customerName: t.customer?.name ?? null,
+        note: t.note,
+        orderType: t.orderType,
         items: t.items.map((it) => ({
           id: it.id,
           name: it.productName,
@@ -223,6 +240,11 @@ router.post(
       return state;
     });
 
+    // Board change: the ticket moved a step (+ serve board, since a step into
+    // or out of READY changes what the waiter sees).
+    emitFnbChange(accountId, null, 'kds');
+    emitFnbChange(accountId, null, 'serve');
+
     sendOk(res, req, { ticket: { id: ticket.id, number: ticket.number, kdsState: synced } });
   }),
 );
@@ -259,6 +281,9 @@ router.post(
       });
       return state;
     });
+
+    emitFnbChange(accountId, null, 'kds');
+    emitFnbChange(accountId, null, 'serve');
 
     sendOk(res, req, { ticket: { id: ticket.id, number: ticket.number, kdsState: synced } });
   }),
@@ -311,6 +336,11 @@ router.post(
       return state;
     });
 
+    // READY→SERVED (and any step) changes both the kitchen board and the
+    // waiter's ready-to-serve board.
+    emitFnbChange(accountId, null, 'kds');
+    emitFnbChange(accountId, null, 'serve');
+
     sendOk(res, req, {
       item: { id: item.id, kdsState: next },
       ticket: { id: item.transactionId, number: item.transaction.number, kdsState: synced },
@@ -345,6 +375,9 @@ router.post(
       return state;
     });
 
+    emitFnbChange(accountId, null, 'kds');
+    emitFnbChange(accountId, null, 'serve');
+
     sendOk(res, req, {
       item: { id: item.id, kdsState: prev },
       ticket: { id: item.transactionId, number: item.transaction.number, kdsState: synced },
@@ -371,7 +404,7 @@ router.post(
 
     const table = await prisma.table.findFirst({
       where: { id: tableId, accountId },
-      select: { id: true, label: true },
+      select: { id: true, label: true, outletId: true },
     });
     if (!table) throw new ApiError(404, 'NOT_FOUND', 'Table not found');
 
@@ -411,6 +444,13 @@ router.post(
       });
       return states;
     });
+
+    // Serving a whole table clears it from the ready board, advances each
+    // ticket's kitchen state, and (when a ticket fully serves out) can free
+    // the table on the floor.
+    emitFnbChange(accountId, table.outletId, 'serve');
+    emitFnbChange(accountId, table.outletId, 'kds');
+    emitFnbChange(accountId, table.outletId, 'floor');
 
     sendOk(res, req, {
       tableId,

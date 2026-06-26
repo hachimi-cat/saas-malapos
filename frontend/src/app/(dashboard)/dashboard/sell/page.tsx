@@ -21,6 +21,7 @@ import {
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { useBusinessType } from '@/hooks/use-business-type';
+import { useRealtime } from '@/hooks/use-realtime';
 
 /*
  * The sell screen — Malapos's hero surface. Pick an outlet, search/scan the
@@ -150,6 +151,24 @@ export default function SellPage() {
     if (!isFnb) setView('register');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFnb, outletId]);
+
+  // Realtime: keep the floor live so tables flip occupied↔available the moment
+  // a bill is opened, held, settled, or voided anywhere (this terminal or
+  // another). Scoped to this outlet; only active for F&B workspaces.
+  useRealtime({
+    enabled: isFnb && !!outletId,
+    outletId,
+    onChange: (topic) => {
+      if (topic === 'floor') loadFloor(outletId);
+    },
+  });
+
+  // Belt-and-suspenders fallback poll for the floor if the SSE stream drops.
+  useEffect(() => {
+    if (!isFnb || !outletId) return;
+    const t = setInterval(() => loadFloor(outletId), 30000);
+    return () => clearInterval(t);
+  }, [isFnb, outletId, loadFloor]);
 
   // Clear the table binding + cart when the outlet changes (tables are
   // per-outlet); the floor effect above then reloads the new outlet's floor.

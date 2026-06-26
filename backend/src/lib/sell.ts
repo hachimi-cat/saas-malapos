@@ -6,6 +6,7 @@ import { applyMovement } from './inventory.js';
 import { redeemGiftCard } from './giftcards.js';
 import { redeemGiftCardPlugipay } from './giftcards-plugipay.js';
 import { writeOutbox } from './outbox.js';
+import { emitFnbChange } from './realtime.js';
 import { marketingClientIfEnabled } from '../services/ripllo-module-service.js';
 import { paymentClientIfEnabled } from '../services/plugipay-module-service.js';
 
@@ -329,10 +330,23 @@ export async function settleParkedSale(input: {
       earnLocalLoyalty: !ripllo,
     });
 
-    return { total: txn.total, customerId: txn.customerId };
+    return {
+      total: txn.total,
+      customerId: txn.customerId,
+      outletId: txn.outletId,
+      kdsState: txn.kdsState,
+    };
   });
 
   if (!result) return false;
+
+  // F&B realtime: the QRIS settle completed the bill → free its table (floor)
+  // and drop the ticket off the kitchen/ready boards (kds/serve).
+  if (result.kdsState != null) {
+    emitFnbChange(accountId, result.outletId, 'floor');
+    emitFnbChange(accountId, result.outletId, 'serve');
+    emitFnbChange(accountId, result.outletId, 'kds');
+  }
 
   // Post-commit Ripllo earn (module-on only, non-fatal — same stance as
   // createSale; the sale is already durably settled).
@@ -370,7 +384,7 @@ export async function discardParkedSale(
 ): Promise<void> {
   const txn = await prisma.transaction.findFirst({
     where: { id: transactionId, accountId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, outletId: true, kdsState: true },
   });
   if (!txn) throw new ApiError(404, 'NOT_FOUND', 'Transaction not found');
   if (txn.status === 'VOIDED') return;
@@ -381,6 +395,13 @@ export async function discardParkedSale(
     where: { id: txn.id },
     data: { status: 'VOIDED', voidedAt: new Date(), voidReason: reason, kdsState: null },
   });
+
+  // F&B realtime: discarding an open bill frees its table (floor) and removes
+  // the ticket from the kitchen board (kds).
+  if (txn.kdsState != null) {
+    emitFnbChange(accountId, txn.outletId, 'floor');
+    emitFnbChange(accountId, txn.outletId, 'kds');
+  }
 }
 
 /** Compute tax + total for a given subtotal/orderDiscount against an
@@ -504,6 +525,13 @@ export async function updateParkedSale(
       },
     });
   });
+
+  // F&B realtime: editing/holding an open bill changes its items (KDS) and its
+  // table's total/item-count (floor). Only F&B bills carry a kdsState.
+  if (txn.kdsState != null) {
+    emitFnbChange(accountId, txn.outletId, 'kds');
+    emitFnbChange(accountId, txn.outletId, 'floor');
+  }
 }
 
 /** A transaction's line items shaped for the completion side-effects.
@@ -732,12 +760,25 @@ export async function settleParkedSaleManual(input: {
     // roll back the payment rows we just inserted (no double-record / oversum).
     if (!completed) throw new ApiError(409, 'CONFLICT', 'Sale is no longer open');
 
-    return { total: txn.total, customerId: txn.customerId };
+    return {
+      total: txn.total,
+      customerId: txn.customerId,
+      outletId: txn.outletId,
+      kdsState: txn.kdsState,
+    };
   });
 
   if (!result) {
     // Re-read for a clean error (a concurrent settle won the race).
     throw new ApiError(409, 'CONFLICT', 'Sale is no longer open');
+  }
+
+  // F&B realtime: completing an open bill frees its table (floor), drops its
+  // ticket off the kitchen + ready boards (kds/serve).
+  if (result.kdsState != null) {
+    emitFnbChange(accountId, result.outletId, 'floor');
+    emitFnbChange(accountId, result.outletId, 'serve');
+    emitFnbChange(accountId, result.outletId, 'kds');
   }
 
   // Post-commit Ripllo earn (module-on only, non-fatal — mirrors createSale
@@ -874,7 +915,14 @@ export async function addParkedSalePayment(input: {
       // Lost the atomic flip → a concurrent tender already completed the bill.
       // Throw to roll back this payment row (it would otherwise oversum paid).
       if (!completed) throw new ApiError(409, 'CONFLICT', 'Sale is no longer open');
-      return { completed: true, paidTotal: newPaid, total: txn.total, customerId: txn.customerId };
+      return {
+        completed: true,
+        paidTotal: newPaid,
+        total: txn.total,
+        customerId: txn.customerId,
+        outletId: txn.outletId,
+        kdsState: txn.kdsState,
+      };
     }
 
     // Still partial — accrue the payment, leave the bill PARKED (no stock /
@@ -883,13 +931,28 @@ export async function addParkedSalePayment(input: {
       where: { id: txn.id },
       data: { paidTotal: { increment: payAmount }, changeTotal: { increment: change } },
     });
-    return { completed: false, paidTotal: newPaid, total: txn.total, customerId: txn.customerId };
+    return {
+      completed: false,
+      paidTotal: newPaid,
+      total: txn.total,
+      customerId: txn.customerId,
+      outletId: txn.outletId,
+      kdsState: txn.kdsState,
+    };
   });
 
   if (!result) throw new ApiError(409, 'CONFLICT', 'Sale is no longer open');
 
   // Loyalty earn fires only on the completing payment (full total, once).
   if (result.completed) {
+    // F&B realtime: the final split tender completed the bill → free the table
+    // (floor) + drop the ticket off the kitchen/ready boards (kds/serve). A
+    // partial payment changes no board, so we stay quiet.
+    if (result.kdsState != null) {
+      emitFnbChange(accountId, result.outletId, 'floor');
+      emitFnbChange(accountId, result.outletId, 'serve');
+      emitFnbChange(accountId, result.outletId, 'kds');
+    }
     await riplloEarnPostCommit(ripllo, {
       customerId: result.customerId,
       total: result.total,
@@ -1179,6 +1242,14 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
     }
   });
 
+  // F&B realtime: a new kitchen ticket (open-bill park OR completed quick
+  // sale) appears on the KDS, and a parked dine-in bill flips its table to
+  // occupied on the floor. Non-F&B sales leave kdsState null → no board.
+  if (kdsState != null) {
+    emitFnbChange(accountId, outlet.id, 'kds');
+    emitFnbChange(accountId, outlet.id, 'floor');
+  }
+
   // ── Marketing (Ripllo) post-completion stamping ──────────────────────
   // Runs only when the module is on (`ripllo` set) and the sale committed.
   // ALL best-effort/non-fatal: the sale is already durably committed, so a
@@ -1337,6 +1408,14 @@ export async function voidSale(
       data: { transactionId: txn.id, reason },
     });
   });
+
+  // F&B realtime: voiding a sale that still carried a kitchen ticket clears it
+  // off the boards (kds/serve) and refreshes the floor.
+  if (txn.kdsState != null) {
+    emitFnbChange(accountId, txn.outletId, 'floor');
+    emitFnbChange(accountId, txn.outletId, 'kds');
+    emitFnbChange(accountId, txn.outletId, 'serve');
+  }
 
   // Claw back any Ripllo loyalty earned/redeemed on this sale (module-on
   // only; best-effort, post-commit).
