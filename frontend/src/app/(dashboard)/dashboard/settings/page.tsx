@@ -3,11 +3,35 @@
 import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Check, User, ShieldCheck } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /*
  * Settings — business profile (how Malapos behaves) + the signed-in
  * user's own Forjio identity (name / email / password), which lives in
  * Huudis and is edited through the IAM proxy (/api/v1/huudis/account*).
+ *
+ * Phase 1 of the UI revamp: this page is the shadcn/ui proof. Every other
+ * dashboard page still renders with the bespoke @forjio markup. Behaviour
+ * and data wiring are unchanged — only the presentation primitives swapped
+ * to shadcn (Card / Input / Label / Button / Select / Badge / Separator).
  */
 
 type BusinessType = 'GENERAL' | 'RETAIL' | 'FNB' | 'PHARMACY';
@@ -28,9 +52,6 @@ const TYPE_OPTIONS: { value: BusinessType; label: string; hint: string }[] = [
   { value: 'FNB', label: 'F&B', hint: 'Menus, modifiers and table-friendly ordering.' },
   { value: 'PHARMACY', label: 'Pharmacy', hint: 'Batch and expiry tracking on stock and sales.' },
 ];
-
-const inputCls =
-  'mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring';
 
 export default function SettingsPage() {
   return (
@@ -64,26 +85,31 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-card p-6">
-      <div className="mb-5 flex items-center gap-2.5">
-        <span className="text-primary">{icon}</span>
-        <div>
-          <h2 className="text-sm font-semibold">{title}</h2>
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2.5">
+          <span className="text-primary">{icon}</span>
+          <div>
+            <CardTitle className="text-sm">{title}</CardTitle>
+            <CardDescription className="text-xs">{subtitle}</CardDescription>
+          </div>
         </div>
-      </div>
-      {children}
-    </section>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }
 
 function StatusRow({ saved, error }: { saved: boolean; error: string | null }) {
-  if (error) return <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>;
+  if (error)
+    return (
+      <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
+    );
   if (saved)
     return (
-      <span className="flex items-center gap-1 text-sm text-primary">
-        <Check className="h-4 w-4" /> Saved
-      </span>
+      <Badge variant="secondary" className="gap-1 text-primary">
+        <Check className="h-3.5 w-3.5" /> Saved
+      </Badge>
     );
   return null;
 }
@@ -159,45 +185,50 @@ function BusinessSection() {
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
         <form onSubmit={save} className="max-w-xl space-y-6">
-          <label className="block">
-            <span className="text-sm font-medium">Business name</span>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="businessName">Business name</Label>
+            <Input
+              id="businessName"
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               placeholder="e.g. Toko Sumber Rejeki"
-              className={inputCls}
             />
-          </label>
+          </div>
 
-          <label className="block">
-            <span className="text-sm font-medium">Business type</span>
-            <select
+          <div className="space-y-1.5">
+            <Label htmlFor="businessType">Business type</Label>
+            <Select
               value={businessType}
-              onChange={(e) => setBusinessType(e.target.value as BusinessType)}
-              className={inputCls}
+              onValueChange={(v) => setBusinessType(v as BusinessType)}
             >
-              {TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <span className="mt-1.5 block text-xs text-muted-foreground">
+              <SelectTrigger id="businessType">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
               {TYPE_OPTIONS.find((o) => o.value === businessType)?.hint}
-            </span>
-          </label>
+            </p>
+          </div>
 
-          <label className="block">
-            <span className="text-sm font-medium">Currency</span>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="currency">Currency</Label>
+            <Input
+              id="currency"
               value={currency}
               readOnly
-              className="mt-1.5 w-full cursor-not-allowed rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground outline-none"
+              className="cursor-not-allowed bg-muted text-muted-foreground"
             />
-            <span className="mt-1.5 block text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Only IDR (Indonesian Rupiah) is supported in v1.
-            </span>
-          </label>
+            </p>
+          </div>
 
           <div className="space-y-4 rounded-md border border-border bg-muted/20 p-4">
             <div>
@@ -208,43 +239,40 @@ function BusinessSection() {
                 transfer to at the counter.
               </p>
             </div>
-            <label className="block">
-              <span className="text-sm font-medium">Bank name</span>
-              <input
+            <Separator />
+            <div className="space-y-1.5">
+              <Label htmlFor="transferBankName">Bank name</Label>
+              <Input
+                id="transferBankName"
                 value={transferBankName}
                 onChange={(e) => setTransferBankName(e.target.value)}
                 placeholder="e.g. BCA"
-                className={inputCls}
               />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">Account number</span>
-              <input
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="transferBankAccountNumber">Account number</Label>
+              <Input
+                id="transferBankAccountNumber"
                 value={transferBankAccountNumber}
                 onChange={(e) => setTransferBankAccountNumber(e.target.value)}
                 placeholder="e.g. 1234567890"
-                className={inputCls}
               />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium">Account holder</span>
-              <input
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="transferBankAccountHolder">Account holder</Label>
+              <Input
+                id="transferBankAccountHolder"
                 value={transferBankAccountHolder}
                 onChange={(e) => setTransferBankAccountHolder(e.target.value)}
                 placeholder="e.g. Toko Sumber Rejeki"
-                className={inputCls}
               />
-            </label>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 pt-1">
-            <button
-              type="submit"
-              disabled={saving || !businessName.trim()}
-              className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-            >
+            <Button type="submit" disabled={saving || !businessName.trim()}>
               {saving ? 'Saving…' : 'Save changes'}
-            </button>
+            </Button>
             <StatusRow saved={saved} error={error} />
           </div>
         </form>
@@ -302,22 +330,18 @@ function ProfileSection() {
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
         <form onSubmit={save} className="max-w-xl space-y-6">
-          <label className="block">
-            <span className="text-sm font-medium">Display name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
-          </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="displayName">Display name</Label>
+            <Input id="displayName" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
           <p className="text-xs text-muted-foreground">
             Signed in as <span className="font-medium text-foreground">{email}</span> — change your email
             below.
           </p>
           <div className="flex items-center gap-3 pt-1">
-            <button
-              type="submit"
-              disabled={saving || !name.trim()}
-              className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-            >
+            <Button type="submit" disabled={saving || !name.trim()}>
               {saving ? 'Saving…' : 'Save name'}
-            </button>
+            </Button>
             <StatusRow saved={saved} error={error} />
           </div>
         </form>
@@ -387,66 +411,62 @@ function SecuritySection() {
       <div className="grid gap-8 md:grid-cols-2">
         <form onSubmit={changeEmail} className="space-y-4">
           <h3 className="text-sm font-medium">Change email</h3>
-          <label className="block">
-            <span className="text-xs text-muted-foreground">New email</span>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="newEmail">New email</Label>
+            <Input
+              id="newEmail"
               type="email"
               required
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
-              className={inputCls}
             />
-          </label>
-          <label className="block">
-            <span className="text-xs text-muted-foreground">Current password</span>
-            <input
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="emailPw">Current password</Label>
+            <Input
+              id="emailPw"
               type="password"
               required
               value={emailPw}
               onChange={(e) => setEmailPw(e.target.value)}
-              className={inputCls}
             />
-          </label>
-          <button
+          </div>
+          <Button
             type="submit"
+            variant="outline"
             disabled={emailBusy || !newEmail.trim() || !emailPw}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-primary disabled:opacity-40"
           >
             {emailBusy ? 'Sending…' : 'Send confirmation'}
-          </button>
+          </Button>
           {emailMsg && <p className="text-xs text-primary">{emailMsg}</p>}
           {emailErr && <p className="text-xs text-destructive">{emailErr}</p>}
         </form>
 
         <form onSubmit={changePassword} className="space-y-4">
           <h3 className="text-sm font-medium">Change password</h3>
-          <label className="block">
-            <span className="text-xs text-muted-foreground">Current password</span>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="curPw">Current password</Label>
+            <Input
+              id="curPw"
               type="password"
               value={curPw}
               onChange={(e) => setCurPw(e.target.value)}
-              className={inputCls}
             />
-          </label>
-          <label className="block">
-            <span className="text-xs text-muted-foreground">New password (min 10 characters)</span>
-            <input
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="newPw">New password (min 10 characters)</Label>
+            <Input
+              id="newPw"
               type="password"
               required
               minLength={10}
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
-              className={inputCls}
             />
-          </label>
-          <button
-            type="submit"
-            disabled={pwBusy || newPw.length < 10}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-primary disabled:opacity-40"
-          >
+          </div>
+          <Button type="submit" variant="outline" disabled={pwBusy || newPw.length < 10}>
             {pwBusy ? 'Updating…' : 'Update password'}
-          </button>
+          </Button>
           {pwSaved && (
             <p className="flex items-center gap-1 text-xs text-primary">
               <Check className="h-3.5 w-3.5" /> Password changed — other sessions signed out.
