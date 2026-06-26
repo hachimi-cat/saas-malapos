@@ -178,7 +178,10 @@ export default function KdsPage() {
                           const st = it.kdsState;
                           const itemBusy = busy === `item:${it.id}`;
                           const badge = st ? ITEM_BADGE[st] : null;
-                          const canAdvance = st != null && st !== 'SERVED';
+                          // Kitchen advances NEW -> PREPARING -> READY and stops. The
+                          // READY -> SERVED step belongs to the server (Ready-to-serve
+                          // board), so the kitchen can't accidentally mark food served.
+                          const canAdvance = st != null && st !== 'SERVED' && st !== 'READY';
                           const canBack = st != null && st !== 'NEW';
                           return (
                             <li
@@ -239,14 +242,22 @@ export default function KdsPage() {
                       </ul>
                       {t.note && <p className="mt-2 text-xs italic text-muted-foreground">“{t.note}”</p>}
                       <div className="mt-3 flex items-stretch gap-2">
-                        <button
-                          onClick={() => advanceTicket(t.id)}
-                          disabled={ticketBusy}
-                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-                        >
-                          {ticketBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                          {NEXT_LABEL[t.kdsState]}
-                        </button>
+                        {t.kdsState === 'READY' ? (
+                          // Kitchen is done — the server marks it served from the
+                          // Ready-to-serve board. No "mark served" here.
+                          <span className="inline-flex flex-1 items-center justify-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 py-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="h-4 w-4" /> Ready — waiting for server
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => advanceTicket(t.id)}
+                            disabled={ticketBusy}
+                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                          >
+                            {ticketBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                            {NEXT_LABEL[t.kdsState]}
+                          </button>
+                        )}
                         <button
                           onClick={() => backTicket(t.id)}
                           disabled={ticketBusy || t.kdsState === 'NEW'}
