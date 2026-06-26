@@ -424,6 +424,21 @@ export default function SellPage() {
       if (paying || qris || receipt || split) return;
       // The floor (table grid) has no catalog hotkeys — stand down there.
       if (view === 'floor') return;
+      // Don't hijack keys while the cashier is typing in ANOTHER field (Attach
+      // customer, qty inputs, etc.) — only the product search drives the
+      // cashier hotkeys. Without this, Backspace/Delete got eaten in those
+      // inputs (couldn't clear the Attach-customer field).
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable) &&
+        !target.hasAttribute('data-sell-search')
+      ) {
+        return;
+      }
       switch (e.key) {
         case 'ArrowRight':
           e.preventDefault();
@@ -558,6 +573,7 @@ export default function SellPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               autoFocus
+              data-sell-search
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search or scan barcode…"
