@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Camera, Loader2, Mail, Search, SlidersHorizontal, Users, X } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
+import { CreatorAvatar } from '@/components/marketplace/creator-avatar';
 
 interface DirectoryItem {
   id: string;
@@ -15,6 +16,8 @@ interface DirectoryItem {
   country: string | null;
   rateCard?: Record<string, unknown>;
   fromPrice?: number | null;
+  avatarKey?: string | null;
+  stats?: { extras?: { profilePictureUrl?: string | null } | null }[] | null;
 }
 interface DirectoryResponse { data: DirectoryItem[]; cursor: string | null; hasMore: boolean }
 
@@ -191,9 +194,7 @@ function CreatorCard({ c, onInvite }: { c: DirectoryItem; onInvite: () => void }
   return (
     <div className="flex flex-col rounded-xl border border-border bg-card p-5">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-500/15 text-base font-bold text-brand-500">
-          {c.displayName.charAt(0).toUpperCase()}
-        </span>
+        <CreatorAvatar profile={c} stats={c.stats ?? null} size={40} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{c.displayName}</p>
           <p className="truncate text-xs text-muted-foreground">@{c.handle}{country && ` · ${country}`}</p>
