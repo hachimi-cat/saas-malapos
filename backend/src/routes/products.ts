@@ -135,14 +135,90 @@ router.patch(
   '/:id',
   asyncHandler(async (req, res) => {
     const accountId = req.auth!.accountId as string;
-    const data = productPatch.parse(req.body);
+    const { variants, ...scalar } = productPatch.parse(req.body);
     const existing = await prisma.product.findFirst({
       where: { id: String(req.params.id), accountId },
+      include: { variants: true },
     });
     if (!existing) throw new ApiError(404, 'NOT_FOUND', 'Product not found');
+
+    if (variants) {
+      // The submitted list is authoritative. Rows with an id update an
+      // existing variant; rows without create a new one; any active variant
+      // missing from the list is removed. Validate ids belong to this product
+      // before mutating anything.
+      const existingById = new Map(existing.variants.map((v) => [v.id, v]));
+      for (const v of variants) {
+        if (v.id && !existingById.has(v.id)) {
+          throw new ApiError(422, 'VALIDATION_ERROR', `Variant ${v.id} does not belong to this product`);
+        }
+      }
+      if (!variants.some((v) => v.price > 0)) {
+        throw new ApiError(422, 'VALIDATION_ERROR', 'At least one variant must have a price');
+      }
+      const keptIds = new Set(variants.filter((v) => v.id).map((v) => v.id as string));
+      // Only active variants are shown in the editor, so only they are
+      // candidates for removal — already-deactivated ones are left as-is.
+      const toRemove = existing.variants.filter((v) => v.isActive && !keptIds.has(v.id));
+
+      await prisma.$transaction(async (tx) => {
+        if (Object.keys(scalar).length > 0) {
+          await tx.product.update({ where: { id: existing.id }, data: scalar });
+        }
+        // Create + update. sortOrder follows the submitted row order.
+        for (const [i, v] of variants.entries()) {
+          if (v.id) {
+            await tx.productVariant.update({
+              where: { id: v.id },
+              data: {
+                name: v.name,
+                ...(v.sku !== undefined ? { sku: v.sku ?? null } : {}),
+                ...(v.barcode !== undefined ? { barcode: v.barcode ?? null } : {}),
+                price: v.price,
+                cost: v.cost,
+                sortOrder: i,
+                isActive: true,
+              },
+            });
+          } else {
+            await tx.productVariant.create({
+              data: {
+                id: newId('var'),
+                accountId,
+                productId: existing.id,
+                name: v.name,
+                sku: v.sku ?? null,
+                barcode: v.barcode ?? null,
+                price: v.price,
+                cost: v.cost,
+                sortOrder: i,
+              },
+            });
+          }
+        }
+        // Safe removal: a variant with sales history (TransactionItem) is
+        // soft-deactivated to preserve referential integrity; an unsold one
+        // is hard-deleted (recipe components cascade).
+        for (const v of toRemove) {
+          const sold = await tx.transactionItem.count({ where: { variantId: v.id } });
+          if (sold > 0) {
+            await tx.productVariant.update({ where: { id: v.id }, data: { isActive: false } });
+          } else {
+            await tx.productVariant.delete({ where: { id: v.id } });
+          }
+        }
+      });
+
+      const product = await prisma.product.findFirst({
+        where: { id: existing.id, accountId },
+        include: { variants: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } } },
+      });
+      return sendOk(res, req, { product });
+    }
+
     const product = await prisma.product.update({
       where: { id: existing.id },
-      data,
+      data: scalar,
       include: { variants: { orderBy: { sortOrder: 'asc' } } },
     });
     sendOk(res, req, { product });

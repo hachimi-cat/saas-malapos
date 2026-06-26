@@ -13,6 +13,22 @@ export const variantInput = z.object({
   sortOrder: z.number().int().min(0).optional().default(0),
 });
 
+/*
+ * Variant payload for the product UPDATE path. Same shape as `variantInput`
+ * but with an optional `id`: rows that carry an id update an existing variant,
+ * rows without one create a new variant. Any existing variant missing from the
+ * submitted list is removed (safe-deleted — see the products PATCH handler).
+ */
+export const variantUpsertInput = z.object({
+  id: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1).max(80).optional().default('Default'),
+  sku: z.string().trim().max(64).nullish(),
+  barcode: z.string().trim().max(64).nullish(),
+  price: z.number().int().min(0).max(MAX_PRICE_IDR),
+  cost: z.number().int().min(0).max(MAX_PRICE_IDR).optional().default(0),
+  sortOrder: z.number().int().min(0).optional().default(0),
+});
+
 export const productCreate = z.object({
   name: z.string().trim().min(1).max(160),
   description: z.string().trim().max(2000).nullish(),
@@ -36,5 +52,9 @@ export const productPatch = z
     requiresBatch: z.boolean(),
     imageUrl: z.string().trim().max(600).nullish(),
     isActive: z.boolean(),
+    // Optional: when present, the variant list is reconciled (create/update/
+    // remove) against the product's existing variants. Omit to leave variants
+    // untouched (product-only update).
+    variants: z.array(variantUpsertInput).min(1).max(50),
   })
   .partial();

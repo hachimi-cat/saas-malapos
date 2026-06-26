@@ -384,9 +384,12 @@ function ProductModal({
   const [trackStock, setTrackStock] = useState(product?.trackStock ?? true);
   const [requiresBatch, setRequiresBatch] = useState(product?.requiresBatch ?? false);
   const [imageUrl, setImageUrl] = useState(product?.imageUrl ?? '');
-  const [variants, setVariants] = useState<VariantDraft[]>(
-    product?.variants.length
-      ? product.variants.map((v) => ({
+  const [variants, setVariants] = useState<VariantDraft[]>(() => {
+    // Only active variants are editable; soft-deactivated ones (kept for sales
+    // history) stay hidden so they don't reappear as rows on re-edit.
+    const active = product?.variants.filter((v) => v.isActive) ?? [];
+    return active.length
+      ? active.map((v) => ({
           id: v.id,
           name: v.name,
           price: v.price,
@@ -394,8 +397,8 @@ function ProductModal({
           sku: v.sku ?? '',
           barcode: v.barcode ?? '',
         }))
-      : [{ name: 'Default', price: 0, cost: null, sku: '', barcode: '' }],
-  );
+      : [{ name: 'Default', price: 0, cost: null, sku: '', barcode: '' }];
+  });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -446,14 +449,16 @@ function ProductModal({
       setErr('Name is required.');
       return;
     }
-    if (!editing && !variants.some((v) => v.price > 0)) {
+    if (!variants.some((v) => v.price > 0)) {
       setErr('Add at least one variant with a price.');
       return;
     }
     setBusy(true);
     try {
       if (editing) {
-        // PATCH only mutates product-level fields (variants are managed elsewhere).
+        // PATCH now reconciles variants too: existing rows carry their id
+        // (update), new rows omit it (create), and removed rows are dropped
+        // server-side (soft-deactivated if they have sales history).
         await api.patch(`/products/${product!.id}`, {
           name: name.trim(),
           description: description.trim() || undefined,
@@ -463,6 +468,15 @@ function ProductModal({
           requiresBatch,
           // Empty clears the image (schema is nullish); a value sets it.
           imageUrl: imageUrl.trim() || null,
+          variants: variants.map((v) => ({
+            id: v.id,
+            name: v.name.trim() || undefined,
+            // Send null (not undefined) so clearing a code persists.
+            sku: v.sku.trim() || null,
+            barcode: v.barcode.trim() || null,
+            price: v.price,
+            cost: v.cost ?? undefined,
+          })),
         });
       } else {
         await api.post('/products', {
@@ -605,80 +619,83 @@ function ProductModal({
             <ImageField value={imageUrl} onChange={setImageUrl} />
           </div>
 
-          {editing ? (
-            <>
-              <p className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
-                Variants and pricing are not editable here. This form updates the product&apos;s
-                core details only.
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-medium">Variants</span>
+              <button
+                type="button"
+                onClick={addVariant}
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add variant
+              </button>
+            </div>
+            <div className="space-y-2">
+              {variants.map((v, i) => (
+                <div key={v.id ?? `new-${i}`} className="rounded-md border border-border bg-background p-3">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <input
+                      value={v.name}
+                      onChange={(e) => updateVariant(i, { name: e.target.value })}
+                      placeholder="Name (Default)"
+                      className="rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <input
+                      type="number"
+                      value={v.price || ''}
+                      onChange={(e) => updateVariant(i, { price: Number(e.target.value) })}
+                      placeholder="Price"
+                      className="rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <input
+                      type="number"
+                      value={v.cost ?? ''}
+                      onChange={(e) =>
+                        updateVariant(i, { cost: e.target.value === '' ? null : Number(e.target.value) })
+                      }
+                      placeholder="Cost"
+                      className="rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        value={v.sku}
+                        onChange={(e) => updateVariant(i, { sku: e.target.value })}
+                        placeholder="SKU"
+                        className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeVariant(i)}
+                        disabled={variants.length <= 1}
+                        className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive disabled:opacity-30"
+                        title="Remove variant"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    value={v.barcode}
+                    onChange={(e) => updateVariant(i, { barcode: e.target.value })}
+                    placeholder="Barcode (optional)"
+                    className="mt-2 w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              ))}
+            </div>
+            {editing && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Removing a variant that has sales history keeps it for reporting (it&apos;s
+                deactivated, not deleted) so past receipts stay intact.
               </p>
+            )}
+          </div>
+
+          {editing && (
+            <>
+              <ModifierAttachEditor product={product!} />
               <RecipeEditor product={product!} />
             </>
-          ) : (
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-medium">Variants</span>
-                <button
-                  type="button"
-                  onClick={addVariant}
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add variant
-                </button>
-              </div>
-              <div className="space-y-2">
-                {variants.map((v, i) => (
-                  <div key={i} className="rounded-md border border-border bg-background p-3">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      <input
-                        value={v.name}
-                        onChange={(e) => updateVariant(i, { name: e.target.value })}
-                        placeholder="Name (Default)"
-                        className="rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      <input
-                        type="number"
-                        value={v.price || ''}
-                        onChange={(e) => updateVariant(i, { price: Number(e.target.value) })}
-                        placeholder="Price"
-                        className="rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      <input
-                        type="number"
-                        value={v.cost ?? ''}
-                        onChange={(e) =>
-                          updateVariant(i, { cost: e.target.value === '' ? null : Number(e.target.value) })
-                        }
-                        placeholder="Cost"
-                        className="rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      <div className="flex gap-2">
-                        <input
-                          value={v.sku}
-                          onChange={(e) => updateVariant(i, { sku: e.target.value })}
-                          placeholder="SKU"
-                          className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeVariant(i)}
-                          disabled={variants.length <= 1}
-                          className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive disabled:opacity-30"
-                          title="Remove variant"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <input
-                      value={v.barcode}
-                      onChange={(e) => updateVariant(i, { barcode: e.target.value })}
-                      placeholder="Barcode (optional)"
-                      className="mt-2 w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
           )}
         </div>
 
@@ -908,6 +925,134 @@ function RecipeEditor({ product }: { product: Product }) {
           {busy ? 'Saving…' : 'Save recipe'}
         </button>
       </div>
+    </div>
+  );
+}
+
+type ModGroup = {
+  id: string;
+  name: string;
+  minSelect: number;
+  maxSelect: number;
+  modifiers: { id: string; name: string; price: number; isActive: boolean }[];
+};
+
+/*
+ * Customization editor — attach/detach the merchant's modifier groups
+ * (e.g. "Sugar level", "Extra shot") to this product. F&B-oriented but
+ * available for any product. Reads every group + the product's current
+ * attachments, then PUTs the full checked set (replace-all semantics, the
+ * shape `PUT /modifiers/product/:id` expects).
+ */
+function ModifierAttachEditor({ product }: { product: Product }) {
+  const [groups, setGroups] = useState<ModGroup[]>([]);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const [all, attached] = await Promise.all([
+          api.get<{ groups: ModGroup[] }>('/modifiers'),
+          api.get<{ groups: ModGroup[] }>(`/modifiers/product/${product.id}`),
+        ]);
+        if (cancelled) return;
+        setGroups(all.data.groups);
+        setChecked(new Set(attached.data.groups.map((g) => g.id)));
+      } catch (e) {
+        if (!cancelled) setErr(e instanceof ApiRequestError ? e.message : 'Failed to load modifiers');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [product.id]);
+
+  function toggle(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function save() {
+    setErr(null);
+    setMsg(null);
+    setBusy(true);
+    try {
+      // Preserve the listing order for the attached groups.
+      const groupIds = groups.filter((g) => checked.has(g.id)).map((g) => g.id);
+      await api.put(`/modifiers/product/${product.id}`, { groupIds });
+      setMsg('Customization saved.');
+    } catch (e) {
+      setErr(e instanceof ApiRequestError ? e.message : 'Save failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <span className="text-sm font-medium">Customization</span>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Tick the modifier groups that apply to this product (e.g. sugar level, extra shot).
+        Manage the groups themselves on the{' '}
+        <a href="/dashboard/modifiers" className="text-primary hover:underline">Modifiers</a> page.
+      </p>
+
+      {loading ? (
+        <p className="mt-3 text-xs text-muted-foreground">Loading…</p>
+      ) : groups.length === 0 ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          No modifier groups yet. Create one on the{' '}
+          <a href="/dashboard/modifiers" className="text-primary hover:underline">Modifiers</a> page.
+        </p>
+      ) : (
+        <div className="mt-3 space-y-1.5">
+          {groups.map((g) => (
+            <label
+              key={g.id}
+              className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-sm"
+            >
+              <input
+                type="checkbox"
+                checked={checked.has(g.id)}
+                onChange={() => toggle(g.id)}
+                className="h-4 w-4 accent-[hsl(var(--primary))]"
+              />
+              <span className="font-medium">{g.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {g.modifiers.length} option{g.modifiers.length === 1 ? '' : 's'} · {g.minSelect}–{g.maxSelect} select
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {err && <p className="mt-2 text-xs text-destructive">{err}</p>}
+      {msg && <p className="mt-2 text-xs text-primary">{msg}</p>}
+
+      {groups.length > 0 && (
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy || loading}
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-40"
+          >
+            {busy ? 'Saving…' : 'Save customization'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
