@@ -7,6 +7,7 @@ import { customersApi, type Customer } from '@/lib/payments-api';
 import { formatDate } from '@/lib/utils';
 import { BillingTabs } from '@/components/payment/BillingTabs';
 import { DataTable, type Column } from '@/components/data-table';
+import { Card } from '@/components/ui/card';
 
 // Payment customers (Plugipay billing identities). malapos has no
 // storefront buyer portal, so this lists the people you've billed —
@@ -79,14 +80,14 @@ export default function CustomersPage() {
       <BillingTabs />
 
       {loading ? (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card">
+        <Card className="flex h-48 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        </Card>
       ) : customers.length === 0 ? (
-        <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card">
+        <Card className="flex h-48 flex-col items-center justify-center gap-2">
           <Users className="h-6 w-6 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">No customers yet</p>
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={customers}

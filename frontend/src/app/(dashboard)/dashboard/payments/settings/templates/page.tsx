@@ -9,6 +9,13 @@ import {
   type TemplateDTO,
   type TemplateKind,
 } from '@/lib/plugipay-settings-api';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const DEFAULTS: Record<TemplateKind, Record<string, unknown>> = {
   receipt: {
@@ -38,14 +45,8 @@ const DEFAULTS: Record<TemplateKind, Record<string, unknown>> = {
   },
 };
 
-const inputCls =
-  'w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40';
 const labelCls = 'mb-1.5 block text-xs font-medium text-foreground';
 const helpCls = 'mt-1 text-[11px] text-muted-foreground';
-const btnPrimary =
-  'inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50';
-const btnGhost =
-  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50';
 
 export default function TemplatesPage() {
   const [tab, setTab] = React.useState<TemplateKind>('receipt');
@@ -181,32 +182,26 @@ export default function TemplatesPage() {
             </p>
           </div>
         </div>
-        <Link
-          href="/dashboard/settings/business"
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-accent"
-        >
-          Edit business →
-        </Link>
+        <Button asChild variant="outline" size="sm" className="h-8 shrink-0 gap-1.5">
+          <Link href="/dashboard/settings/business">Edit business →</Link>
+        </Button>
       </div>
 
-      <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
-        {(['receipt', 'invoice', 'checkout'] as const).map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => {
-              setTab(k);
-              setSelectedId(null);
-            }}
-            className={
-              'h-9 rounded-sm px-4 text-xs font-medium capitalize transition-colors ' +
-              (tab === k ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')
-            }
-          >
-            {k} templates
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => {
+          setTab(v as TemplateKind);
+          setSelectedId(null);
+        }}
+      >
+        <TabsList>
+          {(['receipt', 'invoice', 'checkout'] as const).map((k) => (
+            <TabsTrigger key={k} value={k} className="capitalize">
+              {k} templates
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {error && (
         <div className="rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs font-mono text-red-400">
@@ -220,14 +215,14 @@ export default function TemplatesPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-        <div className="rounded-lg border border-border bg-card p-4">
+        <Card className="p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">
               {tab === 'receipt' ? 'Receipts' : tab === 'invoice' ? 'Invoices' : 'Checkout skins'}
             </h2>
-            <button type="button" onClick={addNew} disabled={busy} className={btnGhost}>
+            <Button type="button" variant="ghost" size="sm" onClick={addNew} disabled={busy} className="gap-1.5 text-muted-foreground">
               <Plus className="h-4 w-4" /> New
-            </button>
+            </Button>
           </div>
           <div className="space-y-1">
             {!rows && (
@@ -251,15 +246,15 @@ export default function TemplatesPage() {
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-sm font-medium">{t.name}</span>
                   {t.isDefault && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase text-primary-foreground">
+                    <Badge className="gap-1 rounded-full px-2 py-0.5 text-[10px] uppercase">
                       <Check className="h-3 w-3" /> Default
-                    </span>
+                    </Badge>
                   )}
                 </div>
               </button>
             ))}
           </div>
-        </div>
+        </Card>
 
         {selected ? (
           <TemplateEditor
@@ -272,9 +267,9 @@ export default function TemplatesPage() {
             busy={busy}
           />
         ) : (
-          <div className="rounded-lg border border-border bg-card p-10 text-center text-sm text-muted-foreground">
+          <Card className="p-10 text-center text-sm text-muted-foreground">
             Select a template on the left, or create a new one.
-          </div>
+          </Card>
         )}
       </div>
     </div>
@@ -321,7 +316,7 @@ function TemplatePreview({ kind, config }: { kind: TemplateKind; config: Record<
   }, [configKey]);
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <Card className="p-4">
       <h3 className="mb-3 text-sm font-semibold">Live preview</h3>
       {error && <div className="mb-2 font-mono text-xs text-red-400">{error}</div>}
       {html ? (
@@ -339,7 +334,7 @@ function TemplatePreview({ kind, config }: { kind: TemplateKind; config: Record<
       <p className="mt-2 text-xs text-muted-foreground">
         Sample data for demonstration — real {kind}s pull the same template + your actual customer and amounts.
       </p>
-    </div>
+    </Card>
   );
 }
 
@@ -423,22 +418,22 @@ function TemplateEditor({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-card p-6">
+      <Card className="p-6">
         <div className="mb-4 flex items-center justify-between gap-2">
           <h2 className="text-base font-semibold">{template.name}</h2>
           <div className="flex items-center gap-2">
             {!template.isDefault && (
-              <button type="button" onClick={onMakeDefault} disabled={busy} className={btnGhost}>
+              <Button type="button" variant="ghost" size="sm" onClick={onMakeDefault} disabled={busy} className="gap-1.5 text-muted-foreground">
                 <Star className="h-3.5 w-3.5" /> Make default
-              </button>
+              </Button>
             )}
-            <button type="button" onClick={onDuplicate} disabled={busy} className={btnGhost}>
+            <Button type="button" variant="ghost" size="sm" onClick={onDuplicate} disabled={busy} className="gap-1.5 text-muted-foreground">
               <Copy className="h-3.5 w-3.5" /> Duplicate
-            </button>
+            </Button>
             {!template.isDefault && (
-              <button type="button" onClick={onDelete} disabled={busy} className={btnGhost}>
+              <Button type="button" variant="ghost" size="sm" onClick={onDelete} disabled={busy} className="gap-1.5 text-muted-foreground">
                 <Trash2 className="h-3.5 w-3.5" /> Delete
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -451,30 +446,28 @@ function TemplateEditor({
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="tpl-name" className={labelCls}>Template name</label>
-            <input id="tpl-name" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+            <Label htmlFor="tpl-name" className={labelCls}>Template name</Label>
+            <Input id="tpl-name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           {template.kind === 'receipt' && (
             <>
               <div>
-                <label htmlFor="tpl-thanks" className={labelCls}>Thank-you line</label>
-                <input
+                <Label htmlFor="tpl-thanks" className={labelCls}>Thank-you line</Label>
+                <Input
                   id="tpl-thanks"
                   value={thankYouText}
                   onChange={(e) => setThankYouText(e.target.value)}
                   placeholder="Terima kasih — Thank you"
-                  className={inputCls}
                 />
               </div>
               <div>
-                <label htmlFor="tpl-cashier" className={labelCls}>Default cashier label (POS)</label>
-                <input
+                <Label htmlFor="tpl-cashier" className={labelCls}>Default cashier label (POS)</Label>
+                <Input
                   id="tpl-cashier"
                   value={cashierLabel}
                   onChange={(e) => setCashierLabel(e.target.value)}
                   placeholder="Kasir: Siti"
-                  className={inputCls}
                 />
                 <p className={helpCls}>
                   Overridden per-session when POS sends <code>metadata.cashierName</code>.
@@ -485,13 +478,12 @@ function TemplateEditor({
 
           {template.kind === 'invoice' && (
             <div>
-              <label htmlFor="tpl-terms" className={labelCls}>Terms / payment instructions</label>
-              <input
+              <Label htmlFor="tpl-terms" className={labelCls}>Terms / payment instructions</Label>
+              <Input
                 id="tpl-terms"
                 value={termsText}
                 onChange={(e) => setTermsText(e.target.value)}
                 placeholder="Payment due within 30 days. Wire to BCA 0987-6543-21."
-                className={inputCls}
               />
             </div>
           )}
@@ -499,26 +491,24 @@ function TemplateEditor({
           {template.kind === 'checkout' && (
             <>
               <div>
-                <label htmlFor="tpl-success" className={labelCls}>Success message</label>
-                <input
+                <Label htmlFor="tpl-success" className={labelCls}>Success message</Label>
+                <Input
                   id="tpl-success"
                   value={successMessage}
                   onChange={(e) => setSuccessMessage(e.target.value)}
                   placeholder="Thanks! A receipt is on its way to your inbox."
-                  className={inputCls}
                 />
                 <p className={helpCls}>
                   Shown to the customer after a successful payment on <code>/c/:sessionId</code>.
                 </p>
               </div>
               <div>
-                <label htmlFor="tpl-tagline" className={labelCls}>Footer tagline</label>
-                <input
+                <Label htmlFor="tpl-tagline" className={labelCls}>Footer tagline</Label>
+                <Input
                   id="tpl-tagline"
                   value={footerTagline}
                   onChange={(e) => setFooterTagline(e.target.value)}
                   placeholder="Secure checkout powered by Plugipay"
-                  className={inputCls}
                 />
                 <p className={helpCls}>Overrides the brand tagline on this checkout skin only.</p>
               </div>
@@ -528,45 +518,43 @@ function TemplateEditor({
           {template.kind !== 'checkout' && (
             <>
               <div>
-                <label htmlFor="tpl-footer" className={labelCls}>Footer text</label>
-                <input
+                <Label htmlFor="tpl-footer" className={labelCls}>Footer text</Label>
+                <Input
                   id="tpl-footer"
                   value={footerText}
                   onChange={(e) => setFooterText(e.target.value)}
                   placeholder="Follow us on Instagram @warungkami"
-                  className={inputCls}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="tpl-showtax"
                     checked={showTax}
-                    onChange={(e) => setShowTax(e.target.checked)}
-                    className="h-4 w-4 rounded border-border"
+                    onCheckedChange={(c) => setShowTax(c === true)}
                   />
-                  Show tax breakdown
-                </label>
+                  <Label htmlFor="tpl-showtax" className="cursor-pointer text-sm font-normal">
+                    Show tax breakdown
+                  </Label>
+                </div>
                 {showTax && (
                   <div className="grid grid-cols-2 gap-3 pl-6">
                     <div>
-                      <label htmlFor="tpl-tax-lbl" className={labelCls}>Tax label</label>
-                      <input
+                      <Label htmlFor="tpl-tax-lbl" className={labelCls}>Tax label</Label>
+                      <Input
                         id="tpl-tax-lbl"
                         value={taxLabel}
                         onChange={(e) => setTaxLabel(e.target.value)}
-                        className={inputCls}
                       />
                     </div>
                     <div>
-                      <label htmlFor="tpl-tax-rate" className={labelCls}>Rate (0–1)</label>
-                      <input
+                      <Label htmlFor="tpl-tax-rate" className={labelCls}>Rate (0–1)</Label>
+                      <Input
                         id="tpl-tax-rate"
                         inputMode="decimal"
                         value={taxRate}
                         onChange={(e) => setTaxRate(e.target.value)}
-                        className={inputCls}
                       />
                       <p className={helpCls}>0.11 = 11%</p>
                     </div>
@@ -576,15 +564,16 @@ function TemplateEditor({
             </>
           )}
 
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="tpl-showbiz"
               checked={showBusinessDetails}
-              onChange={(e) => setShowBusinessDetails(e.target.checked)}
-              className="h-4 w-4 rounded border-border"
+              onCheckedChange={(c) => setShowBusinessDetails(c === true)}
             />
-            Show business details (address, NPWP)
-          </label>
+            <Label htmlFor="tpl-showbiz" className="cursor-pointer text-sm font-normal">
+              Show business details (address, NPWP)
+            </Label>
+          </div>
           <p className={helpCls}>
             Address + NPWP live under{' '}
             <Link href="/dashboard/settings/business" className="underline">
@@ -594,7 +583,7 @@ function TemplateEditor({
           </p>
 
           <div>
-            <label htmlFor="tpl-accent" className={labelCls}>Accent color override (optional)</label>
+            <Label htmlFor="tpl-accent" className={labelCls}>Accent color override (optional)</Label>
             <div className="flex items-center gap-2">
               <input
                 type="color"
@@ -603,24 +592,23 @@ function TemplateEditor({
                 onChange={(e) => setAccentColor(e.target.value.toUpperCase())}
                 className="h-9 w-10 shrink-0 cursor-pointer rounded border border-border bg-background"
               />
-              <input
+              <Input
                 id="tpl-accent"
                 placeholder="Leave blank = use brand color"
                 value={accentColor}
                 onChange={(e) => setAccentColor(e.target.value)}
-                className={inputCls}
               />
             </div>
           </div>
 
           <div className="flex gap-2 pt-2">
-            <button type="button" onClick={save} disabled={saving} className={btnPrimary}>
+            <Button type="button" onClick={save} disabled={saving}>
               {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Save template
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </Card>
 
       <TemplatePreview
         kind={template.kind}

@@ -6,6 +6,8 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { payoutsApi, Payout } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const STATUS_COLOR: Record<string, string> = {
   paid: 'bg-green-500/10 text-green-400',
@@ -61,57 +63,64 @@ export default function PayoutDetailPage() {
         <div>
           <h1 className="text-3xl font-bold tabular-nums tracking-tight">{fmt(payout.amount)}</h1>
           <div className="mt-2 flex items-center gap-2 text-sm">
-            <span
+            <Badge
+              variant="outline"
               className={cn(
-                'rounded-full px-2 py-0.5 text-xs font-medium capitalize',
+                'rounded-full border-transparent font-medium capitalize',
                 STATUS_COLOR[payout.status] ?? 'bg-muted text-muted-foreground',
               )}
             >
               {payout.status.replace(/_/g, ' ')}
-            </span>
+            </Badge>
             <span className="font-mono text-xs capitalize text-muted-foreground">· {payout.method}</span>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Destination</h2>
-          <div className="space-y-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Destination</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
             <Kv label="Bank" value={payout.bankName ?? '—'} />
             <Kv label="Account holder" value={payout.bankAccountHolder ?? '—'} />
             <Kv label="Account number" value={payout.bankAccountNumber ?? '—'} mono />
             {payout.bankCode && <Kv label="Bank code" value={payout.bankCode} mono />}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Timeline</h2>
-          <div className="space-y-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Timeline</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
             <Kv label="Requested" value={formatDate(payout.requestedAt ?? payout.createdAt)} />
             <Kv label="Processed" value={payout.processedAt ? formatDate(payout.processedAt) : '—'} />
             <Kv label="Completed" value={payout.completedAt ? formatDate(payout.completedAt) : '—'} />
             {payout.reference && <Kv label="Reference" value={payout.reference} mono />}
             {payout.ledgerTransactionId && <Kv label="Ledger tx" value={payout.ledgerTransactionId} mono />}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {(payout.note || payout.failureReason) && (
-        <div className="rounded-lg border border-border bg-card p-6">
-          {payout.note && (
-            <div>
-              <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">Note</p>
-              <p className="text-sm">{payout.note}</p>
-            </div>
-          )}
-          {payout.failureReason && (
-            <div className="mt-4">
-              <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">Failure reason</p>
-              <p className="text-sm text-red-400">{payout.failureReason}</p>
-            </div>
-          )}
-        </div>
+        <Card>
+          <CardContent className="p-6">
+            {payout.note && (
+              <div>
+                <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">Note</p>
+                <p className="text-sm">{payout.note}</p>
+              </div>
+            )}
+            {payout.failureReason && (
+              <div className="mt-4">
+                <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">Failure reason</p>
+                <p className="text-sm text-red-400">{payout.failureReason}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

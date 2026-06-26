@@ -6,6 +6,9 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, ExternalLink, RefreshCw, CheckCircle2, Loader2 } from 'lucide-react';
 import { checkoutSessionsApi, CheckoutSession } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const STATUS_COLOR: Record<string, string> = {
   completed: 'bg-green-500/10 text-green-400',
@@ -17,11 +20,6 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 type SessionDetail = CheckoutSession;
-
-const btnSecondary =
-  'inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50';
-const btnPrimary =
-  'inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50';
 
 export default function PaymentDetailPage() {
   const params = useParams<{ id: string }>();
@@ -91,14 +89,15 @@ export default function PaymentDetailPage() {
             {session.currency === 'IDR' ? formatCurrency(session.amount) : `${session.currency} ${session.amount}`}
           </h1>
           <div className="mt-2 flex items-center gap-2 text-sm">
-            <span
+            <Badge
+              variant="outline"
               className={cn(
-                'rounded-full px-2 py-0.5 text-xs font-medium capitalize',
+                'rounded-full border-transparent px-2 py-0.5 text-xs font-medium capitalize',
                 STATUS_COLOR[session.status] ?? 'bg-muted text-muted-foreground',
               )}
             >
               {session.status.replace(/_/g, ' ')}
-            </span>
+            </Badge>
             {session.adapter && (
               <span className="font-mono text-xs capitalize text-muted-foreground">· {session.adapter}</span>
             )}
@@ -106,14 +105,14 @@ export default function PaymentDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {session.status === 'pending_review' && session.adapter === 'manual' && (
-            <button type="button" onClick={confirmSession} disabled={confirming} className={btnPrimary}>
+            <Button type="button" onClick={confirmSession} disabled={confirming}>
               {confirming ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               Confirm payment received
-            </button>
+            </Button>
           )}
-          <button type="button" onClick={load} className={btnSecondary}>
+          <Button type="button" variant="outline" onClick={load}>
             <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -128,9 +127,11 @@ export default function PaymentDetailPage() {
         </div>
       )}
 
-      <div className="rounded-lg border border-border bg-card p-6">
-        <h2 className="mb-4 text-base font-semibold">Session</h2>
-        <div className="space-y-2 text-sm">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Session</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
           <Kv label="ID" value={session.id} mono />
           {session.mode && <Kv label="Mode" value={session.mode} />}
           <Kv label="Customer" value={session.customerId ?? '—'} mono />
@@ -152,8 +153,8 @@ export default function PaymentDetailPage() {
               </a>
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

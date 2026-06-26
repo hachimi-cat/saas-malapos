@@ -6,6 +6,9 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Download, Copy, ExternalLink, Loader2, CheckCircle2 } from 'lucide-react';
 import { invoicesApi, Invoice } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const STATUS_COLOR: Record<string, string> = {
   paid: 'bg-green-500/10 text-green-400',
@@ -125,14 +128,15 @@ export default function InvoiceDetailPage() {
             <h1 className="text-2xl font-bold tracking-tight">
               Invoice <span className="align-middle font-mono text-xl">{inv.number || inv.id}</span>
             </h1>
-            <span
+            <Badge
+              variant="outline"
               className={cn(
-                'rounded-full px-2 py-0.5 text-xs font-medium capitalize',
+                'rounded-full border-transparent px-2 py-0.5 text-xs font-medium capitalize',
                 STATUS_COLOR[inv.status] ?? 'bg-muted text-muted-foreground',
               )}
             >
               {inv.status}
-            </span>
+            </Badge>
           </div>
           <p className="mt-1 font-mono text-[13px] text-muted-foreground">
             {inv.paidAt
@@ -147,8 +151,11 @@ export default function InvoiceDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Totals</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Totals</CardTitle>
+          </CardHeader>
+          <CardContent>
           {inv.lineItems && inv.lineItems.length > 0 && (
             <div className="mb-4 space-y-2">
               {inv.lineItems.map((li, i) => (
@@ -179,46 +186,59 @@ export default function InvoiceDetailPage() {
               <span className="text-right tabular-nums">{fmt(inv.amountDue ?? 0)}</span>
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Customer</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Customer</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="space-y-3">
             <Kv label="Customer" value={inv.customerId ?? '—'} mono />
             <Kv label="Email" value={inv.customerEmail ?? '—'} />
             <Kv label="Subscription" value={inv.subscriptionId ?? '—'} mono />
             <Kv label="Due" value={inv.dueAt ? formatDate(inv.dueAt) : inv.dueDate ? formatDate(inv.dueDate) : '—'} />
             <div className="flex flex-wrap gap-2 pt-3">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={downloadPdf}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                className="text-xs"
               >
                 <Download className="h-3 w-3" /> PDF
-              </button>
-              <a
-                href={`https://plugipay.com/i/${inv.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
-              >
-                <ExternalLink className="h-3 w-3" /> View hosted
-              </a>
-              <button
+              </Button>
+              <Button variant="outline" size="sm" className="text-xs" asChild>
+                <a
+                  href={`https://plugipay.com/i/${inv.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink className="h-3 w-3" /> View hosted
+                </a>
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={shareLink}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                className="text-xs"
               >
                 {copied ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
                 {copied ? 'Copied' : 'Share link'}
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-6">
-        <h2 className="mb-4 text-base font-semibold">Preview</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Preview</CardTitle>
+        </CardHeader>
+        <CardContent>
         {previewHtml ? (
           <iframe
             srcDoc={previewHtml}
@@ -231,7 +251,8 @@ export default function InvoiceDetailPage() {
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading preview…
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

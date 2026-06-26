@@ -4,7 +4,27 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { plansApi, Plan } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
-import { Plus, Pencil, Trash2, Loader2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const INTERVAL_LABELS: Record<string, string> = {
   day: 'Daily',
@@ -61,135 +81,136 @@ function PlanForm({ plan, onClose, onSaved }: PlanFormProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{plan ? 'Edit Plan' : 'New Plan'}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{plan ? 'Edit Plan' : 'New Plan'}</DialogTitle>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Plan Name</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="name">Plan Name</Label>
+            <Input
+              id="name"
               type="text"
               required
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="Pro Monthly"
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Description</label>
-            <textarea
+          <div className="space-y-1.5">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={2}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="Optional plan description"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Amount</label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
                 type="number"
                 required
                 min="0"
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="99000"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Currency</label>
-              <select
-                value={form.currency}
-                onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="IDR">IDR</option>
-                <option value="USD">USD</option>
-              </select>
+            <div className="space-y-1.5">
+              <Label htmlFor="currency">Currency</Label>
+              <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+                <SelectTrigger id="currency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="IDR">IDR</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Billing Interval</label>
-              <select
+            <div className="space-y-1.5">
+              <Label htmlFor="interval">Billing Interval</Label>
+              <Select
                 value={form.interval}
-                onChange={(e) => setForm({ ...form, interval: e.target.value as Plan['interval'] })}
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                onValueChange={(v) => setForm({ ...form, interval: v as Plan['interval'] })}
               >
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-              </select>
+                <SelectTrigger id="interval">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Every N intervals</label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="intervalCount">Every N intervals</Label>
+              <Input
+                id="intervalCount"
                 type="number"
                 min="1"
                 value={form.intervalCount}
                 onChange={(e) => setForm({ ...form, intervalCount: e.target.value })}
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Trial Period (days)</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="trialPeriodDays">Trial Period (days)</Label>
+            <Input
+              id="trialPeriodDays"
               type="number"
               min="0"
               value={form.trialPeriodDays}
               onChange={(e) => setForm({ ...form, trialPeriodDays: e.target.value })}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="0 = no trial"
             />
           </div>
 
           <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
+            <Checkbox
               id="active"
               checked={form.active}
-              onChange={(e) => setForm({ ...form, active: e.target.checked })}
-              className="h-4 w-4 rounded border-border"
+              onCheckedChange={(c) => setForm({ ...form, active: c === true })}
             />
-            <label htmlFor="active" className="text-sm">Active (accepting subscriptions)</label>
+            <Label htmlFor="active" className="text-sm">Active (accepting subscriptions)</Label>
           </div>
 
           {error && <p className="text-xs text-red-400">{error}</p>}
 
           <div className="flex gap-3 pt-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={onClose}
-              className="flex-1 rounded border border-border py-2 text-sm font-medium hover:bg-accent"
+              className="flex-1"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
               disabled={loading}
-              className="flex flex-1 items-center justify-center gap-2 rounded bg-primary py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              className="flex-1"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {plan ? 'Save Changes' : 'Create Plan'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -250,32 +271,31 @@ export default function PlansPage() {
           <h1 className="text-2xl font-bold">Subscription Plans</h1>
           <p className="mt-1 text-sm text-muted-foreground">Create and manage your billing plans</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
+        <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4" /> New Plan
-        </button>
+        </Button>
       </div>
 
       {loading ? (
-        <div className="flex h-48 items-center justify-center">
+        <Card className="flex h-48 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        </Card>
       ) : plans.length === 0 ? (
-        <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border">
+        <Card className="flex h-48 flex-col items-center justify-center gap-3 border-dashed">
           <p className="text-sm text-muted-foreground">No plans yet</p>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1 text-xs text-primary hover:underline"
+            className="text-xs text-primary hover:underline"
           >
             <Plus className="h-3 w-3" /> Create your first plan
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan) => (
-            <div
+            <Card
               key={plan.id}
               className={cn(
                 'rounded-lg border bg-card p-5',
@@ -289,14 +309,15 @@ export default function PlansPage() {
                     <p className="mt-1 text-xs text-muted-foreground">{plan.description}</p>
                   )}
                 </div>
-                <span
+                <Badge
+                  variant="outline"
                   className={cn(
-                    'rounded-full px-2 py-0.5 text-xs font-medium',
+                    'rounded-full border-transparent px-2 py-0.5 text-xs font-medium',
                     plan.active ? 'bg-green-500/10 text-green-400' : 'bg-muted text-muted-foreground'
                   )}
                 >
                   {plan.active ? 'Active' : 'Inactive'}
-                </span>
+                </Badge>
               </div>
 
               <div className="mt-4">
@@ -321,28 +342,32 @@ export default function PlansPage() {
               <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
                 <Link href={`/dashboard/payments/plans/${plan.id}`} className="font-mono text-xs text-primary hover:underline">{plan.id}</Link>
                 <div className="flex gap-2">
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => setEditPlan(plan)}
-                    className="text-muted-foreground hover:text-foreground"
+                    className="h-auto w-auto text-muted-foreground hover:text-foreground"
                   >
                     <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={() => handleDelete(plan.id)}
                     disabled={deletingId === plan.id}
-                    className="text-muted-foreground hover:text-red-400 disabled:opacity-50"
+                    className="h-auto w-auto text-muted-foreground hover:text-red-400 disabled:opacity-50"
                   >
                     {deletingId === plan.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Trash2 className="h-4 w-4" />
                     )}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
               <p className="mt-2 text-xs text-muted-foreground">Created {formatDate(plan.createdAt)}</p>
-            </div>
+            </Card>
           ))}
         </div>
       )}

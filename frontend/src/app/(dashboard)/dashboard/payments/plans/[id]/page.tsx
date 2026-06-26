@@ -6,11 +6,26 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Loader2, Archive, CheckCircle2, Plus } from 'lucide-react';
 import { plansApi, Plan } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
-
-const btnSecondary =
-  'inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50';
-const btnDanger =
-  'inline-flex items-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 disabled:opacity-50';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export default function PlanDetailPage() {
   const params = useParams<{ id: string }>();
@@ -139,27 +154,34 @@ export default function PlanDetailPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">{plan.name}</h1>
-            <span
+            <Badge
+              variant="outline"
               className={cn(
-                'rounded-full px-2 py-0.5 text-xs font-medium',
+                'rounded-full border-transparent px-2 py-0.5 text-xs font-medium',
                 plan.active ? 'bg-green-500/10 text-green-400' : 'bg-muted text-muted-foreground',
               )}
             >
               {plan.active ? 'Active' : 'Archived'}
-            </span>
+            </Badge>
           </div>
           <p className="mt-1 font-mono text-[13px] text-muted-foreground">{plan.id}</p>
           {plan.description && <p className="mt-2 max-w-[62ch] text-sm text-muted-foreground">{plan.description}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={toggleActive} disabled={busy} className={btnSecondary}>
+          <Button type="button" variant="outline" onClick={toggleActive} disabled={busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : plan.active ? null : <CheckCircle2 className="h-4 w-4" />}
             {plan.active ? 'Deactivate' : 'Activate'}
-          </button>
+          </Button>
           {plan.active && (
-            <button type="button" onClick={archive} disabled={busy} className={btnDanger}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={archive}
+              disabled={busy}
+              className="border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+            >
               <Archive className="h-4 w-4" /> Archive
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -176,68 +198,74 @@ export default function PlanDetailPage() {
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
-        <div className="rounded-lg border border-border bg-card p-6">
+        <Card className="rounded-lg border border-border bg-card p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold">Prices</h2>
-            <button
+            <Button
               type="button"
+              variant="link"
               onClick={() => setShowAddPrice((s) => !s)}
-              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              className="h-auto gap-1 p-0 text-xs"
             >
               <Plus className="h-3 w-3" /> Add price
-            </button>
+            </Button>
           </div>
 
           {showAddPrice && (
             <div className="mb-4 rounded-md border border-primary/40 bg-primary/5 p-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-[11px] font-medium">Currency</label>
-                  <input
+                <div className="space-y-1.5">
+                  <Label htmlFor="newCurrency" className="text-[11px]">Currency</Label>
+                  <Input
+                    id="newCurrency"
                     value={newCurrency}
                     onChange={(e) => setNewCurrency(e.target.value.toUpperCase())}
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                   />
                 </div>
-                <div>
-                  <label className="mb-1 block text-[11px] font-medium">Unit amount</label>
-                  <input
+                <div className="space-y-1.5">
+                  <Label htmlFor="newAmount" className="text-[11px]">Unit amount</Label>
+                  <Input
+                    id="newAmount"
                     type="number"
                     placeholder="99000"
                     value={newAmount}
                     onChange={(e) => setNewAmount(e.target.value)}
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                   />
                 </div>
-                <div>
-                  <label className="mb-1 block text-[11px] font-medium">Tax mode</label>
-                  <select
+                <div className="space-y-1.5">
+                  <Label htmlFor="newTaxMode" className="text-[11px]">Tax mode</Label>
+                  <Select
                     value={newTaxMode}
-                    onChange={(e) => setNewTaxMode(e.target.value as 'inclusive' | 'exclusive')}
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                    onValueChange={(v) => setNewTaxMode(v as 'inclusive' | 'exclusive')}
                   >
-                    <option value="inclusive">Inclusive</option>
-                    <option value="exclusive">Exclusive</option>
-                  </select>
+                    <SelectTrigger id="newTaxMode">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inclusive">Inclusive</SelectItem>
+                      <SelectItem value="exclusive">Exclusive</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="mt-3 flex gap-2">
-                <button
+                <Button
                   type="button"
+                  size="sm"
                   onClick={addPrice}
                   disabled={busy || !newAmount}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   {busy && <Loader2 className="h-3 w-3 animate-spin" />}
                   Add flat price
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="link"
                   onClick={() => setShowAddPrice(false)}
-                  className="text-xs text-muted-foreground hover:text-foreground"
+                  className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -256,50 +284,52 @@ export default function PlanDetailPage() {
           ) : (
             <>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="px-3 py-2 text-xs font-medium text-muted-foreground">Price ID</th>
-                    <th className="px-3 py-2 text-xs font-medium text-muted-foreground">Model</th>
-                    <th className="px-3 py-2 text-xs font-medium text-muted-foreground">Amount</th>
-                    <th className="px-3 py-2 text-xs font-medium text-muted-foreground">Currency</th>
-                    <th className="px-3 py-2 text-xs font-medium text-muted-foreground">Status</th>
-                    <th className="px-3 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
+              <Table className="text-sm">
+                <TableHeader>
+                  <TableRow className="border-b border-border text-left">
+                    <TableHead className="px-3 py-2 text-xs font-medium text-muted-foreground">Price ID</TableHead>
+                    <TableHead className="px-3 py-2 text-xs font-medium text-muted-foreground">Model</TableHead>
+                    <TableHead className="px-3 py-2 text-xs font-medium text-muted-foreground">Amount</TableHead>
+                    <TableHead className="px-3 py-2 text-xs font-medium text-muted-foreground">Currency</TableHead>
+                    <TableHead className="px-3 py-2 text-xs font-medium text-muted-foreground">Status</TableHead>
+                    <TableHead className="px-3 py-2"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-border">
                   {prices.map((pr) => (
-                    <tr key={pr.id} className="hover:bg-muted/30">
-                      <td className="px-3 py-2 font-mono text-xs">{pr.id}</td>
-                      <td className="px-3 py-2 text-xs capitalize">{pr.model}</td>
-                      <td className="px-3 py-2 font-semibold tabular-nums">
+                    <TableRow key={pr.id} className="hover:bg-muted/30">
+                      <TableCell className="px-3 py-2 font-mono text-xs">{pr.id}</TableCell>
+                      <TableCell className="px-3 py-2 text-xs capitalize">{pr.model}</TableCell>
+                      <TableCell className="px-3 py-2 font-semibold tabular-nums">
                         {pr.currency === 'IDR' ? formatCurrency(pr.unitAmount) : `${pr.currency} ${pr.unitAmount}`}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-xs">{pr.currency}</td>
-                      <td className="px-3 py-2">
-                        <span
+                      </TableCell>
+                      <TableCell className="px-3 py-2 font-mono text-xs">{pr.currency}</TableCell>
+                      <TableCell className="px-3 py-2">
+                        <Badge
+                          variant="outline"
                           className={cn(
-                            'rounded-full px-2 py-0.5 text-xs font-medium',
+                            'rounded-full border-transparent px-2 py-0.5 text-xs font-medium',
                             pr.active ? 'bg-green-500/10 text-green-400' : 'bg-muted text-muted-foreground',
                           )}
                         >
                           {pr.active ? 'Active' : 'Archived'}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <button
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-3 py-2 text-right">
+                        <Button
                           type="button"
+                          variant="link"
                           onClick={() => togglePrice(pr.id, !pr.active)}
                           disabled={busy}
-                          className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                          className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
                         >
                           {pr.active ? 'Archive' : 'Unarchive'}
-                        </button>
-                      </td>
-                    </tr>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
             <ul className="space-y-3 md:hidden">
               {prices.map((pr) => (
@@ -308,44 +338,46 @@ export default function PlanDetailPage() {
                     <span className="font-semibold tabular-nums">
                       {pr.currency === 'IDR' ? formatCurrency(pr.unitAmount) : `${pr.currency} ${pr.unitAmount}`}
                     </span>
-                    <span
+                    <Badge
+                      variant="outline"
                       className={cn(
-                        'rounded-full px-2 py-0.5 text-xs font-medium',
+                        'rounded-full border-transparent px-2 py-0.5 text-xs font-medium',
                         pr.active ? 'bg-green-500/10 text-green-400' : 'bg-muted text-muted-foreground',
                       )}
                     >
                       {pr.active ? 'Active' : 'Archived'}
-                    </span>
+                    </Badge>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     <span className="capitalize">{pr.model}</span> · <span className="font-mono">{pr.currency}</span>
                   </div>
                   <div className="mt-1 break-all font-mono text-[10px] text-muted-foreground/70">{pr.id}</div>
                   <div className="mt-2 text-right">
-                    <button
+                    <Button
                       type="button"
+                      variant="link"
                       onClick={() => togglePrice(pr.id, !pr.active)}
                       disabled={busy}
-                      className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
                     >
                       {pr.active ? 'Archive' : 'Unarchive'}
-                    </button>
+                    </Button>
                   </div>
                 </li>
               ))}
             </ul>
             </>
           )}
-        </div>
+        </Card>
 
-        <div className="rounded-lg border border-border bg-card p-6">
+        <Card className="rounded-lg border border-border bg-card p-6">
           <h2 className="mb-4 text-base font-semibold">Schedule</h2>
           <div className="space-y-3">
             <Kv label="Interval" value={`Every ${intervalCount > 1 ? `${intervalCount} ${plan.interval}s` : plan.interval}`} />
             <Kv label="Trial days" value={String(plan.trialDays ?? plan.trialPeriodDays ?? 0)} />
             <Kv label="Created" value={formatDate(plan.createdAt)} />
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

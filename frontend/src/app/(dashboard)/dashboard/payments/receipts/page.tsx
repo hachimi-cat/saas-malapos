@@ -6,6 +6,8 @@ import { receiptsApi, Receipt } from '@/lib/payments-api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Loader2, CheckCircle2, Mail } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const SOURCE_LABEL: Record<string, string> = {
   checkout_session: 'Checkout',
@@ -54,9 +56,9 @@ export default function ReceiptsPage() {
       sortable: true,
       sortValue: (r) => r.sourceType,
       cell: (r) => (
-        <span className="rounded-full bg-muted px-2 py-0.5 capitalize">
+        <Badge variant="outline" className="rounded-full border-transparent bg-muted capitalize">
           {SOURCE_LABEL[r.sourceType] ?? r.sourceType}
-        </span>
+        </Badge>
       ),
     },
     {
@@ -119,13 +121,13 @@ export default function ReceiptsPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card">
+        <Card className="flex h-48 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        </Card>
       ) : receipts.length === 0 ? (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card">
+        <Card className="flex h-48 items-center justify-center">
           <p className="text-sm text-muted-foreground">No receipts yet</p>
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={receipts}

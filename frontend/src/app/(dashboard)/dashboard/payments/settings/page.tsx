@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Wallet, Loader2, ExternalLink, QrCode, CheckCircle2, Settings } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 /*
  * Payment settings — the Payment (Plugipay) module's "Settings" sub-page.
@@ -63,7 +66,7 @@ export default function PaymentSettingsPage() {
   if (moduleOff) {
     return (
       <div className="mx-auto max-w-6xl">
-        <div className="rounded-lg border border-border bg-card px-8 py-16 text-center">
+        <Card className="px-8 py-16 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Wallet className="h-6 w-6 text-primary" />
           </div>
@@ -72,13 +75,12 @@ export default function PaymentSettingsPage() {
             Payments uses Plugipay to accept live dynamic QRIS at the sell screen. Turn on the
             Payments module to configure how you collect and settle money.
           </p>
-          <Link
-            href="/dashboard/settings/modules"
-            className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Go to Modules <ExternalLink className="h-4 w-4" />
-          </Link>
-        </div>
+          <Button asChild className="mt-6">
+            <Link href="/dashboard/settings/modules">
+              Go to Modules <ExternalLink className="h-4 w-4" />
+            </Link>
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -99,7 +101,7 @@ export default function PaymentSettingsPage() {
       )}
 
       {/* Provider status */}
-      <div className="rounded-lg border border-border bg-card p-5">
+      <Card className="p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10">
@@ -111,13 +113,19 @@ export default function PaymentSettingsPage() {
             </div>
           </div>
           {connected ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            <Badge
+              variant="outline"
+              className="gap-1.5 rounded-full border-transparent bg-green-100 px-3 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400"
+            >
               <CheckCircle2 className="h-3.5 w-3.5" /> Connected
-            </span>
+            </Badge>
           ) : (
-            <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+            <Badge
+              variant="outline"
+              className="rounded-full border-transparent bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
+            >
               Not linked
-            </span>
+            </Badge>
           )}
         </div>
         <p className="mt-4 text-sm text-muted-foreground">
@@ -125,20 +133,19 @@ export default function PaymentSettingsPage() {
           Plugipay workspace — not in Malapos. To change acquirers, update bank details, or adjust
           payout timing, open Plugipay and configure your provider there.
         </p>
-        <a
-          href={PLUGIPAY_DASHBOARD}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          Configure in Plugipay <ExternalLink className="h-4 w-4" />
-        </a>
-      </div>
+        <Button asChild className="mt-4">
+          <a href={PLUGIPAY_DASHBOARD} target="_blank" rel="noopener noreferrer">
+            Configure in Plugipay <ExternalLink className="h-4 w-4" />
+          </a>
+        </Button>
+      </Card>
 
       {/* Enabled methods */}
-      <div className="rounded-lg border border-border bg-card">
-        <div className="border-b border-border px-5 py-3 text-sm font-medium">Payment methods</div>
-        <div className="flex items-center justify-between px-5 py-4">
+      <Card>
+        <CardHeader className="border-b border-border px-5 py-3">
+          <CardTitle className="text-sm font-medium">Payment methods</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
             <QrCode className="h-5 w-5 text-primary" />
             <div>
@@ -148,17 +155,18 @@ export default function PaymentSettingsPage() {
               </p>
             </div>
           </div>
-          <span
-            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+          <Badge
+            variant="outline"
+            className={`rounded-full border-transparent px-2.5 py-1 text-xs font-medium ${
               connected
                 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                 : 'bg-muted text-muted-foreground'
             }`}
           >
             {connected ? 'Active' : 'Pending link'}
-          </span>
-        </div>
-      </div>
+          </Badge>
+        </CardContent>
+      </Card>
     </div>
   );
 }

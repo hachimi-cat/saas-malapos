@@ -6,6 +6,9 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Pause, Play, X, Loader2 } from 'lucide-react';
 import { subscriptionsApi, Subscription } from '@/lib/payments-api';
 import { formatDate, cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const STATUS_COLOR: Record<string, string> = {
   active: 'bg-green-500/10 text-green-400',
@@ -19,11 +22,6 @@ interface SubscriptionDetail extends Subscription {
   cancelAt?: string | null;
   priceId?: string | null;
 }
-
-const btnSecondary =
-  'inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50';
-const btnDanger =
-  'inline-flex items-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-400 hover:bg-red-500/20 disabled:opacity-50';
 
 export default function SubscriptionDetailPage() {
   const params = useParams<{ id: string }>();
@@ -123,14 +121,15 @@ export default function SubscriptionDetailPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">Subscription</h1>
-            <span
+            <Badge
+              variant="outline"
               className={cn(
-                'rounded-full px-2 py-0.5 text-xs font-medium capitalize',
+                'rounded-full border-transparent px-2 py-0.5 text-xs font-medium capitalize',
                 STATUS_COLOR[sub.status] ?? 'bg-muted text-muted-foreground',
               )}
             >
               {sub.status.replace(/_/g, ' ')}
-            </span>
+            </Badge>
           </div>
           <p className="mt-1 font-mono text-[13px] text-muted-foreground">
             {sub.id} · created {formatDate(sub.createdAt)} · next charge {formatDate(sub.currentPeriodEnd)}
@@ -138,25 +137,25 @@ export default function SubscriptionDetailPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {!isCanceled && !isPaused && (
-            <button type="button" onClick={pause} disabled={busy} className={btnSecondary}>
+            <Button type="button" variant="outline" onClick={pause} disabled={busy}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />}
               Pause
-            </button>
+            </Button>
           )}
           {isPaused && (
-            <button type="button" onClick={resume} disabled={busy} className={btnSecondary}>
+            <Button type="button" variant="outline" onClick={resume} disabled={busy}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
               Resume
-            </button>
+            </Button>
           )}
           {!isCanceled && (
             <>
-              <button type="button" onClick={() => cancel(true)} disabled={busy} className={btnSecondary}>
+              <Button type="button" variant="outline" onClick={() => cancel(true)} disabled={busy}>
                 Cancel at period end
-              </button>
-              <button type="button" onClick={() => cancel(false)} disabled={busy} className={btnDanger}>
+              </Button>
+              <Button type="button" variant="destructive" onClick={() => cancel(false)} disabled={busy}>
                 <X className="h-4 w-4" /> Cancel now
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -174,24 +173,28 @@ export default function SubscriptionDetailPage() {
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Billing schedule</h2>
-          <div className="space-y-1">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Billing schedule</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
             <Kv label="Current period" value={`${formatDate(sub.currentPeriodStart)} → ${formatDate(sub.currentPeriodEnd)}`} />
             <Kv label="Trial ends" value={sub.trialEnd ? formatDate(sub.trialEnd) : '—'} />
             <Kv label="Cancels at" value={sub.cancelAt ? formatDate(sub.cancelAt) : sub.cancelAtPeriodEnd ? formatDate(sub.currentPeriodEnd) : '—'} />
             <Kv label="Canceled at" value={sub.canceledAt ? formatDate(sub.canceledAt) : '—'} />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Customer & plan</h2>
-          <div className="space-y-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Customer &amp; plan</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
             <Kv label="Customer" value={sub.customerId} mono />
             <Kv label="Plan" value={sub.planId} mono />
             {sub.priceId && <Kv label="Price" value={sub.priceId} mono />}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -4,8 +4,15 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { checkoutSessionsApi, CheckoutSession } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
-import { Plus, ExternalLink, Loader2, X, Copy, Check } from 'lucide-react';
+import { Plus, ExternalLink, Loader2, Copy, Check } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 const STATUS_COLOR: Record<string, string> = {
   open: 'bg-yellow-500/10 text-yellow-400',
@@ -58,107 +65,97 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">New Checkout Session</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>New Checkout Session</DialogTitle>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Amount</label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
                 type="number"
                 required
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="50000"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Currency</label>
-              <select
-                value={form.currency}
-                onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="IDR">IDR</option>
-                <option value="USD">USD</option>
-              </select>
+            <div className="space-y-1.5">
+              <Label htmlFor="currency">Currency</Label>
+              <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
+                <SelectTrigger id="currency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="IDR">IDR</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Description</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="description">Description</Label>
+            <Input
+              id="description"
               type="text"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="Pro Plan - Monthly"
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Customer Email</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="customerEmail">Customer Email</Label>
+            <Input
+              id="customerEmail"
               type="email"
               value={form.customerEmail}
               onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="buyer@example.com"
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Success URL</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="successUrl">Success URL</Label>
+            <Input
+              id="successUrl"
               type="url"
               required
               value={form.successUrl}
               onChange={(e) => setForm({ ...form, successUrl: e.target.value })}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Cancel URL</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="cancelUrl">Cancel URL</Label>
+            <Input
+              id="cancelUrl"
               type="url"
               required
               value={form.cancelUrl}
               onChange={(e) => setForm({ ...form, cancelUrl: e.target.value })}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded border border-border py-2 text-sm font-medium hover:bg-accent"
-            >
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex flex-1 items-center justify-center gap-2 rounded bg-primary py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Create Session
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -232,9 +229,9 @@ export default function PaymentsPage() {
       sortable: true,
       sortValue: (r) => r.status,
       cell: (r) => (
-        <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_COLOR[r.status] || 'bg-muted text-muted-foreground')}>
+        <Badge variant="outline" className={cn('rounded-full border-transparent', STATUS_COLOR[r.status] || 'bg-muted text-muted-foreground')}>
           {r.status}
-        </span>
+        </Badge>
       ),
     },
     {
@@ -271,25 +268,22 @@ export default function PaymentsPage() {
           <h1 className="text-xl font-bold sm:text-2xl">Checkout Sessions</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage and create hosted payment sessions</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
+        <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4" /> New Session
-        </button>
+        </Button>
       </div>
 
       {loading ? (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card">
+        <Card className="flex h-48 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        </Card>
       ) : sessions.length === 0 ? (
-        <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card">
+        <Card className="flex h-48 flex-col items-center justify-center gap-2">
           <p className="text-sm text-muted-foreground">No checkout sessions found</p>
-          <button onClick={() => setShowCreate(true)} className="text-xs text-primary hover:underline">
+          <Button variant="link" onClick={() => setShowCreate(true)} className="h-auto p-0 text-xs">
             Create your first session
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
         <DataTable
           rows={sessions}

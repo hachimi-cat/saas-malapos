@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ledgerApi, type LedgerEntry, type LedgerCategory } from '@/lib/payments-api';
 import { Loader2, ArrowDownRight, ArrowUpRight, Download } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 /**
  * /dashboard/payments/ledger — the merchant's running money log.
@@ -171,28 +173,24 @@ export default function LedgerPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={exportCsv}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium hover:bg-accent"
-          >
+          <Button type="button" variant="outline" onClick={exportCsv} className="whitespace-nowrap">
             <Download className="h-3.5 w-3.5" /> Export CSV
-          </button>
+          </Button>
         </div>
       </header>
 
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-      <div className="rounded-xl border border-border bg-card p-6">
+      <Card className="rounded-xl p-6">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Running balance</p>
         <p className="mt-1 text-3xl font-bold">{fmt(balance.balance, balance.currency)}</p>
         <p className="mt-1 text-xs text-muted-foreground">Across all ledger entries</p>
-      </div>
+      </Card>
 
       {entries.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+        <Card className="p-12 text-center text-sm text-muted-foreground">
           No entries yet. Once you take a payment or issue a refund, the ledger will fill up.
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={entries}

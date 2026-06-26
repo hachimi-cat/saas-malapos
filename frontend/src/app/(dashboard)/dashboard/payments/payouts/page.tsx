@@ -3,8 +3,14 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { payoutsApi, type Payout, type PayoutStatus, type PayoutBankAccount } from '@/lib/payments-api';
-import { Loader2, Plus, X, Landmark, AlertCircle, CheckCircle2, Ban, Truck, Hourglass } from 'lucide-react';
+import { Loader2, Plus, Landmark, AlertCircle, CheckCircle2, Ban, Truck, Hourglass } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 /**
  * /dashboard/payments/payouts — request payouts, track status, manage default bank.
@@ -125,10 +131,10 @@ export default function PayoutsPage() {
       sortValue: (r) => r.status,
       cell: (r) => (
         <div>
-          <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${STATUS_COLOR[r.status]}`}>
+          <Badge variant="outline" className={`gap-1 rounded-full border-transparent font-medium ${STATUS_COLOR[r.status]}`}>
             <StatusIcon status={r.status} />
             {STATUS_LABEL[r.status]}
-          </span>
+          </Badge>
           {r.failureReason && <div className="mt-1 text-xs text-red-600">{r.failureReason}</div>}
         </div>
       ),
@@ -146,9 +152,9 @@ export default function PayoutsPage() {
       align: 'right',
       cell: (r) =>
         r.status === 'pending' ? (
-          <button onClick={() => cancel(r.id)} className="text-xs text-red-600 hover:underline">
+          <Button variant="link" onClick={() => cancel(r.id)} className="h-auto p-0 text-xs text-red-600">
             Cancel
-          </button>
+          </Button>
         ) : null,
     },
   ];
@@ -157,7 +163,7 @@ export default function PayoutsPage() {
     { key: 'status', label: 'Status', accessor: (r) => r.status, options: STATUS_OPTIONS },
   ];
 
-  if (loading) return <div className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (loading) return <Card className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></Card>;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -169,35 +175,35 @@ export default function PayoutsPage() {
             disbursement auto-transfers once XenPlatform is approved.
           </p>
         </div>
-        <button onClick={() => setShowRequest(true)}
+        <Button onClick={() => setShowRequest(true)}
           disabled={!bank?.configured || (balance?.available ?? 0) <= 0}
-          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          className="shrink-0"
           title={!bank?.configured ? 'Set a bank account first' : (balance?.available ?? 0) <= 0 ? 'No available balance' : ''}>
           <Plus className="h-3.5 w-3.5" /> Request payout
-        </button>
+        </Button>
       </header>
 
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-6">
+        <Card className="p-6">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Available</p>
           <p className="mt-1 text-2xl font-bold">{balance ? fmt(balance.available, balance.currency) : '—'}</p>
           <p className="mt-1 text-xs text-muted-foreground">Free to withdraw</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-6">
+        </Card>
+        <Card className="p-6">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Locked</p>
           <p className="mt-1 text-2xl font-bold">{balance ? fmt(balance.locked, balance.currency) : '—'}</p>
           <p className="mt-1 text-xs text-muted-foreground">In-flight payouts</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-6">
+        </Card>
+        <Card className="p-6">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Ledger balance</p>
           <p className="mt-1 text-2xl font-bold">{balance ? fmt(balance.ledgerBalance, balance.currency) : '—'}</p>
           <p className="mt-1 text-xs text-muted-foreground">Running total</p>
-        </div>
+        </Card>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6">
+      <Card className="p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
@@ -214,17 +220,16 @@ export default function PayoutsPage() {
               )}
             </div>
           </div>
-          <button onClick={() => setShowBankModal(true)}
-            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-background px-3 py-1.5 text-xs hover:bg-muted">
+          <Button variant="outline" size="sm" onClick={() => setShowBankModal(true)} className="shrink-0">
             {bank?.configured ? 'Edit' : 'Set up'}
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {payouts.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+        <Card className="p-12 text-center text-sm text-muted-foreground">
           No payouts yet. Request your first one once you have available balance.
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={payouts}
@@ -282,48 +287,42 @@ function RequestModal({ available, currency, bank, onClose, onDone }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl bg-background p-6" onClick={(e) => e.stopPropagation()}>
-        <header className="mb-3 flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">Request payout</h2>
-            <p className="text-xs text-muted-foreground">
-              To {bank.bankName} · {bank.bankAccountNumber} · {bank.bankAccountHolder}
-            </p>
-          </div>
-          <button onClick={onClose} className="rounded p-1 hover:bg-muted"><X className="h-4 w-4" /></button>
-        </header>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Request payout</DialogTitle>
+          <p className="text-xs text-muted-foreground">
+            To {bank.bankName} · {bank.bankAccountNumber} · {bank.bankAccountHolder}
+          </p>
+        </DialogHeader>
         {error && <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-xs text-red-700">{error}</div>}
         <form onSubmit={submit} className="space-y-3">
-          <div>
-            <label htmlFor="po-amount" className="mb-1 block text-xs font-medium">
+          <div className="space-y-1.5">
+            <Label htmlFor="po-amount">
               Amount ({currency}) · available {available.toLocaleString('id-ID')}
-            </label>
-            <input id="po-amount" type="number" min="1" max={available} value={amount} onChange={(e) => setAmount(e.target.value)}
-              placeholder="500000"
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+            </Label>
+            <Input id="po-amount" type="number" min="1" max={available} value={amount} onChange={(e) => setAmount(e.target.value)}
+              placeholder="500000" />
           </div>
-          <div>
-            <label htmlFor="po-note" className="mb-1 block text-xs font-medium">Note (optional)</label>
-            <input id="po-note" value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. 'April earnings'"
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+          <div className="space-y-1.5">
+            <Label htmlFor="po-note">Note (optional)</Label>
+            <Input id="po-note" value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. 'April earnings'" />
           </div>
           <div className="rounded border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
             Payouts are processed manually in 1-3 business days during the manual-disbursement
             phase. You&apos;ll see status updates here as the platform wires the funds.
           </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/70">Cancel</button>
-            <button type="submit" disabled={busy}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">
+          <DialogFooter className="flex-row gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button type="submit" disabled={busy} className="flex-1">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Request
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -357,53 +356,45 @@ function BankModal({ initial, onClose, onDone }: { initial: PayoutBankAccount | 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl bg-background p-6" onClick={(e) => e.stopPropagation()}>
-        <header className="mb-3 flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">Default bank account</h2>
-            <p className="text-xs text-muted-foreground">Used as the destination for payout requests.</p>
-          </div>
-          <button onClick={onClose} className="rounded p-1 hover:bg-muted"><X className="h-4 w-4" /></button>
-        </header>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Default bank account</DialogTitle>
+          <p className="text-xs text-muted-foreground">Used as the destination for payout requests.</p>
+        </DialogHeader>
         {error && <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-xs text-red-700">{error}</div>}
         <form onSubmit={submit} className="space-y-3">
           <div className="grid grid-cols-[1fr_auto] gap-2">
-            <div>
-              <label htmlFor="bn-name" className="mb-1 block text-xs font-medium">Bank name</label>
-              <input id="bn-name" value={bankName} onChange={(e) => setBankName(e.target.value)}
-                placeholder="Bank Central Asia"
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+            <div className="space-y-1.5">
+              <Label htmlFor="bn-name">Bank name</Label>
+              <Input id="bn-name" value={bankName} onChange={(e) => setBankName(e.target.value)}
+                placeholder="Bank Central Asia" />
             </div>
-            <div>
-              <label htmlFor="bn-code" className="mb-1 block text-xs font-medium">Code</label>
-              <input id="bn-code" value={bankCode} onChange={(e) => setBankCode(e.target.value)}
-                placeholder="BCA"
-                className="rounded border border-border bg-background px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+            <div className="space-y-1.5">
+              <Label htmlFor="bn-code">Code</Label>
+              <Input id="bn-code" value={bankCode} onChange={(e) => setBankCode(e.target.value)}
+                placeholder="BCA" />
             </div>
           </div>
-          <div>
-            <label htmlFor="bn-number" className="mb-1 block text-xs font-medium">Account number</label>
-            <input id="bn-number" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)}
-              placeholder="1234567890"
-              className="w-full rounded border border-border bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+          <div className="space-y-1.5">
+            <Label htmlFor="bn-number">Account number</Label>
+            <Input id="bn-number" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)}
+              placeholder="1234567890" className="font-mono" />
           </div>
-          <div>
-            <label htmlFor="bn-holder" className="mb-1 block text-xs font-medium">Account holder</label>
-            <input id="bn-holder" value={bankAccountHolder} onChange={(e) => setBankAccountHolder(e.target.value)}
-              placeholder="As printed on passbook"
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+          <div className="space-y-1.5">
+            <Label htmlFor="bn-holder">Account holder</Label>
+            <Input id="bn-holder" value={bankAccountHolder} onChange={(e) => setBankAccountHolder(e.target.value)}
+              placeholder="As printed on passbook" />
           </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/70">Cancel</button>
-            <button type="submit" disabled={busy}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">
+          <DialogFooter className="flex-row gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button type="submit" disabled={busy} className="flex-1">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Save
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

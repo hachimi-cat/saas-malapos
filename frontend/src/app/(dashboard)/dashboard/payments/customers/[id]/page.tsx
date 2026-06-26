@@ -21,6 +21,16 @@ import {
   type Invoice,
 } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 // malapos has no storefront buyer portal, so this detail page is rebuilt
 // on the payment Customer model: profile + their Plugipay subscriptions
@@ -109,15 +119,17 @@ export default function CustomerDetailPage() {
       </nav>
 
       {/* Identity card */}
-      <div className="rounded-xl border border-border bg-card p-6">
-        <h1 className="text-2xl font-bold tracking-tight">{customer.name ?? customer.email ?? customer.id}</h1>
-        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-          {customer.email && <Field icon={Mail} label="Email" value={customer.email} />}
-          {customer.phone && <Field icon={Phone} label="Phone" value={customer.phone} />}
-          <Field icon={CalendarDays} label="Created" value={formatDate(customer.createdAt)} />
-          {customer.externalId && <Field icon={Receipt} label="External ID" value={customer.externalId} />}
-        </dl>
-      </div>
+      <Card>
+        <CardContent className="p-6">
+          <h1 className="text-2xl font-bold tracking-tight">{customer.name ?? customer.email ?? customer.id}</h1>
+          <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+            {customer.email && <Field icon={Mail} label="Email" value={customer.email} />}
+            {customer.phone && <Field icon={Phone} label="Phone" value={customer.phone} />}
+            <Field icon={CalendarDays} label="Created" value={formatDate(customer.createdAt)} />
+            {customer.externalId && <Field icon={Receipt} label="External ID" value={customer.externalId} />}
+          </dl>
+        </CardContent>
+      </Card>
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -128,95 +140,101 @@ export default function CustomerDetailPage() {
 
       {/* Subscriptions (only when present) */}
       {subscriptions.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <RefreshCcw className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-base font-semibold">Subscriptions</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th className="px-3 py-2 text-xs font-medium text-muted-foreground">Plan</th>
-                  <th className="px-3 py-2 text-xs font-medium text-muted-foreground">Status</th>
-                  <th className="px-3 py-2 text-xs font-medium text-muted-foreground">Current period</th>
-                  <th className="px-3 py-2 text-xs font-medium text-muted-foreground"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <RefreshCcw className="h-4 w-4 text-muted-foreground" />
+              Subscriptions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="px-3 py-2 text-xs">Plan</TableHead>
+                  <TableHead className="px-3 py-2 text-xs">Status</TableHead>
+                  <TableHead className="px-3 py-2 text-xs">Current period</TableHead>
+                  <TableHead className="px-3 py-2 text-xs"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {subscriptions.map((s) => (
-                  <tr key={s.id} className="hover:bg-muted/30">
-                    <td className="px-3 py-2 font-medium">{s.planName ?? s.planId}</td>
-                    <td className="px-3 py-2">
-                      <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium capitalize', SUB_STATUS_COLOR[s.status] ?? 'bg-muted text-muted-foreground')}>
+                  <TableRow key={s.id} className="hover:bg-muted/30">
+                    <TableCell className="px-3 py-2 font-medium">{s.planName ?? s.planId}</TableCell>
+                    <TableCell className="px-3 py-2">
+                      <Badge variant="outline" className={cn('rounded-full border-transparent px-2 py-0.5 text-xs font-medium capitalize', SUB_STATUS_COLOR[s.status] ?? 'bg-muted text-muted-foreground')}>
                         {s.status.replace(/_/g, ' ')}
-                      </span>
+                      </Badge>
                       {s.cancelAtPeriodEnd && (
                         <span className="ml-2 text-xs text-orange-400">Cancels EOT</span>
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-xs text-muted-foreground">
                       {formatDate(s.currentPeriodStart)} → {formatDate(s.currentPeriodEnd)}
-                    </td>
-                    <td className="px-3 py-2 text-right">
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-right">
                       <Link href={`/dashboard/payments/subscriptions/${s.id}`} className="text-xs text-primary hover:underline">
                         Open →
                       </Link>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Invoices */}
-      <div className="rounded-xl border border-border bg-card p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <Receipt className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-base font-semibold">Invoices</h2>
-        </div>
-        {invoices.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No invoices yet. Paid invoices and completed checkouts for this customer will appear here.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {invoices.map((inv) => (
-              <li key={inv.id}>
-                <Link
-                  href={`/dashboard/payments/invoices/${inv.id}`}
-                  className="-mx-3 flex items-center justify-between gap-4 rounded-md px-3 py-3 hover:bg-muted/30"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{inv.number ?? inv.id}</p>
-                    <p className="text-xs text-muted-foreground">
-                      <span className={cn('mr-2 rounded-full px-2 py-0.5 capitalize', INVOICE_STATUS_COLOR[inv.status] ?? 'bg-muted text-muted-foreground')}>
-                        {inv.status.replace(/_/g, ' ')}
-                      </span>
-                      {formatDate(inv.paidAt ?? inv.createdAt)}
-                    </p>
-                  </div>
-                  <div className="text-right text-sm font-semibold tabular-nums">
-                    {inv.currency === 'IDR' ? formatCurrency(inv.amount) : `${inv.currency} ${inv.amount}`}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+            Invoices
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {invoices.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No invoices yet. Paid invoices and completed checkouts for this customer will appear here.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {invoices.map((inv) => (
+                <li key={inv.id}>
+                  <Link
+                    href={`/dashboard/payments/invoices/${inv.id}`}
+                    className="-mx-3 flex items-center justify-between gap-4 rounded-md px-3 py-3 hover:bg-muted/30"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{inv.number ?? inv.id}</p>
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <Badge variant="outline" className={cn('mr-2 rounded-full border-transparent px-2 py-0.5 font-normal capitalize', INVOICE_STATUS_COLOR[inv.status] ?? 'bg-muted text-muted-foreground')}>
+                          {inv.status.replace(/_/g, ' ')}
+                        </Badge>
+                        {formatDate(inv.paidAt ?? inv.createdAt)}
+                      </div>
+                    </div>
+                    <div className="text-right text-sm font-semibold tabular-nums">
+                      {inv.currency === 'IDR' ? formatCurrency(inv.amount) : `${inv.currency} ${inv.amount}`}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <Card className="p-4">
       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
-    </div>
+    </Card>
   );
 }
 

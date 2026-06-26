@@ -1,9 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CreditCard, Plus, X, Loader2, Ban, Copy, Check } from 'lucide-react';
+import { CreditCard, Plus, Loader2, Ban, Copy, Check } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah, parseRupiah } from '@/lib/money';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /*
  * Gift cards / store credit. Issue a prepaid balance (anonymous gift card, or
@@ -37,9 +56,9 @@ function StatusBadge({ status }: { status: GiftCardStatus }) {
       ? 'bg-muted text-muted-foreground'
       : 'bg-destructive/10 text-destructive';
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
+    <Badge variant="outline" className={`rounded-full border-transparent px-2 py-0.5 text-xs font-medium ${cls}`}>
       {status.charAt(0) + status.slice(1).toLowerCase()}
-    </span>
+    </Badge>
   );
 }
 
@@ -99,15 +118,12 @@ export default function GiftCardsPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setIssuing(true)}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
+        <Button onClick={() => setIssuing(true)} className="font-semibold">
           <Plus className="h-4 w-4" /> Issue card
-        </button>
+        </Button>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
+      <Card className="mt-6 overflow-hidden rounded-lg border border-border bg-card">
         {loading ? (
           <div className="p-10 text-center text-muted-foreground">Loading…</div>
         ) : error ? (
@@ -115,21 +131,21 @@ export default function GiftCardsPage() {
         ) : !rows.length ? (
           <div className="p-10 text-center text-muted-foreground">No gift cards yet. Issue your first one.</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Code</th>
-                <th className="px-4 py-3 font-medium">Issued</th>
-                <th className="px-4 py-3 text-right font-medium">Initial</th>
-                <th className="px-4 py-3 text-right font-medium">Balance</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="text-sm">
+            <TableHeader>
+              <TableRow className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <TableHead className="px-4 py-3 font-medium">Code</TableHead>
+                <TableHead className="px-4 py-3 font-medium">Issued</TableHead>
+                <TableHead className="px-4 py-3 text-right font-medium">Initial</TableHead>
+                <TableHead className="px-4 py-3 text-right font-medium">Balance</TableHead>
+                <TableHead className="px-4 py-3 font-medium">Status</TableHead>
+                <TableHead className="px-4 py-3" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((c) => (
-                <tr key={c.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3">
+                <TableRow key={c.id} className="border-b border-border last:border-0">
+                  <TableCell className="px-4 py-3">
                     <button
                       onClick={() => copy(c.code)}
                       className="inline-flex items-center gap-1.5 font-mono font-medium hover:text-primary"
@@ -139,27 +155,29 @@ export default function GiftCardsPage() {
                       {copied === c.code ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
                     </button>
                     {c.note && <p className="text-xs text-muted-foreground">{c.note}</p>}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(c.createdAt)}</td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">{rupiah(c.initialBalance)}</td>
-                  <td className="px-4 py-3 text-right font-medium">{rupiah(c.balance)}</td>
-                  <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
-                  <td className="px-4 py-3 text-right">
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-muted-foreground">{formatDate(c.createdAt)}</TableCell>
+                  <TableCell className="px-4 py-3 text-right text-muted-foreground">{rupiah(c.initialBalance)}</TableCell>
+                  <TableCell className="px-4 py-3 text-right font-medium">{rupiah(c.balance)}</TableCell>
+                  <TableCell className="px-4 py-3"><StatusBadge status={c.status} /></TableCell>
+                  <TableCell className="px-4 py-3 text-right">
                     {c.status === 'ACTIVE' && (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => voidCard(c.id)}
-                        className="inline-flex items-center gap-1 rounded-md border border-destructive/40 px-2 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+                        className="gap-1 border-destructive/40 text-xs text-destructive hover:bg-destructive/10"
                       >
                         <Ban className="h-3.5 w-3.5" /> Void
-                      </button>
+                      </Button>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </Card>
 
       {issuing && (
         <IssueModal
@@ -198,54 +216,54 @@ function IssueModal({ onClose, onIssued }: { onClose: () => void; onIssued: (c: 
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Issue gift card</h2>
-          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Issue gift card</DialogTitle>
+        </DialogHeader>
 
         <div className="mt-4 space-y-3">
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Amount</span>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="gc-amount" className="font-normal text-muted-foreground">Amount</Label>
+            <Input
+              id="gc-amount"
               inputMode="numeric"
               value={amount ? rupiah(amount) : ''}
               onChange={(e) => setAmount(parseRupiah(e.target.value))}
               placeholder="Rp 0"
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
             />
-          </label>
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Code (optional — generated if blank)</span>
-            <input
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="gc-code" className="font-normal text-muted-foreground">Code (optional — generated if blank)</Label>
+            <Input
+              id="gc-code"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="e.g. printed-card code"
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 font-mono outline-none focus:ring-2 focus:ring-ring"
+              className="font-mono"
             />
-          </label>
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Note (optional)</span>
-            <input
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="gc-note" className="font-normal text-muted-foreground">Note (optional)</Label>
+            <Input
+              id="gc-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
             />
-          </label>
+          </div>
         </div>
 
         {error && <div className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
 
-        <button
+        <Button
           onClick={submit}
           disabled={busy || amount <= 0}
-          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary py-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
+          className="mt-5 w-full py-3 font-semibold"
         >
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}
           {busy ? 'Issuing…' : `Issue ${amount > 0 ? rupiah(amount) : 'card'}`}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }

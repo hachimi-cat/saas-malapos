@@ -7,6 +7,8 @@ import { formatDate, cn } from '@/lib/utils';
 import { Loader2, PauseCircle, PlayCircle, XCircle } from 'lucide-react';
 import { BillingTabs } from '@/components/payment/BillingTabs';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const STATUS_COLOR: Record<string, string> = {
   active: 'bg-green-500/10 text-green-400',
@@ -87,14 +89,15 @@ export default function SubscriptionsPage() {
       sortValue: (r) => r.status,
       cell: (r) => (
         <span>
-          <span
+          <Badge
+            variant="outline"
             className={cn(
-              'rounded-full px-2 py-0.5 text-xs font-medium capitalize',
+              'rounded-full border-transparent capitalize',
               STATUS_COLOR[r.status] || 'bg-muted text-muted-foreground'
             )}
           >
             {r.status.replace('_', ' ')}
-          </span>
+          </Badge>
           {r.cancelAtPeriodEnd && (
             <span className="ml-2 text-xs text-orange-400">Cancels EOT</span>
           )}
@@ -185,13 +188,13 @@ export default function SubscriptionsPage() {
       <BillingTabs />
 
       {loading ? (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card">
+        <Card className="flex h-48 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        </Card>
       ) : subscriptions.length === 0 ? (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card">
+        <Card className="flex h-48 items-center justify-center">
           <p className="text-sm text-muted-foreground">No subscriptions found</p>
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={subscriptions}

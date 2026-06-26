@@ -8,6 +8,16 @@ import {
   type CheckoutSettings,
   type PaymentMethodDef,
 } from '@/lib/plugipay-settings-api';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const GROUP_LABELS: Record<PaymentMethodDef['group'], string> = {
   qr: 'QR payments',
@@ -143,15 +153,10 @@ export default function PaymentMethodsSettingsPage() {
             your connected providers can actually process appear at checkout.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
+        <Button type="button" onClick={save} disabled={saving}>
           {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           Save changes
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -170,14 +175,17 @@ export default function PaymentMethodsSettingsPage() {
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Methods</h2>
-          <p className="mb-4 text-xs text-muted-foreground">
-            <Link href="/dashboard/payments/settings/providers" className="underline hover:text-foreground">
-              Connect more providers
-            </Link>{' '}
-            to unlock grayed rows.
-          </p>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Methods</CardTitle>
+            <CardDescription className="text-xs">
+              <Link href="/dashboard/payments/settings/providers" className="underline hover:text-foreground">
+                Connect more providers
+              </Link>{' '}
+              to unlock grayed rows.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
           <div className="space-y-5">
             {(Object.keys(GROUP_LABELS) as PaymentMethodDef['group'][]).map((g) => {
               const rows = grouped[g];
@@ -199,12 +207,10 @@ export default function PaymentMethodsSettingsPage() {
                           key={m.id}
                           className={`flex items-center gap-3 px-4 py-2.5 ${isAvailable ? '' : 'opacity-50'}`}
                         >
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={isEnabled}
                             disabled={!isAvailable}
-                            onChange={() => toggle(m.id)}
-                            className="h-4 w-4 rounded border-border accent-primary"
+                            onCheckedChange={() => toggle(m.id)}
                           />
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium">{m.label}</p>
@@ -217,38 +223,46 @@ export default function PaymentMethodsSettingsPage() {
                             </p>
                           </div>
                           {isEnabled && supporters.length > 1 && (
-                            <select
+                            <Select
                               value={currentAdapter}
-                              onChange={(e) => setProviderFor(m.id, e.target.value)}
-                              className="rounded-md border border-border bg-background px-2 py-1 text-[11px]"
+                              onValueChange={(v) => setProviderFor(m.id, v)}
                             >
-                              {supporters.map((s) => (
-                                <option key={s} value={s}>
-                                  {ADAPTER_LABEL[s] ?? s}
-                                </option>
-                              ))}
-                            </select>
+                              <SelectTrigger className="h-auto w-auto gap-1 px-2 py-1 text-[11px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {supporters.map((s) => (
+                                  <SelectItem key={s} value={s}>
+                                    {ADAPTER_LABEL[s] ?? s}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           )}
                           {isEnabled && (
                             <div className="flex items-center gap-1">
-                              <button
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => move(m.id, -1)}
                                 disabled={orderIdx <= 0}
-                                className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-30"
                                 aria-label="Move up"
                               >
                                 <ArrowUp className="h-3.5 w-3.5" />
-                              </button>
-                              <button
+                              </Button>
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => move(m.id, 1)}
                                 disabled={orderIdx === order.length - 1}
-                                className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-30"
                                 aria-label="Move down"
                               >
                                 <ArrowDown className="h-3.5 w-3.5" />
-                              </button>
+                              </Button>
                             </div>
                           )}
                           {isEnabled && <Check className="h-4 w-4 text-primary" strokeWidth={2.5} />}
@@ -260,7 +274,8 @@ export default function PaymentMethodsSettingsPage() {
               );
             })}
           </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

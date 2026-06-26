@@ -6,6 +6,9 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import Link from 'next/link';
 import { Loader2, Download, ExternalLink } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const STATUS_COLOR: Record<string, string> = {
   paid: 'bg-green-500/10 text-green-400',
@@ -106,14 +109,15 @@ export default function InvoicesPage() {
       sortable: true,
       sortValue: (r) => r.status,
       cell: (r) => (
-        <span
+        <Badge
+          variant="outline"
           className={cn(
-            'rounded-full px-2 py-0.5 text-xs font-medium capitalize',
+            'rounded-full border-transparent capitalize',
             STATUS_COLOR[r.status] || 'bg-muted text-muted-foreground'
           )}
         >
           {r.status}
-        </span>
+        </Badge>
       ),
     },
     {
@@ -164,23 +168,19 @@ export default function InvoicesPage() {
             All billing invoices with PDF download
           </p>
         </div>
-        <button
-          type="button"
-          onClick={exportCsv}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium hover:bg-accent"
-        >
+        <Button type="button" variant="outline" onClick={exportCsv}>
           <Download className="h-3.5 w-3.5" /> Export CSV
-        </button>
+        </Button>
       </div>
 
       {loading ? (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card">
+        <Card className="flex h-48 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        </Card>
       ) : invoices.length === 0 ? (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card">
+        <Card className="flex h-48 items-center justify-center">
           <p className="text-sm text-muted-foreground">No invoices found</p>
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={invoices}

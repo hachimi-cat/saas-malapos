@@ -9,6 +9,11 @@ import {
   type ManagedOnboardingDTO,
   type ManualBankAccount,
 } from '@/lib/plugipay-settings-api';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type ProviderKey = 'managed' | 'xendit' | 'midtrans' | 'paypal' | 'manual';
 type Option = { key: ProviderKey; title: string; description: string; meta: string };
@@ -54,14 +59,8 @@ const KYB_STAGES = [
   { id: 'live', label: 'Live', description: 'Xendit approved you. You can accept payments.' },
 ];
 
-const inputCls =
-  'w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40';
 const labelCls = 'mb-1.5 block text-xs font-medium text-foreground';
 const helpCls = 'mt-1 text-[11px] text-muted-foreground';
-const btnPrimary =
-  'inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50';
-const btnSecondary =
-  'inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50';
 
 export default function ProvidersSettingsPage() {
   const [adapters, setAdapters] = React.useState<AdapterConfigMap | null>(null);
@@ -232,10 +231,10 @@ export default function ProvidersSettingsPage() {
           </p>
         </div>
         {active !== 'managed' && (
-          <button type="button" onClick={save} disabled={saving} className={btnPrimary}>
+          <Button type="button" onClick={save} disabled={saving}>
             {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Save changes
-          </button>
+          </Button>
         )}
       </div>
 
@@ -272,9 +271,9 @@ export default function ProvidersSettingsPage() {
                   }
                 >
                   {status === 'active' && (
-                    <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
+                    <Badge className="absolute right-3 top-3 gap-1 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide">
                       <Check className="h-3 w-3" strokeWidth={2.5} /> Active
-                    </span>
+                    </Badge>
                   )}
                   <h3 className="text-[15px] font-semibold tracking-tight">{o.title}</h3>
                   <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{o.description}</p>
@@ -297,60 +296,60 @@ export default function ProvidersSettingsPage() {
       )}
 
       {active === 'xendit' && (
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Bring your own Xendit</h2>
-          <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Bring your own Xendit</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <label htmlFor="xendit-secret" className={labelCls}>Secret key</label>
-              <input
+              <Label htmlFor="xendit-secret" className={labelCls}>Secret key</Label>
+              <Input
                 id="xendit-secret"
                 type="password"
                 placeholder="xnd_development_..."
                 value={xenditSecret}
                 onChange={(e) => setXenditSecret(e.target.value)}
-                className={inputCls}
               />
               <p className={helpCls}>Find this under Settings → API keys in your Xendit dashboard.</p>
             </div>
             <div>
-              <label htmlFor="xendit-callback" className={labelCls}>Callback token (optional)</label>
-              <input
+              <Label htmlFor="xendit-callback" className={labelCls}>Callback token (optional)</Label>
+              <Input
                 id="xendit-callback"
                 value={xenditCallback}
                 onChange={(e) => setXenditCallback(e.target.value)}
-                className={inputCls}
               />
             </div>
             {showActive('xendit')?.secretKeyLast4 && (
-              <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">
+              <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[11px] font-medium">
                 Currently saved: …{showActive('xendit')?.secretKeyLast4}
-              </span>
+              </Badge>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {active === 'paypal' && (
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Bring your own PayPal</h2>
-          <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Bring your own PayPal</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <label htmlFor="pp-client" className={labelCls}>Client ID</label>
-              <input
+              <Label htmlFor="pp-client" className={labelCls}>Client ID</Label>
+              <Input
                 id="pp-client"
                 value={paypalClientId}
                 onChange={(e) => setPaypalClientId(e.target.value)}
-                className={inputCls}
               />
             </div>
             <div>
-              <label htmlFor="pp-secret" className={labelCls}>Secret</label>
-              <input
+              <Label htmlFor="pp-secret" className={labelCls}>Secret</Label>
+              <Input
                 id="pp-secret"
                 type="password"
                 value={paypalSecret}
                 onChange={(e) => setPaypalSecret(e.target.value)}
-                className={inputCls}
               />
             </div>
             <div>
@@ -373,13 +372,16 @@ export default function ProvidersSettingsPage() {
                 ))}
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {active === 'midtrans' && (
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Midtrans credentials</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Midtrans credentials</CardTitle>
+          </CardHeader>
+          <CardContent>
           {showActive('midtrans')?.status === 'active' && (
             <div className="mb-5 grid grid-cols-2 gap-5 sm:grid-cols-4">
               <Kv label="Status" value="Active" />
@@ -390,10 +392,10 @@ export default function ProvidersSettingsPage() {
           )}
           <div className="space-y-4">
             <div>
-              <label htmlFor="mt-server" className={labelCls}>
+              <Label htmlFor="mt-server" className={labelCls}>
                 Server Key <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
                 id="mt-server"
                 type="password"
                 placeholder={
@@ -406,32 +408,29 @@ export default function ProvidersSettingsPage() {
                   if (v.startsWith('SB-')) setMidtransEnv('sandbox');
                   else if (v.startsWith('Mid-server-')) setMidtransEnv('production');
                 }}
-                className={inputCls}
               />
               <p className={helpCls}>Settings → Access Keys → Server Key in the Midtrans dashboard.</p>
             </div>
             <div>
-              <label htmlFor="mt-client" className={labelCls}>
+              <Label htmlFor="mt-client" className={labelCls}>
                 Client Key <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
                 id="mt-client"
                 placeholder="SB-Mid-client-… or Mid-client-…"
                 value={midtransClientKey}
                 onChange={(e) => setMidtransClientKey(e.target.value)}
-                className={inputCls}
               />
             </div>
             <div>
-              <label htmlFor="mt-merchant" className={labelCls}>
+              <Label htmlFor="mt-merchant" className={labelCls}>
                 Merchant ID <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
                 id="mt-merchant"
                 placeholder="G…"
                 value={midtransMerchantId}
                 onChange={(e) => setMidtransMerchantId(e.target.value)}
-                className={inputCls}
               />
             </div>
             <div>
@@ -451,12 +450,16 @@ export default function ProvidersSettingsPage() {
               </div>
             </div>
           </div>
-        </div>
+        </CardContent>
+        </Card>
       )}
 
       {active === 'manual' && (
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Offline & manual payments</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Offline & manual payments</CardTitle>
+          </CardHeader>
+          <CardContent>
           <p className="mb-5 max-w-[68ch] text-sm text-muted-foreground">
             For payments Plugipay doesn&rsquo;t route through a PSP: direct bank transfer to your own
             account, cash, EDC receipts. Sessions land in{' '}
@@ -467,15 +470,16 @@ export default function ProvidersSettingsPage() {
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <p className={labelCls}>Bank accounts</p>
-                <button
+                <Button
                   type="button"
+                  variant="link"
                   onClick={() =>
                     setManualBankAccounts((prev) => [...prev, { bankName: '', accountNumber: '', accountHolder: '' }])
                   }
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  className="h-auto gap-1 p-0 text-xs"
                 >
                   <Plus className="h-3 w-3" /> Add account
-                </button>
+                </Button>
               </div>
               {manualBankAccounts.length === 0 ? (
                 <p className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
@@ -485,41 +489,40 @@ export default function ProvidersSettingsPage() {
                 <div className="space-y-3">
                   {manualBankAccounts.map((acc, idx) => (
                     <div key={idx} className="grid grid-cols-1 gap-2 rounded-md border border-border p-3 md:grid-cols-[1fr_1.2fr_1.5fr_auto]">
-                      <input
+                      <Input
                         placeholder="BCA / BNI / Mandiri"
                         value={acc.bankName}
                         onChange={(e) => {
                           const v = e.target.value;
                           setManualBankAccounts((prev) => prev.map((a, i) => (i === idx ? { ...a, bankName: v } : a)));
                         }}
-                        className={inputCls}
                       />
-                      <input
+                      <Input
                         placeholder="Account number"
                         value={acc.accountNumber}
                         onChange={(e) => {
                           const v = e.target.value;
                           setManualBankAccounts((prev) => prev.map((a, i) => (i === idx ? { ...a, accountNumber: v } : a)));
                         }}
-                        className={inputCls}
                       />
-                      <input
+                      <Input
                         placeholder="Account holder name"
                         value={acc.accountHolder}
                         onChange={(e) => {
                           const v = e.target.value;
                           setManualBankAccounts((prev) => prev.map((a, i) => (i === idx ? { ...a, accountHolder: v } : a)));
                         }}
-                        className={inputCls}
                       />
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         onClick={() => setManualBankAccounts((prev) => prev.filter((_, i) => i !== idx))}
-                        className="justify-self-end rounded-md p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                        className="justify-self-end text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
                         aria-label="Remove account"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -528,36 +531,35 @@ export default function ProvidersSettingsPage() {
             </div>
 
             <div>
-              <label htmlFor="manual-qr" className={labelCls}>Static QRIS image URL</label>
+              <Label htmlFor="manual-qr" className={labelCls}>Static QRIS image URL</Label>
               <div className="flex items-start gap-3">
                 {manualStaticQrUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={manualStaticQrUrl} alt="" className="h-16 w-16 rounded border border-border object-cover" />
                 )}
-                <input
+                <Input
                   id="manual-qr"
                   placeholder="https://cdn.example.com/qris.png"
                   value={manualStaticQrUrl}
                   onChange={(e) => setManualStaticQrUrl(e.target.value)}
-                  className={inputCls}
                 />
               </div>
               <p className={helpCls}>Optional. Use this when you have a printed QRIS from your bank and want to reuse it.</p>
             </div>
 
             <div>
-              <label htmlFor="manual-instructions" className={labelCls}>Extra instructions</label>
-              <input
+              <Label htmlFor="manual-instructions" className={labelCls}>Extra instructions</Label>
+              <Input
                 id="manual-instructions"
                 placeholder="Include the order ID in the transfer note"
                 value={manualInstructions}
                 onChange={(e) => setManualInstructions(e.target.value)}
-                className={inputCls}
               />
               <p className={helpCls}>Shown above the bank details on the hosted page. Keep it short.</p>
             </div>
           </div>
-        </div>
+        </CardContent>
+        </Card>
       )}
     </div>
   );
@@ -601,16 +603,18 @@ function ManagedOnboardingCard({
   const isDev = typeof window !== 'undefined' && !/plugipay\.com$/.test(window.location.hostname);
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <h2 className="mb-4 flex items-center gap-3 text-base font-semibold">
-        Plugipay managed — Xendit onboarding
-        {state?.payoutsReady && (
-          <span className="inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
-            Payouts ready
-          </span>
-        )}
-      </h2>
-      <div className="space-y-5">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-3 text-base">
+          Plugipay managed — Xendit onboarding
+          {state?.payoutsReady && (
+            <Badge className="rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide">
+              Payouts ready
+            </Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
         <p className="text-sm leading-relaxed text-muted-foreground">
           Managed sub-accounts settle directly from Xendit to your bank. Give us the email you want Xendit to
           invite, then finish KYB + link your payout bank in the Xendit dashboard.
@@ -649,20 +653,19 @@ function ManagedOnboardingCard({
 
         {!started && (
           <div className="space-y-2">
-            <label htmlFor="managed-email" className={labelCls}>Business email for Xendit invitation</label>
+            <Label htmlFor="managed-email" className={labelCls}>Business email for Xendit invitation</Label>
             <div className="flex gap-2">
-              <input
+              <Input
                 id="managed-email"
                 type="email"
                 placeholder="finance@your-biz.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={inputCls}
               />
-              <button type="button" onClick={onStart} disabled={busy || !email.trim()} className={btnPrimary}>
+              <Button type="button" onClick={onStart} disabled={busy || !email.trim()}>
                 {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Start onboarding
-              </button>
+              </Button>
             </div>
             <p className={helpCls}>
               Xendit will email a verification link to this address. The recipient finishes KYB and links the
@@ -685,14 +688,16 @@ function ManagedOnboardingCard({
         {started && (
           <div className="flex flex-wrap gap-2">
             {state!.onboardingUrl && (
-              <a href={state!.onboardingUrl} target="_blank" rel="noreferrer" className={btnSecondary}>
-                Continue onboarding in Xendit →
-              </a>
+              <Button asChild variant="outline">
+                <a href={state!.onboardingUrl} target="_blank" rel="noreferrer">
+                  Continue onboarding in Xendit →
+                </a>
+              </Button>
             )}
-            <button type="button" onClick={onRefresh} disabled={busy} className={btnSecondary}>
+            <Button type="button" variant="outline" onClick={onRefresh} disabled={busy}>
               {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Refresh status
-            </button>
+            </Button>
           </div>
         )}
 
@@ -708,22 +713,22 @@ function ManagedOnboardingCard({
           <div className="space-y-2 rounded-md border border-dashed border-border p-3 text-xs">
             <p className="font-mono uppercase tracking-wide text-muted-foreground">Dev-only · simulate webhook</p>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => onSimulate({ kybStatus: 'registered' })} className={btnSecondary}>
+              <Button type="button" variant="outline" onClick={() => onSimulate({ kybStatus: 'registered' })}>
                 Mark registered
-              </button>
-              <button type="button" onClick={() => onSimulate({ kybStatus: 'live' })} className={btnSecondary}>
+              </Button>
+              <Button type="button" variant="outline" onClick={() => onSimulate({ kybStatus: 'live' })}>
                 Mark KYB live
-              </button>
-              <button type="button" onClick={() => onSimulate({ capabilitiesStatus: 'live', payoutsReady: true })} className={btnSecondary}>
+              </Button>
+              <Button type="button" variant="outline" onClick={() => onSimulate({ capabilitiesStatus: 'live', payoutsReady: true })}>
                 Capabilities live + payouts ready
-              </button>
-              <button type="button" onClick={() => onSimulate({ payoutsReady: false })} className={btnSecondary}>
+              </Button>
+              <Button type="button" variant="outline" onClick={() => onSimulate({ payoutsReady: false })}>
                 Reset payouts
-              </button>
+              </Button>
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

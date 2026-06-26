@@ -6,19 +6,16 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, ExternalLink, Mail, Download, Printer, Loader2 } from 'lucide-react';
 import { receiptsApi, Receipt } from '@/lib/payments-api';
 import { formatCurrency } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const SOURCE_LABELS: Record<string, string> = {
   checkout_session: 'Checkout session',
   invoice: 'Invoice',
 };
-
-const btnSecondary =
-  'inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50';
-const btnPrimary =
-  'inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50';
-const inputCls =
-  'w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40';
-const labelCls = 'mb-1.5 block text-xs font-medium text-foreground';
 
 // malapos serves the payment binary/preview endpoints under
 // /api/v1/payments/*; derive the origin from NEXT_PUBLIC_API_URL,
@@ -139,10 +136,10 @@ export default function ReceiptDetailPage() {
             {receipt.currency === 'IDR' ? formatCurrency(receipt.amount) : `${receipt.currency} ${receipt.amount}`}
           </h1>
           <div className="mt-2 flex items-center gap-2 text-sm">
-            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">Paid</span>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+            <Badge className="rounded-full px-2 py-0.5 text-xs font-medium">Paid</Badge>
+            <Badge variant="outline" className="rounded-full border-transparent bg-muted px-2 py-0.5 text-xs font-normal">
               {SOURCE_LABELS[receipt.sourceType] ?? receipt.sourceType}
-            </span>
+            </Badge>
             {receipt.method && <span className="text-xs text-muted-foreground">· {receipt.method}</span>}
           </div>
         </div>
@@ -160,9 +157,11 @@ export default function ReceiptDetailPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Details</h2>
-          <div className="space-y-2 text-sm">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
             <Kv label="Receipt #" value={receipt.number ?? '—'} mono />
             <Kv label="Issued" value={receipt.issuedAt ? new Date(receipt.issuedAt).toLocaleString() : '—'} />
             <Kv label="Source" value={`${SOURCE_LABELS[receipt.sourceType] ?? receipt.sourceType} · ${receipt.sourceId}`} mono />
@@ -170,62 +169,67 @@ export default function ReceiptDetailPage() {
             {receipt.customerId && <Kv label="Customer" value={receipt.customerId} mono />}
             {receipt.emailedAt && <Kv label="Emailed" value={new Date(receipt.emailedAt).toLocaleString()} />}
             {receipt.emailedTo && <Kv label="Emailed to" value={receipt.emailedTo} mono />}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Share & reprint</h2>
-          <div className="space-y-4 text-sm">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Share &amp; reprint</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => downloadBinary(`/payments/receipts/${id}/pdf`, `receipt-${receipt.number}.pdf`)} className={btnSecondary}>
+              <Button type="button" variant="outline" onClick={() => downloadBinary(`/payments/receipts/${id}/pdf`, `receipt-${receipt.number}.pdf`)}>
                 <Download className="h-4 w-4" /> PDF
-              </button>
-              <button type="button" onClick={() => openBinary(`/payments/receipts/${id}/html`)} className={btnSecondary}>
+              </Button>
+              <Button type="button" variant="outline" onClick={() => openBinary(`/payments/receipts/${id}/html`)}>
                 <ExternalLink className="h-4 w-4" /> View HTML
-              </button>
-              <a
-                href={`https://plugipay.com/r/${receipt.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className={btnSecondary}
-              >
-                <ExternalLink className="h-4 w-4" /> Public link
-              </a>
+              </Button>
+              <Button variant="outline" asChild>
+                <a
+                  href={`https://plugipay.com/r/${receipt.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink className="h-4 w-4" /> Public link
+                </a>
+              </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => downloadBinary(`/payments/receipts/${id}/escpos?width=58`, `receipt-${receipt.number}-58mm.bin`)} className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1 text-xs hover:bg-accent">
+              <Button type="button" variant="outline" size="sm" className="border-dashed text-xs" onClick={() => downloadBinary(`/payments/receipts/${id}/escpos?width=58`, `receipt-${receipt.number}-58mm.bin`)}>
                 <Printer className="h-3 w-3" /> ESC/POS 58mm
-              </button>
-              <button type="button" onClick={() => downloadBinary(`/payments/receipts/${id}/escpos?width=80`, `receipt-${receipt.number}-80mm.bin`)} className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1 text-xs hover:bg-accent">
+              </Button>
+              <Button type="button" variant="outline" size="sm" className="border-dashed text-xs" onClick={() => downloadBinary(`/payments/receipts/${id}/escpos?width=80`, `receipt-${receipt.number}-80mm.bin`)}>
                 <Printer className="h-3 w-3" /> ESC/POS 80mm
-              </button>
+              </Button>
             </div>
             <div>
-              <label htmlFor="email-to" className={labelCls}>Email receipt to</label>
+              <Label htmlFor="email-to" className="mb-1.5 block text-xs">Email receipt to</Label>
               <div className="flex gap-2">
-                <input
+                <Input
                   id="email-to"
                   type="email"
                   placeholder="customer@example.com"
                   value={emailTo}
                   onChange={(e) => setEmailTo(e.target.value)}
-                  className={inputCls}
                 />
-                <button type="button" onClick={sendEmail} disabled={emailing} className={btnPrimary}>
+                <Button type="button" onClick={sendEmail} disabled={emailing}>
                   {emailing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                   Send
-                </button>
+                </Button>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 Blank uses the receipt&apos;s customer email. A PDF is attached.
               </p>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-6">
-        <h2 className="mb-4 text-base font-semibold">Preview</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Preview</CardTitle>
+        </CardHeader>
+        <CardContent>
         {previewHtml ? (
           <iframe
             srcDoc={previewHtml}
@@ -238,7 +242,8 @@ export default function ReceiptDetailPage() {
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading preview…
           </div>
         )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

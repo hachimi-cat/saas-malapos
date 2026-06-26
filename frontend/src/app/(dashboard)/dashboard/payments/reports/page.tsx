@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { reportsApi, type PnlReport, type CashFlowReport } from '@/lib/payments-api';
 import { Loader2, Download, TrendingUp, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 /**
  * /dashboard/payments/reports — P&L + Cash Flow over a date range, with CSV export.
@@ -107,11 +112,11 @@ export default function ReportsPage() {
             P&L and cash-flow reports derived from the ledger. Export raw entries as CSV for your accountant.
           </p>
         </div>
-        <button onClick={downloadCsv} disabled={downloading || loading}
-          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50">
+        <Button variant="outline" size="sm" onClick={downloadCsv} disabled={downloading || loading}
+          className="shrink-0 gap-1.5 whitespace-nowrap">
           {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
           Export CSV
-        </button>
+        </Button>
       </header>
 
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
@@ -120,36 +125,36 @@ export default function ReportsPage() {
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-muted/30 p-1">
           {presets.map((p) => (
-            <button key={p.id} type="button"
+            <Button key={p.id} type="button" variant="ghost" size="sm"
               onClick={() => { setPresetId(p.id); setCustom(null); }}
               className={`rounded-md px-3 py-1.5 text-xs font-medium ${presetId === p.id && !custom ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
               {p.label}
-            </button>
+            </Button>
           ))}
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-2 py-1">
-          <label htmlFor="rpt-from" className="text-xs text-muted-foreground">From</label>
-          <input id="rpt-from" type="date" value={custom?.from?.slice(0, 10) ?? (presets.find((x) => x.id === presetId)?.from.toISOString().slice(0, 10) ?? '')}
+          <Label htmlFor="rpt-from" className="text-xs font-normal text-muted-foreground">From</Label>
+          <Input id="rpt-from" type="date" value={custom?.from?.slice(0, 10) ?? (presets.find((x) => x.id === presetId)?.from.toISOString().slice(0, 10) ?? '')}
             onChange={(e) => setCustom({ from: new Date(`${e.target.value}T00:00:00Z`).toISOString(), to: custom?.to ?? activeRange.to })}
-            className="rounded border border-border bg-background px-2 py-1 text-xs" />
-          <label htmlFor="rpt-to" className="text-xs text-muted-foreground">To</label>
-          <input id="rpt-to" type="date" value={custom?.to?.slice(0, 10) ?? (presets.find((x) => x.id === presetId)?.to.toISOString().slice(0, 10) ?? '')}
+            className="h-auto w-auto rounded border border-border bg-background px-2 py-1 text-xs" />
+          <Label htmlFor="rpt-to" className="text-xs font-normal text-muted-foreground">To</Label>
+          <Input id="rpt-to" type="date" value={custom?.to?.slice(0, 10) ?? (presets.find((x) => x.id === presetId)?.to.toISOString().slice(0, 10) ?? '')}
             onChange={(e) => setCustom({ from: custom?.from ?? activeRange.from, to: new Date(`${e.target.value}T23:59:59Z`).toISOString() })}
-            className="rounded border border-border bg-background px-2 py-1 text-xs" />
+            className="h-auto w-auto rounded border border-border bg-background px-2 py-1 text-xs" />
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-lg border border-border bg-muted/30 p-1">
-        <button type="button" onClick={() => setTab('pnl')}
-          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium ${tab === 'pnl' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
-          P&amp;L Statement
-        </button>
-        <button type="button" onClick={() => setTab('cashflow')}
-          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium ${tab === 'cashflow' ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
-          Cash Flow
-        </button>
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as TabId)}>
+        <TabsList className="flex w-full gap-1 rounded-lg border border-border bg-muted/30 p-1">
+          <TabsTrigger value="pnl" className="flex-1 rounded-md px-3 py-1.5 text-xs font-medium">
+            P&amp;L Statement
+          </TabsTrigger>
+          <TabsTrigger value="cashflow" className="flex-1 rounded-md px-3 py-1.5 text-xs font-medium">
+            Cash Flow
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {loading ? (
         <div className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
@@ -167,7 +172,7 @@ function PnlView({ report, fmt }: { report: PnlReport | null; fmt: (n: number, c
   const r = report;
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-card p-6">
+      <Card className="rounded-xl border border-border bg-card p-6">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Net profit</p>
         <p className={`mt-1 text-3xl font-bold ${r.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
           {fmt(r.netProfit, r.currency)}
@@ -175,18 +180,18 @@ function PnlView({ report, fmt }: { report: PnlReport | null; fmt: (n: number, c
         <p className="mt-1 text-xs text-muted-foreground">
           {r.entryCount} ledger entries in period
         </p>
-      </div>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-6">
+        <Card className="rounded-xl border border-border bg-card p-6">
           <p className="mb-3 text-sm font-semibold">Revenue</p>
           <Row label="Sales" value={fmt(r.revenue.sales, r.currency)} />
           <Row label="Refunds" value={`− ${fmt(r.revenue.refunds, r.currency)}`} />
           <div className="mt-3 border-t border-border pt-2">
             <Row label="Net revenue" value={fmt(r.revenue.net, r.currency)} strong />
           </div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-6">
+        </Card>
+        <Card className="rounded-xl border border-border bg-card p-6">
           <p className="mb-3 text-sm font-semibold">Expenses</p>
           <Row label="Platform fees" value={fmt(r.expenses.platformFees, r.currency)} />
           <Row label="Channel fees" value={fmt(r.expenses.channelFees, r.currency)} />
@@ -197,7 +202,7 @@ function PnlView({ report, fmt }: { report: PnlReport | null; fmt: (n: number, c
           <div className="mt-3 border-t border-border pt-2">
             <Row label="Total expenses" value={fmt(r.expenses.total, r.currency)} strong />
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );
@@ -209,24 +214,24 @@ function CashFlowView({ report, fmt }: { report: CashFlowReport | null; fmt: (n:
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-6">
+        <Card className="rounded-xl border border-border bg-card p-6">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Opening balance</p>
           <p className="mt-1 text-xl font-bold">{fmt(cf.openingBalance, cf.currency)}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-6">
+        </Card>
+        <Card className="rounded-xl border border-border bg-card p-6">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Net change</p>
           <p className={`mt-1 flex items-center gap-1 text-xl font-bold ${cf.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             <TrendingUp className="h-4 w-4" /> {cf.netChange >= 0 ? '+' : '−'}{fmt(Math.abs(cf.netChange), cf.currency)}
           </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-6">
+        </Card>
+        <Card className="rounded-xl border border-border bg-card p-6">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Closing balance</p>
           <p className="mt-1 text-xl font-bold">{fmt(cf.closingBalance, cf.currency)}</p>
-        </div>
+        </Card>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-6">
+        <Card className="rounded-xl border border-border bg-card p-6">
           <p className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-green-600">
             <ArrowDownCircle className="h-4 w-4" /> Inflows · {fmt(cf.totalIn, cf.currency)}
           </p>
@@ -237,8 +242,8 @@ function CashFlowView({ report, fmt }: { report: CashFlowReport | null; fmt: (n:
               <Row key={k} label={categoryLabel(k)} value={fmt(v, cf.currency)} />
             ))
           )}
-        </div>
-        <div className="rounded-xl border border-border bg-card p-6">
+        </Card>
+        <Card className="rounded-xl border border-border bg-card p-6">
           <p className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-red-600">
             <ArrowUpCircle className="h-4 w-4" /> Outflows · {fmt(cf.totalOut, cf.currency)}
           </p>
@@ -249,7 +254,7 @@ function CashFlowView({ report, fmt }: { report: CashFlowReport | null; fmt: (n:
               <Row key={k} label={categoryLabel(k)} value={fmt(v, cf.currency)} />
             ))
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );
