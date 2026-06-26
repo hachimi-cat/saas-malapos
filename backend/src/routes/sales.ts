@@ -10,6 +10,7 @@ import {
   discardParkedSale,
   updateParkedSale,
   settleParkedSaleManual,
+  addParkedSalePayment,
 } from '../lib/sell.js';
 import { refundSale } from '../lib/refund.js';
 
@@ -74,6 +75,17 @@ const settleBody = z.object({
   payments: z.array(paymentSchema).max(10),
 });
 
+/** Record ONE payment against an open bill — the split-bill path. Positive
+ *  amount; the bill completes server-side once paidTotal covers the total. */
+const partialPaymentBody = z.object({
+  method: z.enum(['CASH', 'QRIS', 'CARD', 'GIFT_CARD', 'OTHER']),
+  amount: z.number().int().positive(),
+  tendered: z.number().int().min(0).optional(),
+  reference: z.string().trim().max(200).optional(),
+  plugipayRef: z.string().trim().max(120).optional(),
+  status: z.enum(['PENDING', 'PAID', 'FAILED']).optional(),
+});
+
 router.post(
   '/',
   asyncHandler(async (req, res) => {
@@ -128,6 +140,30 @@ router.post(
       include: { items: true, payments: true, customer: true },
     });
     sendOk(res, req, { sale });
+  }),
+);
+
+/** POST /:id/payments — record ONE tender against an open bill (PARKED) for
+ *  split-bill checkout. Accumulates into paidTotal; when it covers the total
+ *  the bill completes (PARKED → COMPLETED) and the shared completion
+ *  side-effects (stock + loyalty + event) run exactly once. Until then the
+ *  bill stays PARKED with a returned remaining balance. */
+router.post(
+  '/:id/payments',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const payment = partialPaymentBody.parse(req.body);
+    const result = await addParkedSalePayment({
+      accountId,
+      transactionId: String(req.params.id),
+      payment,
+      cashierSub: (req.auth!.sub as string | undefined) ?? null,
+    });
+    const sale = await prisma.transaction.findUnique({
+      where: { id: String(req.params.id) },
+      include: { items: true, payments: true, customer: true },
+    });
+    sendOk(res, req, { sale, payment: result });
   }),
 );
 

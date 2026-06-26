@@ -16,6 +16,7 @@ import {
   Clock,
   Users,
   PauseCircle,
+  Split,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
@@ -69,9 +70,21 @@ export default function SellPage() {
   const [view, setView] = useState<'floor' | 'register'>('register');
   const [table, setTable] = useState<BoundTable | null>(null);
   const [parkedTxnId, setParkedTxnId] = useState<string | null>(null);
+  // The open bill's server-side paidTotal (> 0 only when a split was started
+  // then abandoned half-paid). The whole-bill Charge must collect just the
+  // REMAINING balance, never the full total, or paidTotal overshoots.
+  const [parkedPaid, setParkedPaid] = useState(0);
   const [floor, setFloor] = useState<FloorEntry[]>([]);
   const [floorBusy, setFloorBusy] = useState(false);
   const [holding, setHolding] = useState(false);
+  const [splitting, setSplitting] = useState(false);
+  // Split-bill flow (F&B). Set when the cashier splits an open table bill
+  // into checks; carries the server-authoritative total + a frozen line
+  // snapshot for the by-item split. Null = no split in progress.
+  const [split, setSplit] = useState<
+    | { txnId: string; total: number; initialPaid: number; lines: CartLine[] }
+    | null
+  >(null);
   // Keyboard-first cashier flow: a highlighted grid card + the cart line the
   // qty hotkeys act on (the most-recently-touched line).
   const [highlight, setHighlight] = useState(0);
@@ -133,6 +146,7 @@ export default function SellPage() {
     setOutletId(next);
     setTable(null);
     setParkedTxnId(null);
+    setParkedPaid(0);
     setCart([]);
     setCustomer(null);
     setReceipt(null);
@@ -147,7 +161,7 @@ export default function SellPage() {
     const bound: BoundTable = { id: entry.table.id, label: entry.table.label };
     if (entry.openBill) {
       try {
-        const res = await api.get<{ sale: { items: { variantId: string | null; productName: string; variantName: string | null; unitPrice: number; quantity: number }[]; customer: Customer | null } }>(
+        const res = await api.get<{ sale: { items: { variantId: string | null; productName: string; variantName: string | null; unitPrice: number; quantity: number }[]; customer: Customer | null; paidTotal: number } }>(
           `/sales/${entry.openBill.transactionId}`,
         );
         const items = res.data.sale.items.filter((it) => it.variantId);
@@ -163,6 +177,7 @@ export default function SellPage() {
         );
         setCustomer(res.data.sale.customer ?? null);
         setParkedTxnId(entry.openBill.transactionId);
+        setParkedPaid(res.data.sale.paidTotal ?? 0);
       } catch (e) {
         setError(e instanceof ApiRequestError ? e.message : 'Failed to open the bill');
         return;
@@ -170,6 +185,7 @@ export default function SellPage() {
     } else {
       setCart([]);
       setParkedTxnId(null);
+      setParkedPaid(0);
     }
     setTable(bound);
     setView('register');
@@ -179,6 +195,7 @@ export default function SellPage() {
   function backToFloor() {
     setTable(null);
     setParkedTxnId(null);
+    setParkedPaid(0);
     setCart([]);
     setCustomer(null);
     setReceipt(null);
@@ -190,6 +207,7 @@ export default function SellPage() {
   function startQuickSale() {
     setTable(null);
     setParkedTxnId(null);
+    setParkedPaid(0);
     setCart([]);
     setCustomer(null);
     setReceipt(null);
@@ -236,6 +254,62 @@ export default function SellPage() {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to hold the bill');
       setHolding(false);
     }
+  }
+
+  // F&B "Split bill": persist the cart as the table's open bill (so the
+  // server has an authoritative PARKED total to split against), then open the
+  // split flow. Per-check payments POST /sales/:id/payments; the bill
+  // completes server-side when fully paid.
+  async function startSplit() {
+    if (!table || !cart.length) return;
+    setSplitting(true);
+    setError(null);
+    try {
+      let txnId = parkedTxnId;
+      let serverTotal: number;
+      let initialPaid: number;
+      if (txnId) {
+        const res = await api.patch<{ sale: { id: string; total: number; paidTotal: number } }>(
+          `/sales/${txnId}/items`,
+          { items: cartItems(), orderType: 'DINE_IN', customerId: customer?.id ?? null },
+        );
+        serverTotal = res.data.sale.total;
+        initialPaid = res.data.sale.paidTotal;
+      } else {
+        const res = await api.post<{ sale: { id: string; total: number; paidTotal: number } }>(
+          '/sales',
+          {
+            outletId,
+            customerId: customer?.id ?? null,
+            tableId: table.id,
+            orderType: 'DINE_IN',
+            status: 'PARKED',
+            items: cartItems(),
+          },
+        );
+        txnId = res.data.sale.id;
+        serverTotal = res.data.sale.total;
+        initialPaid = res.data.sale.paidTotal;
+        setParkedTxnId(txnId);
+      }
+      setSplit({ txnId, total: serverTotal, initialPaid, lines: cart });
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to start the split');
+    } finally {
+      setSplitting(false);
+    }
+  }
+
+  // The split bill fully paid → back to the floor (table now free).
+  function finishSplit() {
+    setSplit(null);
+    setCart([]);
+    setCustomer(null);
+    setTable(null);
+    setParkedTxnId(null);
+    setParkedPaid(0);
+    setView('floor');
+    loadFloor(outletId);
   }
 
   const filtered = useMemo(() => {
@@ -336,7 +410,7 @@ export default function SellPage() {
     }
     function onKey(e: KeyboardEvent) {
       // While any modal is open the modals own the keyboard (Esc/Enter there).
-      if (paying || qris || receipt) return;
+      if (paying || qris || receipt || split) return;
       // The floor (table grid) has no catalog hotkeys — stand down there.
       if (view === 'floor') return;
       switch (e.key) {
@@ -406,11 +480,14 @@ export default function SellPage() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards, highlight, cols, query, cart.length, products, paying, qris, receipt, activeLineId, view]);
+  }, [cards, highlight, cols, query, cart.length, products, paying, qris, receipt, split, activeLineId, view]);
 
   const subtotal = cart.reduce((s, l) => s + l.unitPrice * l.qty, 0);
   const tax = outlet && outlet.taxRateBps > 0 && !taxInclusiveUnknown ? Math.round((subtotal * outlet.taxRateBps) / 10000) : 0;
   const total = subtotal + tax;
+  // Amount the whole-bill Charge collects: the remaining balance when prior
+  // (split) payments exist, else the full total. Quick sales: parkedPaid = 0.
+  const due = Math.max(0, total - parkedPaid);
 
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
@@ -560,21 +637,39 @@ export default function SellPage() {
             <span>Total</span>
             <span className="text-primary">{rupiah(total)}</span>
           </div>
+          {parkedPaid > 0 && (
+            <>
+              <Row label="Already paid" value={`− ${rupiah(parkedPaid)}`} />
+              <div className="flex justify-between text-sm font-semibold">
+                <span>Balance due</span>
+                <span className="text-primary">{rupiah(due)}</span>
+              </div>
+            </>
+          )}
           {table ? (
-            <div className="mt-3 flex gap-2">
-              <button
-                disabled={!cart.length || holding}
-                onClick={hold}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border py-3 font-semibold transition-colors hover:bg-accent disabled:opacity-40"
-              >
-                {holding ? <Loader2 className="h-4 w-4 animate-spin" /> : <PauseCircle className="h-4 w-4" />} Hold
-              </button>
+            <div className="mt-3 space-y-2">
+              <div className="flex gap-2">
+                <button
+                  disabled={!cart.length || holding || splitting}
+                  onClick={hold}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border py-3 font-semibold transition-colors hover:bg-accent disabled:opacity-40"
+                >
+                  {holding ? <Loader2 className="h-4 w-4 animate-spin" /> : <PauseCircle className="h-4 w-4" />} Hold
+                </button>
+                <button
+                  disabled={!cart.length || holding || splitting}
+                  onClick={startSplit}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border py-3 font-semibold transition-colors hover:bg-accent disabled:opacity-40"
+                >
+                  {splitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Split className="h-4 w-4" />} Split
+                </button>
+              </div>
               <button
                 disabled={!cart.length}
                 onClick={() => setPaying(true)}
-                className="flex-1 rounded-md bg-primary py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                className="w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
               >
-                Charge {rupiah(total)}
+                Charge {rupiah(due)}
               </button>
             </div>
           ) : (
@@ -583,7 +678,7 @@ export default function SellPage() {
               onClick={() => setPaying(true)}
               className="mt-3 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
             >
-              Charge {rupiah(total)}
+              Charge {rupiah(due)}
             </button>
           )}
         </div>
@@ -591,7 +686,7 @@ export default function SellPage() {
 
       {paying && (
         <PaymentModal
-          total={total}
+          total={due}
           onClose={() => setPaying(false)}
           onConfirm={async (payments) => {
             setError(null);
@@ -624,6 +719,7 @@ export default function SellPage() {
               if (table) {
                 setTable(null);
                 setParkedTxnId(null);
+                setParkedPaid(0);
                 loadFloor(outletId);
               }
             } catch (e) {
@@ -695,9 +791,22 @@ export default function SellPage() {
             if (table) {
               setTable(null);
               setParkedTxnId(null);
+              setParkedPaid(0);
               loadFloor(outletId);
             }
           }}
+        />
+      )}
+
+      {split && (
+        <SplitModal
+          txnId={split.txnId}
+          total={split.total}
+          initialPaid={split.initialPaid}
+          lines={split.lines}
+          onClose={() => setSplit(null)}
+          onComplete={finishSplit}
+          onError={(m) => setError(m)}
         />
       )}
 
@@ -1108,6 +1217,312 @@ function PaymentModal({
         </button>
       </div>
     </div>
+  );
+}
+
+// ── Split-bill math ──────────────────────────────────────────────────────
+// Every split method returns check amounts that sum to `total` EXACTLY (the
+// server validates each payment against the remaining balance, so any drift
+// would strand the bill un-completable). The remainder from integer division
+// lands on the LAST check.
+
+/** N equal checks; the rounding remainder goes on the last check. */
+function equalSplit(total: number, n: number): number[] {
+  const base = Math.floor(total / n);
+  const amounts = Array.from({ length: n }, () => base);
+  amounts[n - 1] += total - base * n;
+  return amounts;
+}
+
+/** By-item: each check = Σ its assigned lines, scaled to the bill total so
+ *  order-level tax/discount distribute proportionally. Last check absorbs the
+ *  remainder so the checks sum to `total` exactly. */
+function itemSplit(total: number, lines: CartLine[], assign: number[], n: number): number[] {
+  const raws = Array.from({ length: n }, () => 0);
+  lines.forEach((l, i) => {
+    raws[assign[i] ?? 0] += l.unitPrice * l.qty;
+  });
+  const rawSum = raws.reduce((s, r) => s + r, 0) || 1;
+  let acc = 0;
+  return raws.map((r, i) => {
+    if (i === n - 1) return total - acc;
+    const a = Math.round((total * r) / rawSum);
+    acc += a;
+    return a;
+  });
+}
+
+type SplitCheck = { amount: number; paid: boolean };
+
+/**
+ * Split-bill flow for an open table bill. Pick a method (Equal / By item /
+ * Custom) + number of checks, review the per-check amounts (which always sum
+ * to the bill total), then settle each check with its own PaymentModal. Each
+ * paid check POSTs /sales/:id/payments; the bill stays PARKED (partially
+ * paid) until the server reports it COMPLETED — then it returns to the floor.
+ */
+function SplitModal({
+  txnId,
+  total,
+  initialPaid,
+  lines,
+  onClose,
+  onComplete,
+  onError,
+}: {
+  txnId: string;
+  total: number;
+  initialPaid: number;
+  lines: CartLine[];
+  onClose: () => void;
+  onComplete: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [phase, setPhase] = useState<'config' | 'pay'>('config');
+  const [method, setMethod] = useState<'equal' | 'item' | 'custom'>('equal');
+  const [n, setN] = useState(2);
+  const [assign, setAssign] = useState<number[]>(() => lines.map(() => 0));
+  const [custom, setCustom] = useState<number[]>(() => equalSplit(total, 2));
+  const [checks, setChecks] = useState<SplitCheck[]>([]);
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [serverPaid, setServerPaid] = useState(initialPaid);
+  const [completed, setCompleted] = useState(false);
+
+  // Keep per-check inputs sized to N as the cashier changes the count.
+  function changeN(next: number) {
+    const clamped = Math.max(2, Math.min(8, next));
+    setN(clamped);
+    setCustom((c) => {
+      const eq = equalSplit(total, clamped);
+      return Array.from({ length: clamped }, (_, i) => c[i] ?? eq[i]);
+    });
+    setAssign((a) => a.map((v) => (v >= clamped ? 0 : v)));
+  }
+
+  // Seed Custom inputs with an equal split (a valid sum) whenever the method
+  // is selected or the check count changes, so they start matching the total.
+  useEffect(() => {
+    if (method !== 'custom') return;
+    setCustom((c) => {
+      const eq = equalSplit(total, n);
+      return Array.from({ length: n }, (_, i) => c[i] ?? eq[i]);
+    });
+  }, [method, n, total]);
+
+  // Preview amounts for the chosen method (config phase).
+  const preview = useMemo<number[]>(() => {
+    if (method === 'equal') return equalSplit(total, n);
+    if (method === 'item') return itemSplit(total, lines, assign, n);
+    return Array.from({ length: n }, (_, i) => Math.max(0, Math.round(custom[i] ?? 0)));
+  }, [method, n, assign, custom, lines, total]);
+
+  const previewSum = preview.reduce((s, a) => s + a, 0);
+  const customValid = method !== 'custom' || previewSum === total;
+
+  function startPaying() {
+    // Lock the amounts; drop any zero-amount checks (nothing to collect).
+    setChecks(preview.filter((a) => a > 0).map((a) => ({ amount: a, paid: false })));
+    setPhase('pay');
+  }
+
+  const remaining = Math.max(0, total - serverPaid);
+
+  async function payCheck(idx: number, payment: Record<string, unknown>) {
+    try {
+      const res = await api.post<{
+        payment: { status: 'PARKED' | 'COMPLETED'; paidTotal: number; total: number; remaining: number };
+      }>(`/sales/${txnId}/payments`, payment);
+      const r = res.data.payment;
+      setServerPaid(r.paidTotal);
+      setChecks((cs) => cs.map((c, i) => (i === idx ? { ...c, paid: true } : c)));
+      setActiveIdx(null);
+      if (r.status === 'COMPLETED') {
+        setCompleted(true);
+        setTimeout(onComplete, 1100);
+      }
+    } catch (e) {
+      onError(e instanceof ApiRequestError ? e.message : 'Payment failed');
+      setActiveIdx(null);
+    }
+  }
+
+  // ── Config phase ──────────────────────────────────────────────────────
+  if (phase === 'config') {
+    return (
+      <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+        <div className="w-full max-w-lg rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Split bill</h2>
+            <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Total <span className="font-semibold text-foreground">{rupiah(total)}</span>
+          </p>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {(['equal', 'item', 'custom'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMethod(m)}
+                className={`rounded-md border py-2 text-xs font-medium ${method === m ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}
+              >
+                {m === 'equal' ? 'Equal' : m === 'item' ? 'By item' : 'Custom'}
+              </button>
+            ))}
+          </div>
+
+          {(method === 'equal' || method === 'custom' || method === 'item') && (
+            <div className="mt-4 flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Checks</span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => changeN(n - 1)} className="rounded border border-border p-1 hover:bg-accent"><Minus className="h-4 w-4" /></button>
+                <span className="w-8 text-center text-sm font-semibold">{n}</span>
+                <button onClick={() => changeN(n + 1)} className="rounded border border-border p-1 hover:bg-accent"><Plus className="h-4 w-4" /></button>
+              </div>
+            </div>
+          )}
+
+          {method === 'item' && (
+            <div className="mt-4 max-h-56 space-y-1.5 overflow-y-auto">
+              {lines.map((l, i) => (
+                <div key={l.variantId} className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{l.qty}× {l.name}</p>
+                    <p className="text-xs text-muted-foreground">{rupiah(l.unitPrice * l.qty)}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {Array.from({ length: n }, (_, c) => (
+                      <button
+                        key={c}
+                        onClick={() => setAssign((a) => a.map((v, j) => (j === i ? c : v)))}
+                        className={`h-7 w-7 rounded text-xs font-semibold ${assign[i] === c ? 'bg-primary text-primary-foreground' : 'border border-border hover:bg-accent'}`}
+                      >
+                        {c + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {method === 'custom' && (
+            <div className="mt-4 space-y-2">
+              {Array.from({ length: n }, (_, i) => (
+                <label key={i} className="flex items-center gap-3">
+                  <span className="w-16 text-sm text-muted-foreground">Check {i + 1}</span>
+                  <input
+                    type="number"
+                    value={custom[i] ?? 0}
+                    onChange={(e) =>
+                      setCustom((c) => c.map((v, j) => (j === i ? Math.max(0, Number(e.target.value)) : v)))
+                    }
+                    className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </label>
+              ))}
+              <div className={`flex justify-between text-sm ${customValid ? 'text-muted-foreground' : 'text-destructive'}`}>
+                <span>Sum {rupiah(previewSum)}</span>
+                <span>{customValid ? 'matches total' : `must equal ${rupiah(total)}`}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Computed check preview (equal / by item) */}
+          {method !== 'custom' && (
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {preview.map((a, i) => (
+                <div key={i} className="rounded-md border border-border px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Check {i + 1}</span>
+                  <p className="font-semibold">{rupiah(a)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            disabled={!customValid}
+            onClick={startPaying}
+            className="mt-5 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
+          >
+            Start split · {n} check{n === 1 ? '' : 's'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Pay phase ─────────────────────────────────────────────────────────
+  return (
+    <>
+      <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={completed ? undefined : onClose}>
+        <div className="w-full max-w-md rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Split payment</h2>
+            {!completed && <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>}
+          </div>
+
+          {/* Running progress */}
+          <div className="mt-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Paid {rupiah(serverPaid)} of {rupiah(total)}</span>
+              <span className="font-semibold">{remaining > 0 ? `${rupiah(remaining)} left` : 'Settled'}</span>
+            </div>
+            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-primary transition-all"
+                style={{ width: `${Math.min(100, Math.round((serverPaid / total) * 100))}%` }}
+              />
+            </div>
+          </div>
+
+          {completed ? (
+            <div className="my-8 flex flex-col items-center gap-2">
+              <CheckCircle2 className="h-14 w-14 text-green-600" />
+              <p className="font-medium">Bill fully paid</p>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {checks.map((c, i) => (
+                <button
+                  key={i}
+                  disabled={c.paid}
+                  onClick={() => setActiveIdx(i)}
+                  className={`flex w-full items-center justify-between rounded-md border px-3 py-3 text-left ${
+                    c.paid ? 'border-border bg-muted/40' : 'border-primary hover:bg-accent'
+                  } disabled:cursor-default`}
+                >
+                  <span className="text-sm font-medium">
+                    Check {i + 1} of {checks.length}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{rupiah(c.amount)}</span>
+                    {c.paid ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600">
+                        <CheckCircle2 className="h-4 w-4" /> Paid
+                      </span>
+                    ) : (
+                      <span className="rounded bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">Pay</span>
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {activeIdx !== null && (
+        <PaymentModal
+          total={checks[activeIdx].amount}
+          onClose={() => setActiveIdx(null)}
+          onConfirm={(payments) => payCheck(activeIdx, payments[0] as Record<string, unknown>)}
+          // Split checks settle with manual tenders only — dynamic QRIS would
+          // need its own parked sale, so fall back to manual-reference QRIS.
+          onQris={async () => false}
+        />
+      )}
+    </>
   );
 }
 

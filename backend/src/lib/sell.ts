@@ -500,6 +500,118 @@ export async function updateParkedSale(
   });
 }
 
+/** A transaction's line items shaped for the completion side-effects.
+ *  Structural type — a richer Prisma include is assignable to it — so the
+ *  settle / split paths map their fetched items through one helper. */
+type CompletionTxnItem = {
+  variantId: string | null;
+  quantity: number;
+  variant:
+    | { isComposite: boolean; product: { kind: string; trackStock: boolean; requiresBatch: boolean } }
+    | null;
+};
+
+/** Project a PARKED transaction's items into the CompletionLine snapshot
+ *  applyCompletionEffects consumes (skip orphaned/voided variant lines). */
+function mapCompletionLines(items: CompletionTxnItem[]): CompletionLine[] {
+  return items
+    .filter((it) => it.variantId && it.variant)
+    .map((it) => ({
+      variantId: it.variantId!,
+      kind: it.variant!.product.kind,
+      isComposite: it.variant!.isComposite,
+      trackStock: it.variant!.product.trackStock,
+      requiresBatch: it.variant!.product.requiresBatch,
+      quantity: it.quantity,
+    }));
+}
+
+/**
+ * Flip a PARKED transaction → COMPLETED and run the completion side-effects
+ * (stock deduction + loyalty + the malapos.sale.completed.v1 event), inside
+ * the caller's transaction. The single choke-point both the whole-bill
+ * "Charge" (settleParkedSaleManual) and the per-check split-payment
+ * (addParkedSalePayment) drive completion through — so the stock/loyalty/
+ * outbox effects fire EXACTLY ONCE, regardless of how many payments
+ * accumulated to reach the total.
+ *
+ * The PARKED→COMPLETED flip is an ATOMIC conditional `updateMany` with
+ * `where: { status: 'PARKED' }` — the row lock it takes serializes two
+ * concurrent final tenders, so only ONE wins the flip (count === 1) and runs
+ * the side-effects; the loser sees count === 0 and returns false WITHOUT
+ * touching stock/loyalty/outbox. Callers roll their tender's payment row back
+ * (throw) when this returns false. Stock can never decrement twice.
+ */
+async function finalizeParkedCompletion(
+  tx: Prisma.TransactionClient,
+  args: {
+    accountId: string;
+    txn: {
+      id: string;
+      outletId: string;
+      number: string;
+      total: number;
+      customerId: string | null;
+      items: CompletionTxnItem[];
+    };
+    now: Date;
+    incPaidTotal: number;
+    incChangeTotal: number;
+    cashierSub: string | null;
+    earnLocalLoyalty: boolean;
+  },
+): Promise<boolean> {
+  const flipped = await tx.transaction.updateMany({
+    where: { id: args.txn.id, status: 'PARKED' },
+    data: {
+      status: 'COMPLETED',
+      completedAt: args.now,
+      paidTotal: { increment: args.incPaidTotal },
+      changeTotal: { increment: args.incChangeTotal },
+    },
+  });
+  // Lost the race — another tender already completed this bill. Do NOT apply
+  // completion effects (they fired on the winning flip); the caller rolls back.
+  if (flipped.count === 0) return false;
+
+  await applyCompletionEffects(tx, {
+    accountId: args.accountId,
+    outletId: args.txn.outletId,
+    txnId: args.txn.id,
+    number: args.txn.number,
+    total: args.txn.total,
+    customerId: args.txn.customerId,
+    lines: mapCompletionLines(args.txn.items),
+    cashierSub: args.cashierSub,
+    earnLocalLoyalty: args.earnLocalLoyalty,
+  });
+  return true;
+}
+
+/** Post-commit Ripllo loyalty EARN for a now-settled sale (module-on only,
+ *  non-fatal). Stamps the FULL order total once, mirroring createSale — so
+ *  a split bill earns exactly like a single-tender one, on completion. */
+async function riplloEarnPostCommit(
+  ripllo: Awaited<ReturnType<typeof marketingClientIfEnabled>>,
+  args: { customerId: string | null; total: number; transactionId: string; label: string },
+): Promise<void> {
+  if (!ripllo || !args.customerId || args.total <= 0) return;
+  try {
+    await ripllo.loyalty.earn({
+      customerId: args.customerId,
+      orderGrossIdr: args.total,
+      externalSource: 'malapos',
+      externalRef: args.transactionId,
+      orderId: args.transactionId,
+    });
+  } catch (err) {
+    console.error(`[sell] ripllo loyalty earn failed on ${args.label} (non-fatal):`, {
+      transactionId: args.transactionId,
+      message: (err as Error).message,
+    });
+  }
+}
+
 /**
  * Settle an open bill (a PARKED sale) at the counter with manual tenders —
  * the F&B "Charge" action. Records the payments, flips the sale to
@@ -601,36 +713,18 @@ export async function settleParkedSaleManual(input: {
       }
     }
 
-    await tx.transaction.update({
-      where: { id: txn.id },
-      data: {
-        status: 'COMPLETED',
-        completedAt: now,
-        paidTotal: { increment: paidTotal },
-        changeTotal: { increment: changeTotal },
-      },
-    });
-
-    await applyCompletionEffects(tx, {
+    const completed = await finalizeParkedCompletion(tx, {
       accountId,
-      outletId: txn.outletId,
-      txnId: txn.id,
-      number: txn.number,
-      total: txn.total,
-      customerId: txn.customerId,
-      lines: txn.items
-        .filter((it) => it.variantId && it.variant)
-        .map((it) => ({
-          variantId: it.variantId!,
-          kind: it.variant!.product.kind,
-          isComposite: it.variant!.isComposite,
-          trackStock: it.variant!.product.trackStock,
-          requiresBatch: it.variant!.product.requiresBatch,
-          quantity: it.quantity,
-        })),
+      txn,
+      now,
+      incPaidTotal: paidTotal,
+      incChangeTotal: changeTotal,
       cashierSub: input.cashierSub ?? txn.cashierSub ?? null,
       earnLocalLoyalty: !ripllo,
     });
+    // Lost the atomic flip → a concurrent tender already settled it. Throw to
+    // roll back the payment rows we just inserted (no double-record / oversum).
+    if (!completed) throw new ApiError(409, 'CONFLICT', 'Sale is no longer open');
 
     return { total: txn.total, customerId: txn.customerId };
   });
@@ -642,22 +736,168 @@ export async function settleParkedSaleManual(input: {
 
   // Post-commit Ripllo earn (module-on only, non-fatal — mirrors createSale
   // / settleParkedSale; the sale is already durably settled).
-  if (ripllo && result.customerId && result.total > 0) {
-    try {
-      await ripllo.loyalty.earn({
-        customerId: result.customerId,
-        orderGrossIdr: result.total,
-        externalSource: 'malapos',
-        externalRef: transactionId,
-        orderId: transactionId,
-      });
-    } catch (err) {
-      console.error('[sell] ripllo loyalty earn failed on manual settle (non-fatal):', {
-        transactionId,
-        message: (err as Error).message,
-      });
-    }
+  await riplloEarnPostCommit(ripllo, {
+    customerId: result.customerId,
+    total: result.total,
+    transactionId,
+    label: 'manual settle',
+  });
+}
+
+/**
+ * Record ONE payment against an open bill (a PARKED sale) and complete the
+ * bill once it is fully covered — the F&B "split bill" path. Each split
+ * check calls this with its own tender; payments accumulate in
+ * `paidTotal` and the bill stays PARKED (partially paid) until
+ * `paidTotal >= total`, at which point it flips to COMPLETED and runs the
+ * completion side-effects (stock + loyalty + outbox event) EXACTLY ONCE,
+ * via the shared finalizeParkedCompletion — the same choke-point the
+ * whole-bill Charge uses. A partial payment NEVER touches stock/loyalty.
+ *
+ * Gift-card tenders are honored per-payment (Plugipay workspace when the
+ * Payments module is on, else the local ledger), mirroring the settle path.
+ * Validates: amount > 0, doesn't overshoot the remaining balance beyond a
+ * small rounding tolerance, and the bill is PARKED + owned by the account.
+ * Returns the bill's post-payment status + running totals.
+ */
+export async function addParkedSalePayment(input: {
+  accountId: string;
+  transactionId: string;
+  payment: SalePayment;
+  cashierSub?: string | null;
+}): Promise<{ status: 'PARKED' | 'COMPLETED'; paidTotal: number; total: number; remaining: number }> {
+  const { accountId, transactionId } = input;
+  const p = input.payment;
+  if (p.amount <= 0) throw new ApiError(422, 'VALIDATION_ERROR', 'Payment amount must be positive');
+
+  const pre = await prisma.transaction.findFirst({
+    where: { id: transactionId, accountId },
+    select: { id: true, status: true, total: true, paidTotal: true },
+  });
+  if (!pre) throw new ApiError(404, 'NOT_FOUND', 'Transaction not found');
+  if (pre.status !== 'PARKED') {
+    throw new ApiError(409, 'CONFLICT', `Cannot pay a ${pre.status.toLowerCase()} sale`);
   }
+
+  const isPaid = (p.status ?? 'PAID') === 'PAID';
+  const payAmount = isPaid ? p.amount : 0;
+  // Reject a tender that overshoots the remaining balance (a split check is
+  // never meant to overpay). A small tolerance absorbs any rounding on the
+  // final check; exact-sum splits land precisely on the total.
+  const OVERPAY_TOLERANCE = 100; // IDR
+  const remainingBefore = pre.total - pre.paidTotal;
+  if (payAmount > remainingBefore + OVERPAY_TOLERANCE) {
+    throw new ApiError(
+      422,
+      'VALIDATION_ERROR',
+      `Payment of ${p.amount} exceeds the remaining balance of ${remainingBefore}`,
+    );
+  }
+
+  // Marketing-module check up front — drives whether local loyalty earns
+  // (Ripllo is authoritative when on). Best-effort: never block a payment.
+  let ripllo: Awaited<ReturnType<typeof marketingClientIfEnabled>> = null;
+  try {
+    ripllo = await marketingClientIfEnabled(accountId);
+  } catch {
+    ripllo = null;
+  }
+
+  // Gift-card via Plugipay (module ON) — redeem BEFORE opening the sale txn
+  // so an insufficient-balance / void / unknown-card failure aborts cleanly.
+  const paymentClient =
+    p.method === 'GIFT_CARD' && isPaid ? await paymentClientIfEnabled(accountId) : null;
+  if (paymentClient) {
+    const code = (p.reference ?? '').trim();
+    if (!code) throw new ApiError(422, 'VALIDATION_ERROR', 'Gift-card payment requires a code in `reference`');
+    await redeemGiftCardPlugipay(paymentClient, { code, amount: p.amount, transactionId });
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const txn = await tx.transaction.findFirst({
+      where: { id: transactionId, accountId },
+      include: {
+        outlet: { select: { id: true } },
+        items: { include: { variant: { include: { product: true } } } },
+      },
+    });
+    if (!txn || txn.status !== 'PARKED') return null; // raced / already settled
+
+    const now = new Date();
+    const change =
+      p.method === 'CASH' && p.tendered != null ? Math.max(0, p.tendered - p.amount) : 0;
+
+    await tx.payment.create({
+      data: {
+        id: newId('pay'),
+        accountId,
+        transactionId: txn.id,
+        method: p.method,
+        status: p.status ?? 'PAID',
+        amount: p.amount,
+        tendered: p.method === 'CASH' ? (p.tendered ?? null) : null,
+        change: p.method === 'CASH' && p.tendered != null ? change : null,
+        reference: p.reference ?? null,
+        plugipayRef: p.plugipayRef ?? null,
+        paidAt: isPaid ? now : null,
+      },
+    });
+
+    // Gift-card local redeem (module OFF) — inside the txn so an
+    // insufficient balance rolls this payment back.
+    if (!paymentClient && p.method === 'GIFT_CARD' && isPaid) {
+      const code = (p.reference ?? '').trim();
+      if (!code) throw new ApiError(422, 'VALIDATION_ERROR', 'Gift-card payment requires a code in `reference`');
+      await redeemGiftCard(tx, { accountId, code, amount: p.amount, transactionId: txn.id });
+    }
+
+    const newPaid = txn.paidTotal + payAmount;
+    if (newPaid >= txn.total) {
+      // Final check — fully covered. Complete + run the side-effects ONCE
+      // (finalizeParkedCompletion also increments paidTotal/changeTotal, and
+      // the atomic flip serializes two concurrent final tenders).
+      const completed = await finalizeParkedCompletion(tx, {
+        accountId,
+        txn,
+        now,
+        incPaidTotal: payAmount,
+        incChangeTotal: change,
+        cashierSub: input.cashierSub ?? txn.cashierSub ?? null,
+        earnLocalLoyalty: !ripllo,
+      });
+      // Lost the atomic flip → a concurrent tender already completed the bill.
+      // Throw to roll back this payment row (it would otherwise oversum paid).
+      if (!completed) throw new ApiError(409, 'CONFLICT', 'Sale is no longer open');
+      return { completed: true, paidTotal: newPaid, total: txn.total, customerId: txn.customerId };
+    }
+
+    // Still partial — accrue the payment, leave the bill PARKED (no stock /
+    // loyalty / outbox side-effects until the bill is fully paid).
+    await tx.transaction.update({
+      where: { id: txn.id },
+      data: { paidTotal: { increment: payAmount }, changeTotal: { increment: change } },
+    });
+    return { completed: false, paidTotal: newPaid, total: txn.total, customerId: txn.customerId };
+  });
+
+  if (!result) throw new ApiError(409, 'CONFLICT', 'Sale is no longer open');
+
+  // Loyalty earn fires only on the completing payment (full total, once).
+  if (result.completed) {
+    await riplloEarnPostCommit(ripllo, {
+      customerId: result.customerId,
+      total: result.total,
+      transactionId,
+      label: 'split settle',
+    });
+  }
+
+  return {
+    status: result.completed ? 'COMPLETED' : 'PARKED',
+    paidTotal: result.paidTotal,
+    total: result.total,
+    remaining: Math.max(0, result.total - result.paidTotal),
+  };
 }
 
 export async function createSale(input: CreateSaleInput, ctx: SaleContext): Promise<string> {
