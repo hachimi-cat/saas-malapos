@@ -20,11 +20,13 @@ import {
   StickyNote,
   Landmark,
   Copy,
+  Truck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { useBusinessType } from '@/hooks/use-business-type';
+import { useModules } from '@/hooks/use-modules';
 import { useRealtime } from '@/hooks/use-realtime';
 
 /*
@@ -51,7 +53,39 @@ type Sale = {
   number: string;
   total: number;
   changeTotal: number;
+  // Courier fee folded into `total` for a DELIVERY order (0 for in-store).
+  deliveryFee?: number;
   items: { productName: string; quantity: number; lineTotal: number }[];
+};
+
+// A Fulkruma (Biteship) courier rate quote — the chosen one's price becomes
+// the delivery fee. Mirrors the Rate shape on the fulfillment page.
+type Rate = {
+  courierCode: string;
+  courierServiceCode: string;
+  courierName?: string;
+  serviceName?: string;
+  description?: string;
+  price: number;
+  duration?: string;
+};
+
+// Recipient/destination captured for a delivery quick sale.
+type DeliveryDest = {
+  contactName: string;
+  contactPhone: string;
+  address: string;
+  area: string;
+  postalCode: string;
+};
+
+// The delivery draft attached to the current quick sale: where it goes, how
+// heavy it is (grams), and the courier the cashier picked. `rate` set ⇒ the
+// fee is locked in and the order can be charged.
+type DeliveryDraft = {
+  dest: DeliveryDest;
+  weight: number;
+  rate: Rate | null;
 };
 
 // F&B table + its open bill (GET /tables/floor).
@@ -75,6 +109,9 @@ type BoundTable = { id: string; label: string };
 
 export default function SellPage() {
   const { isFnb } = useBusinessType();
+  // Fulfillment (Fulkruma) module gate — the Delivery option is only offered
+  // when it's on (matches the /delivery backend, which 409s when off).
+  const { modules } = useModules();
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [outletId, setOutletId] = useState<string>('');
   const [products, setProducts] = useState<Product[]>([]);
@@ -132,6 +169,13 @@ export default function SellPage() {
   // cashier picks Transfer. Null/blank fields → the modal shows a "not
   // configured" notice instead of letting them confirm.
   const [transferAccount, setTransferAccount] = useState<TransferAccount | null>(null);
+  // Delivery (Fulfillment module) on the current quick sale. `delivery` non-null
+  // = the order is marked DELIVERY; `delivery.rate` set = a courier is picked
+  // and its price is the delivery fee. `deliveryModal` opens the address +
+  // rate-pick sheet. Counter/quick-sale only (never a dine-in table bill).
+  const [delivery, setDelivery] = useState<DeliveryDraft | null>(null);
+  const [deliveryModal, setDeliveryModal] = useState(false);
+  const fulfillmentOn = modules.fulfillment === true;
 
   useEffect(() => {
     (async () => {
@@ -248,6 +292,7 @@ export default function SellPage() {
     setCart([]);
     setCustomer(null);
     setReceipt(null);
+    setDelivery(null);
   }
 
   // Bind the register to a table. An occupied table loads its open bill's
@@ -256,6 +301,7 @@ export default function SellPage() {
     setError(null);
     setReceipt(null);
     setCustomer(null);
+    setDelivery(null); // delivery is a quick-sale concern, never a table bill
     const bound: BoundTable = { id: entry.table.id, label: entry.table.label };
     if (entry.openBill) {
       try {
@@ -298,6 +344,7 @@ export default function SellPage() {
     setCart([]);
     setCustomer(null);
     setReceipt(null);
+    setDelivery(null);
     setView('floor');
     loadFloor(outletId);
   }
@@ -310,6 +357,7 @@ export default function SellPage() {
     setCart([]);
     setCustomer(null);
     setReceipt(null);
+    setDelivery(null);
     setView('register');
   }
 
@@ -417,6 +465,39 @@ export default function SellPage() {
     loadFloor(outletId);
   }
 
+  // Create the Fulkruma shipment for a now-completed DELIVERY sale, mirroring
+  // the fulfillment create-from-sale flow (destination + chosen courier +
+  // a single weighted parcel). The backend stamps fulkrumaShipmentId on the
+  // sale and is idempotent (a sale that already has a shipment returns the
+  // existing one), so a double-fire never mints two shipments. Best-effort:
+  // the sale is already paid, so a courier hiccup surfaces as an error toast
+  // rather than failing the completed sale.
+  async function createDeliveryShipment(saleId: string, d: DeliveryDraft) {
+    if (!d.rate) return;
+    try {
+      await api.post('/delivery/shipments', {
+        transactionId: saleId,
+        destination: {
+          contactName: d.dest.contactName,
+          contactPhone: d.dest.contactPhone,
+          address: d.dest.address,
+          area: d.dest.area || undefined,
+          postalCode: d.dest.postalCode,
+        },
+        courierCode: d.rate.courierCode,
+        courierServiceCode: d.rate.courierServiceCode,
+        price: d.rate.price,
+        items: [{ name: 'Order', weight: d.weight, quantity: 1 }],
+      });
+    } catch (e) {
+      setError(
+        e instanceof ApiRequestError
+          ? `Sale completed, but creating the delivery failed: ${e.message}`
+          : 'Sale completed, but creating the delivery failed.',
+      );
+    }
+  }
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return products;
@@ -521,7 +602,7 @@ export default function SellPage() {
     }
     function onKey(e: KeyboardEvent) {
       // While any modal is open the modals own the keyboard (Esc/Enter there).
-      if (paying || qris || receipt || split) return;
+      if (paying || qris || receipt || split || deliveryModal) return;
       // The floor (table grid) has no catalog hotkeys — stand down there.
       if (view === 'floor') return;
       // Don't hijack keys while the cashier is typing in ANOTHER field (Attach
@@ -606,11 +687,15 @@ export default function SellPage() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards, highlight, cols, query, cart.length, products, paying, qris, receipt, split, activeLineId, view]);
+  }, [cards, highlight, cols, query, cart.length, products, paying, qris, receipt, split, deliveryModal, activeLineId, view]);
 
   const subtotal = cart.reduce((s, l) => s + l.unitPrice * l.qty, 0);
   const tax = outlet && outlet.taxRateBps > 0 && !taxInclusiveUnknown ? Math.round((subtotal * outlet.taxRateBps) / 10000) : 0;
-  const total = subtotal + tax;
+  // Delivery fee = the picked courier's price (0 until a courier is chosen).
+  // Folded into the order total so it's charged + lands on the receipt; the
+  // server recomputes the same total from the deliveryFee it's sent.
+  const deliveryFee = delivery?.rate?.price ?? 0;
+  const total = subtotal + tax + deliveryFee;
   // Amount the whole-bill Charge collects: the remaining balance when prior
   // (split) payments exist, else the full total. Quick sales: parkedPaid = 0.
   const due = Math.max(0, total - parkedPaid);
@@ -787,9 +872,73 @@ export default function SellPage() {
             );
           })}
         </div>
+        {/* Delivery (Fulfillment module) — quick-sale only. Toggle marks the
+            order DELIVERY; the modal captures the address + picks a courier,
+            whose price becomes the delivery fee. */}
+        {!table && fulfillmentOn && (
+          <div className="border-t border-border p-3">
+            <button
+              onClick={() => {
+                if (delivery) {
+                  setDelivery(null);
+                } else {
+                  setDelivery({
+                    dest: {
+                      contactName: customer?.name ?? '',
+                      contactPhone: customer?.phone ?? '',
+                      address: '',
+                      area: '',
+                      postalCode: '',
+                    },
+                    weight: 1000,
+                    rate: null,
+                  });
+                  setDeliveryModal(true);
+                }
+              }}
+              className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                delivery ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-accent'
+              }`}
+            >
+              <span className="inline-flex items-center gap-2"><Truck className="h-4 w-4" /> Delivery</span>
+              <span className="text-xs">{delivery ? 'On' : 'Off'}</span>
+            </button>
+            {delivery && (
+              <div className="mt-2 rounded-md border border-border p-2 text-xs">
+                {delivery.rate ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {(delivery.rate.courierName ?? delivery.rate.courierCode).toUpperCase()} ·{' '}
+                        {delivery.rate.serviceName ?? delivery.rate.courierServiceCode}
+                      </p>
+                      <p className="truncate text-muted-foreground">
+                        {delivery.dest.contactName || 'Recipient'} · {delivery.dest.address || 'No address'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setDeliveryModal(true)}
+                      className="shrink-0 font-medium text-primary hover:underline"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setDeliveryModal(true)}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-md bg-primary/10 px-2 py-1.5 font-medium text-primary hover:bg-primary/20"
+                  >
+                    <Truck className="h-3.5 w-3.5" /> Add address & pick courier
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <div className="space-y-1 border-t border-border p-4 text-sm">
           <Row label="Subtotal" value={rupiah(subtotal)} />
           {tax > 0 && <Row label={`Tax (${(outlet!.taxRateBps / 100).toFixed(0)}%)`} value={rupiah(tax)} />}
+          {deliveryFee > 0 && <Row label="Delivery" value={rupiah(deliveryFee)} />}
           <div className="flex justify-between pt-1 text-base font-semibold">
             <span>Total</span>
             <span className="text-primary">{rupiah(total)}</span>
@@ -831,11 +980,11 @@ export default function SellPage() {
             </div>
           ) : (
             <button
-              disabled={!cart.length}
+              disabled={!cart.length || (!!delivery && !delivery.rate)}
               onClick={() => setPaying(true)}
               className="mt-3 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
             >
-              Charge {rupiah(due)}
+              {delivery && !delivery.rate ? 'Pick a courier to charge' : `Charge ${rupiah(due)}`}
             </button>
           )}
         </div>
@@ -866,7 +1015,11 @@ export default function SellPage() {
                   customerId: customer?.id ?? null,
                   items: cartItems(),
                   payments,
-                  ...(table ? { tableId: table.id, orderType: 'DINE_IN' } : {}),
+                  ...(table
+                    ? { tableId: table.id, orderType: 'DINE_IN' }
+                    : delivery
+                    ? { orderType: 'DELIVERY', deliveryFee }
+                    : {}),
                 });
                 sale = res.data.sale;
               }
@@ -874,6 +1027,11 @@ export default function SellPage() {
               setCart([]);
               setCustomer(null);
               setPaying(false);
+              // Delivery quick sale → dispatch the courier now that it's paid.
+              if (delivery && !table) {
+                await createDeliveryShipment(sale.id, delivery);
+                setDelivery(null);
+              }
               if (table) {
                 setTable(null);
                 setParkedTxnId(null);
@@ -902,7 +1060,11 @@ export default function SellPage() {
                 items: cartItems(),
                 status: 'PARKED',
                 payments: [{ method, amount: total, status: 'PENDING' }],
-                ...(table ? { tableId: table.id, orderType: 'DINE_IN' } : {}),
+                ...(table
+                  ? { tableId: table.id, orderType: 'DINE_IN' }
+                  : delivery
+                  ? { orderType: 'DELIVERY', deliveryFee }
+                  : {}),
               });
               saleId = sale.data.sale.id;
             } catch (e) {
@@ -944,6 +1106,11 @@ export default function SellPage() {
             } catch {
               /* the sale settled server-side; the receipt fetch is cosmetic */
             }
+            // Delivery quick sale paid via QRIS/VA → dispatch the courier now.
+            if (delivery && !table) {
+              await createDeliveryShipment(qris.saleId, delivery);
+              setDelivery(null);
+            }
             setCart([]);
             setCustomer(null);
             setQris(null);
@@ -967,6 +1134,22 @@ export default function SellPage() {
           onClose={() => setSplit(null)}
           onComplete={finishSplit}
           onError={(m) => setError(m)}
+        />
+      )}
+
+      {deliveryModal && delivery && (
+        <DeliveryModal
+          initial={delivery}
+          onClose={() => {
+            // Cancelling before a courier is picked leaves delivery un-charged;
+            // if they never picked one, drop back out of delivery mode.
+            if (!delivery.rate) setDelivery(null);
+            setDeliveryModal(false);
+          }}
+          onSave={(draft) => {
+            setDelivery(draft);
+            setDeliveryModal(false);
+          }}
         />
       )}
 
@@ -2080,6 +2263,12 @@ function ReceiptModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
             </div>
           ))}
         </div>
+        {(sale.deliveryFee ?? 0) > 0 && (
+          <div className="mb-1 flex justify-between text-sm text-muted-foreground">
+            <span>Delivery</span>
+            <span>{rupiah(sale.deliveryFee ?? 0)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-base font-semibold">
           <span>Total</span>
           <span className="text-primary">{rupiah(sale.total)}</span>
@@ -2095,5 +2284,166 @@ function ReceiptModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Delivery sheet for the quick sale — capture the recipient + address, quote
+ * couriers (/delivery/rates) for a single weighted parcel, and pick one. The
+ * chosen rate's price becomes the order's delivery fee. Inlines the
+ * create-delivery-from-sale pattern from the Fulfillment page, but the
+ * shipment itself is created later, once the sale is paid.
+ *
+ * Weight: products carry no per-item weight in this catalog, so we quote one
+ * parcel at a sane 1000 g default (matching the Fulfillment page) and let the
+ * cashier override it.
+ */
+function DeliveryModal({
+  initial,
+  onClose,
+  onSave,
+}: {
+  initial: DeliveryDraft;
+  onClose: () => void;
+  onSave: (draft: DeliveryDraft) => void;
+}) {
+  const [dest, setDest] = useState<DeliveryDest>(initial.dest);
+  const [weight, setWeight] = useState<string>(String(initial.weight || 1000));
+  const [rates, setRates] = useState<Rate[]>([]);
+  const [picked, setPicked] = useState<Rate | null>(initial.rate);
+  const [loadingRates, setLoadingRates] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const parcelWeight = Number(weight) || 1000;
+
+  async function quote() {
+    setLoadingRates(true);
+    setError(null);
+    setRates([]);
+    setPicked(null);
+    try {
+      const { data } = await api.post<{ pricing?: Rate[] } | Rate[]>('/delivery/rates', {
+        destination: {
+          contactName: dest.contactName,
+          contactPhone: dest.contactPhone,
+          address: dest.address,
+          area: dest.area || undefined,
+          postalCode: dest.postalCode,
+        },
+        items: [{ name: 'Order', weight: parcelWeight, quantity: 1 }],
+      });
+      // Fulkruma returns either an array of rates or an object wrapping
+      // `pricing` — accept both shapes (mirrors the Fulfillment page).
+      const list = Array.isArray(data) ? data : ((data?.pricing as Rate[]) ?? []);
+      setRates(list);
+      if (list.length === 0) setError('No courier rates available for this destination.');
+    } catch (e) {
+      if (e instanceof ApiRequestError && e.status === 409) {
+        setError('The Fulfillment module is off. Enable it under Settings → Modules.');
+      } else {
+        setError(e instanceof ApiRequestError ? e.message : 'Failed to fetch rates');
+      }
+    } finally {
+      setLoadingRates(false);
+    }
+  }
+
+  function save() {
+    if (!picked) return;
+    onSave({ dest, weight: parcelWeight, rate: picked });
+  }
+
+  return (
+    <div className="fixed inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-10" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="flex items-center gap-2 font-semibold"><Truck className="h-5 w-5 text-primary" /> Delivery</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="space-y-4 px-5 py-4">
+          {error && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DeliveryField label="Recipient name" value={dest.contactName} onChange={(v) => setDest({ ...dest, contactName: v })} />
+            <DeliveryField label="Recipient phone" value={dest.contactPhone} onChange={(v) => setDest({ ...dest, contactPhone: v })} />
+          </div>
+          <DeliveryField label="Destination address" value={dest.address} onChange={(v) => setDest({ ...dest, address: v })} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <DeliveryField label="Area / city" value={dest.area} onChange={(v) => setDest({ ...dest, area: v })} />
+            <DeliveryField label="Postal code" value={dest.postalCode} onChange={(v) => setDest({ ...dest, postalCode: v })} />
+            <DeliveryField label="Weight (grams)" value={weight} onChange={setWeight} />
+          </div>
+
+          <button
+            type="button"
+            disabled={loadingRates || !dest.address}
+            onClick={() => void quote()}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-60"
+          >
+            {loadingRates ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
+            Get courier rates
+          </button>
+
+          {rates.length > 0 && (
+            <div className="max-h-64 space-y-2 overflow-y-auto">
+              {rates.map((r, i) => {
+                const isPicked =
+                  picked?.courierCode === r.courierCode &&
+                  picked?.courierServiceCode === r.courierServiceCode;
+                return (
+                  <button
+                    key={`${r.courierCode}-${r.courierServiceCode}-${i}`}
+                    type="button"
+                    onClick={() => setPicked(r)}
+                    className={
+                      'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm ' +
+                      (isPicked ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent')
+                    }
+                  >
+                    <div>
+                      <div className="font-medium">
+                        {(r.courierName ?? r.courierCode).toUpperCase()} · {r.serviceName ?? r.courierServiceCode}
+                      </div>
+                      {r.duration && <div className="text-xs text-muted-foreground">{r.duration}</div>}
+                    </div>
+                    <span className="font-medium">{rupiah(r.price)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
+          <button type="button" onClick={onClose} className="rounded-md border border-border px-3 py-2 text-sm hover:bg-accent">
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!picked}
+            onClick={save}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            Use this courier{picked ? ` · ${rupiah(picked.price)}` : ''}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeliveryField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+      />
+    </label>
   );
 }

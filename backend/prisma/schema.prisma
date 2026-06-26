@@ -592,7 +592,11 @@ model Transaction {
   subtotal      Int               @default(0)
   discountTotal Int               @default(0) // order-level discount
   taxTotal      Int               @default(0)
-  total         Int               @default(0) // subtotal − discountTotal + taxTotal
+  /// Courier fee for a DELIVERY order — the price of the Fulkruma/Biteship
+  /// courier rate the cashier picked at ring-up. Folded into `total` and
+  /// shown as a "Delivery" line on the receipt. 0 for in-store sales.
+  deliveryFee   Int               @default(0)
+  total         Int               @default(0) // subtotal − discountTotal + taxTotal + deliveryFee
   paidTotal     Int               @default(0) // Σ PAID payments
   changeTotal   Int               @default(0) // cash change given
   /// Σ of all refunds against this sale, IDR. status flips to

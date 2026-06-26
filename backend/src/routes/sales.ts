@@ -53,6 +53,8 @@ const createBody = z.object({
   orderType: orderTypeSchema.optional(),
   items: z.array(lineSchema).min(1),
   orderDiscount: z.number().int().min(0).optional(),
+  // DELIVERY order: the chosen courier rate's price, added to the total.
+  deliveryFee: z.number().int().min(0).optional(),
   payments: z.array(paymentSchema).max(10).optional(),
   status: z.enum(['COMPLETED', 'PARKED']).optional(),
   note: z.string().trim().max(500).nullish(),

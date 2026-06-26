@@ -56,6 +56,11 @@ export interface CreateSaleInput {
   orderType?: OrderType;
   items: CartLine[];
   orderDiscount?: number;
+  /** Courier fee for a DELIVERY order (the chosen Fulkruma rate's price),
+   *  added to the order total + stored on the Transaction. 0/absent for
+   *  in-store sales. The shipment itself is created post-completion via the
+   *  Fulfillment module (routes/delivery.ts); this only carries the money. */
+  deliveryFee?: number;
   payments?: SalePayment[];
   status?: 'COMPLETED' | 'PARKED';
   note?: string | null;
@@ -1110,6 +1115,13 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
     }
   }
 
+  // Delivery (Fulfillment module): the chosen courier rate's price is added on
+  // top of the (post-tax) order total and charged to the customer. Stored on
+  // the Transaction + shown as a "Delivery" line on the receipt. Tax never
+  // applies to the courier fee. 0 for in-store sales.
+  const deliveryFee = Math.max(0, Math.round(input.deliveryFee ?? 0));
+  total += deliveryFee;
+
   const status = input.status ?? 'COMPLETED';
   const payments = input.payments ?? [];
   let paidTotal = 0;
@@ -1173,6 +1185,7 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
         subtotal,
         discountTotal: orderDiscount,
         taxTotal,
+        deliveryFee,
         total,
         paidTotal,
         changeTotal,

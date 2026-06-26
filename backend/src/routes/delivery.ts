@@ -187,11 +187,11 @@ router.post(
 
     // If a transactionId is given, it must be a real sale in this
     // workspace — guards against stamping a foreign / nonexistent sale.
-    let txn: { id: string } | null = null;
+    let txn: { id: string; fulkrumaShipmentId: string | null } | null = null;
     if (body.transactionId) {
       txn = await prisma.transaction.findFirst({
         where: { id: body.transactionId, accountId },
-        select: { id: true },
+        select: { id: true, fulkrumaShipmentId: true },
       });
       if (!txn) {
         return sendErr(res, req, 404, 'NOT_FOUND', 'Sale not found in this workspace', {
@@ -202,6 +202,17 @@ router.post(
 
     try {
       const client = await requireFulfillmentClient(accountId);
+
+      // Idempotency guard: a delivery sale must mint EXACTLY ONE shipment. If
+      // this transaction already carries a Fulkruma shipment (the cashier — or
+      // a retried completion hook — re-submitted), return the existing one
+      // instead of creating a duplicate. Mirrors the completion-effect guards
+      // elsewhere (one paid invoice / one loyalty earn per sale).
+      if (txn?.fulkrumaShipmentId) {
+        const { shipment } = await client.shipments.get(txn.fulkrumaShipmentId);
+        return sendOk(res, req, shipment);
+      }
+
       const { shipment } = await client.shipments.create({
         customerId: body.customerId,
         customerEmail: body.customerEmail,
