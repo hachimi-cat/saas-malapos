@@ -158,6 +158,9 @@ async function applyCompletionEffects(
     txnId: string;
     number: string;
     total: number;
+    /** Courier fee included in `total`; excluded from the loyalty earn base
+     *  (points accrue on goods only). 0/absent for in-store sales. */
+    deliveryFee?: number;
     customerId: string | null;
     lines: CompletionLine[];
     cashierSub: string | null;
@@ -224,7 +227,11 @@ async function applyCompletionEffects(
   // earns; module ON → Ripllo is authoritative (the local grant is
   // skipped and the earn is stamped to Ripllo after commit).
   if (args.customerId) {
-    const earned = args.earnLocalLoyalty ? Math.floor(args.total / LOYALTY_POINTS_PER_IDR) : 0;
+    // Points accrue on the GOODS total only (goods + their tax), never on the
+    // courier fee — so subtract deliveryFee from the gross earn base. totalSpent
+    // below still accrues on the full `total` (delivery is real money spent).
+    const earnBase = Math.max(0, args.total - (args.deliveryFee ?? 0));
+    const earned = args.earnLocalLoyalty ? Math.floor(earnBase / LOYALTY_POINTS_PER_IDR) : 0;
     await tx.customer.update({
       where: { id: args.customerId },
       data: {
@@ -324,6 +331,7 @@ export async function settleParkedSale(input: {
       txnId: txn.id,
       number: txn.number,
       total: txn.total,
+      deliveryFee: txn.deliveryFee,
       customerId: txn.customerId,
       lines: txn.items
         .filter((it) => it.variantId && it.variant)
@@ -341,6 +349,7 @@ export async function settleParkedSale(input: {
 
     return {
       total: txn.total,
+      deliveryFee: txn.deliveryFee,
       customerId: txn.customerId,
       outletId: txn.outletId,
       kdsState: txn.kdsState,
@@ -363,7 +372,8 @@ export async function settleParkedSale(input: {
     try {
       await ripllo.loyalty.earn({
         customerId: result.customerId,
-        orderGrossIdr: result.total,
+        // Goods total only — points never accrue on the courier fee.
+        orderGrossIdr: Math.max(0, result.total - result.deliveryFee),
         externalSource: 'malapos',
         externalRef: input.transactionId,
         orderId: input.transactionId,
@@ -596,6 +606,7 @@ async function finalizeParkedCompletion(
       outletId: string;
       number: string;
       total: number;
+      deliveryFee: number;
       customerId: string | null;
       items: CompletionTxnItem[];
     };
@@ -625,6 +636,7 @@ async function finalizeParkedCompletion(
     txnId: args.txn.id,
     number: args.txn.number,
     total: args.txn.total,
+    deliveryFee: args.txn.deliveryFee,
     customerId: args.txn.customerId,
     lines: mapCompletionLines(args.txn.items),
     cashierSub: args.cashierSub,
@@ -638,13 +650,21 @@ async function finalizeParkedCompletion(
  *  a split bill earns exactly like a single-tender one, on completion. */
 async function riplloEarnPostCommit(
   ripllo: Awaited<ReturnType<typeof marketingClientIfEnabled>>,
-  args: { customerId: string | null; total: number; transactionId: string; label: string },
+  args: {
+    customerId: string | null;
+    total: number;
+    /** Courier fee included in `total`; excluded from the earn base. */
+    deliveryFee?: number;
+    transactionId: string;
+    label: string;
+  },
 ): Promise<void> {
   if (!ripllo || !args.customerId || args.total <= 0) return;
   try {
     await ripllo.loyalty.earn({
       customerId: args.customerId,
-      orderGrossIdr: args.total,
+      // Goods total only — points never accrue on the courier fee.
+      orderGrossIdr: Math.max(0, args.total - (args.deliveryFee ?? 0)),
       externalSource: 'malapos',
       externalRef: args.transactionId,
       orderId: args.transactionId,
@@ -773,6 +793,7 @@ export async function settleParkedSaleManual(input: {
 
     return {
       total: txn.total,
+      deliveryFee: txn.deliveryFee,
       customerId: txn.customerId,
       outletId: txn.outletId,
       kdsState: txn.kdsState,
@@ -797,6 +818,7 @@ export async function settleParkedSaleManual(input: {
   await riplloEarnPostCommit(ripllo, {
     customerId: result.customerId,
     total: result.total,
+    deliveryFee: result.deliveryFee,
     transactionId,
     label: 'manual settle',
   });
@@ -935,6 +957,7 @@ export async function addParkedSalePayment(input: {
         completed: true,
         paidTotal: newPaid,
         total: txn.total,
+        deliveryFee: txn.deliveryFee,
         customerId: txn.customerId,
         outletId: txn.outletId,
         kdsState: txn.kdsState,
@@ -951,6 +974,7 @@ export async function addParkedSalePayment(input: {
       completed: false,
       paidTotal: newPaid,
       total: txn.total,
+      deliveryFee: txn.deliveryFee,
       customerId: txn.customerId,
       outletId: txn.outletId,
       kdsState: txn.kdsState,
@@ -972,6 +996,7 @@ export async function addParkedSalePayment(input: {
     await riplloEarnPostCommit(ripllo, {
       customerId: result.customerId,
       total: result.total,
+      deliveryFee: result.deliveryFee,
       transactionId,
       label: 'split settle',
     });
@@ -1255,6 +1280,7 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
         txnId,
         number,
         total,
+        deliveryFee,
         customerId: input.customerId ?? null,
         lines: lines.map((l) => ({
           variantId: l.v.id,
@@ -1291,7 +1317,8 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
       try {
         await ripllo.loyalty.earn({
           customerId: input.customerId,
-          orderGrossIdr: total,
+          // Goods total only — points never accrue on the courier fee.
+          orderGrossIdr: Math.max(0, total - deliveryFee),
           externalSource: 'malapos',
           externalRef: txnId,
           orderId: txnId,
