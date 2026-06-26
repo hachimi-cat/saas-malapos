@@ -4,6 +4,10 @@ import { prisma } from '../lib/db.js';
 import { sendOk, sendErr } from '../lib/http.js';
 import { h as asyncHandler } from '../lib/async-handler.js';
 import { applyCheckoutCompleted, parseCheckoutMetadata } from '../lib/billing.js';
+import {
+  applyShippingCreditTopup,
+  parseShippingCreditTopupMetadata,
+} from '../lib/shipping-credit.js';
 import { applyOrderPaymentCompleted, parseOrderCheckoutMetadata } from '../lib/order-payment.js';
 
 /*
@@ -122,6 +126,11 @@ router.post(
 
         // Branch 1 — Malapos's OWN tier billing ({accountId, tier}).
         const billing = parseCheckoutMetadata(session.metadata);
+        // Branch 1b — shipping-credit top-up ({shippingCreditTopup,
+        // malaposAccountId, fulkrumaAccountId, requestedAmount}). Like tier
+        // billing it rides Malapos's OWN billing workspace, so it verifies
+        // with the env secret and is checked here alongside it.
+        const topup = parseShippingCreditTopupMetadata(session.metadata);
         if (billing) {
           const outcome = await applyCheckoutCompleted(prisma, {
             sessionId: session.id,
@@ -130,6 +139,20 @@ router.post(
           });
           if (outcome === 'duplicate') {
             console.log(`[plugipay-webhook] session ${session.id} already applied — skipping`);
+          }
+        } else if (topup) {
+          // Credit the merchant's Fulkruma shipping-credit balance —
+          // idempotent on the ProcessedEvent guard + Fulkruma externalRef.
+          const outcome = await applyShippingCreditTopup({
+            sessionId: session.id,
+            accountId: topup.accountId,
+            fulkrumaAccountId: topup.fulkrumaAccountId,
+            amount: topup.amount,
+          });
+          if (outcome === 'duplicate') {
+            console.log(`[plugipay-webhook] shipping-credit top-up ${session.id} already credited — skipping`);
+          } else if (outcome === 'module_off') {
+            console.warn(`[plugipay-webhook] shipping-credit top-up ${session.id} for ${topup.accountId} — Fulfillment off / workspace changed, not crediting`);
           }
         } else {
           // Branch 2 — merchant dynamic-QRIS order ({saleAccountId, saleId}),
