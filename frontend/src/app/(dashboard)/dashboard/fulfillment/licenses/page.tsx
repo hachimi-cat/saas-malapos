@@ -1,12 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Loader2, X, Copy, Check, Ban } from 'lucide-react';
+import { Plus, Loader2, Copy, Check, Ban } from 'lucide-react';
 import { licensesApi, type License } from '@/lib/fulfillment-api';
 import { ApiRequestError } from '@/lib/api';
 import { formatDate, cn } from '@/lib/utils';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 /*
  * Fulfillment → Licenses. malapos port of storlaunch's page over
@@ -61,58 +67,51 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Issue license key</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Issue license key</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Field label="Fulkruma product ID" required value={form.productId} onChange={(v) => setForm({ ...form, productId: v })} placeholder="prod_…" mono />
           <Field label="Fulkruma customer ID" required value={form.customerId} onChange={(v) => setForm({ ...form, customerId: v })} placeholder="cust_…" mono />
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Activation limit <span className="text-muted-foreground/60">(blank = unlimited)</span>
-            </label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="maxActivations">
+              Activation limit <span className="font-normal text-muted-foreground/60">(blank = unlimited)</span>
+            </Label>
+            <Input
+              id="maxActivations"
               type="number"
               min="1"
               value={form.maxActivations}
               onChange={(e) => setForm({ ...form, maxActivations: e.target.value })}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="e.g. 3"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Expires at <span className="text-muted-foreground/60">(optional)</span>
-            </label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="expiresAt">
+              Expires at <span className="font-normal text-muted-foreground/60">(optional)</span>
+            </Label>
+            <Input
+              id="expiresAt"
               type="date"
               value={form.expiresAt}
               onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 rounded border border-border py-2 text-sm font-medium hover:bg-accent">
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !form.productId || !form.customerId}
-              className="flex flex-1 items-center justify-center gap-2 rounded bg-primary py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={loading || !form.productId || !form.customerId}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Issue key
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -120,17 +119,17 @@ function Field({ label, required, value, onChange, placeholder, mono }: {
   label: string; required?: boolean; value: string; onChange: (v: string) => void; placeholder?: string; mono?: boolean;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}{required && <span className="text-destructive"> *</span>}</span>
-      <input
+    <div className="space-y-1.5">
+      <Label>{label}{required && <span className="text-destructive"> *</span>}</Label>
+      <Input
         type="text"
         required={required}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className={cn('w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary', mono && 'font-mono')}
+        className={cn(mono && 'font-mono')}
       />
-    </label>
+    </div>
   );
 }
 
@@ -197,9 +196,9 @@ export default function LicensesPage() {
       sortable: true,
       sortValue: (l) => l.status,
       cell: (l) => (
-        <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium capitalize', STATUS_COLOR[l.status] || 'bg-muted text-muted-foreground')}>
+        <Badge variant="outline" className={cn('rounded-full border-transparent capitalize', STATUS_COLOR[l.status] || 'bg-muted text-muted-foreground')}>
           {l.status}
-        </span>
+        </Badge>
       ),
     },
     {
@@ -229,14 +228,16 @@ export default function LicensesPage() {
       header: 'Actions',
       cell: (l) =>
         l.status === 'active' ? (
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => handleRevoke(l.id)}
             disabled={revokingId === l.id}
             title="Revoke"
-            className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
           >
             {revokingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
-          </button>
+          </Button>
         ) : null,
     },
   ];
@@ -264,22 +265,19 @@ export default function LicensesPage() {
           <h1 className="text-xl font-bold sm:text-2xl">License Keys</h1>
           <p className="mt-1 text-sm text-muted-foreground">Issue and manage license keys for your products.</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
+        <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4" /> Issue key
-        </button>
+        </Button>
       </div>
 
       {loading ? (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card">
+        <Card className="flex h-48 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        </Card>
       ) : licenses.length === 0 ? (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-border bg-card">
+        <Card className="flex h-48 items-center justify-center">
           <p className="text-sm text-muted-foreground">No license keys yet.</p>
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={licenses}

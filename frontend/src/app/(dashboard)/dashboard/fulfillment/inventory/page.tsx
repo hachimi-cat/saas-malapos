@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Boxes, X, Plus, RotateCcw } from 'lucide-react';
+import { Loader2, Boxes, Plus, RotateCcw } from 'lucide-react';
 import {
   inventoryApi,
   warehousesApi,
@@ -14,6 +14,12 @@ import {
 import { ApiRequestError } from '@/lib/api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 /*
  * Fulfillment → Inventory. malapos port of storlaunch's fulfillment/
@@ -22,6 +28,8 @@ import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
  * per-warehouse stock levels, with manual adjustments. It is DISTINCT from
  * malapos's own POS inventory at /dashboard/inventory (untouched here).
  */
+
+const NO_WH = '__none__';
 
 const REASONS: { value: StockMovementReason; label: string }[] = [
   { value: 'manual_adjust', label: 'Manual adjustment' },
@@ -144,13 +152,9 @@ export default function InventoryPage() {
       header: '',
       align: 'right',
       cell: (r) => (
-        <button
-          type="button"
-          onClick={() => setAdjust(r)}
-          className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs hover:bg-muted"
-        >
+        <Button variant="outline" size="sm" onClick={() => setAdjust(r)}>
           <Plus className="h-3 w-3" /> Adjust
-        </button>
+        </Button>
       ),
     },
   ];
@@ -171,23 +175,23 @@ export default function InventoryPage() {
             <a href="/dashboard/inventory" className="text-primary hover:underline">Catalog → Inventory</a>.
           </p>
         </div>
-        <button type="button" onClick={() => void load()} className="flex items-center gap-2 rounded border border-border bg-background px-3 py-1.5 text-sm hover:bg-muted">
+        <Button variant="outline" onClick={() => void load()}>
           <RotateCcw className="h-3.5 w-3.5" /> Refresh
-        </button>
+        </Button>
       </header>
 
-      {error && <div className="rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
       {loading ? (
-        <div className="flex h-48 items-center justify-center">
+        <Card className="flex h-48 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        </Card>
       ) : rows.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-12 text-center">
+        <Card className="p-12 text-center">
           <Boxes className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">No Fulkruma variants yet.</p>
           <p className="mt-1 text-xs text-muted-foreground">Fulfillment products + variants appear here once created in Fulkruma.</p>
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={rows}
@@ -244,44 +248,57 @@ function AdjustModal({ row, warehouses, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl bg-background p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Adjust stock</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
-        </div>
-        <p className="mb-4 text-sm text-muted-foreground">{row.product.name} · {row.variant.name}</p>
-        {err && <div className="mb-3 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{err}</div>}
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Adjust stock</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">{row.product.name} · {row.variant.name}</p>
+        {err && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{err}</div>}
         <form onSubmit={submit} className="space-y-3">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium">Warehouse</span>
-            <select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-              <option value="">— Select —</option>
-              {warehouses.map((w) => (<option key={w.id} value={w.id}>{w.name}{w.isDefault ? ' (default)' : ''}</option>))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium">Delta (+/-)</span>
-            <input type="number" value={delta} onChange={(e) => setDelta(e.target.value)} className="w-full rounded border border-border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary" />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium">Reason</span>
-            <select value={reason} onChange={(e) => setReason(e.target.value as StockMovementReason)} className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-              {REASONS.map((r) => (<option key={r.value} value={r.value}>{r.label}</option>))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium">Note (optional)</span>
-            <input type="text" value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-          </label>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-border bg-background py-2 text-sm">Cancel</button>
-            <button type="submit" disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
-            </button>
+          <div className="space-y-1.5">
+            <Label>Warehouse</Label>
+            <Select value={warehouseId === '' ? NO_WH : warehouseId} onValueChange={(v) => setWarehouseId(v === NO_WH ? '' : v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="— Select —" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_WH}>— Select —</SelectItem>
+                {warehouses.map((w) => (
+                  <SelectItem key={w.id} value={w.id}>{w.name}{w.isDefault ? ' (default)' : ''}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="delta">Delta (+/-)</Label>
+            <Input id="delta" type="number" value={delta} onChange={(e) => setDelta(e.target.value)} className="font-mono" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Reason</Label>
+            <Select value={reason} onValueChange={(v) => setReason(v as StockMovementReason)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REASONS.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="note">Note (optional)</Label>
+            <Input id="note" type="text" value={note} onChange={(e) => setNote(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={busy}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

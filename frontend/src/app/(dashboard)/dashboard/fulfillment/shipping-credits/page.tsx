@@ -16,6 +16,10 @@ import { shippingCreditsApi, type ShippingCreditBalance, type ShippingCreditTran
 import { ApiRequestError } from '@/lib/api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 /*
  * Fulfillment → Shipping Credits. malapos port of storlaunch's page over
@@ -103,7 +107,7 @@ export default function ShippingCreditsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-[2fr_3fr]">
-        <div className={cn('rounded-xl border bg-card p-6', balanceLow ? 'border-amber-500/40' : 'border-border')}>
+        <Card className={cn('p-6', balanceLow && 'border-amber-500/40')}>
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
             <Wallet className="h-3.5 w-3.5" />
             Current balance
@@ -116,16 +120,17 @@ export default function ShippingCreditsPage() {
               Balance is low. Top up so the next pickup confirmation doesn&apos;t fail.
             </p>
           )}
-          <button
+          <Button
             type="button"
+            variant="link"
             onClick={() => void load()}
-            className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            className="mt-3 h-auto gap-1 p-0 text-xs text-muted-foreground hover:text-foreground"
           >
             <RefreshCcw className="h-3 w-3" /> Refresh
-          </button>
-        </div>
+          </Button>
+        </Card>
 
-        <div className="space-y-4 rounded-xl border border-border bg-card p-6">
+        <Card className="space-y-4 p-6">
           <div>
             <h2 className="text-sm font-semibold">Top up balance</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -135,29 +140,32 @@ export default function ShippingCreditsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             {PRESET_AMOUNTS.map((p) => (
-              <button
+              <Button
                 key={p}
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setAmount(p)}
                 className={cn(
-                  'rounded-full border px-3 py-1 text-xs font-medium tabular-nums transition-colors',
-                  amount === p ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-accent',
+                  'rounded-full text-xs tabular-nums',
+                  amount === p ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary' : 'text-muted-foreground',
                 )}
               >
                 {formatCurrency(p)}
-              </button>
+              </Button>
             ))}
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium">Custom amount (IDR)</label>
-            <input
+            <Label htmlFor="custom-amount" className="mb-1 block text-xs">Custom amount (IDR)</Label>
+            <Input
+              id="custom-amount"
               type="number"
               value={amount}
               min={10_000}
               max={10_000_000}
               step={10_000}
               onChange={(e) => setAmount(Math.max(10_000, Number(e.target.value) || 0))}
-              className="w-full max-w-xs rounded-md border border-border bg-background px-3 py-2 text-sm font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
+              className="max-w-xs font-mono tabular-nums"
             />
             <p className="mt-1 text-[10px] text-muted-foreground">Min Rp 10,000 · Max Rp 10,000,000 per top-up.</p>
           </div>
@@ -166,19 +174,18 @@ export default function ShippingCreditsPage() {
               {error}
             </p>
           )}
-          <button
+          <Button
             type="button"
             onClick={handleTopup}
             disabled={topupBusy || amount < 10_000}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             {topupBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             Top up {formatCurrency(amount)}
-          </button>
-        </div>
+          </Button>
+        </Card>
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
+      <Card>
         <div className="border-b border-border p-4">
           <h2 className="text-sm font-semibold">Transactions</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">Most recent first.</p>
@@ -220,7 +227,7 @@ export default function ShippingCreditsPage() {
             })}
           </ul>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

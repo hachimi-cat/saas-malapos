@@ -7,7 +7,6 @@ import {
   Loader2,
   Package,
   Plus,
-  X,
   RefreshCw,
   Truck,
   ExternalLink,
@@ -15,6 +14,15 @@ import {
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 /*
  * Delivery dashboard — the Fulfillment (Fulkruma → Biteship) module's
@@ -28,6 +36,8 @@ import { rupiah } from '@/lib/money';
  * FULFILLMENT_MODULE_DISABLED and this page shows the enable empty
  * state. Built against the real backend; no mock data.
  */
+
+const NO_SALE = '__none__';
 
 type Shipment = {
   id: string;
@@ -121,24 +131,7 @@ export default function DeliveryPage() {
 
   if (moduleOff) {
     return (
-      <div className="mx-auto max-w-6xl">
-        <div className="rounded-lg border border-border bg-card px-8 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <Truck className="h-6 w-6 text-primary" />
-          </div>
-          <h1 className="text-lg font-semibold">Enable the Fulfillment module</h1>
-          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Delivery uses Fulkruma to quote couriers, print labels, and track shipments across
-            Indonesia (Biteship). Turn on the Fulfillment module to dispatch sales for delivery.
-          </p>
-          <Link
-            href="/dashboard/settings/modules"
-            className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Go to Modules <ExternalLink className="h-4 w-4" />
-          </Link>
-        </div>
-      </div>
+      <FulfillmentModuleOff blurb="Delivery uses Fulkruma to quote couriers, print labels, and track shipments across Indonesia (Biteship). Turn on the Fulfillment module to dispatch sales for delivery." />
     );
   }
 
@@ -154,26 +147,17 @@ export default function DeliveryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href="/dashboard/fulfillment/settings"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
-          >
-            <Settings className="h-4 w-4" /> Settings
-          </Link>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
-          >
+          <Button asChild variant="outline">
+            <Link href="/dashboard/fulfillment/settings">
+              <Settings className="h-4 w-4" /> Settings
+            </Link>
+          </Button>
+          <Button type="button" variant="outline" onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
+          </Button>
+          <Button type="button" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" /> New delivery
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -183,7 +167,7 @@ export default function DeliveryPage() {
         </div>
       )}
 
-      <div className="rounded-lg border border-border bg-card">
+      <Card>
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="flex items-center gap-2 font-semibold">
             <Package className="h-4 w-4 text-muted-foreground" /> Shipments
@@ -202,13 +186,12 @@ export default function DeliveryPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{s.courierCode.toUpperCase()}</span>
                     <span className="text-xs text-muted-foreground">{s.courierServiceCode}</span>
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${statusClass(
-                        s.status,
-                      )}`}
+                    <Badge
+                      variant="outline"
+                      className={cn('rounded-full border-transparent text-[10px]', statusClass(s.status))}
                     >
                       {prettyStatus(s.status)}
-                    </span>
+                    </Badge>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {s.waybillId ? `AWB ${s.waybillId} · ` : ''}
@@ -232,7 +215,7 @@ export default function DeliveryPage() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {createOpen && (
         <CreateDeliveryModal
@@ -257,14 +240,10 @@ function Field({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-      />
-    </label>
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
   );
 }
 
@@ -353,36 +332,38 @@ function CreateDeliveryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-10">
-      <div className="w-full max-w-lg rounded-lg border border-border bg-card shadow-xl">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="font-semibold">New delivery</h2>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="space-y-4 px-6 py-4">
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>New delivery</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
           {error && (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
             </div>
           )}
 
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">Sale (optional)</span>
-            <select
-              value={saleId}
-              onChange={(e) => setSaleId(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          <div className="space-y-1.5">
+            <Label>Sale (optional)</Label>
+            <Select
+              value={saleId === '' ? NO_SALE : saleId}
+              onValueChange={(v) => setSaleId(v === NO_SALE ? '' : v)}
             >
-              <option value="">— Not linked to a sale —</option>
-              {sales.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.number} · {rupiah(s.total)}
-                </option>
-              ))}
-            </select>
-          </label>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_SALE}>— Not linked to a sale —</SelectItem>
+                {sales.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.number} · {rupiah(s.total)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field
@@ -410,15 +391,16 @@ function CreateDeliveryModal({
             <Field label="Weight (grams)" value={weight} onChange={setWeight} />
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="outline"
+            className="w-full"
             disabled={loadingRates || !dest.address}
             onClick={() => void quote()}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
           >
             {loadingRates ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
             Get courier rates
-          </button>
+          </Button>
 
           {rates.length > 0 && (
             <div className="space-y-2">
@@ -451,24 +433,16 @@ function CreateDeliveryModal({
             </div>
           )}
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-border px-6 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
-          >
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
-            disabled={!picked || submitting}
-            onClick={() => void dispatch()}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-          >
+          </Button>
+          <Button type="button" disabled={!picked || submitting} onClick={() => void dispatch()}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Create shipment
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

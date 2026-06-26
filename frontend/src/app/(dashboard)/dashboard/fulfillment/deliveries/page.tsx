@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Truck, X } from 'lucide-react';
+import { Loader2, Truck } from 'lucide-react';
 import { deliveriesApi, type Delivery } from '@/lib/fulfillment-api';
 import { ApiRequestError } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 /*
  * Fulfillment → Digital deliveries. malapos port of storlaunch's page over
@@ -23,9 +26,11 @@ function deliveryStatus(d: Delivery): 'expired' | 'maxed' | 'active' {
 
 function StatusBadge({ delivery }: { delivery: Delivery }) {
   const s = deliveryStatus(delivery);
-  if (s === 'expired') return <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">Expired</span>;
-  if (s === 'maxed') return <span className="rounded-full bg-yellow-500/10 px-2 py-0.5 text-xs font-medium text-yellow-400">Limit Reached</span>;
-  return <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-400">Active</span>;
+  if (s === 'expired')
+    return <Badge variant="outline" className="rounded-full border-transparent bg-destructive/10 text-destructive">Expired</Badge>;
+  if (s === 'maxed')
+    return <Badge variant="outline" className="rounded-full border-transparent bg-yellow-500/10 text-yellow-400">Limit Reached</Badge>;
+  return <Badge variant="outline" className="rounded-full border-transparent bg-green-500/10 text-green-400">Active</Badge>;
 }
 
 export default function DeliveriesPage() {
@@ -126,15 +131,15 @@ export default function DeliveriesPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-48 items-center justify-center">
+        <Card className="flex h-48 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        </Card>
       ) : deliveries.length === 0 ? (
-        <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border">
+        <Card className="flex h-48 flex-col items-center justify-center gap-3 border-dashed">
           <Truck className="h-10 w-10 text-muted-foreground/30" />
           <p className="text-sm text-muted-foreground">No deliveries yet</p>
           <p className="text-xs text-muted-foreground/60">Deliveries are created when customers complete a purchase.</p>
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={deliveries}
@@ -147,15 +152,12 @@ export default function DeliveriesPage() {
         />
       )}
 
-      {detail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setDetail(null)}>
-          <div className="w-full max-w-lg rounded-lg border border-border bg-card p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Delivery detail</h2>
-              <button onClick={() => setDetail(null)} className="text-muted-foreground hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Delivery detail</DialogTitle>
+          </DialogHeader>
+          {detail && (
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">Delivery ID</p>
@@ -186,9 +188,9 @@ export default function DeliveriesPage() {
                 <p>{formatDate(detail.createdAt)}</p>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

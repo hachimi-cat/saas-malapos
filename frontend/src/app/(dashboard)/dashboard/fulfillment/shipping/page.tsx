@@ -5,6 +5,11 @@ import { Loader2, Save, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
 import { shippingApi, type ShippingOrigin } from '@/lib/fulfillment-api';
 import { ApiRequestError } from '@/lib/api';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 /*
  * Fulfillment → Shipping. malapos port of storlaunch's fulfillment/shipping
@@ -132,20 +137,20 @@ export default function ShippingSettingsPage() {
       </header>
 
       {error && (
-        <div className="flex items-start gap-2 rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="flex items-start gap-2 rounded border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-500">
+        <div className="flex items-start gap-2 rounded-md border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-500">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{success}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        <section className="rounded-lg border border-border bg-card p-6">
+        <Card className="p-6">
           <div className="mb-4 flex items-center gap-2">
             <MapPin className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-lg font-medium">Pickup origin</h2>
@@ -163,47 +168,43 @@ export default function ShippingSettingsPage() {
           <p className="mt-3 text-xs text-muted-foreground">
             Latitude/longitude (set on Fulkruma) are required for instant couriers like GoSend or Grab.
           </p>
-        </section>
+        </Card>
 
-        <section className="rounded-lg border border-border bg-card p-6">
+        <Card className="p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-medium">Enabled couriers</h2>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setCouriers(catalog.map((c) => c.code))} disabled={catalog.length === 0} className="text-xs text-primary hover:underline disabled:opacity-50">
+            <div className="flex gap-3">
+              <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => setCouriers(catalog.map((c) => c.code))} disabled={catalog.length === 0}>
                 Enable all
-              </button>
-              <button type="button" onClick={() => setCouriers([])} className="text-xs text-muted-foreground hover:underline">
+              </Button>
+              <Button type="button" variant="link" className="h-auto p-0 text-xs text-muted-foreground" onClick={() => setCouriers([])}>
                 Clear
-              </button>
+              </Button>
             </div>
           </div>
           {catalogError && (
-            <div className="mb-4 rounded border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-500">{catalogError}</div>
+            <div className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-500">{catalogError}</div>
           )}
           {catalog.length === 0 && !catalogError ? (
             <div className="py-8 text-center text-sm text-muted-foreground">No couriers available yet. They appear once your Fulkruma workspace is provisioned.</div>
           ) : (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {catalog.map((courier) => (
-                <label key={courier.code} className="flex cursor-pointer items-center gap-2 rounded border border-border bg-background p-3 text-sm hover:bg-muted">
-                  <input type="checkbox" checked={couriers.includes(courier.code)} onChange={() => toggleCourier(courier.code)} className="h-4 w-4" />
+                <Label key={courier.code} htmlFor={`courier-${courier.code}`} className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background p-3 text-sm font-normal hover:bg-muted">
+                  <Checkbox id={`courier-${courier.code}`} checked={couriers.includes(courier.code)} onCheckedChange={() => toggleCourier(courier.code)} />
                   <span className="font-medium">{courier.name}</span>
                   <span className="ml-auto rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{courier.code}</span>
-                </label>
+                </Label>
               ))}
             </div>
           )}
-        </section>
+        </Card>
 
         <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={saving || !hasInputs}
-            className="flex items-center gap-2 rounded bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
+          <Button type="submit" disabled={saving || !hasInputs}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save settings
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -215,14 +216,13 @@ function TextField({ label, required, value, onChange, placeholder, className }:
 }) {
   return (
     <div className={className}>
-      <label className="mb-1 block text-sm font-medium">{label}{required && <span className="text-destructive"> *</span>}</label>
-      <input
+      <Label className="mb-1 block">{label}{required && <span className="text-destructive"> *</span>}</Label>
+      <Input
         type="text"
         required={required}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
       />
     </div>
   );

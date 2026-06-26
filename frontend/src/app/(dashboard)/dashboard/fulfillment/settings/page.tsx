@@ -1,9 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Truck, Loader2, MapPin, ExternalLink, RefreshCw, Settings } from 'lucide-react';
+import { Truck, Loader2, MapPin, RefreshCw, Settings } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 /*
  * Delivery settings — the Fulfillment (Fulkruma) module's "Settings"
@@ -82,24 +86,7 @@ export default function DeliverySettingsPage() {
 
   if (moduleOff) {
     return (
-      <div className="mx-auto max-w-6xl">
-        <div className="rounded-lg border border-border bg-card px-8 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <Truck className="h-6 w-6 text-primary" />
-          </div>
-          <h1 className="text-lg font-semibold">Enable the Fulfillment module</h1>
-          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Delivery uses Fulkruma to quote couriers, print labels, and track shipments across
-            Indonesia. Turn on the Fulfillment module to set your pickup origin and dispatch sales.
-          </p>
-          <Link
-            href="/dashboard/settings/modules"
-            className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Go to Modules <ExternalLink className="h-4 w-4" />
-          </Link>
-        </div>
-      </div>
+      <FulfillmentModuleOff blurb="Delivery uses Fulkruma to quote couriers, print labels, and track shipments across Indonesia. Turn on the Fulfillment module to set your pickup origin and dispatch sales." />
     );
   }
 
@@ -114,13 +101,9 @@ export default function DeliverySettingsPage() {
             Your pickup origin and the couriers available to your workspace. Powered by Fulkruma.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
-        >
+        <Button type="button" variant="outline" onClick={() => void load()}>
           <RefreshCw className="h-4 w-4" /> Refresh
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -132,7 +115,7 @@ export default function DeliverySettingsPage() {
       <OriginCard origin={origin} onSaved={(o) => setOrigin(o)} onError={setError} />
 
       {/* Couriers */}
-      <div className="rounded-lg border border-border bg-card">
+      <Card>
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="flex items-center gap-2 font-semibold">
             <Truck className="h-4 w-4 text-muted-foreground" /> Available couriers
@@ -172,7 +155,7 @@ export default function DeliverySettingsPage() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -222,19 +205,15 @@ function OriginCard({
   const hasOrigin = origin && (origin.address || origin.contactName);
 
   return (
-    <div className="rounded-lg border border-border bg-card">
+    <Card>
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <h2 className="flex items-center gap-2 font-semibold">
           <MapPin className="h-4 w-4 text-muted-foreground" /> Shipping origin
         </h2>
         {!editing && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="text-sm font-medium text-primary hover:underline"
-          >
+          <Button type="button" variant="link" className="h-auto p-0" onClick={() => setEditing(true)}>
             {hasOrigin ? 'Edit' : 'Set origin'}
-          </button>
+          </Button>
         )}
       </div>
       <div className="px-6 py-4">
@@ -263,21 +242,12 @@ function OriginCard({
               onChange={(v) => setForm({ ...form, postal: v })}
             />
             <div className="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void save()}
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-              >
+              <Button type="button" disabled={saving} onClick={() => void save()}>
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save origin
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditing(false)}
-                className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
-              >
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setEditing(false)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         ) : hasOrigin ? (
@@ -296,7 +266,7 @@ function OriginCard({
           </p>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -310,13 +280,9 @@ function Field({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-      />
-    </label>
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
   );
 }

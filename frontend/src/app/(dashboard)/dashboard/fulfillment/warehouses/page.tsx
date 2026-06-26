@@ -5,6 +5,12 @@ import { Loader2, Plus, Pencil, Trash2, CheckCircle2, AlertCircle, Building2 } f
 import { warehousesApi, type Warehouse } from '@/lib/fulfillment-api';
 import { ApiRequestError } from '@/lib/api';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 /*
  * Fulfillment → Warehouses. malapos port of storlaunch's fulfillment/
@@ -61,33 +67,32 @@ export default function WarehousesPage() {
             Where you store + ship from. Each variant tracks stock per warehouse.
           </p>
         </div>
-        <button onClick={() => setEditing('new')}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+        <Button onClick={() => setEditing('new')}>
           <Plus className="h-4 w-4" /> Add warehouse
-        </button>
+        </Button>
       </header>
 
       {error && (
-        <div className="flex items-start gap-2 rounded border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
           <AlertCircle className="mt-0.5 h-4 w-4" />{error}
         </div>
       )}
 
       {list.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-12 text-center">
+        <Card className="p-12 text-center">
           <Building2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">No warehouses yet.</p>
-        </div>
+        </Card>
       ) : (
-        <ul className="space-y-2">
+        <div className="space-y-2">
           {list.map((w) => (
-            <li key={w.id} className="rounded-lg border border-border bg-card p-4">
+            <Card key={w.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{w.name}</span>
                     {w.isDefault && (
-                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-primary">Default</span>
+                      <Badge variant="outline" className="rounded border-transparent bg-primary/10 text-[10px] uppercase text-primary">Default</Badge>
                     )}
                   </div>
                   {w.address && <div className="mt-0.5 text-xs text-muted-foreground">{w.address}{w.city ? `, ${w.city}` : ''}{w.postal ? ` ${w.postal}` : ''}</div>}
@@ -95,24 +100,21 @@ export default function WarehousesPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   {!w.isDefault && (
-                    <button onClick={() => handleSetDefault(w)} title="Set default"
-                      className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+                    <Button variant="ghost" size="icon" onClick={() => handleSetDefault(w)} title="Set default" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   )}
-                  <button onClick={() => setEditing(w)} title="Edit"
-                    className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+                  <Button variant="ghost" size="icon" onClick={() => setEditing(w)} title="Edit" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                     <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button onClick={() => handleDelete(w)} title="Delete"
-                    className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(w)} title="Delete" className="h-8 w-8 text-muted-foreground hover:text-destructive">
                     <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
-            </li>
+            </Card>
           ))}
-        </ul>
+        </div>
       )}
 
       {editing && (
@@ -153,10 +155,12 @@ function WarehouseModal({ initial, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl bg-background p-6" onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-4 text-lg font-semibold">{initial ? 'Edit' : 'Add'} warehouse</h2>
-        {err && <div className="mb-3 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{err}</div>}
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{initial ? 'Edit' : 'Add'} warehouse</DialogTitle>
+        </DialogHeader>
+        {err && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{err}</div>}
         <form onSubmit={submit} className="space-y-3">
           <Field label="Name" required value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Main Warehouse" />
           <Field label="Address" value={form.address ?? ''} onChange={(v) => setForm({ ...form, address: v })} />
@@ -165,17 +169,15 @@ function WarehouseModal({ initial, onClose, onSaved }: {
             <Field label="Postal" value={form.postal ?? ''} onChange={(v) => setForm({ ...form, postal: v })} />
           </div>
           <Field label="Phone" value={form.phone ?? ''} onChange={(v) => setForm({ ...form, phone: v })} />
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose}
-              className="flex-1 rounded-lg border border-border bg-background py-2 text-sm">Cancel</button>
-            <button type="submit" disabled={busy}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={busy}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -184,11 +186,10 @@ function Field({ label, required, value, onChange, placeholder }: {
 }) {
   const id = `wh-${label.toLowerCase()}`;
   return (
-    <label htmlFor={id} className="block">
-      <span className="mb-1 block text-xs font-medium">{label}{required && <span className="text-destructive"> *</span>}</span>
-      <input id={id} type="text" required={required} value={value} placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
-    </label>
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}{required && <span className="text-destructive"> *</span>}</Label>
+      <Input id={id} type="text" required={required} value={value} placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)} />
+    </div>
   );
 }
