@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Check, Search, Loader2, X, Package } from 'lucide-react';
 import { productsApi, type Product } from '@/lib/marketing-api';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 
 /**
  * ProductMultiSelect — searchable multi-select of merchant products with
@@ -113,7 +115,7 @@ export function ProductMultiSelect({
           ) : (
             <>
               {selectedProducts.map((p) => (
-                <span key={p.id} className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-xs">
+                <Badge key={p.id} variant="secondary" className="gap-1 px-1.5 py-0.5 font-normal">
                   {p.thumbnail ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.thumbnail} alt="" className="h-4 w-4 shrink-0 rounded object-cover" />
@@ -123,16 +125,16 @@ export function ProductMultiSelect({
                     className="rounded p-0.5 hover:bg-background" aria-label={`Remove ${p.name}`}>
                     <X className="h-3 w-3" />
                   </button>
-                </span>
+                </Badge>
               ))}
               {staleIds.map((id) => (
-                <span key={id} className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+                <Badge key={id} variant="secondary" className="gap-1 px-1.5 py-0.5 font-mono font-normal text-muted-foreground">
                   {id.slice(0, 10)}…
                   <button type="button" onClick={(e) => { e.stopPropagation(); removeChip(id); }}
                     className="rounded p-0.5 hover:bg-background">
                     <X className="h-3 w-3" />
                   </button>
-                </span>
+                </Badge>
               ))}
             </>
           )}
@@ -143,13 +145,13 @@ export function ProductMultiSelect({
         <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-border bg-background shadow-lg">
           <div className="flex items-center gap-2 border-b border-border px-3 py-2">
             <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <input
+            <Input
               ref={inputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search products…"
-              className="w-full bg-transparent text-sm focus:outline-none"
+              className="h-auto w-full border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
             />
           </div>
           <ul className="max-h-64 overflow-y-auto">

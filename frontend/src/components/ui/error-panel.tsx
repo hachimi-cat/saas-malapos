@@ -1,12 +1,13 @@
 'use client';
 
 /**
- * Reusable error panel. Ported from saas-plugipay.
- *
- * Template uses inline styles + CSS custom properties (vs plugipay's
- * Tailwind). Products that add Tailwind can drop-in the plugipay
- * version — this file is intentionally styling-library-agnostic.
+ * Reusable error panel. Ported from saas-plugipay, restyled onto the
+ * shadcn/Tailwind design tokens (destructive palette + shadcn Button).
+ * Public API (ErrorPanelProps) is unchanged.
  */
+
+import { AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface ErrorPanelProps {
   title?: string;
@@ -19,57 +20,30 @@ export function ErrorPanel({ title, message, code, onRetry }: ErrorPanelProps) {
   return (
     <div
       role="alert"
-      style={{
-        borderRadius: 12,
-        border: '1px solid #fecaca',
-        background: '#fef2f2',
-        color: '#991b1b',
-        padding: 24,
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 16,
-      }}
+      className="flex items-start gap-4 rounded-xl border border-destructive/40 bg-destructive/10 p-6 text-destructive"
     >
-      <span aria-hidden style={{ fontSize: 20, lineHeight: 1, marginTop: 2 }}>
-        ⚠
-      </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>
+      <AlertTriangle aria-hidden className="mt-0.5 h-5 w-5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <h3 className="text-sm font-semibold">
           {title ?? 'Something went wrong'}
         </h3>
-        <p style={{ fontSize: 14, margin: '4px 0 0', lineHeight: 1.5 }}>
+        <p className="mt-1 text-sm leading-relaxed">
           {message ?? 'The request failed. Try again in a moment.'}
         </p>
         {code && (
-          <p
-            style={{
-              fontSize: 11,
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, monospace',
-              opacity: 0.75,
-              margin: '8px 0 0',
-            }}
-          >
-            code: {code}
-          </p>
+          <p className="mt-2 font-mono text-[11px] opacity-75">code: {code}</p>
         )}
         {onRetry && (
-          <div style={{ marginTop: 16 }}>
-            <button
+          <div className="mt-4">
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onRetry}
-              style={{
-                padding: '6px 12px',
-                borderRadius: 6,
-                border: '1px solid #fca5a5',
-                background: '#fff',
-                color: '#991b1b',
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
+              className="border-destructive/40 bg-background text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
               Retry
-            </button>
+            </Button>
           </div>
         )}
       </div>

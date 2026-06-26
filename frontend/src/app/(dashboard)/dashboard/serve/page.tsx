@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Utensils, Loader2, CheckCircle2, Hand, Clock, User, StickyNote } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useRealtime } from '@/hooks/use-realtime';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 /*
  * "Ready to serve" — the SERVER's expo board for the dine-in serve step. The
@@ -162,17 +165,17 @@ export default function ServePage() {
             const tableBusy = busy === `table:${g.tableId}`;
             const itemCount = g.tickets.reduce((n, t) => n + t.items.length, 0);
             return (
-              <div
+              <Card
                 key={key}
-                className="flex flex-col rounded-lg border border-t-4 border-border border-t-emerald-500 bg-card p-4"
+                className="flex flex-col rounded-lg border-t-4 border-t-emerald-500 p-4"
               >
                 {/* Table label is the headline — it's where the server walks
                     the plate. Big + bold so it's scannable across the pass. */}
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-2xl font-bold leading-none">{g.tableLabel}</span>
-                  <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  <Badge variant="outline" className="shrink-0 rounded-full border-transparent bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                     {itemCount} ready
-                  </span>
+                  </Badge>
                 </div>
 
                 <div className="mt-3 flex flex-1 flex-col gap-3">
@@ -183,15 +186,16 @@ export default function ServePage() {
                       {/* Ticket meta line: wait time + order type + receipt #,
                           then customer + note when present. */}
                       <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-semibold ${waitingBadgeCls(mins)}`}
+                        <Badge
+                          variant="outline"
+                          className={`gap-1 border-transparent px-1.5 py-0.5 text-xs font-semibold ${waitingBadgeCls(mins)}`}
                           title="Waiting time"
                         >
                           <Clock className="h-3 w-3" /> {waitingLabel(mins)}
-                        </span>
-                        <span className="rounded bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
+                        </Badge>
+                        <Badge variant="outline" className="border-transparent bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
                           {ORDER_TYPE_LABEL[t.orderType] ?? t.orderType}
-                        </span>
+                        </Badge>
                         <span className="font-medium text-muted-foreground">{t.number}</span>
                       </div>
                       {(t.customerName || t.note) && (
@@ -235,11 +239,13 @@ export default function ServePage() {
                                   </span>
                                 )}
                               </span>
-                              <button
+                              <Button
                                 type="button"
+                                variant="outline"
+                                size="sm"
                                 onClick={() => serveItem(it.id)}
                                 disabled={itemBusy || tableBusy}
-                                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                                className="shrink-0"
                               >
                                 {itemBusy ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -247,7 +253,7 @@ export default function ServePage() {
                                   <Hand className="h-3.5 w-3.5" />
                                 )}
                                 Serve
-                              </button>
+                              </Button>
                             </li>
                           );
                         })}
@@ -258,17 +264,17 @@ export default function ServePage() {
                 </div>
 
                 {g.tableId && (
-                  <button
+                  <Button
                     type="button"
                     onClick={() => serveTable(g.tableId!)}
                     disabled={tableBusy}
-                    className="mt-3 inline-flex items-center justify-center gap-2 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                    className="mt-3 w-full"
                   >
                     {tableBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                     Serve all
-                  </button>
+                  </Button>
                 )}
-              </div>
+              </Card>
             );
           })}
         </div>

@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChefHat, ArrowRight, Loader2, CheckCircle2, Undo2, StickyNote } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useRealtime } from '@/hooks/use-realtime';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 /*
  * Kitchen Display System (KDS) for F&B. A live board of active tickets
@@ -161,13 +164,13 @@ export default function KdsPage() {
               <div key={col.state} className="flex flex-col">
                 <div className="mb-3 flex items-center justify-between">
                   <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{col.label}</h2>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{colTickets.length}</span>
+                  <Badge variant="outline" className="rounded-full border-transparent bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">{colTickets.length}</Badge>
                 </div>
                 <div className="flex flex-col gap-3">
                   {colTickets.map((t) => {
                     const ticketBusy = busy === `ticket:${t.id}`;
                     return (
-                    <div key={t.id} className={`rounded-lg border border-t-4 border-border bg-card p-4 ${col.accent}`}>
+                    <Card key={t.id} className={`rounded-lg border-t-4 p-4 ${col.accent}`}>
                       <div className="flex items-center justify-between">
                         <span className="font-semibold">{t.number}</span>
                         <span className="text-xs text-muted-foreground">{waited(t.createdAt)}</span>
@@ -200,9 +203,9 @@ export default function KdsPage() {
                                   {itemBusy ? (
                                     <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
                                   ) : badge ? (
-                                    <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.cls}`}>
+                                    <Badge className={`mt-0.5 shrink-0 border-transparent px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.cls}`}>
                                       {badge.label}
-                                    </span>
+                                    </Badge>
                                   ) : null}
                                   <span>
                                     <span className="font-medium">{it.quantity}×</span> {it.productName}
@@ -217,16 +220,18 @@ export default function KdsPage() {
                                   </span>
                                 </button>
                                 {/* Undo this item one step. */}
-                                <button
+                                <Button
                                   type="button"
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => canBack && backItem(it.id)}
                                   disabled={!canBack || itemBusy}
                                   title="Move back a step"
                                   aria-label="Move item back a step"
-                                  className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
+                                  className="h-8 w-8 shrink-0 text-muted-foreground disabled:opacity-30"
                                 >
                                   <Undo2 className="h-4 w-4" />
-                                </button>
+                                </Button>
                               </div>
                               {/* Per-item instruction from the cashier — highlighted
                                   so the line cook can't miss it. */}
@@ -249,26 +254,28 @@ export default function KdsPage() {
                             <CheckCircle2 className="h-4 w-4" /> Ready — waiting for server
                           </span>
                         ) : (
-                          <button
+                          <Button
                             onClick={() => advanceTicket(t.id)}
                             disabled={ticketBusy}
-                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                            className="flex-1"
                           >
                             {ticketBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                             {NEXT_LABEL[t.kdsState]}
-                          </button>
+                          </Button>
                         )}
-                        <button
+                        <Button
+                          variant="outline"
+                          size="icon"
                           onClick={() => backTicket(t.id)}
                           disabled={ticketBusy || t.kdsState === 'NEW'}
                           title="Move whole ticket back a step"
                           aria-label="Move whole ticket back a step"
-                          className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          className="shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
                         >
                           <Undo2 className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </div>
-                    </div>
+                    </Card>
                     );
                   })}
                   {!colTickets.length && (

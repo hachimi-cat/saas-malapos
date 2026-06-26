@@ -10,6 +10,23 @@ import {
   ChevronsUpDown,
   Search,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export type Column<T> = {
   key: string;
@@ -36,6 +53,10 @@ export type FilterDef<T> = {
 type SortState = { key: string; dir: 'asc' | 'desc' } | null;
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+// Radix Select forbids empty-string item values, so the "All" option uses
+// this sentinel internally and maps back to '' for the public filter state.
+const ALL_SENTINEL = '__all__';
 
 function compare(a: unknown, b: unknown): number {
   if (a == null && b == null) return 0;
@@ -160,7 +181,7 @@ export function DataTable<T>({
           {hasGlobalSearch && (
             <div className="relative">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
+              <Input
                 type="text"
                 value={search}
                 onChange={(e) => {
@@ -168,38 +189,46 @@ export function DataTable<T>({
                   setPage(0);
                 }}
                 placeholder={searchPlaceholder}
-                className="rounded-md border border-border bg-background py-1 pl-7 pr-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                className="h-8 w-auto py-1 pl-7 pr-2.5 text-xs shadow-none"
               />
             </div>
           )}
           {filters?.map((f) => (
-            <label key={f.key} className="flex items-center gap-1.5 text-muted-foreground">
+            <div key={f.key} className="flex items-center gap-1.5 text-muted-foreground">
               {f.label}
-              <select
-                value={filterValues[f.key] ?? ''}
-                onChange={(e) => {
-                  setFilterValues((prev) => ({ ...prev, [f.key]: e.target.value }));
+              <Select
+                value={filterValues[f.key] || ALL_SENTINEL}
+                onValueChange={(v) => {
+                  setFilterValues((prev) => ({
+                    ...prev,
+                    [f.key]: v === ALL_SENTINEL ? '' : v,
+                  }));
                   setPage(0);
                 }}
-                className="rounded-md border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                <option value="">All</option>
-                {filterOptions[f.key]?.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <SelectTrigger className="h-8 w-auto gap-1 px-2 py-1 text-xs shadow-none">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_SENTINEL}>All</SelectItem>
+                  {filterOptions[f.key]?.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           ))}
           {hasAnyFilter && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={onClear}
-              className="text-muted-foreground hover:text-foreground"
+              className="h-auto px-1 py-0.5 text-xs font-normal text-muted-foreground hover:bg-transparent hover:text-foreground"
             >
               Clear
-            </button>
+            </Button>
           )}
           <div className="ml-auto text-muted-foreground">
             {sorted.length} of {rows.length}
@@ -209,11 +238,11 @@ export function DataTable<T>({
 
       {/* Desktop: table layout */}
       <div className="hidden overflow-x-auto rounded-lg border border-border bg-card md:block">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-secondary/40 text-left">
+        <Table className="text-sm">
+          <TableHeader>
+            <TableRow className="border-b border-border bg-secondary/40 hover:bg-secondary/40">
               {renderExpanded && (
-                <th className="w-8 px-2 py-2" aria-hidden />
+                <TableHead className="w-8 px-2 py-2" aria-hidden />
               )}
               {columns.map((c) => {
                 const isSorted = sort?.key === c.key;
@@ -228,41 +257,42 @@ export function DataTable<T>({
                     : c.align === 'center'
                       ? 'text-center'
                       : 'text-left';
-                const base = `px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground ${align}`;
+                const base = `h-auto px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground ${align}`;
                 if (!c.sortable) {
                   return (
-                    <th key={c.key} className={`${base} ${c.headerClassName ?? ''}`}>
+                    <TableHead key={c.key} className={`${base} ${c.headerClassName ?? ''}`}>
                       {c.header}
-                    </th>
+                    </TableHead>
                   );
                 }
                 return (
-                  <th key={c.key} className={`${base} ${c.headerClassName ?? ''}`}>
-                    <button
+                  <TableHead key={c.key} className={`${base} ${c.headerClassName ?? ''}`}>
+                    <Button
                       type="button"
+                      variant="ghost"
                       onClick={() => onSort(c.key)}
-                      className={`inline-flex items-center gap-1 hover:text-foreground ${
-                        isSorted ? 'text-foreground' : ''
+                      className={`-ml-1 inline-flex h-auto items-center gap-1 px-1 py-0.5 text-xs font-medium uppercase tracking-wider hover:bg-transparent hover:text-foreground ${
+                        isSorted ? 'text-foreground' : 'text-muted-foreground'
                       }`}
                     >
                       {c.header}
                       <Icon className="h-3 w-3" />
-                    </button>
-                  </th>
+                    </Button>
+                  </TableHead>
                 );
               })}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {pageRows.length === 0 ? (
-              <tr>
-                <td
+              <TableRow className="hover:bg-transparent">
+                <TableCell
                   colSpan={columns.length + (renderExpanded ? 1 : 0)}
                   className="px-4 py-8 text-center text-sm text-muted-foreground"
                 >
                   {empty ?? (rows.length === 0 ? 'No data.' : 'No rows match.')}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               pageRows.map((row) => {
                 const key = rowKey(row);
@@ -279,17 +309,17 @@ export function DataTable<T>({
                         ? 'text-center'
                         : 'text-left';
                   return (
-                    <td
+                    <TableCell
                       key={c.key}
                       className={`px-3 py-2 text-xs ${align} ${c.className ?? ''}`}
                     >
                       {c.cell(row)}
-                    </td>
+                    </TableCell>
                   );
                 });
                 return (
                   <Fragment key={key}>
-                    <tr
+                    <TableRow
                       className={`border-b border-border last:border-b-0 ${
                         isExpandable
                           ? 'cursor-pointer hover:bg-accent/30'
@@ -302,7 +332,7 @@ export function DataTable<T>({
                       }
                     >
                       {renderExpanded && (
-                        <td className="w-8 px-2 py-2 align-middle">
+                        <TableCell className="w-8 px-2 py-2 align-middle">
                           {isExpandable ? (
                             <ChevronRight
                               className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
@@ -310,26 +340,26 @@ export function DataTable<T>({
                               }`}
                             />
                           ) : null}
-                        </td>
+                        </TableCell>
                       )}
                       {cells}
-                    </tr>
+                    </TableRow>
                     {isExpanded && (
-                      <tr className="border-b border-border bg-muted/20 last:border-b-0">
-                        <td
+                      <TableRow className="border-b border-border bg-muted/20 last:border-b-0 hover:bg-muted/20">
+                        <TableCell
                           colSpan={columns.length + 1}
                           className="px-4 py-3"
                         >
                           {expandedContent}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     )}
                   </Fragment>
                 );
               })
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Mobile: stacked card list (md:hidden) */}
@@ -409,44 +439,52 @@ export function DataTable<T>({
             <span>
               {offset + 1}–{Math.min(offset + pageSize, sorted.length)} of {sorted.length}
             </span>
-            <label className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5">
               Rows
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
+              <Select
+                value={String(pageSize)}
+                onValueChange={(v) => {
+                  setPageSize(Number(v));
                   setPage(0);
                 }}
-                className="rounded-md border border-border bg-background px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                {PAGE_SIZE_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <SelectTrigger className="h-7 w-auto gap-1 px-1.5 py-0.5 text-xs shadow-none">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </span>
           </div>
           <div className="flex items-center gap-1">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="icon"
               disabled={safePage === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="rounded-md border border-border bg-card p-1 disabled:opacity-40"
+              className="h-7 w-7 bg-card disabled:opacity-40"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-            </button>
+            </Button>
             <span className="px-2">
               Page {safePage + 1} of {totalPages}
             </span>
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="icon"
               disabled={safePage >= totalPages - 1}
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              className="rounded-md border border-border bg-card p-1 disabled:opacity-40"
+              className="h-7 w-7 bg-card disabled:opacity-40"
             >
               <ChevronRight className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           </div>
         </div>
       )}

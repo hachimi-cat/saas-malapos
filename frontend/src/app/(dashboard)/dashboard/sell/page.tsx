@@ -30,6 +30,18 @@ import { rupiah } from '@/lib/money';
 import { useBusinessType } from '@/hooks/use-business-type';
 import { useModules } from '@/hooks/use-modules';
 import { useRealtime } from '@/hooks/use-realtime';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 /*
  * The sell screen — Malapos's hero surface. Pick an outlet, search/scan the
@@ -776,17 +788,17 @@ export default function SellPage() {
             floor). Shown for any F&B session — table-bound or quick sale. */}
         {isFnb && (
           <div className="mb-2 flex items-center gap-2">
-            <button
-              onClick={backToFloor}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm font-medium hover:bg-accent"
-            >
+            <Button variant="outline" size="sm" onClick={backToFloor}>
               <ArrowLeft className="h-4 w-4" /> Floor
-            </button>
+            </Button>
             {table ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-semibold text-primary">
+              <Badge
+                variant="outline"
+                className="gap-1.5 border-transparent bg-primary/10 px-2.5 py-1.5 text-sm font-semibold text-primary"
+              >
                 <Utensils className="h-4 w-4" /> {table.label}
                 {parkedTxnId && <span className="text-xs font-normal text-primary/80">· open bill</span>}
-              </span>
+              </Badge>
             ) : (
               <span className="text-sm text-muted-foreground">Quick sale (no table)</span>
             )}
@@ -795,13 +807,13 @@ export default function SellPage() {
         <div className="mb-3 flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
+            <Input
               autoFocus
               data-sell-search
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search or scan barcode…"
-              className="w-full rounded-md border border-input bg-card py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="bg-card pl-9"
             />
           </div>
           <select
@@ -857,7 +869,7 @@ export default function SellPage() {
       </div>
 
       {/* Cart */}
-      <div className="flex w-full flex-col rounded-lg border border-border bg-card lg:w-96">
+      <Card className="flex w-full flex-col overflow-hidden lg:w-96">
         <div className="border-b border-border p-4">
           <CustomerPicker customer={customer} onChange={setCustomer} />
         </div>
@@ -895,13 +907,13 @@ export default function SellPage() {
                 <button onClick={() => setQty(l.variantId, 0)} className="rounded p-1 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
               </div>
               {noteOpen && (
-                <input
+                <Input
                   value={l.note ?? ''}
                   autoFocus={openNoteId === l.variantId}
                   onChange={(e) => setLineNote(l.variantId, e.target.value)}
                   placeholder="Note for kitchen (e.g. no onions)"
                   maxLength={280}
-                  className="mt-1.5 w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
+                  className="mt-1.5 h-auto bg-background px-2.5 py-1.5 text-xs"
                 />
               )}
             </div>
@@ -969,12 +981,13 @@ export default function SellPage() {
                     </button>
                   </div>
                 ) : (
-                  <button
+                  <Button
+                    variant="ghost"
                     onClick={() => setDeliveryModal(true)}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-md bg-primary/10 px-2 py-1.5 font-medium text-primary hover:bg-primary/20"
+                    className="h-auto w-full gap-1.5 bg-primary/10 px-2 py-1.5 font-medium text-primary hover:bg-primary/20 hover:text-primary"
                   >
                     <Truck className="h-3.5 w-3.5" /> Add address & pick courier
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
@@ -1000,40 +1013,42 @@ export default function SellPage() {
           {table ? (
             <div className="mt-3 space-y-2">
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="outline"
                   disabled={!cart.length || holding || splitting}
                   onClick={hold}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border py-3 font-semibold transition-colors hover:bg-accent disabled:opacity-40"
+                  className="h-auto flex-1 gap-1.5 py-3 font-semibold"
                 >
                   {holding ? <Loader2 className="h-4 w-4 animate-spin" /> : <PauseCircle className="h-4 w-4" />} Hold
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="outline"
                   disabled={!cart.length || holding || splitting}
                   onClick={startSplit}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border py-3 font-semibold transition-colors hover:bg-accent disabled:opacity-40"
+                  className="h-auto flex-1 gap-1.5 py-3 font-semibold"
                 >
                   {splitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Split className="h-4 w-4" />} Split
-                </button>
+                </Button>
               </div>
-              <button
+              <Button
                 disabled={!cart.length}
                 onClick={() => setPaying(true)}
-                className="w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                className="h-auto w-full py-3 font-semibold"
               >
                 Charge {rupiah(due)}
-              </button>
+              </Button>
             </div>
           ) : (
-            <button
+            <Button
               disabled={!cart.length || (!!delivery && !delivery.rate)}
               onClick={() => setPaying(true)}
-              className="mt-3 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="mt-3 h-auto w-full py-3 font-semibold"
             >
               {delivery && !delivery.rate ? 'Pick a courier to charge' : `Charge ${rupiah(due)}`}
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      </Card>
 
       {paying && (
         <PaymentModal
@@ -1294,18 +1309,12 @@ function FloorView({
               ))}
             </select>
           )}
-          <button
-            onClick={onRefresh}
-            className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent"
-          >
+          <Button variant="outline" onClick={onRefresh}>
             Refresh
-          </button>
-          <button
-            onClick={onQuickSale}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
+          </Button>
+          <Button onClick={onQuickSale} className="font-semibold">
             Quick sale
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1331,11 +1340,11 @@ function FloorView({
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <div className="relative min-w-[200px] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
+            <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search table or zone…"
-              className="w-full rounded-md border border-input bg-card py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="bg-card pl-9"
             />
           </div>
           <div className="flex items-center gap-1 rounded-md border border-border p-1">
@@ -1575,18 +1584,25 @@ function CustomerPicker({ customer, onChange }: { customer: Customer | null; onC
           <p className="text-sm font-medium">{customer.name}</p>
           {customer.phone && <p className="text-xs text-muted-foreground">{customer.phone}</p>}
         </div>
-        <button onClick={() => onChange(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onChange(null)}
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
     );
   }
   return (
     <div className="relative">
-      <input
+      <Input
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => setOpen(true)}
         placeholder="Attach customer (optional)"
-        className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+        className="bg-background"
       />
       {open && results.length > 0 && (
         <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
@@ -1725,19 +1741,19 @@ function PaymentModal({
           <div className="mt-4 space-y-3">
             <div className="flex flex-wrap gap-2">
               {quick.map((v) => (
-                <button key={v} onClick={() => setTendered(v)} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent">
+                <Button key={v} variant="outline" size="sm" onClick={() => setTendered(v)} className="h-auto px-3 py-1.5 text-sm">
                   {rupiah(v)}
-                </button>
+                </Button>
               ))}
             </div>
             <label className="block text-sm">
-              <span className="text-muted-foreground">Cash received</span>
-              <input
+              <Label className="text-muted-foreground">Cash received</Label>
+              <Input
                 ref={firstFieldRef}
                 type="number"
                 value={tendered}
                 onChange={(e) => setTendered(Number(e.target.value))}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
+                className="mt-1 h-auto bg-background py-2"
               />
             </label>
             <div className="flex justify-between text-sm">
@@ -1812,7 +1828,7 @@ function PaymentModal({
 
         {method !== 'CASH' && method !== 'TRANSFER' && (
           <label className="mt-4 block text-sm">
-            <span className="text-muted-foreground">
+            <Label className="text-muted-foreground">
               {method === 'QRIS'
                 ? 'QRIS reference (optional)'
                 : method === 'VA'
@@ -1820,13 +1836,13 @@ function PaymentModal({
                 : method === 'GIFT_CARD'
                 ? 'Gift-card code'
                 : 'Card / EDC reference (optional)'}
-            </span>
-            <input
+            </Label>
+            <Input
               ref={firstFieldRef}
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               placeholder={method === 'QRIS' ? 'Plugipay QRIS ref' : method === 'VA' ? 'Plugipay VA ref' : method === 'GIFT_CARD' ? 'GC-XXXXXXXXXX' : 'Approval code'}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
+              className="mt-1 h-auto bg-background py-2"
             />
             {method === 'GIFT_CARD' && (
               <span className="mt-1 block text-xs text-muted-foreground">
@@ -1849,7 +1865,7 @@ function PaymentModal({
           </label>
         )}
 
-        <button
+        <Button
           disabled={
             busy ||
             (method === 'CASH' && tendered < total) ||
@@ -1857,7 +1873,7 @@ function PaymentModal({
             (method === 'TRANSFER' && !transferConfigured)
           }
           onClick={confirm}
-          className="mt-5 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
+          className="mt-5 h-auto w-full py-3 font-semibold"
         >
           {busy
             ? 'Processing…'
@@ -1868,7 +1884,7 @@ function PaymentModal({
             : method === 'TRANSFER'
             ? 'Confirm received'
             : 'Complete sale'}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -2067,13 +2083,13 @@ function SplitModal({
               {Array.from({ length: n }, (_, i) => (
                 <label key={i} className="flex items-center gap-3">
                   <span className="w-16 text-sm text-muted-foreground">Check {i + 1}</span>
-                  <input
+                  <Input
                     type="number"
                     value={custom[i] ?? 0}
                     onChange={(e) =>
                       setCustom((c) => c.map((v, j) => (j === i ? Math.max(0, Number(e.target.value)) : v)))
                     }
-                    className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    className="h-auto flex-1 bg-background py-2"
                   />
                 </label>
               ))}
@@ -2096,13 +2112,13 @@ function SplitModal({
             </div>
           )}
 
-          <button
+          <Button
             disabled={!customValid}
             onClick={startPaying}
-            className="mt-5 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
+            className="mt-5 h-auto w-full py-3 font-semibold"
           >
             Start split · {n} check{n === 1 ? '' : 's'}
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -2281,12 +2297,13 @@ function QrisModal({
         )}
 
         {status !== 'paid' && (
-          <button
+          <Button
+            variant="outline"
             onClick={onCancel}
-            className="mt-5 w-full rounded-md border border-border py-2.5 text-sm font-medium hover:bg-muted"
+            className="mt-5 h-auto w-full py-2.5"
           >
             Cancel sale
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -2295,12 +2312,14 @@ function QrisModal({
 
 function ReceiptModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 text-center" onClick={(e) => e.stopPropagation()}>
-        <Receipt className="mx-auto h-10 w-10 text-primary" />
-        <h2 className="mt-2 text-lg font-semibold">Sale complete</h2>
-        <p className="text-sm text-muted-foreground">{sale.number}</p>
-        <div className="my-4 space-y-1 border-y border-border py-3 text-left text-sm">
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm text-center">
+        <DialogHeader className="items-center sm:text-center">
+          <Receipt className="h-10 w-10 text-primary" />
+          <DialogTitle>Sale complete</DialogTitle>
+          <p className="text-sm text-muted-foreground">{sale.number}</p>
+        </DialogHeader>
+        <div className="space-y-1 border-y border-border py-3 text-left text-sm">
           {sale.items.map((it, i) => (
             <div key={i} className="flex justify-between">
               <span>{it.quantity}× {it.productName}</span>
@@ -2324,11 +2343,11 @@ function ReceiptModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
             <span>{rupiah(sale.changeTotal)}</span>
           </div>
         )}
-        <button onClick={onClose} className="mt-5 w-full rounded-md bg-primary py-2.5 font-semibold text-primary-foreground hover:opacity-90">
+        <Button onClick={onClose} className="h-auto w-full py-2.5 font-semibold">
           New sale
-        </button>
-      </div>
-    </div>
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -2482,13 +2501,12 @@ function DeliveryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-10" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="flex items-center gap-2 font-semibold"><Truck className="h-5 w-5 text-primary" /> Delivery</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
-        </div>
-        <div className="space-y-4 px-5 py-4">
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Truck className="h-5 w-5 text-primary" /> Delivery</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
           {error && (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
@@ -2518,13 +2536,15 @@ function DeliveryModal({
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase text-muted-foreground">Recipient</h3>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => setPickerOpen(true)}
-                    className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs hover:bg-accent"
+                    className="h-auto gap-1 px-2 py-1 text-xs"
                   >
                     <UserSearch className="h-3.5 w-3.5" /> Pick customer
-                  </button>
+                  </Button>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <DeliveryField label="Recipient name" value={dest.contactName} onChange={(v) => patchDest({ contactName: v })} />
@@ -2573,15 +2593,16 @@ function DeliveryModal({
               </section>
 
               {/* Rates */}
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 disabled={loadingRates}
                 onClick={() => void quote()}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-60"
+                className="w-full gap-1.5"
               >
                 {loadingRates ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
                 Get courier rates
-              </button>
+              </Button>
 
               {rates.length > 0 && (
                 <div className="max-h-64 space-y-2 overflow-y-auto">
@@ -2614,23 +2635,23 @@ function DeliveryModal({
             </>
           )}
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
-          <button type="button" onClick={onClose} className="rounded-md border border-border px-3 py-2 text-sm hover:bg-accent">
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             disabled={!picked || originMissing || originLoading}
             onClick={save}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            className="gap-1.5"
           >
             Use this courier{picked ? ` · ${rupiah(picked.price)}` : ''}
-          </button>
-        </div>
+          </Button>
+        </DialogFooter>
 
         {pickerOpen && <DeliveryCustomerPicker onPick={applyCustomer} onClose={() => setPickerOpen(false)} />}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -2662,58 +2683,53 @@ function DeliveryCustomerPicker({
   }, [query]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-lg border border-border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h3 className="text-sm font-semibold">Pick customer</h3>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="h-4 w-4" />
-          </button>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm gap-3">
+        <DialogHeader>
+          <DialogTitle className="text-sm">Pick customer</DialogTitle>
+        </DialogHeader>
+        <Input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search name, phone or email…"
+          className="bg-background"
+        />
+        <div className="max-h-64 overflow-y-auto">
+          {loading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+          ) : customers.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No customers found.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {customers.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => onPick(c)}
+                    className="w-full px-2 py-2 text-left text-sm hover:bg-accent"
+                  >
+                    <span className="font-medium">{c.name}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">{c.phone ?? c.email ?? ''}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <div className="p-3">
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, phone or email…"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-          <div className="mt-2 max-h-64 overflow-y-auto">
-            {loading ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
-            ) : customers.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">No customers found.</p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {customers.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      onClick={() => onPick(c)}
-                      className="w-full px-2 py-2 text-left text-sm hover:bg-accent"
-                    >
-                      <span className="font-medium">{c.name}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">{c.phone ?? c.email ?? ''}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function DeliveryField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
-      <input
+      <Label className="mb-1 block text-xs text-muted-foreground">{label}</Label>
+      <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        className="bg-background"
       />
     </label>
   );
@@ -2732,12 +2748,12 @@ function DeliveryMiniField({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[10px] font-medium uppercase text-muted-foreground">{label}</span>
-      <input
+      <Label className="mb-1 block text-[10px] uppercase text-muted-foreground">{label}</Label>
+      <Input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+        className="bg-background px-2"
       />
     </label>
   );

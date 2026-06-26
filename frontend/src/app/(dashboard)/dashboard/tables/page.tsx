@@ -20,6 +20,33 @@ import {
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useBusinessType } from '@/hooks/use-business-type';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Table as UiTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /*
  * Tables manager — define the dine-in floor for an F&B outlet. List every
@@ -251,40 +278,36 @@ export default function TablesPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-md border border-border p-0.5">
-            <button
+            <Button
+              variant={view === 'list' ? 'default' : 'ghost'}
+              size="sm"
               onClick={() => setView('list')}
-              className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-                view === 'list' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-              }`}
             >
               <List className="h-4 w-4" /> List
-            </button>
-            <button
+            </Button>
+            <Button
+              variant={view === 'layout' ? 'default' : 'ghost'}
+              size="sm"
               onClick={() => setView('layout')}
-              className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-                view === 'layout' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-              }`}
             >
               <LayoutGrid className="h-4 w-4" /> Floor layout
-            </button>
+            </Button>
           </div>
           {outlets.length > 1 && (
-            <select
-              value={outletId}
-              onChange={(e) => setOutletId(e.target.value)}
-              className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            >
-              {outlets.map((o) => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
+            <Select value={outletId} onValueChange={setOutletId}>
+              <SelectTrigger className="w-auto min-w-[10rem]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {outlets.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-          <button
-            onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
+          <Button onClick={() => setCreating(true)}>
             <Plus className="h-4 w-4" /> Add table
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -299,19 +322,16 @@ export default function TablesPage() {
       />
 
       {!floorId ? (
-        <div className="rounded-lg border border-dashed border-border bg-card p-12 text-center">
+        <Card className="border-dashed p-12 text-center">
           <LayoutGrid className="mx-auto h-10 w-10 text-muted-foreground" />
           <h2 className="mt-3 text-base font-medium">No floors yet</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Add a floor (e.g. Ground Floor, Rooftop) to start laying out tables.
           </p>
-          <button
-            onClick={addFloor}
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
+          <Button onClick={addFloor} className="mt-4">
             <Plus className="h-4 w-4" /> Add floor
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : view === 'layout' ? (
         <FloorEditor
           tables={tables}
@@ -323,69 +343,66 @@ export default function TablesPage() {
           onError={setError}
         />
       ) : tables.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-12 text-center">
+        <Card className="p-12 text-center">
           <Utensils className="mx-auto h-10 w-10 text-muted-foreground" />
           <h2 className="mt-3 text-base font-medium">No tables yet</h2>
           <p className="mt-1 text-sm text-muted-foreground">Add your first table to start seating dine-in orders.</p>
-          <button
-            onClick={() => setCreating(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
+          <Button onClick={() => setCreating(true)} className="mt-4">
             <Plus className="h-4 w-4" /> Add table
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Label</th>
-                <th className="px-4 py-3 font-medium">Zone</th>
-                <th className="px-4 py-3 font-medium">Seats</th>
-                <th className="px-4 py-3 font-medium">Order</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
+        <Card className="overflow-hidden">
+          <UiTable>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Label</TableHead>
+                <TableHead>Zone</TableHead>
+                <TableHead>Seats</TableHead>
+                <TableHead>Order</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {tables.map((t) => (
-                <tr key={t.id} className="border-b border-border last:border-0 hover:bg-accent">
-                  <td className="px-4 py-3 font-medium">{t.label}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{t.zone || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{t.seats != null ? t.seats : '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{t.sortOrder}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                        t.isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {t.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
+                <TableRow key={t.id}>
+                  <TableCell className="font-medium">{t.label}</TableCell>
+                  <TableCell className="text-muted-foreground">{t.zone || '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{t.seats != null ? t.seats : '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{t.sortOrder}</TableCell>
+                  <TableCell>
+                    {t.isActive ? (
+                      <Badge variant="outline" className="rounded-full border-primary/40 bg-primary/10 text-primary">
+                        Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="rounded-full border-transparent bg-muted text-muted-foreground">
+                        Inactive
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <div className="flex justify-end gap-1">
-                      <button
-                        onClick={() => setEditing(t)}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
-                        title="Edit"
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => setEditing(t)} title="Edit">
                         <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => remove(t)}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-destructive"
                         title="Delete"
+                        className="text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </UiTable>
+        </Card>
       )}
 
       {(creating || editing) && (
@@ -568,11 +585,11 @@ function FloorEditor({
 
   if (!items.length) {
     return (
-      <div className="rounded-lg border border-border bg-card p-12 text-center">
+      <Card className="p-12 text-center">
         <LayoutGrid className="mx-auto h-10 w-10 text-muted-foreground" />
         <h2 className="mt-3 text-base font-medium">No tables to arrange</h2>
         <p className="mt-1 text-sm text-muted-foreground">Add tables first, then drag them onto the floor.</p>
-      </div>
+      </Card>
     );
   }
 
@@ -584,13 +601,9 @@ function FloorEditor({
           <p className="text-sm text-muted-foreground">
             Drag tables onto the floor; they snap to the grid. Drag a table off the floor to return it to the tray.
           </p>
-          <button
-            onClick={save}
-            disabled={saving || !dirty}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-          >
+          <Button onClick={save} disabled={saving || !dirty}>
             <Save className="h-4 w-4" /> {saving ? 'Saving…' : dirty ? 'Save layout' : 'Saved'}
-          </button>
+          </Button>
         </div>
         <div className="overflow-auto rounded-lg border border-border bg-muted/30">
           <div
@@ -647,7 +660,7 @@ function FloorEditor({
 
       {/* Sidebar: tray + selected-table controls */}
       <div className="w-full shrink-0 space-y-4 lg:w-72">
-        <div className="rounded-lg border border-border bg-card p-3">
+        <Card className="p-3">
           <h3 className="mb-2 text-sm font-semibold">Unplaced tables ({tray.length})</h3>
           {tray.length === 0 ? (
             <p className="text-xs text-muted-foreground">All tables are on the floor.</p>
@@ -682,10 +695,10 @@ function FloorEditor({
               })}
             </div>
           )}
-        </div>
+        </Card>
 
         {selected ? (
-          <div className="rounded-lg border border-border bg-card p-3">
+          <Card className="p-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">{selected.label}</h3>
               <span className="text-xs text-muted-foreground">{selected.zone || 'No zone'}</span>
@@ -697,19 +710,23 @@ function FloorEditor({
                 {(['SQUARE', 'ROUND', 'RECT'] as TableShape[]).map((s) => {
                   const Icon = s === 'SQUARE' ? Square : s === 'ROUND' ? Circle : RectangleHorizontal;
                   return (
-                    <button
+                    <Button
                       key={s}
+                      type="button"
+                      variant="outline"
                       onClick={() => {
                         const patch: Partial<Table> = { shape: s };
                         if (s === 'RECT' && selected.width <= selected.height) patch.width = Math.max(2, selected.width);
                         patchItem(selected.id, patch);
                       }}
-                      className={`flex flex-col items-center gap-1 rounded border px-2 py-1.5 text-[10px] ${
-                        selected.shape === s ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-accent'
+                      className={`h-auto flex-col gap-1 px-2 py-1.5 text-[10px] ${
+                        selected.shape === s
+                          ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary'
+                          : 'text-muted-foreground'
                       }`}
                     >
                       <Icon className="h-4 w-4" /> {s.charAt(0) + s.slice(1).toLowerCase()}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -729,32 +746,34 @@ function FloorEditor({
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                onClick={() => onEdit(selected)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => onEdit(selected)}>
                 <Pencil className="h-3.5 w-3.5" /> Details
-              </button>
+              </Button>
               {selected.posX != null && (
-                <button
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => patchItem(selected.id, { posX: null, posY: null })}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
                 >
                   <X className="h-3.5 w-3.5" /> Remove from floor
-                </button>
+                </Button>
               )}
-              <button
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => onDelete(selected)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 <Trash2 className="h-3.5 w-3.5" /> Delete
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         ) : (
-          <div className="rounded-lg border border-dashed border-border bg-card p-4 text-center text-xs text-muted-foreground">
+          <Card className="border-dashed p-4 text-center text-xs text-muted-foreground">
             Select a table on the floor or tray to set its shape and size.
-          </div>
+          </Card>
         )}
       </div>
     </div>
@@ -766,19 +785,25 @@ function Stepper({ label, value, onChange }: { label: string; value: number; onC
     <div>
       <p className="mb-1 text-xs text-muted-foreground">{label}</p>
       <div className="flex items-center rounded-md border border-border">
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={() => onChange(Math.max(1, value - 1))}
-          className="px-2 py-1 text-muted-foreground hover:text-foreground"
+          className="h-8 w-8 text-muted-foreground"
         >
           −
-        </button>
+        </Button>
         <span className="flex-1 text-center text-sm font-medium">{value}</span>
-        <button
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={() => onChange(Math.min(6, value + 1))}
-          className="px-2 py-1 text-muted-foreground hover:text-foreground"
+          className="h-8 w-8 text-muted-foreground"
         >
           +
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -844,87 +869,72 @@ function TableModal({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{table ? 'Edit table' : 'New table'}</h2>
-          <button onClick={onClose}>
-            <X className="h-5 w-5 text-muted-foreground" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{table ? 'Edit table' : 'New table'}</DialogTitle>
+        </DialogHeader>
 
-        <div className="mt-4 space-y-4">
-          <Field label="Label">
-            <input
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="table-label">Label</Label>
+            <Input
+              id="table-label"
               autoFocus
               value={form.label}
               onChange={(e) => set('label', e.target.value)}
               placeholder="Table 5"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
-          </Field>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Zone">
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="table-zone">Zone</Label>
+              <Input
+                id="table-zone"
                 value={form.zone}
                 onChange={(e) => set('zone', e.target.value)}
                 placeholder="Indoor"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
-            </Field>
-            <Field label="Seats">
-              <input
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="table-seats">Seats</Label>
+              <Input
+                id="table-seats"
                 type="number"
                 min={0}
                 value={form.seats}
                 onChange={(e) => set('seats', e.target.value)}
                 placeholder="4"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
-            </Field>
+            </div>
           </div>
 
-          <Field label="Sort order">
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="table-sort">Sort order</Label>
+            <Input
+              id="table-sort"
               type="number"
               min={0}
               value={form.sortOrder}
               onChange={(e) => set('sortOrder', e.target.value)}
               placeholder="0"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
-          </Field>
+          </div>
         </div>
 
-        {err && <p className="mt-3 text-sm text-destructive">{err}</p>}
+        {err && <p className="text-sm text-destructive">{err}</p>}
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent">
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            disabled={busy}
-            onClick={save}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-          >
+          </Button>
+          <Button disabled={busy} onClick={save}>
             {busy ? 'Saving…' : table ? 'Save changes' : 'Create table'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block text-sm">
-      <span className="mb-1 block text-muted-foreground">{label}</span>
-      {children}
-    </label>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -956,59 +966,66 @@ function FloorSwitcher({
     <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-border pb-3">
       <div className="flex flex-wrap items-center gap-1">
         {floors.map((f) => (
-          <button
+          <Button
             key={f.id}
+            variant={f.id === floorId ? 'default' : 'ghost'}
+            size="sm"
             onClick={() => onPick(f.id)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              f.id === floorId
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-            }`}
           >
             {f.name}
-          </button>
+          </Button>
         ))}
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onAdd}
           title="Add floor"
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="border-dashed text-muted-foreground"
         >
           <Plus className="h-4 w-4" /> Floor
-        </button>
+        </Button>
       </div>
 
       {active && (
         <div className="ml-auto flex items-center gap-1">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onMove(-1)}
             disabled={idx <= 0}
             title="Move floor left"
-            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30"
+            className="h-8 w-8 text-muted-foreground disabled:opacity-30"
           >
             <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onMove(1)}
             disabled={idx >= floors.length - 1}
             title="Move floor right"
-            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30"
+            className="h-8 w-8 text-muted-foreground disabled:opacity-30"
           >
             <ChevronRight className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onRename(active)}
             title="Rename floor"
-            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="h-8 w-8 text-muted-foreground"
           >
             <Pencil className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onDelete(active)}
             title="Delete floor"
-            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       )}
     </div>

@@ -2,6 +2,8 @@
 
 import { Loader2, X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Button as ShadButton } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export function Modal({
   title,
@@ -69,30 +71,36 @@ export function EmptyState({ children }: { children: ReactNode }) {
   );
 }
 
+// Thin wrapper over the shadcn Button. Keeps the bespoke prop signature
+// (`variant: 'primary' | 'secondary' | 'ghost' | 'destructive'` + `loading`)
+// so existing callers compile unchanged, mapping onto the shadcn variants.
+const VARIANT_MAP = {
+  primary: 'default',
+  secondary: 'outline',
+  ghost: 'ghost',
+  destructive: 'destructive',
+} as const;
+
 export function Button({
   children,
   variant = 'primary',
   loading,
+  className,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
   loading?: boolean;
 }) {
-  const cls = {
-    primary: 'bg-primary text-primary-foreground hover:bg-brand-600 shadow-sm',
-    secondary: 'border border-border bg-card hover:bg-secondary',
-    ghost: 'text-muted-foreground hover:text-foreground',
-    destructive: 'border border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20',
-  }[variant];
   return (
-    <button
+    <ShadButton
       {...props}
+      variant={VARIANT_MAP[variant]}
       disabled={props.disabled || loading}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-medium transition disabled:opacity-60 ${cls} ${props.className ?? ''}`}
+      className={cn('gap-1.5', className)}
     >
       {loading && <Loader2 size={14} className="animate-spin" />}
       {children}
-    </button>
+    </ShadButton>
   );
 }
 
