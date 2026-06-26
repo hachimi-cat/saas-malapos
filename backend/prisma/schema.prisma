@@ -87,6 +87,15 @@ enum PaymentMethod {
   OTHER // bank transfer, voucher, etc. (manual note)
 }
 
+/// How a sale is served. DINE_IN sales are held on a Table as an open bill
+/// (F&B); TAKEAWAY is the counter default; DELIVERY is dispatched via the
+/// Fulfillment module (the fulkruma* fields on Transaction).
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
 /// Lifecycle of a gift card / store-credit balance.
 enum GiftCardStatus {
   ACTIVE
@@ -205,9 +214,37 @@ model Outlet {
   transactions   Transaction[]
   purchaseOrders PurchaseOrder[]
   batches        StockBatch[]
+  tables         Table[]
 
   @@index([accountId])
   @@map("outlets")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// F&B tables (dine-in floor)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A dine-in table at an outlet (F&B). A table is "occupied" when it carries
+/// an open bill — a PARKED Transaction with this tableId. Tables are an
+/// F&B-only affordance; retail/pharmacy workspaces simply never create any.
+model Table {
+  id        String   @id // tbl_*
+  accountId String
+  outletId  String
+  label     String // e.g. "Table 5", "A1"
+  zone      String? // e.g. "Indoor", "Patio"
+  seats     Int?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  outlet       Outlet        @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([outletId, label])
+  @@index([accountId, outletId])
+  @@map("tables")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -475,11 +512,17 @@ model Transaction {
   outletId      String
   shiftId       String?
   customerId    String?
+  /// F&B: the dine-in table this sale is seated at. A PARKED sale with a
+  /// tableId is the table's open bill; null for takeaway/counter sales.
+  tableId       String?
   cashierSub    String?
   cashierName   String?
   /// Human receipt number, unique per outlet (e.g. "INV-000123").
   number        String
   status        TransactionStatus @default(COMPLETED)
+  /// How the sale is served. TAKEAWAY (counter) is the default; DINE_IN is
+  /// held on a Table; DELIVERY is dispatched via the Fulfillment module.
+  orderType     OrderType         @default(TAKEAWAY)
   /// Money (IDR). subtotal = Σ line totals (pre-tax, post line-discount).
   subtotal      Int               @default(0)
   discountTotal Int               @default(0) // order-level discount
@@ -508,6 +551,7 @@ model Transaction {
   outlet   Outlet            @relation(fields: [outletId], references: [id], onDelete: Cascade)
   shift    Shift?            @relation(fields: [shiftId], references: [id], onDelete: SetNull)
   customer Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  table    Table?            @relation(fields: [tableId], references: [id], onDelete: SetNull)
   items    TransactionItem[]
   payments Payment[]
   refunds  Refund[]
@@ -516,6 +560,7 @@ model Transaction {
   @@index([accountId, outletId, createdAt])
   @@index([accountId, status])
   @@index([accountId, customerId])
+  @@index([accountId, tableId])
   @@index([accountId, kdsState, createdAt])
   @@index([fulkrumaShipmentId])
   @@map("transactions")

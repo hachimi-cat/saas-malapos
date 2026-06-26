@@ -53,6 +53,7 @@ import {
   Crosshair,
   Rss,
   Newspaper,
+  Utensils,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -71,6 +72,7 @@ import {
   isFulfillmentGatedPath,
   isMarketingGatedPath,
 } from '@/hooks/use-modules';
+import { useBusinessType } from '@/hooks/use-business-type';
 
 /*
  * Dashboard shell — the authenticated portal chrome. `@forjio/portal-ui`
@@ -303,6 +305,8 @@ export function DashboardShell({
   const router = useRouter();
   const pathname = usePathname();
   const { modules, loading: modulesLoading } = useModules();
+  // F&B-only: surface the Tables manager in the nav for F&B workspaces.
+  const { isFnb } = useBusinessType();
 
   // Route guard: typing a gated module URL while the module is off bounces
   // the merchant to the Modules settings page. Lives here (not the
@@ -325,8 +329,19 @@ export function DashboardShell({
     ({ module }) => module,
   );
 
+  // Inject the F&B "Tables" item into Operations for F&B workspaces only —
+  // dine-in floor management is meaningless for retail/pharmacy.
+  const staticSections: NavSection[] = STATIC_SECTIONS.map((section) =>
+    isFnb && section.label === 'Operations'
+      ? {
+          ...section,
+          items: [{ href: '/dashboard/tables', label: 'Tables', icon: Utensils }, ...(section.items ?? [])],
+        }
+      : section,
+  );
+
   const sections: NavSection[] = [
-    ...STATIC_SECTIONS,
+    ...staticSections,
     ...(enabledModules.length > 0 ? [{ label: 'Modules', modules: enabledModules }] : []),
     ...TRAILING_SECTIONS,
   ];

@@ -38,10 +38,17 @@ export interface SalePayment {
   plugipayRef?: string;
   status?: 'PENDING' | 'PAID' | 'FAILED';
 }
+export type OrderType = 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
+
 export interface CreateSaleInput {
   outletId: string;
   shiftId?: string | null;
   customerId?: string | null;
+  /** F&B: seat the sale at a dine-in table (the table's open bill when
+   *  PARKED). Validated against the outlet; null/absent = takeaway. */
+  tableId?: string | null;
+  /** How the sale is served. Defaults to TAKEAWAY (the counter). */
+  orderType?: OrderType;
   items: CartLine[];
   orderDiscount?: number;
   payments?: SalePayment[];
@@ -66,6 +73,21 @@ const LOYALTY_POINTS_PER_IDR = 1000; // 1 point per Rp 1.000 spent
 
 function receiptNumber(seq: number): string {
   return `INV-${String(seq).padStart(6, '0')}`;
+}
+
+/** Validate that a table belongs to this account + outlet (active). Throws
+ *  404 otherwise. No-op when tableId is null/absent (takeaway sale). */
+async function assertTableInOutlet(
+  accountId: string,
+  outletId: string,
+  tableId: string | null | undefined,
+): Promise<void> {
+  if (!tableId) return;
+  const table = await prisma.table.findFirst({
+    where: { id: tableId, accountId, outletId },
+    select: { id: true },
+  });
+  if (!table) throw new ApiError(404, 'NOT_FOUND', 'Table not found for this outlet');
 }
 
 /** Allocate `qty` of a tracked variant across FEFO batches at an outlet.
@@ -361,12 +383,292 @@ export async function discardParkedSale(
   });
 }
 
+/** Compute tax + total for a given subtotal/orderDiscount against an
+ *  outlet's tax config — the same arithmetic createSale uses, factored out
+ *  so the open-bill edit path stays identical. */
+function priceWithTax(
+  subtotal: number,
+  orderDiscount: number,
+  outlet: { taxRateBps: number; taxInclusive: boolean },
+): { taxTotal: number; total: number } {
+  const taxBase = Math.max(0, subtotal - orderDiscount);
+  const bps = outlet.taxRateBps;
+  if (bps <= 0) return { taxTotal: 0, total: taxBase };
+  if (outlet.taxInclusive) {
+    const taxTotal = Math.round(taxBase - (taxBase * 10000) / (10000 + bps));
+    return { taxTotal, total: taxBase };
+  }
+  const taxTotal = Math.round((taxBase * bps) / 10000);
+  return { taxTotal, total: taxBase + taxTotal };
+}
+
+export interface UpdateParkedInput {
+  items: CartLine[];
+  orderDiscount?: number;
+  note?: string | null;
+  tableId?: string | null;
+  orderType?: OrderType;
+  customerId?: string | null;
+}
+
+/**
+ * Edit an open bill (a PARKED sale) — replace its line items + recompute
+ * totals, and optionally re-seat it (table/orderType) or attach a customer.
+ * A parked sale never deducted stock or earned loyalty, so this only
+ * rewrites the cart snapshot; the settle path applies stock/loyalty when
+ * the bill is finally charged. Rejects a non-PARKED sale.
+ *
+ * Marketing discount-codes / point-redemption are intentionally NOT applied
+ * here (they bind at completion on the quick-sale path); only a plain
+ * `orderDiscount` is honored, keeping the open-bill editor simple.
+ */
+export async function updateParkedSale(
+  accountId: string,
+  transactionId: string,
+  input: UpdateParkedInput,
+): Promise<void> {
+  if (!input.items.length) throw new ApiError(422, 'VALIDATION_ERROR', 'Cart is empty');
+
+  const txn = await prisma.transaction.findFirst({
+    where: { id: transactionId, accountId },
+    select: { id: true, status: true, outletId: true },
+  });
+  if (!txn) throw new ApiError(404, 'NOT_FOUND', 'Transaction not found');
+  if (txn.status !== 'PARKED') {
+    throw new ApiError(409, 'CONFLICT', `Cannot edit a ${txn.status.toLowerCase()} sale`);
+  }
+
+  const outlet = await prisma.outlet.findFirst({ where: { id: txn.outletId, accountId } });
+  if (!outlet) throw new ApiError(404, 'NOT_FOUND', 'Outlet not found');
+
+  if (input.tableId !== undefined) await assertTableInOutlet(accountId, outlet.id, input.tableId);
+
+  const variantIds = input.items.map((i) => i.variantId);
+  const variants = await prisma.productVariant.findMany({
+    where: { id: { in: variantIds }, accountId },
+    include: { product: true },
+  });
+  const byId = new Map(variants.map((v) => [v.id, v]));
+
+  let subtotal = 0;
+  const lines = input.items.map((line) => {
+    const v = byId.get(line.variantId);
+    if (!v) throw new ApiError(404, 'NOT_FOUND', `Variant ${line.variantId} not found`);
+    if (line.quantity <= 0) throw new ApiError(422, 'VALIDATION_ERROR', 'Quantity must be positive');
+    const unitPrice = line.unitPrice ?? v.price;
+    const mods = (line.modifiers ?? []).map((m) => ({ name: m.name, price: Math.max(0, m.price) }));
+    const modTotal = mods.reduce((s, m) => s + m.price, 0);
+    const discount = Math.max(0, line.discount ?? 0);
+    const lineTotal = (unitPrice + modTotal) * line.quantity - discount;
+    subtotal += lineTotal;
+    return { v, unitPrice, mods, discount, quantity: line.quantity, lineTotal: Math.max(0, lineTotal) };
+  });
+
+  const orderDiscount = Math.max(0, input.orderDiscount ?? 0);
+  const { taxTotal, total } = priceWithTax(subtotal, orderDiscount, outlet);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.transactionItem.deleteMany({ where: { transactionId: txn.id } });
+    await tx.transaction.update({
+      where: { id: txn.id },
+      data: {
+        subtotal,
+        discountTotal: orderDiscount,
+        taxTotal,
+        total,
+        ...(input.note !== undefined ? { note: input.note } : {}),
+        ...(input.tableId !== undefined ? { tableId: input.tableId } : {}),
+        ...(input.orderType ? { orderType: input.orderType } : {}),
+        ...(input.customerId !== undefined ? { customerId: input.customerId } : {}),
+        items: {
+          create: lines.map((l) => ({
+            id: newId('tli'),
+            accountId,
+            variantId: l.v.id,
+            productName: l.v.product.name,
+            variantName: l.v.name,
+            sku: l.v.sku,
+            unitPrice: l.unitPrice,
+            quantity: l.quantity,
+            discount: l.discount,
+            modifiers: l.mods as unknown as Prisma.InputJsonValue,
+            lineTotal: l.lineTotal,
+          })),
+        },
+      },
+    });
+  });
+}
+
+/**
+ * Settle an open bill (a PARKED sale) at the counter with manual tenders —
+ * the F&B "Charge" action. Records the payments, flips the sale to
+ * COMPLETED, and runs applyCompletionEffects (stock deduction + loyalty +
+ * the completed event), reusing the exact same side-effects as the
+ * immediate quick-sale path and the dynamic-QRIS settle. Gift-card tenders
+ * are honored (Plugipay workspace when the Payment module is on, else the
+ * local ledger) mirroring createSale. Rejects a non-PARKED sale.
+ */
+export async function settleParkedSaleManual(input: {
+  accountId: string;
+  transactionId: string;
+  payments: SalePayment[];
+  cashierSub?: string | null;
+}): Promise<void> {
+  const { accountId, transactionId } = input;
+  const payments = input.payments ?? [];
+
+  const pre = await prisma.transaction.findFirst({
+    where: { id: transactionId, accountId },
+    select: { id: true, status: true },
+  });
+  if (!pre) throw new ApiError(404, 'NOT_FOUND', 'Transaction not found');
+  if (pre.status !== 'PARKED') {
+    throw new ApiError(409, 'CONFLICT', `Cannot settle a ${pre.status.toLowerCase()} sale`);
+  }
+
+  // Marketing-module check up front — drives whether local loyalty earns
+  // (Ripllo is authoritative when on). Best-effort: never block a payment.
+  let ripllo: Awaited<ReturnType<typeof marketingClientIfEnabled>> = null;
+  try {
+    ripllo = await marketingClientIfEnabled(accountId);
+  } catch {
+    ripllo = null;
+  }
+
+  // Gift-card via Plugipay (module ON) — redeem BEFORE opening the sale txn
+  // so an insufficient-balance/void/unknown-card failure aborts cleanly.
+  const paymentClient = payments.some((p) => p.method === 'GIFT_CARD')
+    ? await paymentClientIfEnabled(accountId)
+    : null;
+  if (paymentClient) {
+    for (const p of payments) {
+      if (p.method !== 'GIFT_CARD') continue;
+      if ((p.status ?? 'PAID') !== 'PAID') continue;
+      const code = (p.reference ?? '').trim();
+      if (!code) throw new ApiError(422, 'VALIDATION_ERROR', 'Gift-card payment requires a code in `reference`');
+      await redeemGiftCardPlugipay(paymentClient, { code, amount: p.amount, transactionId });
+    }
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const txn = await tx.transaction.findFirst({
+      where: { id: transactionId, accountId },
+      include: {
+        outlet: { select: { id: true } },
+        items: { include: { variant: { include: { product: true } } } },
+      },
+    });
+    if (!txn || txn.status !== 'PARKED') return null; // raced / already settled
+
+    const now = new Date();
+    let paidTotal = 0;
+    let changeTotal = 0;
+    for (const p of payments) {
+      const st = p.status ?? 'PAID';
+      if (st === 'PAID') paidTotal += p.amount;
+      if (p.method === 'CASH' && p.tendered != null) changeTotal += Math.max(0, p.tendered - p.amount);
+    }
+
+    for (const p of payments) {
+      await tx.payment.create({
+        data: {
+          id: newId('pay'),
+          accountId,
+          transactionId: txn.id,
+          method: p.method,
+          status: p.status ?? 'PAID',
+          amount: p.amount,
+          tendered: p.method === 'CASH' ? (p.tendered ?? null) : null,
+          change:
+            p.method === 'CASH' && p.tendered != null ? Math.max(0, p.tendered - p.amount) : null,
+          reference: p.reference ?? null,
+          plugipayRef: p.plugipayRef ?? null,
+          paidAt: (p.status ?? 'PAID') === 'PAID' ? now : null,
+        },
+      });
+    }
+
+    // Gift-card local redeem (module OFF) — inside the txn so an
+    // insufficient balance rolls the settle back.
+    if (!paymentClient) {
+      for (const p of payments) {
+        if (p.method !== 'GIFT_CARD') continue;
+        if ((p.status ?? 'PAID') !== 'PAID') continue;
+        const code = (p.reference ?? '').trim();
+        if (!code) throw new ApiError(422, 'VALIDATION_ERROR', 'Gift-card payment requires a code in `reference`');
+        await redeemGiftCard(tx, { accountId, code, amount: p.amount, transactionId: txn.id });
+      }
+    }
+
+    await tx.transaction.update({
+      where: { id: txn.id },
+      data: {
+        status: 'COMPLETED',
+        completedAt: now,
+        paidTotal: { increment: paidTotal },
+        changeTotal: { increment: changeTotal },
+      },
+    });
+
+    await applyCompletionEffects(tx, {
+      accountId,
+      outletId: txn.outletId,
+      txnId: txn.id,
+      number: txn.number,
+      total: txn.total,
+      customerId: txn.customerId,
+      lines: txn.items
+        .filter((it) => it.variantId && it.variant)
+        .map((it) => ({
+          variantId: it.variantId!,
+          kind: it.variant!.product.kind,
+          isComposite: it.variant!.isComposite,
+          trackStock: it.variant!.product.trackStock,
+          requiresBatch: it.variant!.product.requiresBatch,
+          quantity: it.quantity,
+        })),
+      cashierSub: input.cashierSub ?? txn.cashierSub ?? null,
+      earnLocalLoyalty: !ripllo,
+    });
+
+    return { total: txn.total, customerId: txn.customerId };
+  });
+
+  if (!result) {
+    // Re-read for a clean error (a concurrent settle won the race).
+    throw new ApiError(409, 'CONFLICT', 'Sale is no longer open');
+  }
+
+  // Post-commit Ripllo earn (module-on only, non-fatal — mirrors createSale
+  // / settleParkedSale; the sale is already durably settled).
+  if (ripllo && result.customerId && result.total > 0) {
+    try {
+      await ripllo.loyalty.earn({
+        customerId: result.customerId,
+        orderGrossIdr: result.total,
+        externalSource: 'malapos',
+        externalRef: transactionId,
+        orderId: transactionId,
+      });
+    } catch (err) {
+      console.error('[sell] ripllo loyalty earn failed on manual settle (non-fatal):', {
+        transactionId,
+        message: (err as Error).message,
+      });
+    }
+  }
+}
+
 export async function createSale(input: CreateSaleInput, ctx: SaleContext): Promise<string> {
   const { accountId } = ctx;
   if (!input.items.length) throw new ApiError(422, 'VALIDATION_ERROR', 'Cart is empty');
 
   const outlet = await prisma.outlet.findFirst({ where: { id: input.outletId, accountId } });
   if (!outlet) throw new ApiError(404, 'NOT_FOUND', 'Outlet not found');
+
+  // F&B: a dine-in table must belong to this outlet (no-op for takeaway).
+  await assertTableInOutlet(accountId, outlet.id, input.tableId);
 
   // Resolve variants (+ their product, for stock flags + name snapshot).
   const variantIds = input.items.map((i) => i.variantId);
@@ -537,6 +839,8 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
         outletId: outlet.id,
         shiftId: input.shiftId ?? null,
         customerId: input.customerId ?? null,
+        tableId: input.tableId ?? null,
+        orderType: input.orderType ?? 'TAKEAWAY',
         cashierSub: ctx.cashierSub ?? null,
         cashierName: ctx.cashierName ?? null,
         number,

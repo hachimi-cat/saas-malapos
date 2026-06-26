@@ -14,6 +14,7 @@ export type IdPrefix =
   // ── Malapos POS domain ──
   | 'pos' // workspace POS settings
   | 'out' // outlet
+  | 'tbl' // F&B dine-in table
   | 'cat' // category
   | 'prd' // product
   | 'var' // product variant

@@ -1,9 +1,25 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Plus, Minus, Trash2, Receipt, X, QrCode, Loader2, CheckCircle2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Search,
+  Plus,
+  Minus,
+  Trash2,
+  Receipt,
+  X,
+  QrCode,
+  Loader2,
+  CheckCircle2,
+  Utensils,
+  ArrowLeft,
+  Clock,
+  Users,
+  PauseCircle,
+} from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { useBusinessType } from '@/hooks/use-business-type';
 
 /*
  * The sell screen — Malapos's hero surface. Pick an outlet, search/scan the
@@ -27,7 +43,15 @@ type Sale = {
   items: { productName: string; quantity: number; lineTotal: number }[];
 };
 
+// F&B table + its open bill (GET /tables/floor).
+type FloorTable = { id: string; label: string; zone: string | null; seats: number | null };
+type OpenBill = { transactionId: string; total: number; itemCount: number; openedAt: string };
+type FloorEntry = { table: FloorTable; openBill: OpenBill | null };
+// The currently selected table on the sell screen + its open-bill id (if any).
+type BoundTable = { id: string; label: string };
+
 export default function SellPage() {
+  const { isFnb } = useBusinessType();
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [outletId, setOutletId] = useState<string>('');
   const [products, setProducts] = useState<Product[]>([]);
@@ -38,6 +62,16 @@ export default function SellPage() {
   const [paying, setPaying] = useState(false);
   const [receipt, setReceipt] = useState<Sale | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // F&B dine-in flow. `view` is 'floor' (table grid) or 'register' (the
+  // catalog+cart). `table` binds the register to a dine-in table; when it
+  // also has an open bill, `parkedTxnId` is that bill's transaction id.
+  // Quick-sale (no table) keeps `table` null and works exactly as before.
+  const [view, setView] = useState<'floor' | 'register'>('register');
+  const [table, setTable] = useState<BoundTable | null>(null);
+  const [parkedTxnId, setParkedTxnId] = useState<string | null>(null);
+  const [floor, setFloor] = useState<FloorEntry[]>([]);
+  const [floorBusy, setFloorBusy] = useState(false);
+  const [holding, setHolding] = useState(false);
   // Keyboard-first cashier flow: a highlighted grid card + the cart line the
   // qty hotkeys act on (the most-recently-touched line).
   const [highlight, setHighlight] = useState(0);
@@ -67,6 +101,142 @@ export default function SellPage() {
   }, []);
 
   const outlet = outlets.find((o) => o.id === outletId);
+
+  // ── F&B floor ────────────────────────────────────────────────────────
+  const loadFloor = useCallback(async (oid: string) => {
+    if (!oid) return;
+    setFloorBusy(true);
+    try {
+      const res = await api.get<{ floor: FloorEntry[] }>(`/tables/floor?outletId=${encodeURIComponent(oid)}`);
+      setFloor(res.data.floor);
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to load floor');
+    } finally {
+      setFloorBusy(false);
+    }
+  }, []);
+
+  // For F&B workspaces, the floor is the landing view. Switch to it once we
+  // know the business type + have an outlet, unless a table is already bound.
+  useEffect(() => {
+    if (isFnb && outletId && !table) {
+      setView('floor');
+      loadFloor(outletId);
+    }
+    if (!isFnb) setView('register');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFnb, outletId]);
+
+  // Clear the table binding + cart when the outlet changes (tables are
+  // per-outlet); the floor effect above then reloads the new outlet's floor.
+  function changeOutlet(next: string) {
+    setOutletId(next);
+    setTable(null);
+    setParkedTxnId(null);
+    setCart([]);
+    setCustomer(null);
+    setReceipt(null);
+  }
+
+  // Bind the register to a table. An occupied table loads its open bill's
+  // items into the cart; an available table starts an empty bill.
+  async function pickTable(entry: FloorEntry) {
+    setError(null);
+    setReceipt(null);
+    setCustomer(null);
+    const bound: BoundTable = { id: entry.table.id, label: entry.table.label };
+    if (entry.openBill) {
+      try {
+        const res = await api.get<{ sale: { items: { variantId: string | null; productName: string; variantName: string | null; unitPrice: number; quantity: number }[]; customer: Customer | null } }>(
+          `/sales/${entry.openBill.transactionId}`,
+        );
+        const items = res.data.sale.items.filter((it) => it.variantId);
+        setCart(
+          items.map((it) => ({
+            variantId: it.variantId as string,
+            productId: '',
+            name: it.productName,
+            variantName: it.variantName ?? 'Default',
+            unitPrice: it.unitPrice,
+            qty: it.quantity,
+          })),
+        );
+        setCustomer(res.data.sale.customer ?? null);
+        setParkedTxnId(entry.openBill.transactionId);
+      } catch (e) {
+        setError(e instanceof ApiRequestError ? e.message : 'Failed to open the bill');
+        return;
+      }
+    } else {
+      setCart([]);
+      setParkedTxnId(null);
+    }
+    setTable(bound);
+    setView('register');
+  }
+
+  // Leave the register back to the floor (does not auto-save — use Hold).
+  function backToFloor() {
+    setTable(null);
+    setParkedTxnId(null);
+    setCart([]);
+    setCustomer(null);
+    setReceipt(null);
+    setView('floor');
+    loadFloor(outletId);
+  }
+
+  // Start a no-table quick sale from the floor (identical to the retail path).
+  function startQuickSale() {
+    setTable(null);
+    setParkedTxnId(null);
+    setCart([]);
+    setCustomer(null);
+    setReceipt(null);
+    setView('register');
+  }
+
+  // Build the cart's wire items (variantId + qty + unitPrice so a held
+  // bill's prices survive a re-save).
+  const cartItems = useCallback(
+    () => cart.map((l) => ({ variantId: l.variantId, quantity: l.qty, unitPrice: l.unitPrice })),
+    [cart],
+  );
+
+  // F&B "Hold": persist the cart as the table's open bill (PARKED) — create
+  // it on first hold, patch its items on a resume — then return to the floor.
+  async function hold() {
+    if (!table) return;
+    if (!cart.length) {
+      backToFloor();
+      return;
+    }
+    setHolding(true);
+    setError(null);
+    try {
+      if (parkedTxnId) {
+        await api.patch(`/sales/${parkedTxnId}/items`, {
+          items: cartItems(),
+          orderType: 'DINE_IN',
+          customerId: customer?.id ?? null,
+        });
+      } else {
+        await api.post('/sales', {
+          outletId,
+          customerId: customer?.id ?? null,
+          tableId: table.id,
+          orderType: 'DINE_IN',
+          status: 'PARKED',
+          items: cartItems(),
+        });
+      }
+      setHolding(false);
+      backToFloor();
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to hold the bill');
+      setHolding(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -167,6 +337,8 @@ export default function SellPage() {
     function onKey(e: KeyboardEvent) {
       // While any modal is open the modals own the keyboard (Esc/Enter there).
       if (paying || qris || receipt) return;
+      // The floor (table grid) has no catalog hotkeys — stand down there.
+      if (view === 'floor') return;
       switch (e.key) {
         case 'ArrowRight':
           e.preventDefault();
@@ -234,7 +406,7 @@ export default function SellPage() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards, highlight, cols, query, cart.length, products, paying, qris, receipt, activeLineId]);
+  }, [cards, highlight, cols, query, cart.length, products, paying, qris, receipt, activeLineId, view]);
 
   const subtotal = cart.reduce((s, l) => s + l.unitPrice * l.qty, 0);
   const tax = outlet && outlet.taxRateBps > 0 && !taxInclusiveUnknown ? Math.round((subtotal * outlet.taxRateBps) / 10000) : 0;
@@ -253,10 +425,46 @@ export default function SellPage() {
     );
   }
 
+  // ── F&B floor view ──────────────────────────────────────────────────
+  if (isFnb && view === 'floor') {
+    return (
+      <FloorView
+        floor={floor}
+        busy={floorBusy}
+        outlets={outlets}
+        outletId={outletId}
+        onChangeOutlet={changeOutlet}
+        onRefresh={() => loadFloor(outletId)}
+        onPick={pickTable}
+        onQuickSale={startQuickSale}
+      />
+    );
+  }
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col gap-4 lg:h-[calc(100vh-1.5rem)] lg:flex-row">
       {/* Catalog */}
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* F&B: which table this register is bound to (+ a way back to the
+            floor). Shown for any F&B session — table-bound or quick sale. */}
+        {isFnb && (
+          <div className="mb-2 flex items-center gap-2">
+            <button
+              onClick={backToFloor}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm font-medium hover:bg-accent"
+            >
+              <ArrowLeft className="h-4 w-4" /> Floor
+            </button>
+            {table ? (
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-semibold text-primary">
+                <Utensils className="h-4 w-4" /> {table.label}
+                {parkedTxnId && <span className="text-xs font-normal text-primary/80">· open bill</span>}
+              </span>
+            ) : (
+              <span className="text-sm text-muted-foreground">Quick sale (no table)</span>
+            )}
+          </div>
+        )}
         <div className="mb-3 flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -270,7 +478,7 @@ export default function SellPage() {
           </div>
           <select
             value={outletId}
-            onChange={(e) => setOutletId(e.target.value)}
+            onChange={(e) => changeOutlet(e.target.value)}
             className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           >
             {outlets.map((o) => (
@@ -352,13 +560,32 @@ export default function SellPage() {
             <span>Total</span>
             <span className="text-primary">{rupiah(total)}</span>
           </div>
-          <button
-            disabled={!cart.length}
-            onClick={() => setPaying(true)}
-            className="mt-3 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-          >
-            Charge {rupiah(total)}
-          </button>
+          {table ? (
+            <div className="mt-3 flex gap-2">
+              <button
+                disabled={!cart.length || holding}
+                onClick={hold}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border py-3 font-semibold transition-colors hover:bg-accent disabled:opacity-40"
+              >
+                {holding ? <Loader2 className="h-4 w-4 animate-spin" /> : <PauseCircle className="h-4 w-4" />} Hold
+              </button>
+              <button
+                disabled={!cart.length}
+                onClick={() => setPaying(true)}
+                className="flex-1 rounded-md bg-primary py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                Charge {rupiah(total)}
+              </button>
+            </div>
+          ) : (
+            <button
+              disabled={!cart.length}
+              onClick={() => setPaying(true)}
+              className="mt-3 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+            >
+              Charge {rupiah(total)}
+            </button>
+          )}
         </div>
       </div>
 
@@ -369,16 +596,36 @@ export default function SellPage() {
           onConfirm={async (payments) => {
             setError(null);
             try {
-              const res = await api.post<{ sale: Sale }>('/sales', {
-                outletId,
-                customerId: customer?.id ?? null,
-                items: cart.map((l) => ({ variantId: l.variantId, quantity: l.qty })),
-                payments,
-              });
-              setReceipt(res.data.sale);
+              let sale: Sale;
+              if (parkedTxnId) {
+                // Settle an existing held bill: sync any cart edits, then charge.
+                await api.patch(`/sales/${parkedTxnId}/items`, {
+                  items: cartItems(),
+                  orderType: 'DINE_IN',
+                  customerId: customer?.id ?? null,
+                });
+                const res = await api.post<{ sale: Sale }>(`/sales/${parkedTxnId}/settle`, { payments });
+                sale = res.data.sale;
+              } else {
+                // Immediate sale — quick sale, or a fresh table never held.
+                const res = await api.post<{ sale: Sale }>('/sales', {
+                  outletId,
+                  customerId: customer?.id ?? null,
+                  items: cartItems(),
+                  payments,
+                  ...(table ? { tableId: table.id, orderType: 'DINE_IN' } : {}),
+                });
+                sale = res.data.sale;
+              }
+              setReceipt(sale);
               setCart([]);
               setCustomer(null);
               setPaying(false);
+              if (table) {
+                setTable(null);
+                setParkedTxnId(null);
+                loadFloor(outletId);
+              }
             } catch (e) {
               setError(e instanceof ApiRequestError ? e.message : 'Sale failed');
             }
@@ -389,14 +636,18 @@ export default function SellPage() {
           // falls back to today's manual-reference QRIS (module OFF).
           onQris={async () => {
             setError(null);
+            // A held open bill settles with manual tenders — fall back to the
+            // manual-reference QRIS rather than minting a second parked sale.
+            if (parkedTxnId) return false;
             let saleId: string;
             try {
               const sale = await api.post<{ sale: Sale }>('/sales', {
                 outletId,
                 customerId: customer?.id ?? null,
-                items: cart.map((l) => ({ variantId: l.variantId, quantity: l.qty })),
+                items: cartItems(),
                 status: 'PARKED',
                 payments: [{ method: 'QRIS', amount: total, status: 'PENDING' }],
+                ...(table ? { tableId: table.id, orderType: 'DINE_IN' } : {}),
               });
               saleId = sale.data.sale.id;
             } catch (e) {
@@ -441,11 +692,21 @@ export default function SellPage() {
             setCart([]);
             setCustomer(null);
             setQris(null);
+            if (table) {
+              setTable(null);
+              setParkedTxnId(null);
+              loadFloor(outletId);
+            }
           }}
         />
       )}
 
-      {receipt && <ReceiptModal sale={receipt} onClose={() => setReceipt(null)} />}
+      {receipt && (
+        <ReceiptModal
+          sale={receipt}
+          onClose={() => (isFnb ? backToFloor() : setReceipt(null))}
+        />
+      )}
       {error && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 rounded-md bg-destructive px-4 py-2 text-sm text-destructive-foreground shadow-lg">
           {error}
@@ -457,6 +718,138 @@ export default function SellPage() {
 
 // Tax is computed server-side authoritatively; the preview here is best-effort.
 const taxInclusiveUnknown = false;
+
+// Relative "opened N min ago" for an occupied table's bill.
+function sinceLabel(iso: string): string {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  return `${h}h ${mins % 60}m`;
+}
+
+/**
+ * F&B floor — a grid of the outlet's tables. Available tables are outlined;
+ * occupied tables (a table carrying an open bill) are filled with the bill
+ * total, item count and how long it's been open. Tapping a table binds the
+ * register to it; "Quick sale" starts a no-table counter sale.
+ */
+function FloorView({
+  floor,
+  busy,
+  outlets,
+  outletId,
+  onChangeOutlet,
+  onRefresh,
+  onPick,
+  onQuickSale,
+}: {
+  floor: FloorEntry[];
+  busy: boolean;
+  outlets: Outlet[];
+  outletId: string;
+  onChangeOutlet: (id: string) => void;
+  onRefresh: () => void;
+  onPick: (entry: FloorEntry) => void;
+  onQuickSale: () => void;
+}) {
+  const occupied = floor.filter((f) => f.openBill).length;
+  return (
+    <div className="mx-auto flex h-full max-w-6xl flex-col">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Utensils className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-xl font-semibold">Floor</h1>
+            <p className="text-sm text-muted-foreground">
+              {floor.length} table{floor.length === 1 ? '' : 's'} · {occupied} occupied
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {outlets.length > 1 && (
+            <select
+              value={outletId}
+              onChange={(e) => onChangeOutlet(e.target.value)}
+              className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            >
+              {outlets.map((o) => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
+          )}
+          <button
+            onClick={onRefresh}
+            className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent"
+          >
+            Refresh
+          </button>
+          <button
+            onClick={onQuickSale}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Quick sale
+          </button>
+        </div>
+      </div>
+
+      {busy && !floor.length ? (
+        <div className="flex flex-1 items-center justify-center text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      ) : !floor.length ? (
+        <div className="mt-10 flex flex-1 flex-col items-center justify-center text-center text-muted-foreground">
+          <Utensils className="h-10 w-10 text-muted-foreground" />
+          <p className="mt-3 font-medium">No tables yet</p>
+          <p className="text-sm">
+            Add tables under{' '}
+            <a href="/dashboard/tables" className="text-primary underline">Tables</a>, or start a quick sale.
+          </p>
+        </div>
+      ) : (
+        <div className="grid flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {floor.map((entry) => {
+            const bill = entry.openBill;
+            return (
+              <button
+                key={entry.table.id}
+                onClick={() => onPick(entry)}
+                className={`flex aspect-square flex-col rounded-lg border p-3 text-left transition-colors ${
+                  bill
+                    ? 'border-primary bg-primary/10 hover:bg-primary/15'
+                    : 'border-border bg-card hover:border-primary hover:bg-accent'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <span className="font-semibold">{entry.table.label}</span>
+                  {entry.table.seats != null && (
+                    <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
+                      <Users className="h-3 w-3" /> {entry.table.seats}
+                    </span>
+                  )}
+                </div>
+                {entry.table.zone && <span className="text-xs text-muted-foreground">{entry.table.zone}</span>}
+                <div className="mt-auto">
+                  {bill ? (
+                    <>
+                      <p className="text-sm font-semibold text-primary">{rupiah(bill.total)}</p>
+                      <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <Clock className="h-3 w-3" /> {sinceLabel(bill.openedAt)} · {bill.itemCount} item
+                        {bill.itemCount === 1 ? '' : 's'}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs font-medium text-muted-foreground">Available</p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Row({ label, value }: { label: string; value: string }) {
   return (

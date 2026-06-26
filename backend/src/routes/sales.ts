@@ -4,7 +4,13 @@ import { prisma } from '../lib/db.js';
 import { sendOk, sendCreated, sendList, ApiError } from '../lib/http.js';
 import { h as asyncHandler } from '../lib/async-handler.js';
 import { parsePagination, encodeCursor } from '../lib/cursor.js';
-import { createSale, voidSale, discardParkedSale } from '../lib/sell.js';
+import {
+  createSale,
+  voidSale,
+  discardParkedSale,
+  updateParkedSale,
+  settleParkedSaleManual,
+} from '../lib/sell.js';
 import { refundSale } from '../lib/refund.js';
 
 /*
@@ -34,10 +40,14 @@ const paymentSchema = z.object({
   plugipayRef: z.string().trim().max(120).optional(),
   status: z.enum(['PENDING', 'PAID', 'FAILED']).optional(),
 });
+const orderTypeSchema = z.enum(['DINE_IN', 'TAKEAWAY', 'DELIVERY']);
 const createBody = z.object({
   outletId: z.string().trim(),
   shiftId: z.string().trim().nullish(),
   customerId: z.string().trim().nullish(),
+  // F&B: seat the sale at a dine-in table + how it's served.
+  tableId: z.string().trim().nullish(),
+  orderType: orderTypeSchema.optional(),
   items: z.array(lineSchema).min(1),
   orderDiscount: z.number().int().min(0).optional(),
   payments: z.array(paymentSchema).max(10).optional(),
@@ -46,6 +56,22 @@ const createBody = z.object({
   // Marketing (Ripllo) module — ignored when the module is off.
   discountCode: z.string().trim().max(50).nullish(),
   redeemPoints: z.number().int().min(0).nullish(),
+});
+
+/** Replace the items of an open bill (PARKED sale) + recompute totals; can
+ *  also re-seat it (table/orderType) or attach a customer. */
+const updateItemsBody = z.object({
+  items: z.array(lineSchema).min(1),
+  orderDiscount: z.number().int().min(0).optional(),
+  note: z.string().trim().max(500).nullish(),
+  tableId: z.string().trim().nullish(),
+  orderType: orderTypeSchema.optional(),
+  customerId: z.string().trim().nullish(),
+});
+
+/** Settle an open bill (PARKED → COMPLETED) with manual tenders. */
+const settleBody = z.object({
+  payments: z.array(paymentSchema).max(10),
 });
 
 router.post(
@@ -66,17 +92,57 @@ router.post(
   }),
 );
 
+/** PATCH /:id/items — edit an open bill (PARKED sale): replace its line
+ *  items + recompute totals, optionally re-seat or attach a customer. The
+ *  F&B "Hold" action on an already-open table. */
+router.patch(
+  '/:id/items',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const body = updateItemsBody.parse(req.body);
+    await updateParkedSale(accountId, String(req.params.id), body);
+    const sale = await prisma.transaction.findUnique({
+      where: { id: String(req.params.id) },
+      include: { items: true, payments: true, customer: true },
+    });
+    sendOk(res, req, { sale });
+  }),
+);
+
+/** POST /:id/settle — charge an open bill (PARKED → COMPLETED) with manual
+ *  tenders, reusing the shared completion side-effects (stock + loyalty +
+ *  event). The F&B "Charge" action on a held table. */
+router.post(
+  '/:id/settle',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const body = settleBody.parse(req.body);
+    await settleParkedSaleManual({
+      accountId,
+      transactionId: String(req.params.id),
+      payments: body.payments,
+      cashierSub: (req.auth!.sub as string | undefined) ?? null,
+    });
+    const sale = await prisma.transaction.findUnique({
+      where: { id: String(req.params.id) },
+      include: { items: true, payments: true, customer: true },
+    });
+    sendOk(res, req, { sale });
+  }),
+);
+
 router.get(
   '/',
   asyncHandler(async (req, res) => {
     const accountId = req.auth!.accountId as string;
-    const { outletId, status, shiftId } = req.query as Record<string, string | undefined>;
+    const { outletId, status, shiftId, tableId } = req.query as Record<string, string | undefined>;
     const { limit, cursor } = parsePagination(req.query);
     const rows = await prisma.transaction.findMany({
       where: {
         accountId,
         ...(outletId ? { outletId } : {}),
         ...(shiftId ? { shiftId } : {}),
+        ...(tableId ? { tableId } : {}),
         ...(status ? { status: status as never } : {}),
         ...(cursor
           ? { OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] }
