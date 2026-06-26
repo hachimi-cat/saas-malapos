@@ -36,7 +36,7 @@ const lineSchema = z.object({
   note: z.string().trim().max(280).nullish(),
 });
 const paymentSchema = z.object({
-  method: z.enum(['CASH', 'QRIS', 'CARD', 'GIFT_CARD', 'OTHER']),
+  method: z.enum(['CASH', 'QRIS', 'VA', 'CARD', 'GIFT_CARD', 'OTHER']),
   amount: z.number().int().min(0),
   tendered: z.number().int().min(0).optional(),
   reference: z.string().trim().max(200).optional(),
@@ -80,7 +80,7 @@ const settleBody = z.object({
 /** Record ONE payment against an open bill — the split-bill path. Positive
  *  amount; the bill completes server-side once paidTotal covers the total. */
 const partialPaymentBody = z.object({
-  method: z.enum(['CASH', 'QRIS', 'CARD', 'GIFT_CARD', 'OTHER']),
+  method: z.enum(['CASH', 'QRIS', 'VA', 'CARD', 'GIFT_CARD', 'OTHER']),
   amount: z.number().int().positive(),
   tendered: z.number().int().min(0).optional(),
   reference: z.string().trim().max(200).optional(),

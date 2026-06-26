@@ -116,9 +116,10 @@ export default function SellPage() {
   const [openNoteId, setOpenNoteId] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [cols, setCols] = useState(4);
-  // Dynamic-QRIS (Payment module) state — set when the cashier picks QRIS
-  // and the module is on; drives the QR modal + status polling.
-  const [qris, setQris] = useState<{ saleId: string; sessionId: string; qrUrl: string; amount: number } | null>(null);
+  // Dynamic checkout (Payment module) state — set when the cashier picks QRIS
+  // or VA and the module is on; drives the checkout modal + status polling.
+  // `method` selects QRIS (scan a QR) vs VA (pay a virtual-account number).
+  const [qris, setQris] = useState<{ saleId: string; sessionId: string; qrUrl: string; amount: number; method: 'qris' | 'va' } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -864,14 +865,15 @@ export default function SellPage() {
               setError(e instanceof ApiRequestError ? e.message : 'Sale failed');
             }
           }}
-          // Dynamic QRIS — module ON. Park the sale with a PENDING QRIS
-          // payment, mint a checkout session, and hand back the QR for the
-          // customer to scan. Returns true on success; false → the modal
-          // falls back to today's manual-reference QRIS (module OFF).
-          onQris={async () => {
+          // Dynamic checkout (QRIS or VA) — module ON. Park the sale with a
+          // PENDING QRIS/VA payment, mint a Plugipay checkout session, and hand
+          // back the hosted-payment URL. Returns true on success; false → the
+          // modal falls back to today's manual-reference payment (module OFF).
+          onCheckout={async (channel) => {
             setError(null);
+            const method = channel === 'va' ? 'VA' : 'QRIS';
             // A held open bill settles with manual tenders — fall back to the
-            // manual-reference QRIS rather than minting a second parked sale.
+            // manual-reference path rather than minting a second parked sale.
             if (parkedTxnId) return false;
             let saleId: string;
             try {
@@ -880,7 +882,7 @@ export default function SellPage() {
                 customerId: customer?.id ?? null,
                 items: cartItems(),
                 status: 'PARKED',
-                payments: [{ method: 'QRIS', amount: total, status: 'PENDING' }],
+                payments: [{ method, amount: total, status: 'PENDING' }],
                 ...(table ? { tableId: table.id, orderType: 'DINE_IN' } : {}),
               });
               saleId = sale.data.sale.id;
@@ -891,17 +893,17 @@ export default function SellPage() {
             try {
               const q = await api.post<{ sessionId: string; qrUrl: string; amount: number }>(
                 '/payments/qris',
-                { transactionId: saleId },
+                { transactionId: saleId, method: channel },
               );
-              setQris({ saleId, sessionId: q.data.sessionId, qrUrl: q.data.qrUrl, amount: q.data.amount });
+              setQris({ saleId, sessionId: q.data.sessionId, qrUrl: q.data.qrUrl, amount: q.data.amount, method: channel });
               setPaying(false);
               return true;
             } catch (e) {
               // Module off (409) or Plugipay hiccup → void the parked sale
-              // and let the cashier complete via manual QRIS ref / cash.
-              await api.post(`/sales/${saleId}/discard`, { reason: 'qris_unavailable' }).catch(() => {});
+              // and let the cashier complete via a manual reference / cash.
+              await api.post(`/sales/${saleId}/discard`, { reason: 'checkout_unavailable' }).catch(() => {});
               if (e instanceof ApiRequestError && e.status === 409) return false; // fall back to manual
-              setError(e instanceof ApiRequestError ? e.message : 'Could not generate the QR');
+              setError(e instanceof ApiRequestError ? e.message : 'Could not start the checkout');
               return false;
             }
           }}
@@ -912,8 +914,8 @@ export default function SellPage() {
         <QrisModal
           qris={qris}
           onCancel={async () => {
-            // Cashier abandons the QR before payment — void the parked sale.
-            await api.post(`/sales/${qris.saleId}/discard`, { reason: 'qris_cancelled' }).catch(() => {});
+            // Cashier abandons the checkout before payment — void the parked sale.
+            await api.post(`/sales/${qris.saleId}/discard`, { reason: 'checkout_cancelled' }).catch(() => {});
             setQris(null);
           }}
           onPaid={async () => {
@@ -1359,17 +1361,18 @@ function PaymentModal({
   total,
   onClose,
   onConfirm,
-  onQris,
+  onCheckout,
 }: {
   total: number;
   onClose: () => void;
   onConfirm: (p: unknown[]) => void;
-  /** Dynamic QRIS (Payment module ON). Returns true when a QR was minted
-   *  (this modal then closes); false when the module is off / unavailable,
-   *  in which case we fall back to today's manual-reference QRIS. */
-  onQris: () => Promise<boolean>;
+  /** Dynamic checkout (Payment module ON) for QRIS or VA. Returns true when a
+   *  checkout session was minted (this modal then closes); false when the
+   *  module is off / unavailable, in which case we fall back to a manual-
+   *  reference payment of the same method. */
+  onCheckout: (channel: 'qris' | 'va') => Promise<boolean>;
 }) {
-  const [method, setMethod] = useState<'CASH' | 'QRIS' | 'CARD' | 'GIFT_CARD'>('CASH');
+  const [method, setMethod] = useState<'CASH' | 'QRIS' | 'VA' | 'CARD' | 'GIFT_CARD'>('CASH');
   const [tendered, setTendered] = useState<number>(total);
   const [reference, setReference] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1403,12 +1406,12 @@ function PaymentModal({
 
   async function confirm() {
     setBusy(true);
-    // QRIS with no manual reference → try dynamic QRIS first (module ON);
-    // if it succeeds the QR modal takes over. If it returns false (module
-    // OFF / hiccup) OR the cashier typed a manual ref, take the existing
-    // manual-reference path (PAID immediately) — no regression.
-    if (method === 'QRIS' && !reference.trim()) {
-      const minted = await onQris();
+    // QRIS or VA with no manual reference → try a dynamic Plugipay checkout
+    // first (module ON); if it succeeds the checkout modal takes over. If it
+    // returns false (module OFF / hiccup) OR the cashier typed a manual ref,
+    // take the manual-reference path (PAID immediately) — no regression.
+    if ((method === 'QRIS' || method === 'VA') && !reference.trim()) {
+      const minted = await onCheckout(method === 'VA' ? 'va' : 'qris');
       if (minted) {
         setBusy(false);
         return;
@@ -1433,14 +1436,14 @@ function PaymentModal({
         </div>
         <p className="mt-1 text-2xl font-bold text-primary">{rupiah(total)}</p>
 
-        <div className="mt-4 grid grid-cols-4 gap-2">
-          {(['CASH', 'QRIS', 'CARD', 'GIFT_CARD'] as const).map((m) => (
+        <div className="mt-4 grid grid-cols-5 gap-2">
+          {(['CASH', 'QRIS', 'VA', 'CARD', 'GIFT_CARD'] as const).map((m) => (
             <button
               key={m}
               onClick={() => setMethod(m)}
               className={`rounded-md border py-2 text-xs font-medium ${method === m ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}
             >
-              {m === 'CASH' ? 'Cash' : m === 'QRIS' ? 'QRIS' : m === 'CARD' ? 'Card' : 'Gift card'}
+              {m === 'CASH' ? 'Cash' : m === 'QRIS' ? 'QRIS' : m === 'VA' ? 'VA' : m === 'CARD' ? 'Card' : 'Gift card'}
             </button>
           ))}
         </div>
@@ -1476,6 +1479,8 @@ function PaymentModal({
             <span className="text-muted-foreground">
               {method === 'QRIS'
                 ? 'QRIS reference (optional)'
+                : method === 'VA'
+                ? 'Virtual-account reference (optional)'
                 : method === 'GIFT_CARD'
                 ? 'Gift-card code'
                 : 'Card / EDC reference (optional)'}
@@ -1484,7 +1489,7 @@ function PaymentModal({
               ref={firstFieldRef}
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              placeholder={method === 'QRIS' ? 'Plugipay QRIS ref' : method === 'GIFT_CARD' ? 'GC-XXXXXXXXXX' : 'Approval code'}
+              placeholder={method === 'QRIS' ? 'Plugipay QRIS ref' : method === 'VA' ? 'Plugipay VA ref' : method === 'GIFT_CARD' ? 'GC-XXXXXXXXXX' : 'Approval code'}
               className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
             />
             {method === 'GIFT_CARD' && (
@@ -1496,6 +1501,13 @@ function PaymentModal({
               <span className="mt-1 block text-xs text-muted-foreground">
                 Leave blank to generate a live QR (Payments module) — the customer scans and the
                 sale settles automatically. Enter a reference to record a manual QRIS payment.
+              </span>
+            )}
+            {method === 'VA' && (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Leave blank to open a virtual-account checkout (Payments module) — the customer
+                pays the VA number and the sale settles automatically. Enter a reference to record
+                a manual VA payment.
               </span>
             )}
           </label>
@@ -1510,6 +1522,8 @@ function PaymentModal({
             ? 'Processing…'
             : method === 'QRIS' && !reference.trim()
             ? 'Generate QR'
+            : method === 'VA' && !reference.trim()
+            ? 'Generate VA'
             : 'Complete sale'}
         </button>
       </div>
@@ -1814,9 +1828,9 @@ function SplitModal({
           total={checks[activeIdx].amount}
           onClose={() => setActiveIdx(null)}
           onConfirm={(payments) => payCheck(activeIdx, payments[0] as Record<string, unknown>)}
-          // Split checks settle with manual tenders only — dynamic QRIS would
-          // need its own parked sale, so fall back to manual-reference QRIS.
-          onQris={async () => false}
+          // Split checks settle with manual tenders only — a dynamic checkout
+          // would need its own parked sale, so fall back to a manual reference.
+          onCheckout={async () => false}
         />
       )}
     </>
@@ -1836,12 +1850,13 @@ function QrisModal({
   onCancel,
   onPaid,
 }: {
-  qris: { saleId: string; sessionId: string; qrUrl: string; amount: number };
+  qris: { saleId: string; sessionId: string; qrUrl: string; amount: number; method: 'qris' | 'va' };
   onCancel: () => void;
   onPaid: () => void;
 }) {
   const [status, setStatus] = useState<'waiting' | 'paid' | 'error'>('waiting');
   const paidRef = useRef(false);
+  const isVa = qris.method === 'va';
 
   useEffect(() => {
     let cancelled = false;
@@ -1877,7 +1892,7 @@ function QrisModal({
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 text-center">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Scan to pay</h2>
+          <h2 className="text-lg font-semibold">{isVa ? 'Pay via Virtual Account' : 'Scan to pay'}</h2>
           <button onClick={onCancel} aria-label="Cancel">
             <X className="h-5 w-5 text-muted-foreground" />
           </button>
@@ -1893,7 +1908,9 @@ function QrisModal({
           <div className="my-8 flex flex-col items-center gap-2">
             <X className="h-12 w-12 text-destructive" />
             <p className="text-sm text-muted-foreground">
-              The QR expired or was canceled. Close and try again, or take cash.
+              {isVa
+                ? 'The virtual account expired or was canceled. Close and try again, or take cash.'
+                : 'The QR expired or was canceled. Close and try again, or take cash.'}
             </p>
           </div>
         ) : (
@@ -1908,7 +1925,7 @@ function QrisModal({
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
               >
-                <QrCode className="h-4 w-4" /> Open QR for customer
+                <QrCode className="h-4 w-4" /> {isVa ? 'Open VA details for customer' : 'Open QR for customer'}
               </a>
             </div>
             <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">

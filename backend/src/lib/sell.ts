@@ -9,6 +9,7 @@ import { writeOutbox } from './outbox.js';
 import { emitFnbChange } from './realtime.js';
 import { marketingClientIfEnabled } from '../services/ripllo-module-service.js';
 import { paymentClientIfEnabled } from '../services/plugipay-module-service.js';
+import { recordSaleToPaymentModule } from './sale-payment-record.js';
 
 /*
  * The sell flow — the load-bearing path. Builds a Transaction from a cart,
@@ -35,7 +36,7 @@ export interface CartLine {
   note?: string | null;
 }
 export interface SalePayment {
-  method: 'CASH' | 'QRIS' | 'CARD' | 'GIFT_CARD' | 'OTHER';
+  method: 'CASH' | 'QRIS' | 'VA' | 'CARD' | 'GIFT_CARD' | 'OTHER';
   amount: number;
   tendered?: number; // CASH: cash handed over (for change)
   reference?: string; // GIFT_CARD: the gift-card code to redeem
@@ -794,6 +795,11 @@ export async function settleParkedSaleManual(input: {
     transactionId,
     label: 'manual settle',
   });
+
+  // Payment-module record (module-gated, best-effort, idempotent) — the
+  // whole-bill "Charge" settles with counter tenders (cash/card/transfer/
+  // gift-card), so record the now-completed sale as a paid Plugipay invoice.
+  await recordSaleToPaymentModule(accountId, transactionId);
 }
 
 /**
@@ -964,6 +970,11 @@ export async function addParkedSalePayment(input: {
       transactionId,
       label: 'split settle',
     });
+
+    // Payment-module record (module-gated, best-effort, idempotent) — the
+    // final split tender completed the bill; record it as a paid invoice ONCE
+    // (the plugipayInvoiceId guard also protects this against re-entry).
+    await recordSaleToPaymentModule(accountId, transactionId);
   }
 
   return {
@@ -1297,6 +1308,15 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
         });
       }
     }
+  }
+
+  // ── Payment (Plugipay) module: record the sale as a paid invoice ─────
+  // Module-gated + best-effort + idempotent (see lib/sale-payment-record.ts).
+  // Only for an immediate COMPLETED counter sale — a PARKED sale (dynamic
+  // QRIS/VA ring-up) records via its checkout session, not here. Non-fatal:
+  // the sale is already committed.
+  if (status === 'COMPLETED') {
+    await recordSaleToPaymentModule(accountId, txnId);
   }
 
   // Silence "assigned but only read in a swallowed branch" — pointsRedeemed

@@ -82,6 +82,7 @@ enum TransactionStatus {
 enum PaymentMethod {
   CASH
   QRIS // dynamic QR via Plugipay
+  VA // virtual-account, Plugipay-processed (same parked-then-settle flow as QRIS)
   CARD // card / EDC — manual reference entry in v1
   GIFT_CARD // gift card / store credit (reference = the card code)
   OTHER // bank transfer, voucher, etc. (manual note)
@@ -179,6 +180,13 @@ model PosSettings {
   /// webhook route verifies merchant-order events with this (serront's
   /// two-secret `verifyAgainstKnownSecrets` pattern). Null until enabled.
   plugipayWebhookSecret String?
+  /// Generic "POS Walk-in" customer minted once in the merchant's Plugipay
+  /// workspace, used as the customerId on the per-sale invoices the Payment
+  /// module records (Plugipay invoices require a customerId; counter sales
+  /// are usually anonymous). Lazily created on the first recorded sale; see
+  /// lib/sale-payment-record.ts. Null until the first non-checkout sale is
+  /// recorded.
+  plugipayPosCustomerId String?
   /// Per-merchant Fulkruma workspace, minted on first `fulfillment` enable.
   fulkrumaAccountId String?
   /// Per-merchant Ripllo workspace, minted on first `marketing` enable.
@@ -592,6 +600,15 @@ model Transaction {
   /// → dropping_off → delivered → cancelled). Updated by the inbound
   /// fulkruma webhook. Null until the sale becomes a delivery order.
   deliveryStatus     String?
+  /// Plugipay invoice id recorded for this sale when the Payment module is
+  /// ON (one paid invoice per completed non-checkout sale → surfaces it in
+  /// the payment module's invoices + receipts views, mirroring what a QRIS/VA
+  /// checkout session produces). Doubles as the idempotency guard: a sale
+  /// whose plugipayInvoiceId is already set is never re-recorded on retry.
+  /// Null for QRIS/VA sales (recorded as a checkout session, not an invoice),
+  /// for module-off workspaces, and until the post-commit recorder runs. See
+  /// lib/sale-payment-record.ts.
+  plugipayInvoiceId String?
   createdAt     DateTime          @default(now())
   completedAt   DateTime?
   voidedAt      DateTime?

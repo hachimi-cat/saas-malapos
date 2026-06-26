@@ -71,7 +71,9 @@ export async function applyOrderPaymentCompleted(input: {
   const payment = await prisma.payment.findFirst({
     where: {
       transactionId: txn.id,
-      method: 'QRIS',
+      // Plugipay-processed checkout tenders: dynamic QRIS or VA. Both park a
+      // PENDING payment and settle through this same completed-session webhook.
+      method: { in: ['QRIS', 'VA'] },
       OR: [
         { plugipayCheckoutSessionId: input.sessionId },
         { status: 'PENDING' },

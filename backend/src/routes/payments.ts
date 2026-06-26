@@ -52,14 +52,22 @@ function sendPlugipayErr(
 
 const qrisBody = z
   .object({
-    /** Settle THIS parked sale's QRIS payment via the minted session. */
+    /** Settle THIS parked sale's checkout payment via the minted session. */
     transactionId: z.string().trim().optional(),
     /** Ad-hoc amount (IDR) when not tied to a sale — e.g. a counter top-up. */
     amount: z.number().int().positive().optional(),
+    /** Plugipay-processed channel for the checkout session. 'qris' (default)
+     *  mints a dynamic QR; 'va' mints a virtual-account checkout. Both ride
+     *  the identical parked-then-settle webhook flow. */
+    method: z.enum(['qris', 'va']).optional(),
   })
   .refine((b) => b.transactionId || b.amount, {
     message: 'transactionId or amount is required',
   });
+
+/** Map a checkout channel onto the PaymentMethod enum used for the sale's
+ *  PENDING payment row. */
+const CHANNEL_TO_METHOD = { qris: 'QRIS', va: 'VA' } as const;
 
 /**
  * POST /qris — mint a dynamic-QRIS checkout session.
@@ -76,6 +84,8 @@ router.post(
   asyncHandler(async (req, res) => {
     const accountId = req.auth!.accountId as string;
     const body = qrisBody.parse(req.body);
+    const channel = body.method ?? 'qris';
+    const paymentMethod = CHANNEL_TO_METHOD[channel];
 
     let amount = body.amount ?? 0;
     let paymentId: string | null = null;
@@ -94,11 +104,11 @@ router.post(
         return sendErr(res, req, 409, 'CONFLICT', 'Sale is not awaiting payment (not parked)');
       }
       const payment = await prisma.payment.findFirst({
-        where: { transactionId: txn.id, method: 'QRIS', status: 'PENDING' },
+        where: { transactionId: txn.id, method: paymentMethod, status: 'PENDING' },
         select: { id: true, amount: true },
       });
       if (!payment) {
-        return sendErr(res, req, 409, 'CONFLICT', 'No pending QRIS payment on this sale');
+        return sendErr(res, req, 409, 'CONFLICT', `No pending ${paymentMethod} payment on this sale`);
       }
       paymentId = payment.id;
       amount = payment.amount;
@@ -113,7 +123,7 @@ router.post(
       const session = await client.checkoutSessions.create({
         amount,
         currency: 'IDR',
-        methods: ['qris'],
+        methods: [channel],
         successUrl: `${PUBLIC_URL()}/dashboard/sell?qris=success`,
         cancelUrl: `${PUBLIC_URL()}/dashboard/sell?qris=canceled`,
         metadata: {
