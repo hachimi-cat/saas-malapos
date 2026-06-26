@@ -249,6 +249,22 @@ export const shipmentsApi = {
   }) => api.post<Shipment>('/fulfillment/shipments', body),
 };
 
+/*
+ * Delivery proxy (/api/v1/delivery → routes/delivery.ts). This is the
+ * surface a POS *sale* dispatches against — the shipment id it mints is
+ * stamped on the originating Transaction (fulkrumaShipmentId). The
+ * sale-detail page reads + drives a sale's shipment here. Same Fulkruma
+ * shipment DTO as `shipmentsApi` (both proxy `client.shipments.get`), so
+ * it reuses the `Shipment` type. Label printing has no delivery-proxy
+ * route, so the page reuses `shipmentsApi.getLabel` for that one action.
+ */
+export const deliveryApi = {
+  getShipment: (id: string) => api.get<Shipment>(`/delivery/shipments/${id}`),
+  confirmPickup: (id: string) => api.post<Shipment>(`/delivery/shipments/${id}/confirm-pickup`, {}),
+  cancelShipment: (id: string, reason: string) =>
+    api.post<Shipment>(`/delivery/shipments/${id}/cancel`, { reason }),
+};
+
 export const shippingApi = {
   getOrigin: () => api.get<ShippingOrigin>('/fulfillment/shipping/origin'),
   updateOrigin: (body: Partial<ShippingOrigin>) =>

@@ -206,7 +206,10 @@ router.get(
     const accountId = req.auth!.accountId as string;
     const sale = await prisma.transaction.findFirst({
       where: { id: String(req.params.id), accountId },
-      include: { items: true, payments: true, customer: true, outlet: true },
+      // `table` powers the dine-in label on the sale-detail page; the
+      // delivery scalars (orderType, deliveryFee, fulkrumaShipmentId,
+      // deliveryStatus) come back by default and feed the shipment section.
+      include: { items: true, payments: true, customer: true, outlet: true, table: true },
     });
     if (!sale) throw new ApiError(404, 'NOT_FOUND', 'Sale not found');
     sendOk(res, req, { sale });
