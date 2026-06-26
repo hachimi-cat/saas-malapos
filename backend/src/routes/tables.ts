@@ -22,12 +22,24 @@ const router = Router();
 
 const optionalText = (max: number) => z.string().trim().max(max).nullish();
 
+// Floor-map layout fields. posX/posY are grid-cell coordinates on the editor
+// canvas (nullable = unplaced); shape/width/height control how the table is
+// drawn. Generous bounds so a large floor still fits.
+const shapeEnum = z.enum(['SQUARE', 'ROUND', 'RECT']);
+const posCoord = z.number().int().min(0).max(1000).nullish();
+const cellSize = z.number().int().min(1).max(12);
+
 const createBody = z.object({
   outletId: z.string().trim().min(1),
   label: z.string().trim().min(1).max(60),
   zone: optionalText(60),
   seats: z.number().int().min(0).max(1000).nullish(),
   sortOrder: z.number().int().min(0).optional(),
+  posX: posCoord,
+  posY: posCoord,
+  shape: shapeEnum.optional(),
+  width: cellSize.optional(),
+  height: cellSize.optional(),
 });
 
 const patchBody = z.object({
@@ -36,6 +48,29 @@ const patchBody = z.object({
   seats: z.number().int().min(0).max(1000).nullish(),
   sortOrder: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
+  posX: posCoord,
+  posY: posCoord,
+  shape: shapeEnum.optional(),
+  width: cellSize.optional(),
+  height: cellSize.optional(),
+});
+
+// PUT /tables/layout — bulk-save the floor arrangement in one call (the
+// editor's Save). Each entry repositions one table; shape/size are optional.
+const layoutBody = z.object({
+  outletId: z.string().trim().min(1),
+  tables: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1),
+        posX: posCoord,
+        posY: posCoord,
+        shape: shapeEnum.optional(),
+        width: cellSize.optional(),
+        height: cellSize.optional(),
+      }),
+    )
+    .max(500),
 });
 
 /** Confirm the outlet belongs to this account (tables are outlet-scoped). */
@@ -127,6 +162,11 @@ router.post(
         zone: body.zone ?? null,
         seats: body.seats ?? null,
         sortOrder: body.sortOrder ?? 0,
+        posX: body.posX ?? null,
+        posY: body.posY ?? null,
+        ...(body.shape !== undefined ? { shape: body.shape } : {}),
+        ...(body.width !== undefined ? { width: body.width } : {}),
+        ...(body.height !== undefined ? { height: body.height } : {}),
       },
     });
     sendCreated(res, req, { table });
@@ -155,9 +195,61 @@ router.patch(
         ...(body.seats !== undefined ? { seats: body.seats } : {}),
         ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
         ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
+        ...(body.posX !== undefined ? { posX: body.posX } : {}),
+        ...(body.posY !== undefined ? { posY: body.posY } : {}),
+        ...(body.shape !== undefined ? { shape: body.shape } : {}),
+        ...(body.width !== undefined ? { width: body.width } : {}),
+        ...(body.height !== undefined ? { height: body.height } : {}),
       },
     });
     sendOk(res, req, { table });
+  }),
+);
+
+/**
+ * PUT /layout — bulk-save the floor map. Repositions many tables in one
+ * request (the editor's "Save layout"). Account + outlet scoped: every id
+ * must belong to a table at this outlet, or the whole save 404s (no partial
+ * writes). Returns the refreshed table set.
+ */
+router.put(
+  '/layout',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const body = layoutBody.parse(req.body);
+    await assertOutlet(accountId, body.outletId);
+
+    if (body.tables.length) {
+      const ids = body.tables.map((t) => t.id);
+      const owned = await prisma.table.findMany({
+        where: { id: { in: ids }, accountId, outletId: body.outletId },
+        select: { id: true },
+      });
+      const ownedIds = new Set(owned.map((t) => t.id));
+      const stray = ids.find((id) => !ownedIds.has(id));
+      if (stray) throw new ApiError(404, 'NOT_FOUND', `Table ${stray} not found at this outlet`);
+
+      await prisma.$transaction(
+        body.tables.map((t) =>
+          prisma.table.update({
+            where: { id: t.id },
+            data: {
+              posX: t.posX ?? null,
+              posY: t.posY ?? null,
+              ...(t.shape !== undefined ? { shape: t.shape } : {}),
+              ...(t.width !== undefined ? { width: t.width } : {}),
+              ...(t.height !== undefined ? { height: t.height } : {}),
+            },
+          }),
+        ),
+      );
+    }
+
+    const tables = await prisma.table.findMany({
+      where: { accountId, outletId: body.outletId, isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
+    });
+    sendOk(res, req, { tables });
   }),
 );
 

@@ -96,6 +96,13 @@ enum OrderType {
   DELIVERY
 }
 
+/// Shape a table is drawn as on the floor-map canvas.
+enum TableShape {
+  SQUARE
+  ROUND
+  RECT
+}
+
 /// Lifecycle of a gift card / store-credit balance.
 enum GiftCardStatus {
   ACTIVE
@@ -236,6 +243,14 @@ model Table {
   seats     Int?
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
+  // Floor-map layout: position on the editor canvas (grid cells) + how the
+  // table is drawn. Null position = "unplaced" (renders in the sell-view
+  // grid fallback / editor tray until the user drags it onto the canvas).
+  posX      Int?
+  posY      Int?
+  shape     TableShape @default(SQUARE)
+  width     Int      @default(1) // size in grid cells (RECT can be wider)
+  height    Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

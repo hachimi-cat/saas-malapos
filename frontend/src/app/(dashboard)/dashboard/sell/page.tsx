@@ -45,7 +45,18 @@ type Sale = {
 };
 
 // F&B table + its open bill (GET /tables/floor).
-type FloorTable = { id: string; label: string; zone: string | null; seats: number | null };
+type TableShape = 'SQUARE' | 'ROUND' | 'RECT';
+type FloorTable = {
+  id: string;
+  label: string;
+  zone: string | null;
+  seats: number | null;
+  posX: number | null;
+  posY: number | null;
+  shape: TableShape;
+  width: number;
+  height: number;
+};
 type OpenBill = { transactionId: string; total: number; itemCount: number; openedAt: string };
 type FloorEntry = { table: FloorTable; openBill: OpenBill | null };
 // The currently selected table on the sell screen + its open-bill id (if any).
@@ -916,44 +927,130 @@ function FloorView({
           </p>
         </div>
       ) : (
-        <div className="grid flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {floor.map((entry) => {
-            const bill = entry.openBill;
-            return (
-              <button
-                key={entry.table.id}
-                onClick={() => onPick(entry)}
-                className={`flex aspect-square flex-col rounded-lg border p-3 text-left transition-colors ${
-                  bill
-                    ? 'border-primary bg-primary/10 hover:bg-primary/15'
-                    : 'border-border bg-card hover:border-primary hover:bg-accent'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <span className="font-semibold">{entry.table.label}</span>
-                  {entry.table.seats != null && (
-                    <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
-                      <Users className="h-3 w-3" /> {entry.table.seats}
-                    </span>
-                  )}
-                </div>
-                {entry.table.zone && <span className="text-xs text-muted-foreground">{entry.table.zone}</span>}
-                <div className="mt-auto">
+        <FloorBody floor={floor} onPick={onPick} />
+      )}
+    </div>
+  );
+}
+
+// Floor-map geometry — must match the editor (tables/page.tsx).
+const FLOOR_CELL = 56;
+const FLOOR_COLS = 20;
+const FLOOR_ROWS = 14;
+
+function floorShapeRadius(shape: TableShape): string {
+  return shape === 'ROUND' ? '9999px' : '0.5rem';
+}
+
+/**
+ * The floor body: tables that have a saved position (posX/posY) render on a
+ * to-scale map at those coordinates; tables with no position fall back to the
+ * familiar grid below (so the screen works before anyone arranges the floor —
+ * the seeded demo tables start unplaced). Both call the same onPick handler.
+ */
+function FloorBody({ floor, onPick }: { floor: FloorEntry[]; onPick: (entry: FloorEntry) => void }) {
+  const placed = floor.filter((e) => e.table.posX != null && e.table.posY != null);
+  const unplaced = floor.filter((e) => e.table.posX == null || e.table.posY == null);
+
+  return (
+    <div className="flex-1 space-y-4 overflow-y-auto">
+      {placed.length > 0 && (
+        <div className="overflow-auto rounded-lg border border-border bg-muted/30">
+          <div
+            className="relative"
+            style={{
+              width: FLOOR_COLS * FLOOR_CELL,
+              height: FLOOR_ROWS * FLOOR_CELL,
+              backgroundSize: `${FLOOR_CELL}px ${FLOOR_CELL}px`,
+              backgroundImage:
+                'linear-gradient(to right, hsl(var(--border)/0.4) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border)/0.4) 1px, transparent 1px)',
+            }}
+          >
+            {placed.map((entry) => {
+              const t = entry.table;
+              const bill = entry.openBill;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => onPick(entry)}
+                  style={{
+                    position: 'absolute',
+                    left: t.posX! * FLOOR_CELL + 3,
+                    top: t.posY! * FLOOR_CELL + 3,
+                    width: t.width * FLOOR_CELL - 6,
+                    height: t.height * FLOOR_CELL - 6,
+                    borderRadius: floorShapeRadius(t.shape),
+                  }}
+                  className={`flex flex-col items-center justify-center border-2 p-1 text-center shadow-sm transition-colors ${
+                    bill
+                      ? 'border-primary bg-primary/15 hover:bg-primary/25'
+                      : 'border-border bg-card hover:border-primary hover:bg-accent'
+                  }`}
+                >
+                  <span className="text-xs font-semibold leading-tight">{t.label}</span>
                   {bill ? (
-                    <>
-                      <p className="text-sm font-semibold text-primary">{rupiah(bill.total)}</p>
-                      <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <Clock className="h-3 w-3" /> {sinceLabel(bill.openedAt)} · {bill.itemCount} item
-                        {bill.itemCount === 1 ? '' : 's'}
-                      </p>
-                    </>
+                    <span className="text-[10px] font-semibold leading-tight text-primary">{rupiah(bill.total)}</span>
                   ) : (
-                    <p className="text-xs font-medium text-muted-foreground">Available</p>
+                    t.seats != null && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                        <Users className="h-2.5 w-2.5" /> {t.seats}
+                      </span>
+                    )
                   )}
-                </div>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {unplaced.length > 0 && (
+        <div>
+          {placed.length > 0 && (
+            <p className="mb-2 text-xs font-medium text-muted-foreground">
+              Not on the map · arrange them under{' '}
+              <a href="/dashboard/tables" className="text-primary underline">Tables → Floor layout</a>
+            </p>
+          )}
+          <div className="grid auto-rows-min grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {unplaced.map((entry) => {
+              const bill = entry.openBill;
+              return (
+                <button
+                  key={entry.table.id}
+                  onClick={() => onPick(entry)}
+                  className={`flex aspect-square flex-col rounded-lg border p-3 text-left transition-colors ${
+                    bill
+                      ? 'border-primary bg-primary/10 hover:bg-primary/15'
+                      : 'border-border bg-card hover:border-primary hover:bg-accent'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <span className="font-semibold">{entry.table.label}</span>
+                    {entry.table.seats != null && (
+                      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
+                        <Users className="h-3 w-3" /> {entry.table.seats}
+                      </span>
+                    )}
+                  </div>
+                  {entry.table.zone && <span className="text-xs text-muted-foreground">{entry.table.zone}</span>}
+                  <div className="mt-auto">
+                    {bill ? (
+                      <>
+                        <p className="text-sm font-semibold text-primary">{rupiah(bill.total)}</p>
+                        <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <Clock className="h-3 w-3" /> {sinceLabel(bill.openedAt)} · {bill.itemCount} item
+                          {bill.itemCount === 1 ? '' : 's'}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs font-medium text-muted-foreground">Available</p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
