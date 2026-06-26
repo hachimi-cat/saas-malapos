@@ -25,6 +25,7 @@ import modulesRouter from './modules.js';
 import deliveryRouter from './delivery.js';
 import marketingRouter from './marketing.js';
 import marketingProxyRouter from './marketing-proxy.js';
+import marketingMediaRouter from './marketing-media.js';
 import marketingBlogRouter from './marketing/blog.js';
 import marketingFeedsRouter from './marketing/feeds.js';
 import marketingPixelsRouter from './marketing/pixels.js';
@@ -195,6 +196,11 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
    *  POS-native loyalty), which stay the source of truth for the
    *  sell-flow stamping. No route collision. */
   router.use('/account/marketing', requireAuth, marketingProxyRouter);
+  /** Same-origin binary image passthrough (creator avatars + post
+   *  thumbnails) — disjoint from the JSON-only `/account/marketing`
+   *  catch-all so it can stream bytes. requireAuth accepts the BFF
+   *  session cookie sent by same-origin `<img src>`. */
+  router.use('/account/marketing-media', requireAuth, marketingMediaRouter);
   router.use('/account/blog/posts', requireAuth, marketingBlogRouter);
   router.use('/account/feeds', requireAuth, marketingFeedsRouter);
   router.use('/account/pixels', requireAuth, marketingPixelsRouter);

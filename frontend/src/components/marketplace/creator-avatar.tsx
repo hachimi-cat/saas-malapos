@@ -11,8 +11,13 @@
  * Result: every creator's avatar was broken on the brand side.
  *
  * Priority chain:
- *   1. `avatarKey` — uploaded by the creator to S3, fetched signed via
- *      `/api/v1/uploads/avatar?key=...` (same pattern as creator-picker).
+ *   1. `avatarKey` — uploaded by the creator to S3. Rendered via this
+ *      product's same-origin image passthrough
+ *      (`/api/v1/account/marketing-media/avatar?key=...`,
+ *      backend routes/marketing-media.ts), which resolves the signed S3
+ *      URL on Ripllo and streams the bytes. Same-origin so the browser
+ *      sends the session cookie and skips the CORS-blocked signed-URL
+ *      fetch the old client flow used.
  *   2. `socialPic` — first available platform `extras.profilePictureUrl`,
  *      proxied through `socialImageSrc` if the host is hot-link-blocked.
  *   3. initial-letter placeholder — first letter of `fallback` in the
@@ -26,7 +31,7 @@
  *     `profile.displayName`.
  */
 import { useEffect, useState } from 'react';
-import { socialImageSrc, RIPLLO_BASE } from '@/lib/social-image';
+import { socialImageSrc, API_BASE } from '@/lib/social-image';
 
 interface StatLike {
   platform?: string;
@@ -81,46 +86,26 @@ export function CreatorAvatar(props: Props) {
   const socialPic = isProfileProps(props) ? pickSocialPic(props.stats ?? null) : props.socialPic ?? null;
   const fallback = isProfileProps(props) ? props.profile.displayName : props.fallback;
 
-  // Resolved signed-GET for the S3 avatar. Empty until the fetch
-  // resolves (or stays empty if avatarKey is missing / the fetch
-  // fails — both flow into the social pic / initial fallback).
-  const [s3Src, setS3Src] = useState<string | null>(null);
+  // Same-origin avatar URL. The merchant backend resolves the creator's
+  // short-lived signed S3 URL from `avatarKey` and streams the bytes, so
+  // the browser loads it with the session cookie and no CORS preflight —
+  // no client-side signed-URL fetch. Null when there's no key.
+  const avatarSrc = avatarKey
+    ? `${API_BASE}/api/v1/account/marketing-media/avatar?key=${encodeURIComponent(avatarKey)}`
+    : null;
+
   // Track which path is currently rendering for graceful onError
-  // chaining — if the S3 signed URL 4xxs (e.g. key deleted, expired
-  // signature) we want to fall through to the social pic, not show a
-  // broken-image icon.
+  // chaining — if the avatar 4xxs (e.g. key deleted, expired upstream
+  // signature) we fall through to the social pic, not a broken-image
+  // icon.
   const [stage, setStage] = useState<'s3' | 'social' | 'initial'>(
     avatarKey ? 's3' : socialPic ? 'social' : 'initial',
   );
 
+  // Reset the render stage when inputs change — the component is reused
+  // across rows (directory list, remapped props).
   useEffect(() => {
-    if (!avatarKey) {
-      setS3Src(null);
-      setStage(socialPic ? 'social' : 'initial');
-      return;
-    }
-    let cancelled = false;
-    setStage('s3');
-    fetch(`${RIPLLO_BASE}/api/v1/uploads/avatar?key=${encodeURIComponent(avatarKey)}`, {
-      credentials: 'include',
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((b) => {
-        if (cancelled) return;
-        const url = b?.data?.url;
-        if (typeof url === 'string' && url.length > 0) {
-          setS3Src(url);
-        } else {
-          setS3Src(null);
-          setStage(socialPic ? 'social' : 'initial');
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setS3Src(null);
-        setStage(socialPic ? 'social' : 'initial');
-      });
-    return () => { cancelled = true; };
+    setStage(avatarKey ? 's3' : socialPic ? 'social' : 'initial');
   }, [avatarKey, socialPic]);
 
   const proxiedSocial = socialImageSrc(socialPic);
@@ -137,10 +122,10 @@ export function CreatorAvatar(props: Props) {
   // Decide what to render in the bubble. Outer span owns the box; we
   // render <img> when a usable src is available for the current stage,
   // else fall through to the initial-letter placeholder. The img's
-  // onError advances stage so an S3 4xx demotes to social, social 4xx
-  // demotes to initial — never a broken-image icon.
+  // onError advances stage so an avatar 4xx demotes to social, social
+  // 4xx demotes to initial — never a broken-image icon.
   let src: string | null = null;
-  if (stage === 's3') src = s3Src;
+  if (stage === 's3') src = avatarSrc;
   else if (stage === 'social') src = proxiedSocial;
 
   return (

@@ -18,6 +18,16 @@
 
 export const RIPLLO_BASE = process.env.NEXT_PUBLIC_RIPLLO_BASE ?? 'https://ripllo.com';
 
+// Same-origin API base for the merchant-hosted image passthrough
+// (backend routes/marketing-media.ts). NEXT_PUBLIC_API_URL may be a bare
+// origin (dev) OR already include the /api/v1 prefix (CI sets the
+// relative '/api/v1'); strip a trailing /api/v1 so we append the full
+// path exactly once. Mirrors lib/marketing-api.ts's BASE_URL rule.
+export const API_BASE = (
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL) ||
+  'http://localhost:4191'
+).replace(/\/api\/v1\/?$/, '');
+
 const NEEDS_PROXY_SUFFIXES: readonly string[] = ['cdninstagram.com', 'fbcdn.net'];
 
 /**
@@ -38,7 +48,10 @@ export function socialImageSrc(url: string | null | undefined): string | null {
     (s) => host === s || host.endsWith(`.${s}`),
   );
   if (needsProxy) {
-    return `${RIPLLO_BASE}/api/v1/img-proxy?url=${encodeURIComponent(url)}`;
+    // Route through THIS merchant origin (same-origin) so the browser
+    // carries the session cookie + skips CORS; the backend forwards to
+    // ripllo's public img-proxy server-side.
+    return `${API_BASE}/api/v1/account/marketing-media/proxy?url=${encodeURIComponent(url)}`;
   }
   return url;
 }
