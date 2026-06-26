@@ -198,7 +198,7 @@ export default function ProgramDetailPage() {
         ) : enrollments.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
             No enrollments yet. Affiliators can join from{' '}
-            <Link href="/affiliators" target="_blank" className="text-brand-500 hover:underline">/affiliators</Link>.
+            <Link href="https://ripllo.com/affiliators" target="_blank" className="text-brand-500 hover:underline">ripllo.com/affiliators</Link>.
           </div>
         ) : (
           <>
