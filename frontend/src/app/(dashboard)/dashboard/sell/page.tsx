@@ -21,6 +21,8 @@ import {
   Landmark,
   Copy,
   Truck,
+  UserSearch,
+  ExternalLink,
 } from 'lucide-react';
 import Link from 'next/link';
 import { api, ApiRequestError } from '@/lib/api';
@@ -70,23 +72,59 @@ type Rate = {
   duration?: string;
 };
 
-// Recipient/destination captured for a delivery quick sale.
+// Recipient/destination captured for a delivery quick sale. `email` is
+// optional (used for Biteship notifications); mirrors the Fulfillment
+// create-shipment modal's recipient.
 type DeliveryDest = {
   contactName: string;
   contactPhone: string;
+  email: string;
   address: string;
   area: string;
   postalCode: string;
 };
 
-// The delivery draft attached to the current quick sale: where it goes, how
-// heavy it is (grams), and the courier the cashier picked. `rate` set ⇒ the
-// fee is locked in and the order can be charged.
+// One itemized parcel line for a delivery — name + qty + per-unit weight
+// (grams) + declared value. Pre-filled from the cart when a delivery sale
+// starts (the cashier tops up weights/values). Total weight drives the quote.
+type DeliveryItem = { name: string; qty: number; weight: number; value: number };
+
+// A customer record rich enough to pre-fill a delivery recipient (the sell
+// page's own Customer type has no email).
+type CustomerLite = { id: string; name: string; phone: string | null; email: string | null };
+
+// The delivery draft attached to the current quick sale: where it goes, the
+// itemized parcel, the (optional) linked customer, and the courier the cashier
+// picked. `rate` set ⇒ the fee is locked in and the order can be charged.
 type DeliveryDraft = {
   dest: DeliveryDest;
-  weight: number;
+  customerId: string | null;
+  items: DeliveryItem[];
   rate: Rate | null;
 };
+
+// Shared wire builders so the modal's rate quote and the on-completion
+// shipment create send an identical destination + parcel (mirrors the
+// Fulfillment create-shipment modal, adapted to the /delivery proxy).
+function deliveryDestinationPayload(dest: DeliveryDest): Record<string, unknown> {
+  return {
+    contactName: dest.contactName,
+    contactPhone: dest.contactPhone,
+    contactEmail: dest.email || undefined,
+    address: [dest.address, dest.area].filter(Boolean).join(', '),
+    area: dest.area,
+    postalCode: dest.postalCode,
+  };
+}
+
+function deliveryItemsPayload(items: DeliveryItem[]): Array<Record<string, unknown>> {
+  return items.map((it) => ({
+    name: it.name || 'Item',
+    quantity: it.qty || 1,
+    weight: it.weight || 0,
+    value: it.value || 0,
+  }));
+}
 
 // F&B table + its open bill (GET /tables/floor).
 type Floor = { id: string; name: string; sortOrder: number };
@@ -474,20 +512,18 @@ export default function SellPage() {
   // rather than failing the completed sale.
   async function createDeliveryShipment(saleId: string, d: DeliveryDraft) {
     if (!d.rate) return;
+    const r = d.rate as Rate & { courierType?: string; serviceType?: string };
     try {
       await api.post('/delivery/shipments', {
         transactionId: saleId,
-        destination: {
-          contactName: d.dest.contactName,
-          contactPhone: d.dest.contactPhone,
-          address: d.dest.address,
-          area: d.dest.area || undefined,
-          postalCode: d.dest.postalCode,
-        },
+        destination: deliveryDestinationPayload(d.dest),
         courierCode: d.rate.courierCode,
         courierServiceCode: d.rate.courierServiceCode,
+        courierType: r.courierType ?? r.serviceType ?? undefined,
         price: d.rate.price,
-        items: [{ name: 'Order', weight: d.weight, quantity: 1 }],
+        items: deliveryItemsPayload(d.items),
+        customerId: d.customerId ?? undefined,
+        customerEmail: d.dest.email || undefined,
       });
     } catch (e) {
       setError(
@@ -886,11 +922,20 @@ export default function SellPage() {
                     dest: {
                       contactName: customer?.name ?? '',
                       contactPhone: customer?.phone ?? '',
+                      email: '',
                       address: '',
                       area: '',
                       postalCode: '',
                     },
-                    weight: 1000,
+                    customerId: customer?.id ?? null,
+                    // Pre-fill the parcel from the cart — a delivery sale already
+                    // knows what's shipping; the cashier just tops up weights.
+                    items: cart.map((l) => ({
+                      name: l.name,
+                      qty: l.qty,
+                      weight: 500,
+                      value: l.unitPrice,
+                    })),
                     rate: null,
                   });
                   setDeliveryModal(true);
@@ -2298,6 +2343,35 @@ function ReceiptModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
  * parcel at a sane 1000 g default (matching the Fulfillment page) and let the
  * cashier override it.
  */
+// A delivery parcel row in edit form (string inputs, like the Fulfillment
+// create-shipment modal's ItemRow). Converted to/from DeliveryItem on the draft.
+type ParcelRow = { name: string; qty: string; weight: string; value: string };
+
+function rowsFromItems(items: DeliveryItem[]): ParcelRow[] {
+  if (!items.length) return [{ name: '', qty: '1', weight: '500', value: '0' }];
+  return items.map((it) => ({
+    name: it.name,
+    qty: String(it.qty),
+    weight: String(it.weight),
+    value: String(it.value),
+  }));
+}
+
+function itemsFromRows(rows: ParcelRow[]): DeliveryItem[] {
+  return rows.map((r) => ({
+    name: r.name.trim() || 'Item',
+    qty: Number(r.qty) || 1,
+    weight: Number(r.weight) || 0,
+    value: Number(r.value) || 0,
+  }));
+}
+
+/**
+ * Delivery input for a quick sale — brought up to parity with the Fulfillment
+ * create-shipment modal: an origin guard, a "pick customer" recipient pre-fill
+ * with an optional email, and an itemized parcel (pre-seeded from the cart).
+ * The chosen courier's price becomes the order's delivery fee.
+ */
 function DeliveryModal({
   initial,
   onClose,
@@ -2308,29 +2382,83 @@ function DeliveryModal({
   onSave: (draft: DeliveryDraft) => void;
 }) {
   const [dest, setDest] = useState<DeliveryDest>(initial.dest);
-  const [weight, setWeight] = useState<string>(String(initial.weight || 1000));
+  const [customerId, setCustomerId] = useState<string | null>(initial.customerId);
+  const [rows, setRows] = useState<ParcelRow[]>(rowsFromItems(initial.items));
   const [rates, setRates] = useState<Rate[]>([]);
   const [picked, setPicked] = useState<Rate | null>(initial.rate);
   const [loadingRates, setLoadingRates] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [originLoading, setOriginLoading] = useState(true);
+  const [originMissing, setOriginMissing] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  const parcelWeight = Number(weight) || 1000;
+  useEffect(() => {
+    // Origin must be configured or Fulkruma can't quote/create. Mirror the
+    // create-shipment modal's "has origin" check (over the /delivery proxy).
+    api
+      .get<Record<string, unknown>>('/delivery/origin')
+      .then((res) => {
+        const o = (res.data ?? {}) as Record<string, unknown>;
+        const has = Boolean(o.address || o.areaId || o.postal || o.contactName);
+        setOriginMissing(!has);
+      })
+      .catch(() => setOriginMissing(false)) // don't block on a transient origin error
+      .finally(() => setOriginLoading(false));
+  }, []);
+
+  const totalWeight = rows.reduce(
+    (sum, r) => sum + (Number(r.weight) || 0) * (Number(r.qty) || 0),
+    0,
+  );
+
+  function updateRow(i: number, patch: Partial<ParcelRow>) {
+    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+    setRates([]);
+    setPicked(null);
+  }
+
+  function patchDest(patch: Partial<DeliveryDest>) {
+    setDest((prev) => ({ ...prev, ...patch }));
+    setRates([]);
+    setPicked(null);
+  }
+
+  function applyCustomer(c: CustomerLite) {
+    setCustomerId(c.id);
+    setDest((prev) => ({
+      ...prev,
+      contactName: c.name ?? prev.contactName,
+      contactPhone: c.phone ?? prev.contactPhone,
+      email: c.email ?? prev.email,
+    }));
+    setRates([]);
+    setPicked(null);
+    setPickerOpen(false);
+  }
+
+  function validRecipient(): string | null {
+    if (!dest.contactName.trim()) return 'Recipient name is required.';
+    if (!dest.contactPhone.trim()) return 'Recipient phone is required.';
+    if (!dest.address.trim()) return 'Recipient address is required.';
+    if (!dest.postalCode.trim()) return 'Recipient postal code is required.';
+    if (rows.length === 0) return 'Add at least one parcel item.';
+    return null;
+  }
 
   async function quote() {
+    const v = validRecipient();
+    if (v) {
+      setError(v);
+      return;
+    }
     setLoadingRates(true);
     setError(null);
     setRates([]);
     setPicked(null);
     try {
       const { data } = await api.post<{ pricing?: Rate[] } | Rate[]>('/delivery/rates', {
-        destination: {
-          contactName: dest.contactName,
-          contactPhone: dest.contactPhone,
-          address: dest.address,
-          area: dest.area || undefined,
-          postalCode: dest.postalCode,
-        },
-        items: [{ name: 'Order', weight: parcelWeight, quantity: 1 }],
+        destination: deliveryDestinationPayload(dest),
+        items: deliveryItemsPayload(itemsFromRows(rows)),
       });
       // Fulkruma returns either an array of rates or an object wrapping
       // `pricing` — accept both shapes (mirrors the Fulfillment page).
@@ -2350,7 +2478,7 @@ function DeliveryModal({
 
   function save() {
     if (!picked) return;
-    onSave({ dest, weight: parcelWeight, rate: picked });
+    onSave({ dest, customerId, items: itemsFromRows(rows), rate: picked });
   }
 
   return (
@@ -2367,54 +2495,123 @@ function DeliveryModal({
             </div>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <DeliveryField label="Recipient name" value={dest.contactName} onChange={(v) => setDest({ ...dest, contactName: v })} />
-            <DeliveryField label="Recipient phone" value={dest.contactPhone} onChange={(v) => setDest({ ...dest, contactPhone: v })} />
-          </div>
-          <DeliveryField label="Destination address" value={dest.address} onChange={(v) => setDest({ ...dest, address: v })} />
-          <div className="grid gap-3 sm:grid-cols-3">
-            <DeliveryField label="Area / city" value={dest.area} onChange={(v) => setDest({ ...dest, area: v })} />
-            <DeliveryField label="Postal code" value={dest.postalCode} onChange={(v) => setDest({ ...dest, postalCode: v })} />
-            <DeliveryField label="Weight (grams)" value={weight} onChange={setWeight} />
-          </div>
-
-          <button
-            type="button"
-            disabled={loadingRates || !dest.address}
-            onClick={() => void quote()}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-60"
-          >
-            {loadingRates ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
-            Get courier rates
-          </button>
-
-          {rates.length > 0 && (
-            <div className="max-h-64 space-y-2 overflow-y-auto">
-              {rates.map((r, i) => {
-                const isPicked =
-                  picked?.courierCode === r.courierCode &&
-                  picked?.courierServiceCode === r.courierServiceCode;
-                return (
-                  <button
-                    key={`${r.courierCode}-${r.courierServiceCode}-${i}`}
-                    type="button"
-                    onClick={() => setPicked(r)}
-                    className={
-                      'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm ' +
-                      (isPicked ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent')
-                    }
-                  >
-                    <div>
-                      <div className="font-medium">
-                        {(r.courierName ?? r.courierCode).toUpperCase()} · {r.serviceName ?? r.courierServiceCode}
-                      </div>
-                      {r.duration && <div className="text-xs text-muted-foreground">{r.duration}</div>}
-                    </div>
-                    <span className="font-medium">{rupiah(r.price)}</span>
-                  </button>
-                );
-              })}
+          {originLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
+          ) : originMissing ? (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-sm">
+              <p className="font-medium">No pickup origin set</p>
+              <p className="mt-1 text-muted-foreground">
+                Set your shipping origin before quoting couriers — Fulkruma needs it to calculate rates.
+              </p>
+              <Link
+                href="/dashboard/fulfillment/shipping"
+                className="mt-2 inline-flex items-center gap-1 text-primary hover:underline"
+              >
+                Set pickup origin <ExternalLink className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          ) : (
+            <>
+              {/* Recipient */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-semibold uppercase text-muted-foreground">Recipient</h3>
+                  <button
+                    type="button"
+                    onClick={() => setPickerOpen(true)}
+                    className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-xs hover:bg-accent"
+                  >
+                    <UserSearch className="h-3.5 w-3.5" /> Pick customer
+                  </button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <DeliveryField label="Recipient name" value={dest.contactName} onChange={(v) => patchDest({ contactName: v })} />
+                  <DeliveryField label="Recipient phone" value={dest.contactPhone} onChange={(v) => patchDest({ contactPhone: v })} />
+                </div>
+                <DeliveryField label="Email (optional)" value={dest.email} onChange={(v) => patchDest({ email: v })} />
+                <DeliveryField label="Destination address" value={dest.address} onChange={(v) => patchDest({ address: v })} />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <DeliveryField label="Area / city" value={dest.area} onChange={(v) => patchDest({ area: v })} />
+                  <DeliveryField label="Postal code" value={dest.postalCode} onChange={(v) => patchDest({ postalCode: v })} />
+                </div>
+              </section>
+
+              {/* Parcel items — pre-filled from the cart */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-semibold uppercase text-muted-foreground">Parcel items</h3>
+                  <span className="text-xs text-muted-foreground">Total weight: {totalWeight} g</span>
+                </div>
+                <div className="space-y-2">
+                  {rows.map((r, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_3rem_4rem_4.5rem_auto] items-end gap-2">
+                      <DeliveryMiniField label="Name" value={r.name} onChange={(v) => updateRow(i, { name: v })} />
+                      <DeliveryMiniField label="Qty" value={r.qty} onChange={(v) => updateRow(i, { qty: v })} type="number" />
+                      <DeliveryMiniField label="Wt (g)" value={r.weight} onChange={(v) => updateRow(i, { weight: v })} type="number" />
+                      <DeliveryMiniField label="Value" value={r.value} onChange={(v) => updateRow(i, { value: v })} type="number" />
+                      <button
+                        type="button"
+                        disabled={rows.length === 1}
+                        onClick={() => { setRows((prev) => prev.filter((_, idx) => idx !== i)); setRates([]); setPicked(null); }}
+                        className="mb-1.5 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                        title="Remove item"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRows((prev) => [...prev, { name: '', qty: '1', weight: '500', value: '0' }])}
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add item
+                </button>
+              </section>
+
+              {/* Rates */}
+              <button
+                type="button"
+                disabled={loadingRates}
+                onClick={() => void quote()}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-60"
+              >
+                {loadingRates ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
+                Get courier rates
+              </button>
+
+              {rates.length > 0 && (
+                <div className="max-h-64 space-y-2 overflow-y-auto">
+                  {rates.map((r, i) => {
+                    const isPicked =
+                      picked?.courierCode === r.courierCode &&
+                      picked?.courierServiceCode === r.courierServiceCode;
+                    return (
+                      <button
+                        key={`${r.courierCode}-${r.courierServiceCode}-${i}`}
+                        type="button"
+                        onClick={() => setPicked(r)}
+                        className={
+                          'flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm ' +
+                          (isPicked ? 'border-primary bg-primary/5' : 'border-border hover:bg-accent')
+                        }
+                      >
+                        <div>
+                          <div className="font-medium">
+                            {(r.courierName ?? r.courierCode).toUpperCase()} · {r.serviceName ?? r.courierServiceCode}
+                          </div>
+                          {r.duration && <div className="text-xs text-muted-foreground">{r.duration}</div>}
+                        </div>
+                        <span className="font-medium">{rupiah(r.price)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
         <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
@@ -2423,12 +2620,86 @@ function DeliveryModal({
           </button>
           <button
             type="button"
-            disabled={!picked}
+            disabled={!picked || originMissing || originLoading}
             onClick={save}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             Use this courier{picked ? ` · ${rupiah(picked.price)}` : ''}
           </button>
+        </div>
+
+        {pickerOpen && <DeliveryCustomerPicker onPick={applyCustomer} onClose={() => setPickerOpen(false)} />}
+      </div>
+    </div>
+  );
+}
+
+// Customer search → pre-fill the delivery recipient (name/phone/email).
+// Mirrors the Fulfillment create-shipment modal's picker; fetches the same
+// /customers list (which carries email, unlike the sell page's Customer type).
+function DeliveryCustomerPicker({
+  onPick,
+  onClose,
+}: {
+  onPick: (c: CustomerLite) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [customers, setCustomers] = useState<CustomerLite[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setLoading(true);
+      const q = query.trim();
+      api
+        .get<{ items: CustomerLite[] }>(`/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+        .then((res) => setCustomers(res.data.items ?? []))
+        .catch(() => setCustomers([]))
+        .finally(() => setLoading(false));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 p-4 pt-16" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-lg border border-border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h3 className="text-sm font-semibold">Pick customer</h3>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-3">
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search name, phone or email…"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          <div className="mt-2 max-h-64 overflow-y-auto">
+            {loading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+            ) : customers.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">No customers found.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {customers.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() => onPick(c)}
+                      className="w-full px-2 py-2 text-left text-sm hover:bg-accent"
+                    >
+                      <span className="font-medium">{c.name}</span>
+                      <span className="ml-2 text-xs text-muted-foreground">{c.phone ?? c.email ?? ''}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -2443,6 +2714,30 @@ function DeliveryField({ label, value, onChange }: { label: string; value: strin
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+      />
+    </label>
+  );
+}
+
+function DeliveryMiniField({
+  label,
+  value,
+  onChange,
+  type = 'text',
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[10px] font-medium uppercase text-muted-foreground">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
       />
     </label>
   );
