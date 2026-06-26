@@ -890,6 +890,19 @@ function FloorView({
   onQuickSale: () => void;
 }) {
   const occupied = floor.filter((f) => f.openBill).length;
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'occupied'>('all');
+  const q = search.trim().toLowerCase();
+  const filtered = floor.filter((f) => {
+    const okQ =
+      !q ||
+      f.table.label.toLowerCase().includes(q) ||
+      (f.table.zone ?? '').toLowerCase().includes(q);
+    const okStatus =
+      statusFilter === 'all' || (statusFilter === 'available' ? !f.openBill : !!f.openBill);
+    return okQ && okStatus;
+  });
+  const isFiltered = q !== '' || statusFilter !== 'all';
   return (
     <div className="mx-auto flex h-full max-w-6xl flex-col">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -898,7 +911,7 @@ function FloorView({
           <div>
             <h1 className="text-xl font-semibold">Floor</h1>
             <p className="text-sm text-muted-foreground">
-              {floor.length} table{floor.length === 1 ? '' : 's'} · {occupied} occupied
+              {isFiltered ? `${filtered.length} of ${floor.length}` : floor.length} table{floor.length === 1 ? '' : 's'} · {occupied} occupied
             </p>
           </div>
         </div>
@@ -929,6 +942,31 @@ function FloorView({
         </div>
       </div>
 
+      {floor.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search table or zone…"
+              className="w-full rounded-md border border-input bg-card py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div className="flex items-center gap-1 rounded-md border border-border p-1">
+            {(['all', 'available', 'occupied'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`rounded px-3 py-1 text-xs font-medium capitalize ${statusFilter === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'}`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {busy && !floor.length ? (
         <div className="flex flex-1 items-center justify-center text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin" />
@@ -942,8 +980,19 @@ function FloorView({
             <a href="/dashboard/tables" className="text-primary underline">Tables</a>, or start a quick sale.
           </p>
         </div>
+      ) : !filtered.length ? (
+        <div className="mt-10 flex flex-1 flex-col items-center justify-center text-center text-muted-foreground">
+          <Search className="h-8 w-8 text-muted-foreground" />
+          <p className="mt-3 text-sm">No tables match.</p>
+          <button
+            onClick={() => { setSearch(''); setStatusFilter('all'); }}
+            className="mt-2 text-sm text-primary underline"
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
-        <FloorBody floor={floor} onPick={onPick} />
+        <FloorBody floor={filtered} onPick={onPick} />
       )}
     </div>
   );
