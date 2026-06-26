@@ -13,6 +13,7 @@ import categoriesRouter from './categories.js';
 import productsRouter from './products.js';
 import salesRouter from './sales.js';
 import tablesRouter from './tables.js';
+import floorsRouter from './floors.js';
 import inventoryRouter from './inventory.js';
 import shiftsRouter from './shifts.js';
 import suppliersRouter from './suppliers.js';
@@ -131,6 +132,7 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
   router.use('/modifiers', requireAuth, modifiersRouter);
   router.use('/sales', requireAuth, salesRouter);
   router.use('/tables', requireAuth, tablesRouter);
+  router.use('/floors', requireAuth, floorsRouter);
   router.use('/inventory', requireAuth, inventoryRouter);
   router.use('/shifts', requireAuth, shiftsRouter);
   router.use('/suppliers', requireAuth, suppliersRouter);

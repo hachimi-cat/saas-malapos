@@ -31,6 +31,10 @@ const cellSize = z.number().int().min(1).max(12);
 
 const createBody = z.object({
   outletId: z.string().trim().min(1),
+  // The floor to place the table on. Omitted → the outlet's first floor (a
+  // "Main floor" is created if the outlet has none), so a table always lands
+  // somewhere. See resolveFloorId().
+  floorId: z.string().trim().min(1).nullish(),
   label: z.string().trim().min(1).max(60),
   zone: optionalText(60),
   seats: z.number().int().min(0).max(1000).nullish(),
@@ -44,6 +48,8 @@ const createBody = z.object({
 
 const patchBody = z.object({
   label: z.string().trim().min(1).max(60).optional(),
+  // Move the table to another floor. Must belong to the same outlet.
+  floorId: z.string().trim().min(1).optional(),
   zone: optionalText(60),
   seats: z.number().int().min(0).max(1000).nullish(),
   sortOrder: z.number().int().min(0).optional(),
@@ -57,8 +63,11 @@ const patchBody = z.object({
 
 // PUT /tables/layout — bulk-save the floor arrangement in one call (the
 // editor's Save). Each entry repositions one table; shape/size are optional.
+// Scoped to a single floor when `floorId` is given (the editor always sends
+// the active floor) so the returned table set is exactly that floor's.
 const layoutBody = z.object({
   outletId: z.string().trim().min(1),
+  floorId: z.string().trim().min(1).nullish(),
   tables: z
     .array(
       z.object({
@@ -79,15 +88,46 @@ async function assertOutlet(accountId: string, outletId: string): Promise<void> 
   if (!outlet) throw new ApiError(404, 'NOT_FOUND', 'Outlet not found');
 }
 
+/**
+ * Resolve the floor a table should live on. A given `floorId` must belong to
+ * this account + outlet (404 otherwise). When omitted, default to the outlet's
+ * first floor (sortOrder, then name); if the outlet has no floor yet, create a
+ * "Main floor" — so a newly created table always lands on a real floor.
+ */
+async function resolveFloorId(accountId: string, outletId: string, floorId?: string | null): Promise<string> {
+  if (floorId) {
+    const floor = await prisma.floor.findFirst({ where: { id: floorId, accountId, outletId }, select: { id: true } });
+    if (!floor) throw new ApiError(404, 'NOT_FOUND', 'Floor not found at this outlet');
+    return floor.id;
+  }
+  const first = await prisma.floor.findFirst({
+    where: { accountId, outletId },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    select: { id: true },
+  });
+  if (first) return first.id;
+  const created = await prisma.floor.create({
+    data: { id: newId('flr'), accountId, outletId, name: 'Main floor', sortOrder: 0 },
+    select: { id: true },
+  });
+  return created.id;
+}
+
 router.get(
   '/',
   asyncHandler(async (req, res) => {
     const accountId = req.auth!.accountId as string;
     const outletId = (req.query.outletId as string | undefined)?.trim();
     if (!outletId) throw new ApiError(400, 'VALIDATION_ERROR', 'outletId is required', 'outletId');
+    const floorId = (req.query.floorId as string | undefined)?.trim();
     const includeInactive = req.query.includeInactive === 'true';
     const tables = await prisma.table.findMany({
-      where: { accountId, outletId, ...(includeInactive ? {} : { isActive: true }) },
+      where: {
+        accountId,
+        outletId,
+        ...(floorId ? { floorId } : {}),
+        ...(includeInactive ? {} : { isActive: true }),
+      },
       orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
     });
     sendOk(res, req, { tables });
@@ -105,10 +145,11 @@ router.get(
     const accountId = req.auth!.accountId as string;
     const outletId = (req.query.outletId as string | undefined)?.trim();
     if (!outletId) throw new ApiError(400, 'VALIDATION_ERROR', 'outletId is required', 'outletId');
+    const floorId = (req.query.floorId as string | undefined)?.trim();
 
     const [tables, openBills] = await Promise.all([
       prisma.table.findMany({
-        where: { accountId, outletId, isActive: true },
+        where: { accountId, outletId, isActive: true, ...(floorId ? { floorId } : {}) },
         orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
       }),
       prisma.transaction.findMany({
@@ -153,11 +194,13 @@ router.post(
       select: { id: true },
     });
     if (dupe) throw new ApiError(409, 'CONFLICT', `A table labelled "${body.label}" already exists at this outlet`);
+    const floorId = await resolveFloorId(accountId, body.outletId, body.floorId);
     const table = await prisma.table.create({
       data: {
         id: newId('tbl'),
         accountId,
         outletId: body.outletId,
+        floorId,
         label: body.label,
         zone: body.zone ?? null,
         seats: body.seats ?? null,
@@ -187,9 +230,12 @@ router.patch(
       });
       if (dupe) throw new ApiError(409, 'CONFLICT', `A table labelled "${body.label}" already exists at this outlet`);
     }
+    // Moving the table to another floor: the target must belong to this outlet.
+    const floorId = body.floorId !== undefined ? await resolveFloorId(accountId, existing.outletId, body.floorId) : undefined;
     const table = await prisma.table.update({
       where: { id: existing.id },
       data: {
+        ...(floorId !== undefined ? { floorId } : {}),
         ...(body.label !== undefined ? { label: body.label } : {}),
         ...(body.zone !== undefined ? { zone: body.zone } : {}),
         ...(body.seats !== undefined ? { seats: body.seats } : {}),
@@ -218,11 +264,12 @@ router.put(
     const accountId = req.auth!.accountId as string;
     const body = layoutBody.parse(req.body);
     await assertOutlet(accountId, body.outletId);
+    const floorId = body.floorId ?? undefined;
 
     if (body.tables.length) {
       const ids = body.tables.map((t) => t.id);
       const owned = await prisma.table.findMany({
-        where: { id: { in: ids }, accountId, outletId: body.outletId },
+        where: { id: { in: ids }, accountId, outletId: body.outletId, ...(floorId ? { floorId } : {}) },
         select: { id: true },
       });
       const ownedIds = new Set(owned.map((t) => t.id));
@@ -246,7 +293,7 @@ router.put(
     }
 
     const tables = await prisma.table.findMany({
-      where: { accountId, outletId: body.outletId, isActive: true },
+      where: { accountId, outletId: body.outletId, isActive: true, ...(floorId ? { floorId } : {}) },
       orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
     });
     sendOk(res, req, { tables });

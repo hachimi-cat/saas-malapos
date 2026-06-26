@@ -222,9 +222,35 @@ model Outlet {
   purchaseOrders PurchaseOrder[]
   batches        StockBatch[]
   tables         Table[]
+  floors         Floor[]
 
   @@index([accountId])
   @@map("outlets")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// F&B floors (levels within an outlet)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// A floor / level inside an outlet (e.g. "Ground Floor", "Rooftop"). Each
+/// floor owns its own table layout (its own editor canvas + sell-view map).
+/// F&B-only; an outlet with tables always has at least one floor ("Main
+/// floor"), so every table belongs to exactly one floor.
+model Floor {
+  id        String   @id // flr_*
+  accountId String
+  outletId  String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  outlet Outlet  @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  tables Table[]
+
+  @@unique([outletId, name])
+  @@index([accountId, outletId])
+  @@map("floors")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -238,6 +264,11 @@ model Table {
   id        String   @id // tbl_*
   accountId String
   outletId  String
+  // The floor this table lives on. Nullable for additive safety (a brand-new
+  // table created before any floor exists, or legacy rows pre-backfill), but
+  // in practice every table is assigned a floor — the backfill seeds a "Main
+  // floor" per outlet and create/update default to the outlet's first floor.
+  floorId   String?
   label     String // e.g. "Table 5", "A1"
   zone      String? // e.g. "Indoor", "Patio"
   seats     Int?
@@ -255,10 +286,12 @@ model Table {
   updatedAt DateTime @updatedAt
 
   outlet       Outlet        @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  floor        Floor?        @relation(fields: [floorId], references: [id], onDelete: SetNull)
   transactions Transaction[]
 
   @@unique([outletId, label])
   @@index([accountId, outletId])
+  @@index([accountId, floorId])
   @@map("tables")
 }
 

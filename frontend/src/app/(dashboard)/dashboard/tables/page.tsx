@@ -15,6 +15,8 @@ import {
   RectangleHorizontal,
   Save,
   Users,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useBusinessType } from '@/hooks/use-business-type';
@@ -29,11 +31,14 @@ import { useBusinessType } from '@/hooks/use-business-type';
 
 type Outlet = { id: string; name: string };
 
+type Floor = { id: string; outletId: string; name: string; sortOrder: number };
+
 type TableShape = 'SQUARE' | 'ROUND' | 'RECT';
 
 type Table = {
   id: string;
   outletId: string;
+  floorId: string | null;
   label: string;
   zone: string | null;
   seats: number | null;
@@ -63,6 +68,9 @@ export default function TablesPage() {
   const { isFnb, loading: btLoading } = useBusinessType();
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [outletId, setOutletId] = useState('');
+  const [floors, setFloors] = useState<Floor[]>([]);
+  // The active floor — its own table layout is what the editor + list show.
+  const [floorId, setFloorId] = useState('');
   const [tables, setTables] = useState<Table[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,14 +91,40 @@ export default function TablesPage() {
     })();
   }, []);
 
-  async function load(id: string) {
-    if (!id) {
+  // Load the outlet's floors, then keep the active floor valid (preserve it on
+  // a refresh, else default to the first floor). Returns the chosen floor id.
+  async function loadFloors(oid: string): Promise<string> {
+    if (!oid) {
+      setFloors([]);
+      setFloorId('');
+      return '';
+    }
+    try {
+      const res = await api.get<{ floors: Floor[] }>(`/floors?outletId=${encodeURIComponent(oid)}`);
+      const list = res.data.floors;
+      setFloors(list);
+      let next = '';
+      setFloorId((prev) => {
+        next = list.some((f) => f.id === prev) ? prev : list[0]?.id ?? '';
+        return next;
+      });
+      return next;
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to load floors');
+      return '';
+    }
+  }
+
+  async function load(oid: string, fid: string) {
+    if (!oid || !fid) {
       setTables([]);
       setLoading(false);
       return;
     }
     try {
-      const res = await api.get<{ tables: Table[] }>(`/tables?outletId=${encodeURIComponent(id)}&includeInactive=true`);
+      const res = await api.get<{ tables: Table[] }>(
+        `/tables?outletId=${encodeURIComponent(oid)}&floorId=${encodeURIComponent(fid)}&includeInactive=true`,
+      );
       setTables(res.data.tables);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to load tables');
@@ -99,17 +133,81 @@ export default function TablesPage() {
     }
   }
 
+  // Outlet switch → (re)load its floors; the floor effect then loads tables.
   useEffect(() => {
-    if (outletId) load(outletId);
+    if (outletId) loadFloors(outletId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outletId]);
+
+  useEffect(() => {
+    if (outletId) load(outletId, floorId);
+    else setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outletId, floorId]);
+
+  // ── Floor CRUD ─────────────────────────────────────────────────────────
+  async function addFloor() {
+    const name = prompt('New floor name (e.g. First Floor, Rooftop)')?.trim();
+    if (!name) return;
+    setError(null);
+    try {
+      const res = await api.post<{ floor: Floor }>('/floors', { outletId, name });
+      await loadFloors(outletId);
+      setFloorId(res.data.floor.id);
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to add floor');
+    }
+  }
+
+  async function renameFloor(f: Floor) {
+    const name = prompt('Rename floor', f.name)?.trim();
+    if (!name || name === f.name) return;
+    setError(null);
+    try {
+      await api.patch(`/floors/${f.id}`, { name });
+      await loadFloors(outletId);
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to rename floor');
+    }
+  }
+
+  async function deleteFloor(f: Floor) {
+    if (!confirm(`Delete floor "${f.name}"? It must have no tables.`)) return;
+    setError(null);
+    try {
+      await api.delete(`/floors/${f.id}`);
+      const next = await loadFloors(outletId);
+      setFloorId(next);
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to delete floor');
+    }
+  }
+
+  // Reorder the active floor one slot left/right. Normalises every floor's
+  // sortOrder to its new index so ordering is stable even from all-equal seeds.
+  async function moveFloor(dir: -1 | 1) {
+    const idx = floors.findIndex((f) => f.id === floorId);
+    const j = idx + dir;
+    if (idx < 0 || j < 0 || j >= floors.length) return;
+    const ordered = [...floors];
+    [ordered[idx], ordered[j]] = [ordered[j], ordered[idx]];
+    setError(null);
+    try {
+      await Promise.all(
+        ordered.map((f, i) => (f.sortOrder !== i ? api.patch(`/floors/${f.id}`, { sortOrder: i }) : null)),
+      );
+      await loadFloors(outletId);
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to reorder floors');
+    }
+  }
 
   async function remove(t: Table) {
     if (!confirm(`Delete table "${t.label}"?`)) return;
     setError(null);
     try {
       await api.delete(`/tables/${t.id}`);
-      await load(outletId);
+      await load(outletId, floorId);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to delete table');
     }
@@ -190,13 +288,38 @@ export default function TablesPage() {
         </div>
       </div>
 
-      {view === 'layout' ? (
+      <FloorSwitcher
+        floors={floors}
+        floorId={floorId}
+        onPick={setFloorId}
+        onAdd={addFloor}
+        onRename={renameFloor}
+        onDelete={deleteFloor}
+        onMove={moveFloor}
+      />
+
+      {!floorId ? (
+        <div className="rounded-lg border border-dashed border-border bg-card p-12 text-center">
+          <LayoutGrid className="mx-auto h-10 w-10 text-muted-foreground" />
+          <h2 className="mt-3 text-base font-medium">No floors yet</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Add a floor (e.g. Ground Floor, Rooftop) to start laying out tables.
+          </p>
+          <button
+            onClick={addFloor}
+            className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" /> Add floor
+          </button>
+        </div>
+      ) : view === 'layout' ? (
         <FloorEditor
           tables={tables}
           outletId={outletId}
+          floorId={floorId}
           onEdit={(t) => setEditing(t)}
           onDelete={remove}
-          onSaved={() => load(outletId)}
+          onSaved={() => load(outletId, floorId)}
           onError={setError}
         />
       ) : tables.length === 0 ? (
@@ -268,6 +391,7 @@ export default function TablesPage() {
       {(creating || editing) && (
         <TableModal
           outletId={outletId}
+          floorId={floorId}
           table={editing}
           onClose={() => {
             setCreating(false);
@@ -276,7 +400,10 @@ export default function TablesPage() {
           onSaved={async () => {
             setCreating(false);
             setEditing(null);
-            await load(outletId);
+            // A table created on a no-floor outlet auto-creates "Main floor"
+            // server-side — refresh floors so the new floor appears + activates.
+            const fid = floorId || (await loadFloors(outletId));
+            await load(outletId, fid);
           }}
         />
       )}
@@ -331,6 +458,7 @@ type Drag = { id: string; dx: number; dy: number; clientX: number; clientY: numb
 function FloorEditor({
   tables,
   outletId,
+  floorId,
   onEdit,
   onDelete,
   onSaved,
@@ -338,6 +466,7 @@ function FloorEditor({
 }: {
   tables: Table[];
   outletId: string;
+  floorId: string;
   onEdit: (t: Table) => void;
   onDelete: (t: Table) => void;
   onSaved: () => void;
@@ -418,6 +547,7 @@ function FloorEditor({
     try {
       await api.put('/tables/layout', {
         outletId,
+        floorId,
         tables: items.map((t) => ({
           id: t.id,
           posX: t.posX,
@@ -656,11 +786,13 @@ function Stepper({ label, value, onChange }: { label: string; value: number; onC
 
 function TableModal({
   outletId,
+  floorId,
   table,
   onClose,
   onSaved,
 }: {
   outletId: string;
+  floorId: string;
   table: Table | null;
   onClose: () => void;
   onSaved: () => void;
@@ -695,6 +827,9 @@ function TableModal({
       } else {
         await api.post<{ table: Table }>('/tables', {
           outletId,
+          // Land the new table on the active floor (server defaults to the
+          // outlet's first/Main floor when omitted).
+          ...(floorId ? { floorId } : {}),
           label: form.label.trim(),
           zone: form.zone.trim() || null,
           seats,
@@ -790,5 +925,92 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1 block text-muted-foreground">{label}</span>
       {children}
     </label>
+  );
+}
+
+// ── Floor switcher ─────────────────────────────────────────────────────────
+//
+// Tabs across the top of the tables page: each floor is its own table layout.
+// Pick a floor to load its tables; the active floor can be renamed, deleted
+// (when empty), and nudged left/right to reorder. "+" adds a floor.
+function FloorSwitcher({
+  floors,
+  floorId,
+  onPick,
+  onAdd,
+  onRename,
+  onDelete,
+  onMove,
+}: {
+  floors: Floor[];
+  floorId: string;
+  onPick: (id: string) => void;
+  onAdd: () => void;
+  onRename: (f: Floor) => void;
+  onDelete: (f: Floor) => void;
+  onMove: (dir: -1 | 1) => void;
+}) {
+  const idx = floors.findIndex((f) => f.id === floorId);
+  const active = floors[idx] ?? null;
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-border pb-3">
+      <div className="flex flex-wrap items-center gap-1">
+        {floors.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => onPick(f.id)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              f.id === floorId
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            }`}
+          >
+            {f.name}
+          </button>
+        ))}
+        <button
+          onClick={onAdd}
+          title="Add floor"
+          className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <Plus className="h-4 w-4" /> Floor
+        </button>
+      </div>
+
+      {active && (
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            onClick={() => onMove(-1)}
+            disabled={idx <= 0}
+            title="Move floor left"
+            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onMove(1)}
+            disabled={idx >= floors.length - 1}
+            title="Move floor right"
+            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onRename(active)}
+            title="Rename floor"
+            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onDelete(active)}
+            title="Delete floor"
+            className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

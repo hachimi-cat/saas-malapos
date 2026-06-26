@@ -47,6 +47,7 @@ type Sale = {
 };
 
 // F&B table + its open bill (GET /tables/floor).
+type Floor = { id: string; name: string; sortOrder: number };
 type TableShape = 'SQUARE' | 'ROUND' | 'RECT';
 type FloorTable = {
   id: string;
@@ -89,6 +90,14 @@ export default function SellPage() {
   const [parkedPaid, setParkedPaid] = useState(0);
   const [floor, setFloor] = useState<FloorEntry[]>([]);
   const [floorBusy, setFloorBusy] = useState(false);
+  // F&B floors (levels) for the active outlet + which one the floor view shows.
+  // Each floor has its own table layout; the board shows the active floor only.
+  const [floors, setFloors] = useState<Floor[]>([]);
+  const [floorId, setFloorId] = useState('');
+  // Mirror floorId into a ref so the realtime/poll refetch closures (which we
+  // deliberately don't re-subscribe on every floor switch) read the live value.
+  const floorIdRef = useRef('');
+  floorIdRef.current = floorId;
   const [holding, setHolding] = useState(false);
   const [splitting, setSplitting] = useState(false);
   // Split-bill flow (F&B). Set when the cashier splits an open table bill
@@ -132,11 +141,15 @@ export default function SellPage() {
   const outlet = outlets.find((o) => o.id === outletId);
 
   // ── F&B floor ────────────────────────────────────────────────────────
-  const loadFloor = useCallback(async (oid: string) => {
+  // Load the live board for one floor. `fid` defaults to the active floor (via
+  // ref) so the realtime/poll callers refresh whatever floor is showing.
+  const loadFloor = useCallback(async (oid: string, fid?: string) => {
     if (!oid) return;
+    const f = fid ?? floorIdRef.current;
     setFloorBusy(true);
     try {
-      const res = await api.get<{ floor: FloorEntry[] }>(`/tables/floor?outletId=${encodeURIComponent(oid)}`);
+      const url = `/tables/floor?outletId=${encodeURIComponent(oid)}${f ? `&floorId=${encodeURIComponent(f)}` : ''}`;
+      const res = await api.get<{ floor: FloorEntry[] }>(url);
       setFloor(res.data.floor);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to load floor');
@@ -145,16 +158,48 @@ export default function SellPage() {
     }
   }, []);
 
-  // For F&B workspaces, the floor is the landing view. Switch to it once we
-  // know the business type + have an outlet, unless a table is already bound.
+  // Load the outlet's floors; keep the active floor valid (preserve on refresh,
+  // else default to the first). Returns the chosen floor id.
+  const loadFloors = useCallback(async (oid: string): Promise<string> => {
+    if (!oid) {
+      setFloors([]);
+      setFloorId('');
+      return '';
+    }
+    try {
+      const res = await api.get<{ floors: Floor[] }>(`/floors?outletId=${encodeURIComponent(oid)}`);
+      const list = res.data.floors;
+      setFloors(list);
+      let next = '';
+      setFloorId((prev) => {
+        next = list.some((f) => f.id === prev) ? prev : list[0]?.id ?? '';
+        return next;
+      });
+      floorIdRef.current = next;
+      return next;
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to load floors');
+      return '';
+    }
+  }, []);
+
+  // For F&B workspaces, the floor is the landing view. Load the outlet's floors
+  // once we know the business type + have an outlet, unless a table is bound.
   useEffect(() => {
-    if (isFnb && outletId && !table) {
-      setView('floor');
-      loadFloor(outletId);
+    if (isFnb && outletId) {
+      if (!table) setView('floor');
+      loadFloors(outletId);
     }
     if (!isFnb) setView('register');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFnb, outletId]);
+
+  // Whenever the active floor changes (incl. right after loadFloors picks one),
+  // refresh the board for that floor.
+  useEffect(() => {
+    if (isFnb && outletId && floorId) loadFloor(outletId, floorId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floorId]);
 
   // Realtime: keep the floor live so tables flip occupied↔available the moment
   // a bill is opened, held, settled, or voided anywhere (this terminal or
@@ -572,8 +617,11 @@ export default function SellPage() {
         busy={floorBusy}
         outlets={outlets}
         outletId={outletId}
+        floors={floors}
+        floorId={floorId}
+        onChangeFloor={setFloorId}
         onChangeOutlet={changeOutlet}
-        onRefresh={() => loadFloor(outletId)}
+        onRefresh={() => loadFloor(outletId, floorId)}
         onPick={pickTable}
         onQuickSale={startQuickSale}
       />
@@ -938,6 +986,9 @@ function FloorView({
   busy,
   outlets,
   outletId,
+  floors,
+  floorId,
+  onChangeFloor,
   onChangeOutlet,
   onRefresh,
   onPick,
@@ -947,6 +998,9 @@ function FloorView({
   busy: boolean;
   outlets: Outlet[];
   outletId: string;
+  floors: Floor[];
+  floorId: string;
+  onChangeFloor: (id: string) => void;
   onChangeOutlet: (id: string) => void;
   onRefresh: () => void;
   onPick: (entry: FloorEntry) => void;
@@ -1004,6 +1058,24 @@ function FloorView({
           </button>
         </div>
       </div>
+
+      {floors.length > 1 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1 border-b border-border pb-2">
+          {floors.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => onChangeFloor(f.id)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                f.id === floorId
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`}
+            >
+              {f.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {floor.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
