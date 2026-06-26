@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, X, Pencil, Trash2, Tag } from 'lucide-react';
+import { Search, Plus, X, Pencil, Trash2, Tag, Upload, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 
@@ -255,6 +255,114 @@ type VariantDraft = {
   barcode: string;
 };
 
+/**
+ * Product-image upload. Asks the backend for a presigned public-read PUT
+ * URL (`POST /uploads/sign`), uploads the file straight to DO Spaces, then
+ * stores the resulting public URL in `imageUrl`. The PUT MUST send exactly
+ * the headers the presign signed — `Content-Type` + `x-amz-acl: public-read`
+ * — or Spaces returns 403. A small "or paste URL" field stays as a fallback.
+ */
+function ImageField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (url: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+
+  async function upload(file: File) {
+    if (!file.type.startsWith('image/')) {
+      setUploadErr('Pick an image file (JPG / PNG / WebP).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadErr('Image too large — max 5MB.');
+      return;
+    }
+    setUploadErr(null);
+    setUploading(true);
+    try {
+      const ext = file.name.includes('.') ? file.name.split('.').pop() : undefined;
+      const { data } = await api.post<{
+        key: string;
+        url: string;
+        publicUrl: string;
+        contentType: string;
+      }>('/uploads/sign', { contentType: file.type, ext });
+      // Direct-to-Spaces PUT. Use the signed content-type and the
+      // public-read ACL header the presign signed — both, exactly.
+      const put = await fetch(data.url, {
+        method: 'PUT',
+        headers: { 'Content-Type': data.contentType, 'x-amz-acl': 'public-read' },
+        body: file,
+      });
+      if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+      onChange(data.publicUrl);
+    } catch (e) {
+      setUploadErr(e instanceof ApiRequestError ? e.message : (e as Error).message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="mt-1 space-y-2">
+      <div className="flex items-center gap-3">
+        {value ? (
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={value}
+              alt="Product"
+              className="h-16 w-16 rounded-md border border-border object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => onChange('')}
+              aria-label="Remove image"
+              className="absolute -right-1.5 -top-1.5 rounded-full border border-border bg-card p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-border bg-background text-muted-foreground">
+            <Upload className="h-4 w-4" />
+          </div>
+        )}
+        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent">
+          {uploading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Upload className="h-3.5 w-3.5" />
+          )}
+          {value ? 'Replace image' : 'Upload image'}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) upload(f);
+              e.target.value = '';
+            }}
+          />
+        </label>
+      </div>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="…or paste an image URL"
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+      />
+      {uploadErr && <p className="text-xs text-destructive">{uploadErr}</p>}
+    </div>
+  );
+}
+
 function ProductModal({
   product,
   categories,
@@ -353,6 +461,8 @@ function ProductModal({
           kind,
           trackStock,
           requiresBatch,
+          // Empty clears the image (schema is nullish); a value sets it.
+          imageUrl: imageUrl.trim() || null,
         });
       } else {
         await api.post('/products', {
@@ -490,17 +600,10 @@ function ProductModal({
             />
           </div>
 
-          {!editing && (
-            <label className="block text-sm">
-              <span className="text-muted-foreground">Image URL (optional)</span>
-              <input
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://…"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-              />
-            </label>
-          )}
+          <div className="block text-sm">
+            <span className="text-muted-foreground">Image (optional)</span>
+            <ImageField value={imageUrl} onChange={setImageUrl} />
+          </div>
 
           {editing ? (
             <>
