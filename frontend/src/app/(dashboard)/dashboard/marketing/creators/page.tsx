@@ -13,7 +13,8 @@ interface DirectoryItem {
   bio: string | null;
   niches: string[];
   country: string | null;
-  rateCard?: Record<string, number>;
+  rateCard?: Record<string, unknown>;
+  fromPrice?: number | null;
 }
 interface DirectoryResponse { data: DirectoryItem[]; cursor: string | null; hasMore: boolean }
 
@@ -182,7 +183,10 @@ export default function MerchantCreatorDirectory() {
 }
 
 function CreatorCard({ c, onInvite }: { c: DirectoryItem; onInvite: () => void }) {
-  const minRate = c.rateCard ? Math.min(...Object.values(c.rateCard).filter((v) => v > 0)) : 0;
+  // Ripllo already returns the min base price as `fromPrice`. rateCard
+  // entries are nested objects ({ basePrice, ... }), so Math.min over them
+  // yields Infinity → the card showed "From Rp ∞". Use fromPrice directly.
+  const minRate = c.fromPrice ?? 0;
   const country = COUNTRY_OPTIONS.find((x) => x.code === c.country)?.label ?? c.country ?? null;
   return (
     <div className="flex flex-col rounded-xl border border-border bg-card p-5">
