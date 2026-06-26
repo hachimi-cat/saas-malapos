@@ -158,10 +158,19 @@ export default function ProductsPage() {
             {filtered.map((p) => (
               <tr key={p.id} className="border-b border-border last:border-0 hover:bg-accent">
                 <td className="px-4 py-3">
-                  <div className="font-medium">{p.name}</div>
-                  {p.description && (
-                    <div className="line-clamp-1 text-xs text-muted-foreground">{p.description}</div>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <ProductThumb name={p.name} imageUrl={p.imageUrl} className="h-9 w-9 shrink-0 rounded-md text-xs" />
+                    <div className="min-w-0">
+                      <div className="font-medium">{p.name}</div>
+                      {(() => {
+                        const code = p.variants[0]?.sku || p.variants[0]?.barcode;
+                        return code ? <div className="font-mono text-[11px] text-muted-foreground">{code}</div> : null;
+                      })()}
+                      {p.description && (
+                        <div className="line-clamp-1 text-xs text-muted-foreground">{p.description}</div>
+                      )}
+                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{catName(p.categoryId)}</td>
                 <td className="px-4 py-3">
@@ -828,5 +837,27 @@ function Toggle({
       </span>
       <span>{label}</span>
     </button>
+  );
+}
+
+// Product thumbnail with a graceful fallback: when there's no imageUrl or the
+// image fails to load, show the product's initial on a muted tile.
+function ProductThumb({ name, imageUrl, className }: { name: string; imageUrl: string | null; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (imageUrl && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imageUrl}
+        alt={name}
+        onError={() => setFailed(true)}
+        className={`object-cover ${className ?? ''}`}
+      />
+    );
+  }
+  return (
+    <div className={`flex items-center justify-center bg-muted font-semibold text-muted-foreground ${className ?? ''}`}>
+      {name.charAt(0).toUpperCase()}
+    </div>
   );
 }

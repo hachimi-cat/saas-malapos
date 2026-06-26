@@ -13,7 +13,7 @@ import { rupiah } from '@/lib/money';
  */
 
 type Variant = { id: string; name: string; price: number; sku: string | null; barcode: string | null };
-type Product = { id: string; name: string; kind: string; isActive: boolean; variants: Variant[] };
+type Product = { id: string; name: string; kind: string; isActive: boolean; imageUrl: string | null; variants: Variant[] };
 type Outlet = { id: string; name: string; taxRateBps: number };
 type Customer = { id: string; name: string; phone: string | null };
 
@@ -38,6 +38,12 @@ export default function SellPage() {
   const [paying, setPaying] = useState(false);
   const [receipt, setReceipt] = useState<Sale | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Keyboard-first cashier flow: a highlighted grid card + the cart line the
+  // qty hotkeys act on (the most-recently-touched line).
+  const [highlight, setHighlight] = useState(0);
+  const [activeLineId, setActiveLineId] = useState<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [cols, setCols] = useState(4);
   // Dynamic-QRIS (Payment module) state — set when the cashier picks QRIS
   // and the module is on; drives the QR modal + status polling.
   const [qris, setQris] = useState<{ saleId: string; sessionId: string; qrUrl: string; amount: number } | null>(null);
@@ -72,8 +78,16 @@ export default function SellPage() {
     );
   }, [products, query]);
 
+  // Flatten the filtered catalog into the grid's cards (one per product+variant)
+  // so the keyboard highlight can index into a single ordered list.
+  const cards = useMemo(
+    () => filtered.flatMap((p) => p.variants.map((v) => ({ p, v }))),
+    [filtered],
+  );
+
   function addVariant(p: Product, v: Variant) {
     setReceipt(null);
+    setActiveLineId(v.id);
     setCart((c) => {
       const found = c.find((l) => l.variantId === v.id);
       if (found) return c.map((l) => (l.variantId === v.id ? { ...l, qty: l.qty + 1 } : l));
@@ -85,24 +99,142 @@ export default function SellPage() {
   }
 
   function setQty(variantId: string, qty: number) {
+    setActiveLineId(variantId);
     setCart((c) =>
       qty <= 0 ? c.filter((l) => l.variantId !== variantId) : c.map((l) => (l.variantId === variantId ? { ...l, qty } : l)),
     );
   }
 
-  // If the query exactly matches a barcode, Enter adds it (scanner flow).
-  function onSearchKey(e: React.KeyboardEvent) {
-    if (e.key !== 'Enter') return;
-    const code = query.trim();
-    for (const p of products) {
-      const v = p.variants.find((x) => x.barcode === code);
-      if (v) {
-        addVariant(p, v);
-        setQuery('');
-        return;
+  // Adjust the qty of the active (most-recently-touched) cart line, falling
+  // back to the last line in the cart. `delta` is +1 / -1.
+  function bumpActiveQty(delta: number) {
+    setCart((c) => {
+      if (!c.length) return c;
+      const target = c.find((l) => l.variantId === activeLineId) ?? c[c.length - 1];
+      setActiveLineId(target.variantId);
+      const next = target.qty + delta;
+      if (next <= 0) return c.filter((l) => l.variantId !== target.variantId);
+      return c.map((l) => (l.variantId === target.variantId ? { ...l, qty: next } : l));
+    });
+  }
+
+  // Remove the active line (or the last line) from the cart.
+  function removeActiveLine() {
+    setCart((c) => {
+      if (!c.length) return c;
+      const target = c.find((l) => l.variantId === activeLineId) ?? c[c.length - 1];
+      const rest = c.filter((l) => l.variantId !== target.variantId);
+      setActiveLineId(rest[rest.length - 1]?.variantId ?? null);
+      return rest;
+    });
+  }
+
+  // Reset the highlight whenever the filtered result set changes.
+  useEffect(() => {
+    setHighlight(0);
+  }, [query]);
+
+  // Measure the live column count of the responsive grid so ↑/↓ jump a full row
+  // (the grid is 2/3/4 cols across breakpoints — read it instead of guessing).
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const measure = () => {
+      const tmpl = getComputedStyle(el).gridTemplateColumns;
+      const n = tmpl.split(' ').filter(Boolean).length;
+      if (n > 0) setCols(n);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading]);
+
+  // Keep the highlighted card scrolled into view as the cashier arrows around.
+  useEffect(() => {
+    gridRef.current
+      ?.querySelector(`[data-card-index="${highlight}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [highlight]);
+
+  // Global cashier hotkeys. A document-level listener catches keys even while
+  // the search input holds focus (keydown bubbles up). We carefully scope the
+  // qty/remove keys to an EMPTY query so they never fire while typing a search.
+  useEffect(() => {
+    function clamp(i: number) {
+      return cards.length ? Math.max(0, Math.min(i, cards.length - 1)) : 0;
+    }
+    function onKey(e: KeyboardEvent) {
+      // While any modal is open the modals own the keyboard (Esc/Enter there).
+      if (paying || qris || receipt) return;
+      switch (e.key) {
+        case 'ArrowRight':
+          e.preventDefault();
+          setHighlight((i) => clamp(i + 1));
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          setHighlight((i) => clamp(i - 1));
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          setHighlight((i) => clamp(i + cols));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setHighlight((i) => clamp(i - cols));
+          break;
+        case 'Enter': {
+          // Scanner flow first: an exact barcode match wins (existing behavior).
+          const code = query.trim();
+          if (code) {
+            for (const p of products) {
+              const v = p.variants.find((x) => x.barcode === code);
+              if (v) {
+                addVariant(p, v);
+                setQuery('');
+                return;
+              }
+            }
+          }
+          // Otherwise add the highlighted card (or the first filtered result).
+          const card = cards[highlight] ?? cards[0];
+          if (card) addVariant(card.p, card.v);
+          break;
+        }
+        case 'F2':
+          e.preventDefault();
+          if (cart.length) setPaying(true);
+          break;
+        case 'Escape':
+          setQuery('');
+          break;
+        case '+':
+        case '=': // same physical key without Shift
+          if (query === '') {
+            e.preventDefault();
+            bumpActiveQty(1);
+          }
+          break;
+        case '-':
+          if (query === '') {
+            e.preventDefault();
+            bumpActiveQty(-1);
+          }
+          break;
+        case 'Delete':
+        case 'Backspace':
+          if (query === '') {
+            e.preventDefault();
+            removeActiveLine();
+          }
+          break;
       }
     }
-  }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards, highlight, cols, query, cart.length, products, paying, qris, receipt, activeLineId]);
 
   const subtotal = cart.reduce((s, l) => s + l.unitPrice * l.qty, 0);
   const tax = outlet && outlet.taxRateBps > 0 && !taxInclusiveUnknown ? Math.round((subtotal * outlet.taxRateBps) / 10000) : 0;
@@ -132,7 +264,6 @@ export default function SellPage() {
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={onSearchKey}
               placeholder="Search or scan barcode…"
               className="w-full rounded-md border border-input bg-card py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
@@ -148,21 +279,44 @@ export default function SellPage() {
           </select>
         </div>
 
-        <div className="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((p) =>
-            p.variants.map((v) => (
+        <div
+          ref={gridRef}
+          className="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4"
+        >
+          {cards.map(({ p, v }, i) => {
+            const code = v.sku || v.barcode;
+            return (
               <button
                 key={v.id}
-                onClick={() => addVariant(p, v)}
-                className="flex flex-col rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-primary hover:bg-accent"
+                data-card-index={i}
+                onClick={() => {
+                  setHighlight(i);
+                  addVariant(p, v);
+                }}
+                className={`flex flex-col rounded-lg border bg-card p-3 text-left transition-colors hover:border-primary hover:bg-accent ${
+                  i === highlight ? 'border-primary ring-2 ring-ring' : 'border-border'
+                }`}
               >
+                <ProductThumb name={p.name} imageUrl={p.imageUrl} className="mb-2 aspect-square w-full rounded-md" />
                 <span className="line-clamp-2 text-sm font-medium">{p.name}</span>
                 {v.name !== 'Default' && <span className="text-xs text-muted-foreground">{v.name}</span>}
+                {code && <span className="font-mono text-[11px] text-muted-foreground">{code}</span>}
                 <span className="mt-auto pt-2 text-sm font-semibold text-primary">{rupiah(v.price)}</span>
               </button>
-            )),
-          )}
-          {!filtered.length && <p className="col-span-full p-8 text-center text-muted-foreground">No products match.</p>}
+            );
+          })}
+          {!cards.length && <p className="col-span-full p-8 text-center text-muted-foreground">No products match.</p>}
+        </div>
+
+        {/* Cashier hotkey legend */}
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          <span><Kbd>↑</Kbd><Kbd>↓</Kbd><Kbd>←</Kbd><Kbd>→</Kbd> navigate</span>
+          <span><Kbd>Enter</Kbd> add</span>
+          <span><Kbd>scan</Kbd> barcode</span>
+          <span><Kbd>+</Kbd><Kbd>−</Kbd> qty</span>
+          <span><Kbd>Del</Kbd> remove</span>
+          <span><Kbd>F2</Kbd> pay</span>
+          <span><Kbd>Esc</Kbd> clear</span>
         </div>
       </div>
 
@@ -313,6 +467,37 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+// A keyboard-cap chip for the hotkey legend.
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="mx-0.5 inline-flex min-w-[1.25rem] items-center justify-center rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] font-medium text-foreground">
+      {children}
+    </kbd>
+  );
+}
+
+// Product thumbnail with a graceful fallback: when there's no imageUrl or the
+// image fails to load, show the product's initial on a muted tile.
+function ProductThumb({ name, imageUrl, className }: { name: string; imageUrl: string | null; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  if (imageUrl && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imageUrl}
+        alt={name}
+        onError={() => setFailed(true)}
+        className={`object-cover ${className ?? ''}`}
+      />
+    );
+  }
+  return (
+    <div className={`flex items-center justify-center bg-muted font-semibold text-muted-foreground ${className ?? ''}`}>
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
 function CustomerPicker({ customer, onChange }: { customer: Customer | null; onChange: (c: Customer | null) => void }) {
   const [q, setQ] = useState('');
   const [results, setResults] = useState<Customer[]>([]);
@@ -391,6 +576,31 @@ function PaymentModal({
   const [busy, setBusy] = useState(false);
   const change = Math.max(0, tendered - total);
   const quick = [total, 50000, 100000, 150000, 200000].filter((v, i, a) => a.indexOf(v) === i);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+
+  const canConfirm =
+    !busy && !(method === 'CASH' && tendered < total) && !(method === 'GIFT_CARD' && !reference.trim());
+
+  // Autofocus the first field on open + Enter charges / Esc closes. The page's
+  // global hotkeys stand down while this modal is open, so it owns the keyboard.
+  useEffect(() => {
+    firstFieldRef.current?.focus();
+    firstFieldRef.current?.select();
+  }, [method]);
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (!busy) onClose();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (canConfirm) void confirm();
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canConfirm, busy, method, tendered, reference]);
 
   async function confirm() {
     setBusy(true);
@@ -448,6 +658,7 @@ function PaymentModal({
             <label className="block text-sm">
               <span className="text-muted-foreground">Cash received</span>
               <input
+                ref={firstFieldRef}
                 type="number"
                 value={tendered}
                 onChange={(e) => setTendered(Number(e.target.value))}
@@ -471,6 +682,7 @@ function PaymentModal({
                 : 'Card / EDC reference (optional)'}
             </span>
             <input
+              ref={firstFieldRef}
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               placeholder={method === 'QRIS' ? 'Plugipay QRIS ref' : method === 'GIFT_CARD' ? 'GC-XXXXXXXXXX' : 'Approval code'}
