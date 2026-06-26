@@ -25,6 +25,7 @@ type ReadyItem = {
   variantName: string | null;
   qty: number;
   modifiers: { name: string; price: number }[];
+  note: string | null;
   kdsState: KdsState | null;
 };
 
@@ -225,6 +226,12 @@ export default function ServePage() {
                                 {it.modifiers?.length > 0 && (
                                   <span className="block text-xs text-muted-foreground">
                                     {it.modifiers.map((m) => m.name).join(', ')}
+                                  </span>
+                                )}
+                                {it.note && (
+                                  <span className="mt-1 flex items-start gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                    <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
+                                    <span>{it.note}</span>
                                   </span>
                                 )}
                               </span>

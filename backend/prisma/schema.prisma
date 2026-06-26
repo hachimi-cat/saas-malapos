@@ -665,6 +665,11 @@ model TransactionItem {
   discount      Int      @default(0) // per-line discount, IDR
   /// Chosen modifiers snapshot: [{ name, price }]. Surcharges fold into total.
   modifiers     Json     @default("[]")
+  /// Free-text per-item instruction the cashier types at ring-up (e.g.
+  /// "no onions", "extra spicy"). Surfaced on the KDS + serve boards so the
+  /// kitchen and server see it. Null = no note. Distinct from the order-level
+  /// Transaction.note.
+  note          String?
   lineTotal     Int // (unitPrice * qty) + modifier surcharges − discount
   batchId       String? // pharmacy: which lot this line drew from
   /// Per-item kitchen-display state — set to NEW alongside the parent

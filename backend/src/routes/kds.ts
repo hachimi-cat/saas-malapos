@@ -90,6 +90,7 @@ router.get(
             variantName: true,
             quantity: true,
             modifiers: true,
+            note: true,
             kdsState: true,
           },
         },
@@ -138,6 +139,7 @@ router.get(
             variantName: true,
             quantity: true,
             modifiers: true,
+            note: true,
             kdsState: true,
           },
           orderBy: { createdAt: 'asc' },
@@ -155,6 +157,7 @@ router.get(
       variantName: string | null;
       qty: number;
       modifiers: unknown;
+      note: string | null;
       kdsState: KdsState | null;
     };
     type ReadyTicket = {
@@ -189,6 +192,7 @@ router.get(
           variantName: it.variantName,
           qty: it.quantity,
           modifiers: it.modifiers,
+          note: it.note,
           kdsState: it.kdsState,
         })),
       };

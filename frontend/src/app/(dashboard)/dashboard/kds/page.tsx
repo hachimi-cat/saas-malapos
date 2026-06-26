@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChefHat, ArrowRight, Loader2, CheckCircle2, Undo2 } from 'lucide-react';
+import { ChefHat, ArrowRight, Loader2, CheckCircle2, Undo2, StickyNote } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useRealtime } from '@/hooks/use-realtime';
 
@@ -25,6 +25,7 @@ type TicketItem = {
   variantName: string | null;
   quantity: number;
   modifiers: { name: string; price: number }[];
+  note: string | null;
   kdsState: KdsState | null;
 };
 
@@ -224,6 +225,14 @@ export default function KdsPage() {
                                   <Undo2 className="h-4 w-4" />
                                 </button>
                               </div>
+                              {/* Per-item instruction from the cashier — highlighted
+                                  so the line cook can't miss it. */}
+                              {it.note && (
+                                <p className="mt-1.5 flex items-start gap-1 rounded bg-amber-500/15 px-1.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                  <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
+                                  <span>{it.note}</span>
+                                </p>
+                              )}
                             </li>
                           );
                         })}

@@ -32,6 +32,8 @@ const lineSchema = z.object({
   unitPrice: z.number().int().min(0).optional(),
   discount: z.number().int().min(0).optional(),
   modifiers: z.array(modifierSchema).max(20).optional(),
+  // Free-text per-item instruction (e.g. "no onions"); shown on KDS + serve.
+  note: z.string().trim().max(280).nullish(),
 });
 const paymentSchema = z.object({
   method: z.enum(['CASH', 'QRIS', 'CARD', 'GIFT_CARD', 'OTHER']),

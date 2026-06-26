@@ -17,6 +17,7 @@ import {
   Users,
   PauseCircle,
   Split,
+  StickyNote,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
@@ -35,7 +36,7 @@ type Product = { id: string; name: string; kind: string; isActive: boolean; imag
 type Outlet = { id: string; name: string; taxRateBps: number };
 type Customer = { id: string; name: string; phone: string | null };
 
-type CartLine = { variantId: string; productId: string; name: string; variantName: string; unitPrice: number; qty: number };
+type CartLine = { variantId: string; productId: string; name: string; variantName: string; unitPrice: number; qty: number; note?: string };
 
 type Sale = {
   id: string;
@@ -101,6 +102,9 @@ export default function SellPage() {
   // qty hotkeys act on (the most-recently-touched line).
   const [highlight, setHighlight] = useState(0);
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
+  // Which cart line currently has its note input revealed (a line with an
+  // existing note always shows it). Lightweight per-line note affordance.
+  const [openNoteId, setOpenNoteId] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [cols, setCols] = useState(4);
   // Dynamic-QRIS (Payment module) state — set when the cashier picks QRIS
@@ -191,7 +195,7 @@ export default function SellPage() {
     const bound: BoundTable = { id: entry.table.id, label: entry.table.label };
     if (entry.openBill) {
       try {
-        const res = await api.get<{ sale: { items: { variantId: string | null; productName: string; variantName: string | null; unitPrice: number; quantity: number }[]; customer: Customer | null; paidTotal: number } }>(
+        const res = await api.get<{ sale: { items: { variantId: string | null; productName: string; variantName: string | null; unitPrice: number; quantity: number; note: string | null }[]; customer: Customer | null; paidTotal: number } }>(
           `/sales/${entry.openBill.transactionId}`,
         );
         const items = res.data.sale.items.filter((it) => it.variantId);
@@ -203,6 +207,7 @@ export default function SellPage() {
             variantName: it.variantName ?? 'Default',
             unitPrice: it.unitPrice,
             qty: it.quantity,
+            note: it.note ?? undefined,
           })),
         );
         setCustomer(res.data.sale.customer ?? null);
@@ -247,7 +252,13 @@ export default function SellPage() {
   // Build the cart's wire items (variantId + qty + unitPrice so a held
   // bill's prices survive a re-save).
   const cartItems = useCallback(
-    () => cart.map((l) => ({ variantId: l.variantId, quantity: l.qty, unitPrice: l.unitPrice })),
+    () =>
+      cart.map((l) => ({
+        variantId: l.variantId,
+        quantity: l.qty,
+        unitPrice: l.unitPrice,
+        note: l.note?.trim() ? l.note.trim() : undefined,
+      })),
     [cart],
   );
 
@@ -377,6 +388,12 @@ export default function SellPage() {
     setCart((c) =>
       qty <= 0 ? c.filter((l) => l.variantId !== variantId) : c.map((l) => (l.variantId === variantId ? { ...l, qty } : l)),
     );
+  }
+
+  // Set a cart line's per-item note (e.g. "no onions"). Bound to the line in
+  // the cart state; sent with the item in every create/hold/settle payload.
+  function setLineNote(variantId: string, note: string) {
+    setCart((c) => c.map((l) => (l.variantId === variantId ? { ...l, note } : l)));
   }
 
   // Adjust the qty of the active (most-recently-touched) cart line, falling
@@ -658,23 +675,50 @@ export default function SellPage() {
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {cart.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">Cart is empty. Tap a product.</p>}
-          {cart.map((l) => (
-            <div key={l.variantId} className="flex items-center gap-2 rounded-md px-2 py-2 hover:bg-accent">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{l.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {rupiah(l.unitPrice)}{l.variantName !== 'Default' ? ` · ${l.variantName}` : ''}
-                </p>
+          {cart.map((l) => {
+            const noteOpen = openNoteId === l.variantId || !!l.note;
+            return (
+            <div key={l.variantId} className="rounded-md px-2 py-2 hover:bg-accent">
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{l.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {rupiah(l.unitPrice)}{l.variantName !== 'Default' ? ` · ${l.variantName}` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setQty(l.variantId, l.qty - 1)} className="rounded p-1 hover:bg-background"><Minus className="h-4 w-4" /></button>
+                  <span className="w-6 text-center text-sm">{l.qty}</span>
+                  <button onClick={() => setQty(l.variantId, l.qty + 1)} className="rounded p-1 hover:bg-background"><Plus className="h-4 w-4" /></button>
+                </div>
+                <span className="w-20 text-right text-sm font-medium">{rupiah(l.unitPrice * l.qty)}</span>
+                {/* Per-item note toggle — reveals the inline note input below. */}
+                <button
+                  onClick={() => {
+                    setOpenNoteId((id) => (id === l.variantId ? null : l.variantId));
+                    setActiveLineId(l.variantId);
+                  }}
+                  title="Add a note for the kitchen"
+                  aria-label="Add a note for the kitchen"
+                  className={`rounded p-1 transition-colors hover:text-foreground ${l.note ? 'text-primary' : 'text-muted-foreground'}`}
+                >
+                  <StickyNote className="h-4 w-4" />
+                </button>
+                <button onClick={() => setQty(l.variantId, 0)} className="rounded p-1 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setQty(l.variantId, l.qty - 1)} className="rounded p-1 hover:bg-background"><Minus className="h-4 w-4" /></button>
-                <span className="w-6 text-center text-sm">{l.qty}</span>
-                <button onClick={() => setQty(l.variantId, l.qty + 1)} className="rounded p-1 hover:bg-background"><Plus className="h-4 w-4" /></button>
-              </div>
-              <span className="w-20 text-right text-sm font-medium">{rupiah(l.unitPrice * l.qty)}</span>
-              <button onClick={() => setQty(l.variantId, 0)} className="rounded p-1 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+              {noteOpen && (
+                <input
+                  value={l.note ?? ''}
+                  autoFocus={openNoteId === l.variantId}
+                  onChange={(e) => setLineNote(l.variantId, e.target.value)}
+                  placeholder="Note for kitchen (e.g. no onions)"
+                  maxLength={280}
+                  className="mt-1.5 w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-ring"
+                />
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
         <div className="space-y-1 border-t border-border p-4 text-sm">
           <Row label="Subtotal" value={rupiah(subtotal)} />

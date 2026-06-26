@@ -30,6 +30,9 @@ export interface CartLine {
   unitPrice?: number; // override; defaults to the variant's price
   discount?: number; // per-line discount, IDR
   modifiers?: CartModifier[];
+  /** Free-text per-item instruction (e.g. "no onions"); shown on the KDS +
+   *  serve boards. Stored on TransactionItem.note. */
+  note?: string | null;
 }
 export interface SalePayment {
   method: 'CASH' | 'QRIS' | 'CARD' | 'GIFT_CARD' | 'OTHER';
@@ -480,9 +483,10 @@ export async function updateParkedSale(
     const mods = (line.modifiers ?? []).map((m) => ({ name: m.name, price: Math.max(0, m.price) }));
     const modTotal = mods.reduce((s, m) => s + m.price, 0);
     const discount = Math.max(0, line.discount ?? 0);
+    const note = line.note?.trim() || null;
     const lineTotal = (unitPrice + modTotal) * line.quantity - discount;
     subtotal += lineTotal;
-    return { v, unitPrice, mods, discount, quantity: line.quantity, lineTotal: Math.max(0, lineTotal) };
+    return { v, unitPrice, mods, discount, note, quantity: line.quantity, lineTotal: Math.max(0, lineTotal) };
   });
 
   const orderDiscount = Math.max(0, input.orderDiscount ?? 0);
@@ -518,6 +522,7 @@ export async function updateParkedSale(
             quantity: l.quantity,
             discount: l.discount,
             modifiers: l.mods as unknown as Prisma.InputJsonValue,
+            note: l.note,
             lineTotal: l.lineTotal,
             kdsState: itemKdsState,
           })),
@@ -1175,6 +1180,7 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
             quantity: l.line.quantity,
             discount: l.discount,
             modifiers: l.mods as unknown as Prisma.InputJsonValue,
+            note: l.line.note?.trim() || null,
             lineTotal: l.lineTotal,
             // Per-item KDS state mirrors the ticket: NEW for F&B, null otherwise.
             kdsState,
