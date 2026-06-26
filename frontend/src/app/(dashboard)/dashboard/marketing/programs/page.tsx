@@ -5,10 +5,30 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Handshake, Lock, Plus, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { Button, ErrorBox } from '@/components/dashboard/ui';
+import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface PlanInfo { plan: string; isForjioInternal: boolean }
 
@@ -130,9 +150,9 @@ export default function ProgramsPage() {
       ) : programs === null ? (
         <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : programs.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+        <Card className="p-12 text-center text-sm text-muted-foreground">
           No programs yet. Create your first to start enrolling affiliators.
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={programs}
@@ -214,81 +234,85 @@ export default function ProgramsPage() {
         />
       )}
 
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={() => setShowForm(false)}>
-          <form onSubmit={create} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-card p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold">New program</h2>
-            <Field label="Name">
-              <input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </Field>
-            <Field label="Description">
-              <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </Field>
-            <Field label="Storefront URL (where buyers land)">
-              <input
+      <Dialog open={showForm} onOpenChange={(o) => !o && setShowForm(false)}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>New program</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={create} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="prog-name">Name</Label>
+              <Input id="prog-name" type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prog-desc">Description</Label>
+              <Textarea id="prog-desc" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prog-url">Storefront URL (where buyers land)</Label>
+              <Input
+                id="prog-url"
                 type="url"
                 placeholder="https://yourstore.storlaunch.com/"
                 value={form.targetUrl}
                 onChange={(e) => setForm({ ...form, targetUrl: e.target.value })}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               />
-              <p className="mt-1 text-xs text-muted-foreground">Affiliator share links redirect here with <span className="font-mono">?code=&lt;promo&gt;</span> appended.</p>
-            </Field>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Commission model">
-                <select value={form.commissionModel} onChange={(e) => setForm({ ...form, commissionModel: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-                  <option value="perf_redemption">Per redemption</option>
-                  <option value="perf_sale">Per sale (% of GMV)</option>
-                </select>
-              </Field>
-              <Field label="Commission rate (%)">
-                <input type="number" min="0" max="100" step="0.5" value={form.commissionRate} onChange={(e) => setForm({ ...form, commissionRate: Number(e.target.value) })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-              </Field>
+              <p className="text-xs text-muted-foreground">Affiliator share links redirect here with <span className="font-mono">?code=&lt;promo&gt;</span> appended.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Cookie days">
-                <input type="number" min="1" max="365" value={form.cookieDays} onChange={(e) => setForm({ ...form, cookieDays: Number(e.target.value) })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-              </Field>
-              <Field label="Min follower count">
-                <input type="number" min="0" value={form.minFollowerCount} onChange={(e) => setForm({ ...form, minFollowerCount: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" placeholder="No floor" />
-              </Field>
+              <div className="space-y-1.5">
+                <Label htmlFor="prog-model">Commission model</Label>
+                <Select value={form.commissionModel} onValueChange={(v) => setForm({ ...form, commissionModel: v })}>
+                  <SelectTrigger id="prog-model"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="perf_redemption">Per redemption</SelectItem>
+                    <SelectItem value="perf_sale">Per sale (% of GMV)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="prog-rate">Commission rate (%)</Label>
+                <Input id="prog-rate" type="number" min="0" max="100" step="0.5" value={form.commissionRate} onChange={(e) => setForm({ ...form, commissionRate: Number(e.target.value) })} />
+              </div>
             </div>
-            <Field label="Ripllo platform fee (%)">
-              <input type="number" min="0" max="50" step="0.5" value={form.platformFeeRate} onChange={(e) => setForm({ ...form, platformFeeRate: Number(e.target.value) })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="prog-cookie">Cookie days</Label>
+                <Input id="prog-cookie" type="number" min="1" max="365" value={form.cookieDays} onChange={(e) => setForm({ ...form, cookieDays: Number(e.target.value) })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="prog-follower">Min follower count</Label>
+                <Input id="prog-follower" type="number" min="0" value={form.minFollowerCount} onChange={(e) => setForm({ ...form, minFollowerCount: e.target.value })} placeholder="No floor" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="prog-fee">Ripllo platform fee (%)</Label>
+              <Input id="prog-fee" type="number" min="0" max="50" step="0.5" value={form.platformFeeRate} onChange={(e) => setForm({ ...form, platformFeeRate: Number(e.target.value) })} />
+            </div>
             <CampaignSelect
               value={form.marketingCampaignId}
               onChange={(id) => setForm({ ...form, marketingCampaignId: id })}
               disabled={working}
             />
             <div className="flex gap-4 text-sm">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={form.autoApprove} onChange={(e) => setForm({ ...form, autoApprove: e.target.checked })} />
+              <Label className="flex items-center gap-2 font-normal">
+                <Checkbox checked={form.autoApprove} onCheckedChange={(c) => setForm({ ...form, autoApprove: c === true })} />
                 Auto-approve enrollments
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={form.requiresKyc} onChange={(e) => setForm({ ...form, requiresKyc: e.target.checked })} />
+              </Label>
+              <Label className="flex items-center gap-2 font-normal">
+                <Checkbox checked={form.requiresKyc} onCheckedChange={(c) => setForm({ ...form, requiresKyc: c === true })} />
                 Require KYC
-              </label>
+              </Label>
             </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setShowForm(false)} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
-              <button type="submit" disabled={working} className="flex-1 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-600 disabled:opacity-60">
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button type="submit" disabled={working}>
                 {working ? 'Creating…' : 'Create program'}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
-      {children}
-    </label>
   );
 }

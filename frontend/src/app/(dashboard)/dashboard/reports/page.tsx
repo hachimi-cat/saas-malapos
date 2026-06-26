@@ -4,6 +4,23 @@ import { useEffect, useMemo, useState } from 'react';
 import { TrendingUp, Package, AlertTriangle, BarChart3 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /*
  * Reports — the back-office read surface for Malapos. Pick an outlet (or all)
@@ -133,27 +150,31 @@ export default function ReportsPage() {
           <p className="text-sm text-muted-foreground">Sales performance, payment mix, and stock health.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={outletId}
-            onChange={(e) => setOutletId(e.target.value)}
-            className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          <Select
+            value={outletId || 'all'}
+            onValueChange={(v) => setOutletId(v === 'all' ? '' : v)}
           >
-            <option value="">All outlets</option>
-            {outlets.map((o) => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </select>
+            <SelectTrigger className="w-auto min-w-[10rem]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All outlets</SelectItem>
+              {outlets.map((o) => (
+                <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="flex rounded-md border border-border bg-card p-0.5">
             {RANGES.map((r) => (
-              <button
+              <Button
                 key={r.key}
+                size="sm"
+                variant={range === r.key ? 'default' : 'ghost'}
                 onClick={() => setRange(r.key)}
-                className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-                  range === r.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={range === r.key ? '' : 'text-muted-foreground'}
               >
                 {r.label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -205,33 +226,31 @@ export default function ReportsPage() {
           {/* Top products */}
           <Panel title="Top products" icon={<Package className="h-4 w-4 text-primary" />}>
             {topProducts.length ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="w-10 py-2 pr-2 font-medium">#</th>
-                      <th className="py-2 pr-2 font-medium">Product</th>
-                      <th className="py-2 pr-2 text-right font-medium">Qty</th>
-                      <th className="py-2 text-right font-medium">Revenue</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topProducts.map((p, i) => (
-                      <tr key={p.variantId} className="border-b border-border/60 last:border-0">
-                        <td className="py-2 pr-2 text-muted-foreground">{i + 1}</td>
-                        <td className="py-2 pr-2">
-                          <span className="font-medium">{p.productName}</span>
-                          {p.variantName !== 'Default' && (
-                            <span className="text-muted-foreground"> · {p.variantName}</span>
-                          )}
-                        </td>
-                        <td className="py-2 pr-2 text-right tabular-nums">{p.qty.toLocaleString('id-ID')}</td>
-                        <td className="py-2 text-right font-medium tabular-nums">{rupiah(p.revenue)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">#</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Qty</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topProducts.map((p, i) => (
+                    <TableRow key={p.variantId}>
+                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                      <TableCell>
+                        <span className="font-medium">{p.productName}</span>
+                        {p.variantName !== 'Default' && (
+                          <span className="text-muted-foreground"> · {p.variantName}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{p.qty.toLocaleString('id-ID')}</TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">{rupiah(p.revenue)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : (
               <Empty>No sales in this range yet.</Empty>
             )}
@@ -268,10 +287,10 @@ export default function ReportsPage() {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <Card className="p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-semibold">{value}</p>
-    </div>
+    </Card>
   );
 }
 
@@ -287,13 +306,13 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`rounded-lg border border-border bg-card p-4 ${className}`}>
+    <Card className={`p-4 ${className}`}>
       <div className="mb-3 flex items-center gap-2">
         {icon}
         <h2 className="text-sm font-semibold">{title}</h2>
       </div>
       {children}
-    </div>
+    </Card>
   );
 }
 

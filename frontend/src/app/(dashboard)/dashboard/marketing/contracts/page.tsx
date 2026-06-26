@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { Handshake, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 interface Collab {
   id: string;
@@ -74,37 +77,39 @@ export default function ContractsPage() {
       {rows === null ? (
         <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : rows.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+        <Card className="p-12 text-center text-sm text-muted-foreground">
           {filter === 'awaiting_review'
             ? 'Nothing awaiting your review. Drafts will appear here when creators submit them.'
             : filter === 'in_progress'
               ? 'No active collaborations.'
               : 'No collaborations yet. Accept a creator application to spin one up.'}
-        </div>
+        </Card>
       ) : (
         <div className="space-y-3">
           {rows.map((c) => (
             <Link
               key={c.id}
               href={`/dashboard/marketing/collaborations/${c.id}`}
-              className="block rounded-xl border border-border bg-card p-5 transition hover:border-brand-500"
+              className="block"
             >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{c.campaign?.name ?? 'Campaign'}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Creator <span className="font-mono">{c.creatorId.replace('crt_', '')}</span> · {c._count?.deliverables ?? 0} deliverable(s)
-                  </p>
+              <Card className="p-5 transition hover:border-brand-500">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{c.campaign?.name ?? 'Campaign'}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Creator <span className="font-mono">{c.creatorId.replace('crt_', '')}</span> · {c._count?.deliverables ?? 0} deliverable(s)
+                    </p>
+                  </div>
+                  <Badge variant="outline" className={`rounded-full text-[11px] font-medium capitalize ${STATUS_TONE[c.status] ?? 'bg-secondary text-muted-foreground'}`}>
+                    {c.status.replace(/_/g, ' ')}
+                  </Badge>
                 </div>
-                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium capitalize ${STATUS_TONE[c.status] ?? 'bg-secondary text-muted-foreground'}`}>
-                  {c.status.replace(/_/g, ' ')}
-                </span>
-              </div>
-              <div className="mt-3 grid gap-3 border-t border-border pt-3 text-sm sm:grid-cols-3">
-                <Stat label="Gross" value={`Rp ${c.agreedTotalIdr.toLocaleString()}`} />
-                <Stat label="Ripllo fee" value={`${(c.platformFeeRate * 100).toFixed(1)}%`} />
-                <Stat label="Net released" value={c.netToCreatorIdr > 0 ? `Rp ${c.netToCreatorIdr.toLocaleString()}` : '—'} />
-              </div>
+                <div className="mt-3 grid gap-3 border-t border-border pt-3 text-sm sm:grid-cols-3">
+                  <Stat label="Gross" value={`Rp ${c.agreedTotalIdr.toLocaleString()}`} />
+                  <Stat label="Ripllo fee" value={`${(c.platformFeeRate * 100).toFixed(1)}%`} />
+                  <Stat label="Net released" value={c.netToCreatorIdr > 0 ? `Rp ${c.netToCreatorIdr.toLocaleString()}` : '—'} />
+                </div>
+              </Card>
             </Link>
           ))}
         </div>
@@ -115,13 +120,14 @@ export default function ContractsPage() {
 
 function FilterChip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
-    <button
+    <Button
       type="button"
+      variant={active ? 'default' : 'ghost'}
+      size="sm"
       onClick={onClick}
-      className={`rounded px-3 py-1.5 text-sm transition ${active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
     >
       {label}
-    </button>
+    </Button>
   );
 }
 

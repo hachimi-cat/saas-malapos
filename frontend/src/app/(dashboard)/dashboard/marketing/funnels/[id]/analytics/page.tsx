@@ -6,6 +6,8 @@ import { BarChart3, Loader2, Users, CheckCircle2, LogOut, AlertTriangle } from '
 import { PageHeader } from '@/components/dashboard/page-header';
 import { BackLink } from '@/components/dashboard/back-link';
 import { marketingFetch } from '@/lib/marketing-api';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface StepRow {
   stepId: string;
@@ -67,13 +69,15 @@ export default function FunnelAnalyticsPage() {
         action={
           <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
             {WINDOWS.map((w) => (
-              <button
+              <Button
                 key={w.days}
+                size="sm"
+                variant={windowDays === w.days ? 'default' : 'ghost'}
                 onClick={() => setWindowDays(w.days)}
-                className={`rounded px-2.5 py-1 text-xs font-medium ${windowDays === w.days ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'}`}
+                className="h-7 px-2.5 text-xs"
               >
                 {w.label}
-              </button>
+              </Button>
             ))}
           </div>
         }
@@ -90,15 +94,15 @@ export default function FunnelAnalyticsPage() {
       </div>
 
       {data.medianCompletionSeconds > 0 && (
-        <div className="mb-6 rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <Card className="mb-6 px-4 py-3 text-sm text-muted-foreground">
           Median time-to-completion: <span className="font-medium text-foreground">{formatDuration(data.medianCompletionSeconds)}</span>
-        </div>
+        </Card>
       )}
 
-      <section className="rounded-xl border border-border bg-card">
-        <header className="border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold">Step-by-step funnel</h2>
-        </header>
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b border-border px-4 py-3">
+          <CardTitle className="text-sm">Step-by-step funnel</CardTitle>
+        </CardHeader>
         {data.steps.length === 0 ? (
           <div className="px-4 py-10 text-center text-sm text-muted-foreground">No steps configured.</div>
         ) : (
@@ -139,20 +143,20 @@ export default function FunnelAnalyticsPage() {
             })}
           </ol>
         )}
-      </section>
+      </Card>
     </div>
   );
 }
 
 function Tile({ icon: Icon, label, value, tone }: { icon: React.ComponentType<{ size?: number }>; label: string; value: number; tone: string }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <Card className="p-3">
       <div className={`mb-2 inline-flex h-7 w-7 items-center justify-center rounded-md ${tone}`}>
         <Icon size={14} />
       </div>
       <div className="text-2xl font-semibold tabular-nums">{value.toLocaleString()}</div>
       <div className="text-xs text-muted-foreground">{label}</div>
-    </div>
+    </Card>
   );
 }
 

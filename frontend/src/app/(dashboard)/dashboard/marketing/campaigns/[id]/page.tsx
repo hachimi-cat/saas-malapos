@@ -18,9 +18,21 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Megaphone, Loader2, ExternalLink, Save } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { Button, ErrorBox } from '@/components/dashboard/ui';
+import { ErrorBox } from '@/components/dashboard/ui';
 import { BackLink } from '@/components/dashboard/back-link';
 import { marketingFetch } from '@/lib/marketing-api';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type Goal = 'awareness' | 'conversion' | 'retention' | 'launch' | 'other';
 type Status = 'draft' | 'live' | 'paused' | 'completed' | 'archived';
@@ -162,14 +174,15 @@ export default function MarketingCampaignDetailPage() {
         description={`${STATUS_LABELS[campaign.status] ?? campaign.status} · ${GOAL_LABELS[campaign.goal] ?? campaign.goal}${campaign.budgetIdr ? ` · Rp ${campaign.budgetIdr.toLocaleString()} budget` : ''}`}
         action={
           <>
-            <a
-              href={`${RIPLLO_BASE}/dashboard/campaigns/${campaign.id}`}
-              target="_blank"
-              rel="noopener"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary"
-            >
-              <ExternalLink size={14} /> Open in Ripllo
-            </a>
+            <Button asChild variant="outline">
+              <a
+                href={`${RIPLLO_BASE}/dashboard/campaigns/${campaign.id}`}
+                target="_blank"
+                rel="noopener"
+              >
+                <ExternalLink size={14} /> Open in Ripllo
+              </a>
+            </Button>
             <Button onClick={() => setEditing((v) => !v)}>{editing ? 'Cancel' : 'Edit'}</Button>
           </>
         }
@@ -178,38 +191,48 @@ export default function MarketingCampaignDetailPage() {
       {error && <ErrorBox>{error}</ErrorBox>}
 
       {editing ? (
-        <section className="mb-6 rounded-xl border border-border bg-card p-5 space-y-4">
+        <Card className="mb-6 space-y-4 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Status">
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Status })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-                {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </Field>
-            <Field label="Goal">
-              <select value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value as Goal })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-                {Object.entries(GOAL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </Field>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-status">Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Status })}>
+                <SelectTrigger id="edit-status"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(STATUS_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-goal">Goal</Label>
+              <Select value={form.goal} onValueChange={(v) => setForm({ ...form, goal: v as Goal })}>
+                <SelectTrigger id="edit-goal"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(GOAL_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <Field label="Description">
-            <textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-          </Field>
-          <Field label="Budget (IDR)">
-            <input type="number" min="0" value={form.budgetIdr} onChange={(e) => setForm({ ...form, budgetIdr: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" placeholder="Leave blank to clear" />
-          </Field>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-description">Description</Label>
+            <Textarea id="edit-description" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-budget">Budget (IDR)</Label>
+            <Input id="edit-budget" type="number" min="0" value={form.budgetIdr} onChange={(e) => setForm({ ...form, budgetIdr: e.target.value })} placeholder="Leave blank to clear" />
+          </div>
           <div className="flex justify-end">
-            <button type="button" onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-600 disabled:opacity-60">
+            <Button type="button" onClick={save} disabled={saving}>
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save size={14} />}
               Save
-            </button>
+            </Button>
           </div>
-        </section>
+        </Card>
       ) : (
         campaign.description && (
-          <section className="mb-6 rounded-xl border border-border bg-card p-5">
+          <Card className="mb-6 p-5">
             <h2 className="text-sm font-semibold tracking-tight mb-2">About</h2>
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{campaign.description}</p>
-          </section>
+          </Card>
         )
       )}
 
@@ -234,18 +257,11 @@ export default function MarketingCampaignDetailPage() {
 
 function ChildCard({ label, count, href }: { label: string; count: number; href: string }) {
   return (
-    <Link href={href} className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/30 transition">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tabular-nums">{count}</div>
+    <Link href={href} className="block">
+      <Card className="p-4 transition hover:bg-secondary/30">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="mt-1 text-2xl font-semibold tabular-nums">{count}</div>
+      </Card>
     </Link>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
-      {children}
-    </label>
   );
 }

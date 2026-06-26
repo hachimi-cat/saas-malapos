@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react';
 import { pixelsApi, type MerchantPixelsConfig } from '@/lib/marketing-api';
 import { Loader2, Save, BarChart3, Eye, EyeOff, CheckCircle2, Activity, Target } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 /**
  * /dashboard/marketing/pixels — per-merchant conversion tracking setup.
@@ -80,23 +85,21 @@ export default function PixelsPage() {
       {error && <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {success && <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800">{success}</div>}
 
-      <div className="rounded-lg border border-border bg-card">
+      <Card>
         <label className="flex cursor-pointer items-center justify-between gap-3 p-4">
           <div>
             <div className="text-sm font-medium">Enable pixel tracking</div>
             <p className="text-xs text-muted-foreground">Turn the whole system on/off without clearing IDs.</p>
           </div>
-          <input
-            type="checkbox"
+          <Switch
             checked={form.enabled}
-            onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
-            className="h-5 w-5"
+            onCheckedChange={(checked) => setForm({ ...form, enabled: checked })}
           />
         </label>
-      </div>
+      </Card>
 
       {/* ── Meta Pixel + CAPI ─────────────────────────────────────────────── */}
-      <section className="rounded-lg border border-border bg-card p-5">
+      <Card className="p-5">
         <div className="mb-4 flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-blue-600" />
           <h2 className="text-sm font-semibold">Meta Pixel &amp; Conversions API</h2>
@@ -135,10 +138,10 @@ export default function PixelsPage() {
             placeholder="TEST12345"
           />
         </div>
-      </section>
+      </Card>
 
       {/* ── Google ────────────────────────────────────────────────────────── */}
-      <section className="rounded-lg border border-border bg-card p-5">
+      <Card className="p-5">
         <div className="mb-4 flex items-center gap-2">
           <Activity className="h-5 w-5 text-orange-600" />
           <h2 className="text-sm font-semibold">Google Analytics &amp; Google Ads</h2>
@@ -170,10 +173,10 @@ export default function PixelsPage() {
             placeholder="abcDEFghijKLmnop"
           />
         </div>
-      </section>
+      </Card>
 
       {/* ── TikTok ────────────────────────────────────────────────────────── */}
-      <section className="rounded-lg border border-border bg-card p-5">
+      <Card className="p-5">
         <div className="mb-4 flex items-center gap-2">
           <Target className="h-5 w-5 text-pink-600" />
           <h2 className="text-sm font-semibold">TikTok Pixel</h2>
@@ -187,23 +190,18 @@ export default function PixelsPage() {
           onChange={(v) => setForm({ ...form, tiktokPixelId: v || null })}
           placeholder="C123ABC..."
         />
-      </section>
+      </Card>
 
-      <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-4">
+      <Card className="flex items-center justify-between bg-muted/30 p-4">
         <p className="text-xs text-muted-foreground">
           {hasAny ? 'Storefront re-fetches pixel config every 60 seconds — new IDs go live shortly after save.'
                   : 'No pixels configured yet. The storefront injects nothing until you save at least one ID.'}
         </p>
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-        >
+        <Button type="button" onClick={save} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Save
-        </button>
-      </div>
+        </Button>
+      </Card>
     </div>
   );
 }
@@ -222,15 +220,15 @@ interface FieldProps {
 function Field({ id, label, hint, value, onChange, placeholder, type = 'text', rightSlot }: FieldProps) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-xs font-medium">{label}</label>
+      <Label htmlFor={id} className="mb-1 block text-xs font-medium">{label}</Label>
       <div className="relative">
-        <input
+        <Input
           id={id}
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full rounded border border-border bg-background px-3 py-2 pr-10 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+          className="pr-10 font-mono"
         />
         {rightSlot && (
           <div className="absolute right-2 top-1/2 -translate-y-1/2">{rightSlot}</div>

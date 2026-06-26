@@ -5,8 +5,29 @@ import { useSearchParams } from 'next/navigation';
 import { discountCodesApi, type DiscountCode, type DiscountType, type DiscountScope, type DiscountCreateInput } from '@/lib/marketing-api';
 import { ProductMultiSelect } from '@/components/ui/product-multi-select';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
-import { Loader2, Plus, X, Ticket, Pencil, Trash2, CheckCircle2, Clock, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Plus, Ticket, Pencil, Trash2, CheckCircle2, Clock, Eye, EyeOff } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 /**
  * /dashboard/marketing/discount-codes — create, edit, archive promo codes.
@@ -143,22 +164,22 @@ export default function DiscountCodesPage() {
       cell: (c) => (
         <div className="flex flex-col gap-1">
           {c.active ? (
-            <span className="inline-flex w-fit items-center gap-1 rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-900">
+            <Badge variant="outline" className="w-fit gap-1 border-primary/40 bg-primary/10 font-medium text-primary">
               <CheckCircle2 className="h-3 w-3" /> Active
-            </span>
+            </Badge>
           ) : (
-            <span className="inline-flex w-fit items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            <Badge variant="outline" className="w-fit gap-1 border-transparent bg-muted font-medium text-muted-foreground">
               <Clock className="h-3 w-3" /> Inactive
-            </span>
+            </Badge>
           )}
           {c.public ? (
-            <span className="inline-flex w-fit items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900" title="Shown on storefront">
+            <Badge variant="outline" className="w-fit gap-1 border-amber-500/40 bg-amber-500/10 font-medium text-amber-600" title="Shown on storefront">
               <Eye className="h-3 w-3" /> Public
-            </span>
+            </Badge>
           ) : (
-            <span className="inline-flex w-fit items-center gap-1 rounded bg-muted/60 px-2 py-0.5 text-xs font-medium text-muted-foreground" title="Private — buyers must know the code">
+            <Badge variant="outline" className="w-fit gap-1 border-transparent bg-muted/60 font-medium text-muted-foreground" title="Private — buyers must know the code">
               <EyeOff className="h-3 w-3" /> Private
-            </span>
+            </Badge>
           )}
         </div>
       ),
@@ -169,13 +190,13 @@ export default function DiscountCodesPage() {
       align: 'right',
       cell: (c) => (
         <div className="flex items-center justify-end gap-1">
-          <button onClick={() => setEditing(c)} title="Edit" className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+          <Button variant="ghost" size="icon" onClick={() => setEditing(c)} title="Edit" className="h-8 w-8 text-muted-foreground">
             <Pencil className="h-3.5 w-3.5" />
-          </button>
+          </Button>
           {c.active && (
-            <button onClick={() => archive(c.id)} title="Deactivate" className="rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600">
+            <Button variant="ghost" size="icon" onClick={() => archive(c.id)} title="Deactivate" className="h-8 w-8 text-muted-foreground hover:text-destructive">
               <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           )}
         </div>
       ),
@@ -212,19 +233,18 @@ export default function DiscountCodesPage() {
             P&amp;L shows discount expense separately.
           </p>
         </div>
-        <button onClick={() => setEditing('new')}
-          className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+        <Button onClick={() => setEditing('new')} className="shrink-0">
           <Plus className="h-3.5 w-3.5" /> New code
-        </button>
+        </Button>
       </header>
 
-      {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
       {codes.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-12 text-center">
+        <Card className="p-12 text-center">
           <Ticket className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">No discount codes yet. Create one to run your next promotion.</p>
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={codes}
@@ -311,64 +331,64 @@ function EditorModal({ editing, campaignPrefill, onClose, onDone }: { editing: D
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-xl bg-background p-6" onClick={(e) => e.stopPropagation()}>
-        <header className="mb-4 flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">{editing ? `Edit ${editing.code}` : 'New discount code'}</h2>
-            <p className="text-xs text-muted-foreground">
-              {editing ? 'Code name is immutable after creation.' : 'Buyers enter this code at checkout to apply the discount.'}
-            </p>
-          </div>
-          <button onClick={onClose} className="rounded p-1 hover:bg-muted"><X className="h-4 w-4" /></button>
-        </header>
-        {error && <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-xs text-red-700">{error}</div>}
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{editing ? `Edit ${editing.code}` : 'New discount code'}</DialogTitle>
+          <DialogDescription>
+            {editing ? 'Code name is immutable after creation.' : 'Buyers enter this code at checkout to apply the discount.'}
+          </DialogDescription>
+        </DialogHeader>
+        {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{error}</div>}
         <form onSubmit={submit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="dc-code" className="mb-1 block text-xs font-medium">Code *</label>
-              <input id="dc-code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} required disabled={!!editing}
+            <div className="space-y-1.5">
+              <Label htmlFor="dc-code">Code *</Label>
+              <Input id="dc-code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} required disabled={!!editing}
                 placeholder="LEBARAN25"
-                className="w-full rounded border border-border bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-70" />
+                className="font-mono disabled:opacity-70" />
             </div>
-            <div>
-              <label htmlFor="dc-desc" className="mb-1 block text-xs font-medium">Description</label>
-              <input id="dc-desc" value={description} onChange={(e) => setDescription(e.target.value)}
-                placeholder="Lebaran promo 2026"
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+            <div className="space-y-1.5">
+              <Label htmlFor="dc-desc">Description</Label>
+              <Input id="dc-desc" value={description} onChange={(e) => setDescription(e.target.value)}
+                placeholder="Lebaran promo 2026" />
             </div>
           </div>
           <div className="grid grid-cols-[1fr_auto_auto] gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium">Type</label>
-              <select value={type} onChange={(e) => setType(e.target.value as DiscountType)}
-                className="w-full rounded border border-border bg-background px-2 py-2 text-sm">
-                {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <Select value={type} onValueChange={(v) => setType(v as DiscountType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TYPE_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium">{isPercent ? '% value' : 'Amount'}</label>
-              <input type="number" min="1" max={isPercent ? 100 : undefined} value={value} onChange={(e) => setValue(e.target.value)}
-                className="w-28 rounded border border-border bg-background px-2 py-2 text-sm" />
+            <div className="space-y-1.5">
+              <Label>{isPercent ? '% value' : 'Amount'}</Label>
+              <Input type="number" min="1" max={isPercent ? 100 : undefined} value={value} onChange={(e) => setValue(e.target.value)}
+                className="w-28" />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium">Currency</label>
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)}
-                className="rounded border border-border bg-background px-2 py-2 text-sm">
-                <option>IDR</option>
-                <option>USD</option>
-              </select>
+            <div className="space-y-1.5">
+              <Label>Currency</Label>
+              <Select value={currency} onValueChange={(v) => setCurrency(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="IDR">IDR</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           {!isShipping && (
-            <div>
-              <label className="mb-1 block text-xs font-medium">Scope</label>
+            <div className="space-y-1.5">
+              <Label>Scope</Label>
               <div className="flex gap-1 rounded-lg border border-border bg-muted/30 p-1">
                 {(['cart', 'products', 'tags'] as const).map((s) => (
-                  <button key={s} type="button" onClick={() => setScope(s)}
-                    className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium ${scope === s ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+                  <Button key={s} type="button" variant="ghost" size="sm" onClick={() => setScope(s)}
+                    className={`flex-1 ${scope === s ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
                     {SCOPE_LABEL[s]}
-                  </button>
+                  </Button>
                 ))}
               </div>
               {scope === 'products' && (
@@ -382,55 +402,52 @@ function EditorModal({ editing, campaignPrefill, onClose, onDone }: { editing: D
                 </div>
               )}
               {scope === 'tags' && (
-                <input value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}
+                <Input value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}
                   placeholder="summer, sale (comma-separated tags)"
-                  className="mt-2 w-full rounded border border-border bg-background px-3 py-2 text-sm" />
+                  className="mt-2" />
               )}
             </div>
           )}
           <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium">Min purchase</label>
-              <input type="number" min="0" value={minPurchase} onChange={(e) => setMinPurchase(e.target.value)}
-                placeholder="optional"
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm" />
+            <div className="space-y-1.5">
+              <Label>Min purchase</Label>
+              <Input type="number" min="0" value={minPurchase} onChange={(e) => setMinPurchase(e.target.value)}
+                placeholder="optional" />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium">Max uses total</label>
-              <input type="number" min="1" value={maxUses} onChange={(e) => setMaxUses(e.target.value)}
-                placeholder="unlimited"
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm" />
+            <div className="space-y-1.5">
+              <Label>Max uses total</Label>
+              <Input type="number" min="1" value={maxUses} onChange={(e) => setMaxUses(e.target.value)}
+                placeholder="unlimited" />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium">Max per customer</label>
-              <input type="number" min="1" value={maxPerCustomer} onChange={(e) => setMaxPerCustomer(e.target.value)}
-                placeholder="unlimited"
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm" />
+            <div className="space-y-1.5">
+              <Label>Max per customer</Label>
+              <Input type="number" min="1" value={maxPerCustomer} onChange={(e) => setMaxPerCustomer(e.target.value)}
+                placeholder="unlimited" />
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium">Starts</label>
-              <input type="date" value={startsAt} onChange={(e) => setStartsAt(e.target.value)}
-                className="block w-[180px] rounded border border-border bg-background px-3 py-2 text-sm" />
+            <div className="space-y-1.5">
+              <Label>Starts</Label>
+              <Input type="date" value={startsAt} onChange={(e) => setStartsAt(e.target.value)}
+                className="w-[180px]" />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium">Expires</label>
-              <input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)}
-                className="block w-[180px] rounded border border-border bg-background px-3 py-2 text-sm" />
+            <div className="space-y-1.5">
+              <Label>Expires</Label>
+              <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)}
+                className="w-[180px]" />
             </div>
           </div>
           <div>
             <CampaignSelect value={marketingCampaignId} onChange={setMarketingCampaignId} disabled={busy} />
           </div>
           <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <Checkbox checked={active} onCheckedChange={(v) => setActive(v === true)} />
               <span className="font-medium">Active</span>
               <span className="text-xs text-muted-foreground">— buyers can enter this code at checkout</span>
             </label>
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="mt-0.5" />
+            <label className="flex cursor-pointer items-start gap-2 text-sm">
+              <Checkbox checked={isPublic} onCheckedChange={(v) => setIsPublic(v === true)} className="mt-0.5" />
               <div>
                 <span className="font-medium">Show on storefront</span>
                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -440,16 +457,15 @@ function EditorModal({ editing, campaignPrefill, onClose, onDone }: { editing: D
               </div>
             </label>
           </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/70">Cancel</button>
-            <button type="submit" disabled={busy}
-              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={busy}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {editing ? 'Save' : 'Create'}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

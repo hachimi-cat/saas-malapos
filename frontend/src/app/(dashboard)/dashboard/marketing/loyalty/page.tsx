@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Megaphone, Loader2, Gift, ExternalLink, Search } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 /*
  * Loyalty — the Marketing (Ripllo) module's "Loyalty program" sub-page.
@@ -81,7 +86,7 @@ export default function LoyaltyPage() {
   if (moduleOff) {
     return (
       <div className="mx-auto max-w-6xl">
-        <div className="rounded-lg border border-border bg-card px-8 py-16 text-center">
+        <Card className="px-8 py-16 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Megaphone className="h-6 w-6 text-primary" />
           </div>
@@ -90,13 +95,12 @@ export default function LoyaltyPage() {
             Loyalty uses Ripllo to run a points-based program across your outlets. Turn on the
             Marketing module to reward repeat customers and stamp redemptions at the till.
           </p>
-          <Link
-            href="/dashboard/settings/modules"
-            className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Go to Modules <ExternalLink className="h-4 w-4" />
-          </Link>
-        </div>
+          <Button asChild className="mt-6">
+            <Link href="/dashboard/settings/modules">
+              Go to Modules <ExternalLink className="h-4 w-4" />
+            </Link>
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -163,60 +167,52 @@ function LoyaltyCard({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <h2 className="flex items-center gap-2 font-semibold">
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0 border-b py-4">
+        <CardTitle className="flex items-center gap-2 text-base">
           <Gift className="h-4 w-4 text-muted-foreground" /> Program settings
-        </h2>
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={(e) => setEnabled(e.target.checked)}
-            className="h-4 w-4 accent-[hsl(var(--primary))]"
-          />
-          Enabled
-        </label>
-      </div>
-      <div className="space-y-4 px-6 py-4">
+        </CardTitle>
+        <div className="flex items-center gap-2 text-sm">
+          <Switch id="loyalty-enabled" checked={enabled} onCheckedChange={setEnabled} />
+          <Label htmlFor="loyalty-enabled" className="cursor-pointer font-normal">
+            Enabled
+          </Label>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-6">
         <p className="text-sm text-muted-foreground">
           Points apply at the till when a sale is attached to a customer. Earn accrues on the sale
           total; redemption converts points to a rupiah discount.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">
+          <div className="space-y-1.5">
+            <Label htmlFor="earnRate" className="text-xs text-muted-foreground">
               Earn rate — points per Rp 1.000 spent
-            </span>
-            <input
+            </Label>
+            <Input
+              id="earnRate"
               value={earnRate}
               onChange={(e) => setEarnRate(e.target.value)}
               inputMode="decimal"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="redeemValue" className="text-xs text-muted-foreground">
               Redeem value — rupiah per 1 point
-            </span>
-            <input
+            </Label>
+            <Input
+              id="redeemValue"
               value={redeemValue}
               onChange={(e) => setRedeemValue(e.target.value)}
               inputMode="decimal"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
             />
-          </label>
+          </div>
         </div>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => void save()}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-        >
+        <Button type="button" disabled={saving} onClick={() => void save()}>
           {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save program
-        </button>
-      </div>
-    </div>
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -244,33 +240,35 @@ function MemberLookup({ onError }: { onError: (msg: string | null) => void }) {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <h2 className="flex items-center gap-2 font-semibold">
+    <Card>
+      <CardHeader className="border-b py-4">
+        <CardTitle className="flex items-center gap-2 text-base">
           <Search className="h-4 w-4 text-muted-foreground" /> Member balance
-        </h2>
-      </div>
-      <div className="space-y-4 px-6 py-4">
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-6">
         <div className="flex items-end gap-2">
-          <label className="block flex-1">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">Customer ID</span>
-            <input
+          <div className="flex-1 space-y-1.5">
+            <Label htmlFor="customerId" className="text-xs text-muted-foreground">
+              Customer ID
+            </Label>
+            <Input
+              id="customerId"
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void lookup()}
               placeholder="cust_…"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
             />
-          </label>
-          <button
+          </div>
+          <Button
             type="button"
+            variant="outline"
             disabled={looking || !customerId.trim()}
             onClick={() => void lookup()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
           >
             {looking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Look up
-          </button>
+          </Button>
         </div>
 
         {result && (
@@ -314,7 +312,7 @@ function MemberLookup({ onError }: { onError: (msg: string | null) => void }) {
             )}
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -6,9 +6,22 @@ import Link from 'next/link';
 import { Loader2, Check, X, Megaphone, UserPlus, FileText, Mail, Users, Handshake } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { BackLink } from '@/components/dashboard/back-link';
-import { ErrorBox, Button } from '@/components/dashboard/ui';
+import { ErrorBox } from '@/components/dashboard/ui';
 import { CreatorPicker } from '@/components/marketplace/creator-picker';
 import { marketingFetch } from '@/lib/marketing-api';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface Campaign {
   id: string;
@@ -180,7 +193,7 @@ export default function CampaignDetailPage() {
         icon={Megaphone}
         title={campaign.name}
         description={`${campaign.status} · ${campaign.discoveryMode.replace('_', ' ')} · ${campaign.pricingModel} · Rp ${campaign.budgetIdr.toLocaleString()} · ${(campaign.platformFeeRate * 100).toFixed(1)}% Ripllo fee`}
-        action={<Button onClick={() => setShowInvite(true)}><UserPlus size={14} /> Invite creator</Button>}
+        action={<Button onClick={() => setShowInvite(true)}><UserPlus className="h-4 w-4" /> Invite creator</Button>}
       />
 
       {error && <ErrorBox>{error}</ErrorBox>}
@@ -193,31 +206,31 @@ export default function CampaignDetailPage() {
       </div>
 
       {tab === 'brief' && (
-        <section className="rounded-xl border border-border bg-card p-6">
+        <Card className="p-6">
           <p className="whitespace-pre-wrap text-sm text-muted-foreground">{campaign.brief}</p>
-        </section>
+        </Card>
       )}
 
       {tab === 'invitations' && (
         invites === null ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : invites.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          <Card className="p-8 text-center text-sm text-muted-foreground">
             No invitations sent yet.
-          </div>
+          </Card>
         ) : (
           <div className="space-y-3">
             {invites.map((inv) => (
-              <div key={inv.id} className="rounded-xl border border-border bg-card p-5">
+              <Card key={inv.id} className="p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-mono text-sm">{inv.creatorId.replace('crt_', '')}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">Sent {new Date(inv.sentAt).toLocaleDateString()}</p>
                   </div>
-                  <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-medium capitalize">{inv.status}</span>
+                  <Badge variant="secondary" className="rounded-full font-medium capitalize">{inv.status}</Badge>
                 </div>
                 {inv.message && <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">{inv.message}</p>}
-              </div>
+              </Card>
             ))}
           </div>
         )
@@ -227,13 +240,13 @@ export default function CampaignDetailPage() {
         apps === null ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : apps.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          <Card className="p-8 text-center text-sm text-muted-foreground">
             No applications yet.
-          </div>
+          </Card>
         ) : (
           <div className="space-y-3">
             {apps.map((a) => (
-              <div key={a.id} className="rounded-xl border border-border bg-card p-5">
+              <Card key={a.id} className="p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{a.creator?.displayName ?? a.id}</p>
@@ -244,19 +257,19 @@ export default function CampaignDetailPage() {
                     <span className="capitalize">{a.status}</span>
                     {a.status === 'pending' && (
                       <>
-                        <button onClick={() => review(a.id, 'accept')} disabled={working === a.id} className="rounded p-1 text-emerald-500 hover:bg-emerald-500/10" title="Accept">
+                        <Button variant="ghost" size="icon" onClick={() => review(a.id, 'accept')} disabled={working === a.id} className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500" title="Accept">
                           <Check size={14} />
-                        </button>
-                        <button onClick={() => review(a.id, 'reject')} disabled={working === a.id} className="rounded p-1 text-destructive hover:bg-destructive/10" title="Reject">
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => review(a.id, 'reject')} disabled={working === a.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Reject">
                           <X size={14} />
-                        </button>
+                        </Button>
                       </>
                     )}
                   </div>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">{a.pitchText}</p>
                 {a.reviewerNotes && <p className="mt-2 text-xs italic text-muted-foreground">Notes: {a.reviewerNotes}</p>}
-              </div>
+              </Card>
             ))}
           </div>
         )
@@ -266,9 +279,9 @@ export default function CampaignDetailPage() {
         collabs === null ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : collabs.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          <Card className="p-8 text-center text-sm text-muted-foreground">
             No active collaborations. Accept an application to spin one up.
-          </div>
+          </Card>
         ) : (
           <div className="space-y-3">
             {collabs.map((c) => (
@@ -282,9 +295,9 @@ export default function CampaignDetailPage() {
                     <p className="font-mono text-sm">{c.creatorId.replace('crt_', '')}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{c._count?.deliverables ?? 0} deliverable(s) · started {new Date(c.createdAt).toLocaleDateString()}</p>
                   </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium capitalize ${COLLAB_STATUS_TONE[c.status] ?? 'bg-secondary text-muted-foreground'}`}>
+                  <Badge variant="outline" className={cn('rounded-full border-transparent font-medium capitalize', COLLAB_STATUS_TONE[c.status] ?? 'bg-secondary text-muted-foreground')}>
                     {c.status.replace(/_/g, ' ')}
-                  </span>
+                  </Badge>
                 </div>
                 <div className="mt-3 grid gap-3 border-t border-border pt-3 text-sm sm:grid-cols-3">
                   <Stat label="Gross" value={`Rp ${c.agreedTotalIdr.toLocaleString()}`} />
@@ -298,28 +311,30 @@ export default function CampaignDetailPage() {
       )}
 
       {showInvite && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={() => { setShowInvite(false); setInvitePick(null); }}>
-          <form onSubmit={invite} className="w-full max-w-lg rounded-xl bg-card p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <div>
-              <h2 className="text-lg font-bold">Invite creator</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Browse verified creators by handle, name, or niche. Click to view their full profile before inviting.</p>
-            </div>
-            <div>
-              <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Creator</span>
-              <CreatorPicker value={invitePick} onChange={setInvitePick} />
-            </div>
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Message (optional)</span>
-              <textarea rows={3} value={inviteMsg} onChange={(e) => setInviteMsg(e.target.value)} placeholder="Why this creator's a fit, key dates, etc." className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </label>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => { setShowInvite(false); setInvitePick(null); }} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
-              <button type="submit" disabled={working === 'invite' || !invitePick} className="flex-1 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-600 disabled:opacity-60">
-                {working === 'invite' ? 'Inviting…' : 'Send invite'}
-              </button>
-            </div>
-          </form>
-        </div>
+        <Dialog open onOpenChange={(o) => { if (!o) { setShowInvite(false); setInvitePick(null); } }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Invite creator</DialogTitle>
+              <p className="text-xs text-muted-foreground">Browse verified creators by handle, name, or niche. Click to view their full profile before inviting.</p>
+            </DialogHeader>
+            <form onSubmit={invite} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Creator</Label>
+                <CreatorPicker value={invitePick} onChange={setInvitePick} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="invite-msg">Message (optional)</Label>
+                <Textarea id="invite-msg" rows={3} value={inviteMsg} onChange={(e) => setInviteMsg(e.target.value)} placeholder="Why this creator's a fit, key dates, etc." />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => { setShowInvite(false); setInvitePick(null); }}>Cancel</Button>
+                <Button type="submit" disabled={working === 'invite' || !invitePick}>
+                  {working === 'invite' ? 'Inviting…' : 'Send invite'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

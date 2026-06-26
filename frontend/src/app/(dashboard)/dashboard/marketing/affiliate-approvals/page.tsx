@@ -6,6 +6,8 @@ import { Ban, Check, Coins, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 interface ProgramRef { id: string; name: string }
 
@@ -134,13 +136,13 @@ export default function AffiliateApprovalsPage() {
         enrollments === null ? (
           <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : enrollments.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+          <Card className="p-12 text-center text-sm text-muted-foreground">
             No affiliators awaiting approval. New enrollments only land here when a program has <span className="font-mono">autoApprove=false</span>.
-          </div>
+          </Card>
         ) : (
           <div className="space-y-3">
             {enrollments.map((e) => (
-              <div key={e.id} className="rounded-xl border border-border bg-card p-5">
+              <Card key={e.id} className="p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{e.affiliator?.displayName ?? e.affiliatorId}</p>
@@ -148,15 +150,15 @@ export default function AffiliateApprovalsPage() {
                     <p className="mt-1 text-xs text-muted-foreground">For program: <Link className="text-brand-500 hover:underline" href={`/dashboard/marketing/programs/${e.programId}`}>{e.program?.name ?? e.programId}</Link></p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => actEnrollment(e.programId, e.id, 'approve')} disabled={working === e.id} className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-brand-600 disabled:opacity-60">
+                    <Button size="sm" onClick={() => actEnrollment(e.programId, e.id, 'approve')} disabled={working === e.id} className="hover:bg-brand-600">
                       <Check size={12} /> Approve
-                    </button>
-                    <button onClick={() => actEnrollment(e.programId, e.id, 'reject')} disabled={working === e.id} className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-destructive/10 hover:text-destructive disabled:opacity-60">
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => actEnrollment(e.programId, e.id, 'reject')} disabled={working === e.id} className="hover:bg-destructive/10 hover:text-destructive">
                       Reject
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )
@@ -166,9 +168,9 @@ export default function AffiliateApprovalsPage() {
         commissions === null ? (
           <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : commissions.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+          <Card className="p-12 text-center text-sm text-muted-foreground">
             No commissions awaiting review. Approved commissions are batched into the next monthly payout.
-          </div>
+          </Card>
         ) : (
           <DataTable
             rows={commissions}
@@ -227,14 +229,14 @@ export default function AffiliateApprovalsPage() {
                 cell: (c) => (
                   <div className="flex justify-end gap-1">
                     {c.status === 'pending' && (
-                      <button onClick={() => actCommission(c.programId, c.id, 'approve')} disabled={working === c.id} className="rounded p-1 text-emerald-500 hover:bg-emerald-500/10" title="Approve">
+                      <Button variant="ghost" size="icon" onClick={() => actCommission(c.programId, c.id, 'approve')} disabled={working === c.id} className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500" title="Approve">
                         <Check size={14} />
-                      </button>
+                      </Button>
                     )}
                     {(c.status === 'pending' || c.status === 'approved') && (
-                      <button onClick={() => actCommission(c.programId, c.id, 'void')} disabled={working === c.id} className="rounded p-1 text-destructive hover:bg-destructive/10" title="Void">
+                      <Button variant="ghost" size="icon" onClick={() => actCommission(c.programId, c.id, 'void')} disabled={working === c.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Void">
                         <Ban size={14} />
-                      </button>
+                      </Button>
                     )}
                   </div>
                 ),

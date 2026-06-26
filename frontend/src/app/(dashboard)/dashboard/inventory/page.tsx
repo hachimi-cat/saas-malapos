@@ -4,6 +4,34 @@ import { useCallback, useEffect, useState } from 'react';
 import { Package, AlertTriangle, Plus, Minus, Check, X, CalendarClock } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /*
  * Inventory — per-outlet stock control. Lists on-hand quantities against
@@ -134,83 +162,79 @@ export default function InventoryPage() {
             On-hand stock, reorder points and expiry tracking per outlet.
           </p>
         </div>
-        <select
-          value={outletId}
-          onChange={(e) => setOutletId(e.target.value)}
-          className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-        >
-          {outlets.map((o) => (
-            <option key={o.id} value={o.id}>{o.name}</option>
-          ))}
-        </select>
+        <Select value={outletId} onValueChange={setOutletId}>
+          <SelectTrigger className="w-auto min-w-[12rem]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {outlets.map((o) => (
+              <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="mb-3 flex items-center justify-between">
-        <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
-          <input
-            type="checkbox"
+        <Label className="flex cursor-pointer select-none items-center gap-2 text-sm font-normal">
+          <Checkbox
             checked={lowOnly}
-            onChange={(e) => setLowOnly(e.target.checked)}
-            className="h-4 w-4 rounded border-input accent-primary"
+            onCheckedChange={(c) => setLowOnly(c === true)}
           />
           <span className="text-muted-foreground">Low stock only</span>
-        </label>
+        </Label>
         {levelsLoading && <span className="text-xs text-muted-foreground">Refreshing…</span>}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-card">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-3 font-medium">Product</th>
-              <th className="px-4 py-3 font-medium">Variant / SKU</th>
-              <th className="px-4 py-3 text-right font-medium">On hand</th>
-              <th className="px-4 py-3 font-medium">Reorder point</th>
-              <th className="px-4 py-3 text-right font-medium">Action</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Card className="overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead>Variant / SKU</TableHead>
+              <TableHead className="text-right">On hand</TableHead>
+              <TableHead>Reorder point</TableHead>
+              <TableHead className="text-right">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {levels.map((l) => (
-              <tr key={l.id} className="border-b border-border last:border-0 hover:bg-accent">
-                <td className="px-4 py-3 font-medium">{l.variant.product.name}</td>
-                <td className="px-4 py-3 text-muted-foreground">
+              <TableRow key={l.id}>
+                <TableCell className="font-medium">{l.variant.product.name}</TableCell>
+                <TableCell className="text-muted-foreground">
                   {l.variant.name !== 'Default' ? l.variant.name : ''}
                   {l.variant.name !== 'Default' && l.variant.sku ? ' · ' : ''}
                   {l.variant.sku ? <span className="font-mono text-xs">{l.variant.sku}</span> : null}
                   {l.variant.name === 'Default' && !l.variant.sku ? '—' : null}
-                </td>
-                <td className="px-4 py-3 text-right">
+                </TableCell>
+                <TableCell className="text-right">
                   <span className="font-semibold">{l.quantity}</span>
                   {isLow(l) && (
-                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-destructive px-2 py-0.5 text-xs font-medium text-destructive-foreground">
+                    <Badge variant="destructive" className="ml-2 gap-1 rounded-full font-medium">
                       <AlertTriangle className="h-3 w-3" /> Low
-                    </span>
+                    </Badge>
                   )}
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   <ReorderEditor value={l.reorderPoint} onSave={(v) => saveReorder(l, v)} />
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => setAdjusting(l)}
-                    className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
-                  >
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button variant="outline" size="sm" onClick={() => setAdjusting(l)}>
                     Adjust
-                  </button>
-                </td>
-              </tr>
+                  </Button>
+                </TableCell>
+              </TableRow>
             ))}
             {!levels.length && !levelsLoading && (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
                   <Package className="mx-auto mb-2 h-8 w-8 opacity-50" />
                   {lowOnly ? 'No low-stock items. Everything is above its reorder point.' : 'No stock records for this outlet yet.'}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
 
       {expiring.length > 0 && (
         <div className="mt-8">
@@ -219,30 +243,30 @@ export default function InventoryPage() {
             Pharmacy — expiring soon
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">Batches expiring within 30 days at this outlet.</p>
-          <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-card">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-4 py-3 font-medium">Product</th>
-                  <th className="px-4 py-3 font-medium">Batch</th>
-                  <th className="px-4 py-3 font-medium">Expiry</th>
-                  <th className="px-4 py-3 text-right font-medium">Qty remaining</th>
-                </tr>
-              </thead>
-              <tbody>
+          <Card className="mt-3 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Batch</TableHead>
+                  <TableHead>Expiry</TableHead>
+                  <TableHead className="text-right">Qty remaining</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {expiring.map((b) => (
-                  <tr key={b.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3">
+                  <TableRow key={b.id}>
+                    <TableCell>
                       {b.variant?.product?.name ?? b.variant?.name ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{b.batchNo ?? '—'}</td>
-                    <td className="px-4 py-3">{formatDate(b.expiryDate)}</td>
-                    <td className="px-4 py-3 text-right font-medium">{b.qtyRemaining}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">{b.batchNo ?? '—'}</TableCell>
+                    <TableCell>{formatDate(b.expiryDate)}</TableCell>
+                    <TableCell className="text-right font-medium">{b.qtyRemaining}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </Card>
         </div>
       )}
 
@@ -320,7 +344,7 @@ function ReorderEditor({ value, onSave }: { value: number; onSave: (v: number) =
 
   return (
     <div className="flex items-center gap-1">
-      <input
+      <Input
         autoFocus
         type="number"
         min={0}
@@ -330,18 +354,25 @@ function ReorderEditor({ value, onSave }: { value: number; onSave: (v: number) =
           if (e.key === 'Enter') commit();
           if (e.key === 'Escape') setEditing(false);
         }}
-        className="w-20 rounded-md border border-input bg-background px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-ring"
+        className="h-8 w-20"
       />
-      <button
+      <Button
+        variant="ghost"
+        size="icon"
         disabled={busy}
         onClick={commit}
-        className="rounded p-1 text-primary hover:bg-background disabled:opacity-40"
+        className="h-8 w-8 text-primary"
       >
         <Check className="h-4 w-4" />
-      </button>
-      <button onClick={() => setEditing(false)} className="rounded p-1 text-muted-foreground hover:bg-background">
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => setEditing(false)}
+        className="h-8 w-8 text-muted-foreground"
+      >
         <X className="h-4 w-4" />
-      </button>
+      </Button>
     </div>
   );
 }
@@ -377,64 +408,58 @@ function AdjustModal({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Adjust stock</h2>
-          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Adjust stock</DialogTitle>
+        </DialogHeader>
+        <p className="-mt-1 text-sm text-muted-foreground">
           {level.variant.product.name}
           {level.variant.name !== 'Default' ? ` · ${level.variant.name}` : ''}
         </p>
-        <p className="mt-3 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           On hand: <span className="font-semibold text-foreground">{level.quantity}</span>
         </p>
 
-        <div className="mt-4 flex items-center gap-2">
-          <button
-            onClick={() => setDelta((d) => d - 1)}
-            className="rounded-md border border-border p-2 hover:bg-accent"
-          >
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setDelta((d) => d - 1)}>
             <Minus className="h-4 w-4" />
-          </button>
-          <input
+          </Button>
+          <Input
             type="number"
             value={delta}
             onChange={(e) => setDelta(Number(e.target.value) || 0)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-center text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
+            className="h-11 text-center text-lg font-semibold"
           />
-          <button
-            onClick={() => setDelta((d) => d + 1)}
-            className="rounded-md border border-border p-2 hover:bg-accent"
-          >
+          <Button variant="outline" size="icon" onClick={() => setDelta((d) => d + 1)}>
             <Plus className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
-        <p className="mt-2 text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm text-muted-foreground">
           New on hand: <span className={`font-semibold ${resulting < 0 ? 'text-destructive' : 'text-foreground'}`}>{resulting}</span>
         </p>
 
-        <label className="mt-4 block text-sm">
-          <span className="text-muted-foreground">Reason (optional)</span>
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="adjust-reason" className="text-muted-foreground">Reason (optional)</Label>
+          <Input
+            id="adjust-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="e.g. Stock count, received delivery, damage"
-            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
           />
-        </label>
+        </div>
 
-        {err && <p className="mt-3 text-sm text-destructive">{err}</p>}
+        {err && <p className="text-sm text-destructive">{err}</p>}
 
-        <button
+        <Button
           disabled={busy || delta === 0}
           onClick={confirm}
-          className="mt-5 w-full rounded-md bg-primary py-3 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
+          className="w-full"
+          size="lg"
         >
           {busy ? 'Saving…' : `Apply ${delta > 0 ? '+' : ''}${delta}`}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }

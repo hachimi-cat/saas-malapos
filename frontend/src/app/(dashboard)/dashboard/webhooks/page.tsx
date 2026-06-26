@@ -8,6 +8,19 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiRequestError } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface Subscription {
   id: string;
@@ -78,12 +91,7 @@ export default function WebhooksPage() {
             Get an HTTPS POST whenever something happens to your sales or subscription.
           </p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
-        >
-          Add endpoint
-        </button>
+        <Button onClick={() => setShowAdd(true)}>Add endpoint</Button>
       </header>
 
       {error && (
@@ -93,7 +101,7 @@ export default function WebhooksPage() {
       )}
 
       {newSecret && (
-        <div className="rounded-xl border border-primary/40 bg-primary/5 p-4">
+        <Card className="border-primary/40 bg-primary/5 p-4">
           <p className="text-sm font-semibold">Signing secret — shown once</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Use it to verify the <code className="rounded bg-muted/60 px-1">Malapos-Signature</code>{' '}
@@ -103,24 +111,22 @@ export default function WebhooksPage() {
             <code className="flex-1 break-all rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs">
               {newSecret.secret}
             </code>
-            <button
+            <Button
+              size="sm"
+              className="shrink-0"
               onClick={() => {
                 navigator.clipboard.writeText(newSecret.secret);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               }}
-              className="shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
             >
               {copied ? 'Copied!' : 'Copy'}
-            </button>
-            <button
-              onClick={() => setNewSecret(null)}
-              className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs"
-            >
+            </Button>
+            <Button variant="outline" size="sm" className="shrink-0" onClick={() => setNewSecret(null)}>
               Dismiss
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {subs === null ? (
@@ -130,7 +136,7 @@ export default function WebhooksPage() {
           No endpoints yet. Add one to receive malapos.* events.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border">
+        <Card className="overflow-hidden">
           {subs.map((s) => (
             <div
               key={s.id}
@@ -140,30 +146,22 @@ export default function WebhooksPage() {
                 <p className="truncate font-mono text-sm">{s.url}</p>
                 <p className="mt-0.5 flex flex-wrap gap-1">
                   {s.events.map((e) => (
-                    <span
+                    <Badge
                       key={e}
-                      className="rounded-full border border-border bg-muted/40 px-2 py-0.5 font-mono text-[11px] text-muted-foreground"
+                      variant="outline"
+                      className="rounded-full bg-muted/40 px-2 py-0.5 font-mono text-[11px] font-normal text-muted-foreground"
                     >
                       {e === '*' ? 'all events (*)' : e}
-                    </span>
+                    </Badge>
                   ))}
                 </p>
               </div>
-              <button
-                onClick={() => toggleActive(s)}
-                role="switch"
-                aria-checked={s.active}
+              <Switch
+                checked={s.active}
+                onCheckedChange={() => toggleActive(s)}
                 title={s.active ? 'Deliveries on — click to pause' : 'Paused — click to resume'}
-                className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-                  s.active ? 'bg-primary' : 'bg-muted-foreground/30'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
-                    s.active ? 'left-[18px]' : 'left-0.5'
-                  }`}
-                />
-              </button>
+                className="shrink-0"
+              />
               <span
                 className={`w-14 shrink-0 text-xs font-medium ${
                   s.active ? 'text-emerald-600' : 'text-muted-foreground'
@@ -179,10 +177,10 @@ export default function WebhooksPage() {
               </button>
             </div>
           ))}
-        </div>
+        </Card>
       )}
 
-      <section className="rounded-xl border border-border p-5">
+      <Card className="p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Event catalog
         </h2>
@@ -194,9 +192,9 @@ export default function WebhooksPage() {
             </div>
           ))}
         </div>
-      </section>
+      </Card>
 
-      <section className="rounded-xl border border-border p-5">
+      <Card className="p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Verifying signatures
         </h2>
@@ -223,7 +221,7 @@ const valid =
           Delivery is at-most-once in v1 (failures are logged, not retried) — reconcile with{' '}
           <code className="rounded bg-muted/60 px-1">GET /api/v1/sales</code> if you need certainty.
         </p>
-      </section>
+      </Card>
 
       {showAdd && (
         <AddEndpointDialog
@@ -280,63 +278,57 @@ function AddEndpointDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <form
-        onSubmit={submit}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md space-y-3 rounded-xl border border-border bg-background p-5 shadow-xl"
-      >
-        <h2 className="text-lg font-semibold">Add webhook endpoint</h2>
-        <p className="text-xs text-muted-foreground">
-          You&apos;ll get the signing secret right after — it&apos;s shown only once.
-        </p>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <input
-          required
-          autoFocus
-          type="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://example.com/webhooks/malapos"
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-        />
-        <fieldset className="space-y-2 rounded-lg border border-border p-3">
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={allEvents}
-              onChange={(e) => setAllEvents(e.target.checked)}
-              className="mt-0.5"
-            />
-            <span>
-              All events <code className="font-mono text-xs text-muted-foreground">(*)</code>
-            </span>
-          </label>
-          {!allEvents &&
-            EVENT_CATALOG.map((ev) => (
-              <label key={ev.type} className="flex items-start gap-2 pl-5 text-sm">
-                <input
-                  type="checkbox"
-                  checked={selected.includes(ev.type)}
-                  onChange={() => toggle(ev.type)}
-                  className="mt-0.5"
-                />
-                <code className="font-mono text-xs">{ev.type}</code>
-              </label>
-            ))}
-        </fieldset>
-        <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm">
-            Cancel
-          </button>
-          <button
-            disabled={busy}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-          >
-            {busy ? 'Adding…' : 'Add endpoint'}
-          </button>
-        </div>
-      </form>
-    </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <form onSubmit={submit} className="space-y-3">
+          <DialogHeader>
+            <DialogTitle>Add webhook endpoint</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            You&apos;ll get the signing secret right after — it&apos;s shown only once.
+          </p>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Input
+            required
+            autoFocus
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://example.com/webhooks/malapos"
+          />
+          <fieldset className="space-y-2 rounded-lg border border-border p-3">
+            <label className="flex items-start gap-2 text-sm">
+              <Checkbox
+                checked={allEvents}
+                onCheckedChange={(c) => setAllEvents(c === true)}
+                className="mt-0.5"
+              />
+              <span>
+                All events <code className="font-mono text-xs text-muted-foreground">(*)</code>
+              </span>
+            </label>
+            {!allEvents &&
+              EVENT_CATALOG.map((ev) => (
+                <label key={ev.type} className="flex items-start gap-2 pl-5 text-sm">
+                  <Checkbox
+                    checked={selected.includes(ev.type)}
+                    onCheckedChange={() => toggle(ev.type)}
+                    className="mt-0.5"
+                  />
+                  <code className="font-mono text-xs">{ev.type}</code>
+                </label>
+              ))}
+          </fieldset>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy}>
+              {busy ? 'Adding…' : 'Add endpoint'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

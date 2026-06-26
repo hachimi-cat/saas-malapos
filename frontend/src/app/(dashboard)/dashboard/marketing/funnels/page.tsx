@@ -5,6 +5,27 @@ import Link from 'next/link';
 import { Megaphone, Loader2, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Funnel {
   id: string;
@@ -49,7 +70,7 @@ export default function FunnelsPage() {
         icon={Megaphone}
         title="Funnels"
         description="Trigger-driven multi-step automations. Welcome series, abandoned-cart recovery, win-back, post-purchase nurture."
-        action={<button onClick={() => setShowNew(true)} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-600"><Plus size={14} /> New funnel</button>}
+        action={<Button onClick={() => setShowNew(true)}><Plus className="h-4 w-4" /> New funnel</Button>}
       />
 
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
@@ -57,9 +78,9 @@ export default function FunnelsPage() {
       {rows === null ? (
         <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
       ) : rows.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">No funnels yet.</div>
+        <Card className="p-12 text-center text-sm text-muted-foreground">No funnels yet.</Card>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <Card className="overflow-hidden">
           <ul>
             {rows.map((f) => (
               <li key={f.id}>
@@ -70,17 +91,17 @@ export default function FunnelsPage() {
                     <p className="text-xs text-muted-foreground">{TRIGGER_LABELS[f.triggerKind] ?? f.triggerKind} · {f._count?.steps ?? 0} step(s)</p>
                   </div>
                   <span className="font-mono text-xs text-muted-foreground">{f.enrollmentsActive} active · {f.enrollmentsCompleted} done</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
+                  <Badge variant="outline" className={cn('rounded-full border-transparent px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider',
                     f.status === 'active' ? 'bg-emerald-500/10 text-emerald-600' :
                     f.status === 'paused' ? 'bg-amber-500/10 text-amber-600' :
                     f.status === 'archived' ? 'bg-secondary text-muted-foreground' :
                     'bg-blue-500/10 text-blue-600'
-                  }`}>{f.status}</span>
+                  )}>{f.status}</Badge>
                 </Link>
               </li>
             ))}
           </ul>
-        </div>
+        </Card>
       )}
 
       {showNew && <NewFunnelModal onClose={() => setShowNew(false)} onCreated={async (id) => { setShowNew(false); window.location.href = `/dashboard/marketing/funnels/${id}`; }} />}
@@ -114,29 +135,38 @@ function NewFunnelModal({ onClose, onCreated }: { onClose: () => void; onCreated
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={onClose}>
-      <form onSubmit={submit} className="w-full max-w-lg rounded-xl bg-card p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold">New funnel</h2>
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Name</span>
-          <input type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. New subscriber welcome series" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Description</span>
-          <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Trigger</span>
-          <select value={trigger} onChange={(e) => setTrigger(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-            {Object.entries(TRIGGER_LABELS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-          </select>
-        </label>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
-          <button type="submit" disabled={working} className="flex-1 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-600 disabled:opacity-60">{working ? 'Creating…' : 'Create'}</button>
-        </div>
-      </form>
-    </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>New funnel</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="funnel-name">Name</Label>
+            <Input id="funnel-name" type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. New subscriber welcome series" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="funnel-desc">Description</Label>
+            <Textarea id="funnel-desc" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="funnel-trigger">Trigger</Label>
+            <Select value={trigger} onValueChange={setTrigger}>
+              <SelectTrigger id="funnel-trigger">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(TRIGGER_LABELS).map(([k, label]) => <SelectItem key={k} value={k}>{label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={working}>{working ? 'Creating…' : 'Create'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

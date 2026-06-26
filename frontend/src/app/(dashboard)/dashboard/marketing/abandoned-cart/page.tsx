@@ -5,6 +5,19 @@ import { abandonedCartApi, discountCodesApi, type AbandonedCartConfig, type Aban
 import { Loader2, Save, MailX, CheckCircle2, Clock, ShoppingBag } from 'lucide-react';
 import { DataTable, type Column } from '@/components/data-table';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /**
  * /dashboard/marketing/abandoned-cart — opt-in recovery automation.
@@ -111,73 +124,76 @@ export default function AbandonedCartPage() {
       )}
 
       {/* ── Config ────────────────────────────────────────────────────────── */}
-      <section className="rounded-lg border border-border bg-card p-5 space-y-4">
-        <label className="flex cursor-pointer items-center justify-between gap-3">
+      <Card className="space-y-4 p-5">
+        <Label className="flex cursor-pointer items-center justify-between gap-3">
           <div>
             <div className="text-sm font-medium">Enable abandoned-cart reminders</div>
             <p className="text-xs text-muted-foreground">When off, no reminders are sent regardless of other fields.</p>
           </div>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={form.enabled}
-            onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
+            onCheckedChange={(checked) => setForm({ ...form, enabled: checked === true })}
             className="h-5 w-5"
           />
-        </label>
+        </Label>
 
-        <div>
-          <label htmlFor="delay" className="mb-1 block text-xs font-medium">Delay after last cart activity</label>
-          <select
-            id="delay"
-            value={form.delayHours}
-            onChange={(e) => setForm({ ...form, delayHours: parseInt(e.target.value, 10) })}
-            className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+        <div className="space-y-1.5">
+          <Label htmlFor="delay">Delay after last cart activity</Label>
+          <Select
+            value={String(form.delayHours)}
+            onValueChange={(v) => setForm({ ...form, delayHours: parseInt(v, 10) })}
           >
-            {[1, 2, 4, 8, 12, 24, 48, 72].map((h) => (
-              <option key={h} value={h}>{h} hour{h === 1 ? '' : 's'}</option>
-            ))}
-          </select>
+            <SelectTrigger id="delay">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[1, 2, 4, 8, 12, 24, 48, 72].map((h) => (
+                <SelectItem key={h} value={String(h)}>{h} hour{h === 1 ? '' : 's'}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <p className="mt-1 text-[11px] text-muted-foreground">
             Buyer-facing industry default is 4 hours. Longer delays feel less pushy but reduce recovery rate.
           </p>
         </div>
 
-        <div>
-          <label htmlFor="subject" className="mb-1 block text-xs font-medium">Email subject</label>
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="subject">Email subject</Label>
+          <Input
             id="subject"
             value={form.emailSubject}
             onChange={(e) => setForm({ ...form, emailSubject: e.target.value })}
             maxLength={200}
-            className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
 
-        <div>
-          <label htmlFor="preview" className="mb-1 block text-xs font-medium">Preview text</label>
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="preview">Preview text</Label>
+          <Input
             id="preview"
             value={form.emailPreview}
             onChange={(e) => setForm({ ...form, emailPreview: e.target.value })}
             maxLength={200}
-            className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <p className="mt-1 text-[11px] text-muted-foreground">Shown in the inbox list after the subject (Gmail / Apple Mail).</p>
         </div>
 
-        <div>
-          <label htmlFor="code" className="mb-1 block text-xs font-medium">Attach discount code (optional)</label>
-          <select
-            id="code"
-            value={form.discountCodeId ?? ''}
-            onChange={(e) => setForm({ ...form, discountCodeId: e.target.value || null })}
-            className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+        <div className="space-y-1.5">
+          <Label htmlFor="code">Attach discount code (optional)</Label>
+          <Select
+            value={form.discountCodeId ?? 'none'}
+            onValueChange={(v) => setForm({ ...form, discountCodeId: v === 'none' ? null : v })}
           >
-            <option value="">(None)</option>
-            {discountCodes.map((c) => (
-              <option key={c.id} value={c.id}>{c.code} — {c.description ?? `${c.type} ${c.value}`}</option>
-            ))}
-          </select>
+            <SelectTrigger id="code">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">(None)</SelectItem>
+              {discountCodes.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.code} — {c.description ?? `${c.type} ${c.value}`}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <p className="mt-1 text-[11px] text-muted-foreground">
             Include a promo code in the reminder email to sweeten the recovery. Consider setting a per-customer cap
             on the code so the same buyer can&apos;t reuse it endlessly.
@@ -191,26 +207,21 @@ export default function AbandonedCartPage() {
         />
 
         <div className="flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
+          <Button type="button" onClick={save} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
 
       <section>
         <header className="mb-2 text-sm font-semibold">
           Recent reminders <span className="ml-1 text-xs font-normal text-muted-foreground">(last 50)</span>
         </header>
         {reminders.length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          <Card className="p-8 text-center text-sm text-muted-foreground">
             No reminders yet. Once enabled, reminders will appear here after the first cron sweep.
-          </div>
+          </Card>
         ) : (
           <DataTable
             rows={reminders}
@@ -259,13 +270,13 @@ export default function AbandonedCartPage() {
                 sortValue: (r) => (r.recoveredAt ? 'recovered' : 'pending'),
                 cell: (r) =>
                   r.recoveredAt ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-900">
+                    <Badge variant="outline" className="gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-900">
                       <CheckCircle2 className="h-3 w-3" /> Recovered
-                    </span>
+                    </Badge>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    <Badge variant="outline" className="gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                       <Clock className="h-3 w-3" /> Pending
-                    </span>
+                    </Badge>
                   ),
               },
             ] as Column<AbandonedCartReminder>[]}
@@ -293,13 +304,13 @@ export default function AbandonedCartPage() {
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: string; icon: React.ComponentType<{ className?: string }> }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <Card className="p-4">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </div>
       <div className="mt-1 text-xl font-bold">{value}</div>
-    </div>
+    </Card>
   );
 }
 

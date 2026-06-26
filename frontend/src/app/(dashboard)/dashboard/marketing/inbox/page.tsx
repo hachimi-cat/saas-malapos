@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Inbox, Loader2, MessageSquare, Search } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 
 interface Thread {
   provider: string;
@@ -90,11 +92,11 @@ export default function InboxPage() {
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
 
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-        <aside className="overflow-hidden rounded-xl border border-border bg-card">
+        <Card className="overflow-hidden">
           <div className="border-b border-border p-3">
-            <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
-              <Search size={12} className="text-muted-foreground" />
-              <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="flex-1 bg-transparent text-xs outline-none" />
+            <div className="relative">
+              <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="h-8 pl-8 text-xs" />
             </div>
           </div>
           {threads === null ? (
@@ -131,9 +133,9 @@ export default function InboxPage() {
               })}
             </ul>
           )}
-        </aside>
+        </Card>
 
-        <main className="rounded-xl border border-border bg-card">
+        <Card className="rounded-xl">
           {!active ? (
             <div className="flex h-96 flex-col items-center justify-center text-sm text-muted-foreground">
               <MessageSquare size={32} className="mb-3 text-muted-foreground/40" />
@@ -164,7 +166,7 @@ export default function InboxPage() {
               </div>
             </>
           )}
-        </main>
+        </Card>
       </div>
     </div>
   );

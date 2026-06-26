@@ -8,6 +8,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { readActiveWorkspaceId, writeActiveWorkspace } from '@forjio/portal-ui';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 interface Workspace {
   id: string;
@@ -102,7 +106,7 @@ export default function WorkspacesPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-border">
+      <Card className="overflow-hidden">
         {personalId && (
           <WorkspaceRow
             name="Personal workspace"
@@ -122,22 +126,18 @@ export default function WorkspacesPage() {
             onActivate={() => activate(w.id)}
           />
         ))}
-      </div>
+      </Card>
 
       <form onSubmit={createWorkspace} className="mt-6 flex max-w-md gap-2">
-        <input
+        <Input
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="New workspace name"
-          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
         />
-        <button
-          disabled={busy}
-          className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-        >
+        <Button type="submit" disabled={busy} className="shrink-0">
           {busy ? 'Creating…' : 'Create'}
-        </button>
+        </Button>
       </form>
     </div>
   );
@@ -162,20 +162,17 @@ function WorkspaceRow({
         <p className="text-sm font-medium">{name}</p>
         <p className="truncate text-xs text-muted-foreground">{sub}</p>
       </div>
-      <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium capitalize text-muted-foreground">
+      <Badge variant="outline" className="rounded-full text-[11px] font-medium capitalize text-muted-foreground">
         {role}
-      </span>
+      </Badge>
       {active ? (
-        <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+        <Badge variant="outline" className="rounded-full border-primary/40 bg-primary/10 px-3 py-1 font-semibold text-primary">
           Active
-        </span>
+        </Badge>
       ) : (
-        <button
-          onClick={onActivate}
-          className="rounded-lg border border-border px-3 py-1 text-xs hover:border-primary"
-        >
+        <Button variant="outline" size="sm" onClick={onActivate}>
           Switch
-        </button>
+        </Button>
       )}
     </div>
   );

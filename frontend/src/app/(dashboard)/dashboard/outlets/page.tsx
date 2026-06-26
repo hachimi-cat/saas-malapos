@@ -1,8 +1,30 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Store, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Store } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /*
  * Outlets manager — the store-setup surface. List every outlet (name,
@@ -105,48 +127,42 @@ export default function OutletsPage() {
             Your stores and their tax, timezone, and receipt settings.
           </p>
         </div>
-        <button
-          onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
+        <Button onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4" /> Add outlet
-        </button>
+        </Button>
       </div>
 
       {outlets.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-12 text-center">
+        <Card className="p-12 text-center">
           <Store className="mx-auto h-10 w-10 text-muted-foreground" />
           <h2 className="mt-3 text-base font-medium">No outlets yet</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Add your first store to start selling.
           </p>
-          <button
-            onClick={() => setCreating(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
+          <Button onClick={() => setCreating(true)} className="mt-4">
             <Plus className="h-4 w-4" /> Add outlet
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Address</th>
-                <th className="px-4 py-3 font-medium">Phone</th>
-                <th className="px-4 py-3 font-medium">Tax</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
+        <Card className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Address</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Tax</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {outlets.map((o) => (
-                <tr key={o.id} className="border-b border-border last:border-0 hover:bg-accent">
-                  <td className="px-4 py-3 font-medium">{o.name}</td>
-                  <td className="max-w-xs truncate px-4 py-3 text-muted-foreground">{o.address || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{o.phone || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                <TableRow key={o.id}>
+                  <TableCell className="font-medium">{o.name}</TableCell>
+                  <TableCell className="max-w-xs truncate text-muted-foreground">{o.address || '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{o.phone || '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">
                     {o.taxRateBps > 0 ? (
                       <>
                         {(o.taxRateBps / 100).toFixed(o.taxRateBps % 100 ? 2 : 0)}%
@@ -155,41 +171,44 @@ export default function OutletsPage() {
                     ) : (
                       '—'
                     )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                        o.isActive
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {o.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell>
+                    {o.isActive ? (
+                      <Badge variant="outline" className="rounded-full border-primary/40 bg-primary/10 font-medium text-primary">
+                        Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="rounded-full bg-muted font-medium text-muted-foreground">
+                        Inactive
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <div className="flex justify-end gap-1">
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => setEditing(o)}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
                         title="Edit"
                       >
                         <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => remove(o)}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-destructive"
                         title="Delete"
+                        className="text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </Card>
       )}
 
       {(creating || editing) && (
@@ -269,127 +288,105 @@ function OutletModal({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{outlet ? 'Edit outlet' : 'New outlet'}</h2>
-          <button onClick={onClose}>
-            <X className="h-5 w-5 text-muted-foreground" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{outlet ? 'Edit outlet' : 'New outlet'}</DialogTitle>
+        </DialogHeader>
 
-        <div className="mt-4 space-y-4">
+        <div className="space-y-4">
           <Field label="Name">
-            <input
+            <Input
               autoFocus
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
               placeholder="Main Store"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
 
           <Field label="Address">
-            <input
+            <Input
               value={form.address}
               onChange={(e) => set('address', e.target.value)}
               placeholder="Jl. Sudirman No. 1"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Phone">
-              <input
+              <Input
                 value={form.phone}
                 onChange={(e) => set('phone', e.target.value)}
                 placeholder="+62…"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
             </Field>
             <Field label="Timezone">
-              <input
+              <Input
                 value={form.timezone}
                 onChange={(e) => set('timezone', e.target.value)}
                 placeholder="Asia/Jakarta"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
             </Field>
           </div>
 
           <Field label="Tax rate (%)">
-            <input
+            <Input
               type="number"
               min={0}
               step="0.01"
               value={form.taxPercent}
               onChange={(e) => set('taxPercent', e.target.value)}
               placeholder="11"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
 
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <Label className="flex cursor-pointer items-center gap-2 text-sm font-normal">
+            <Checkbox
               checked={form.taxInclusive}
-              onChange={(e) => set('taxInclusive', e.target.checked)}
-              className="h-4 w-4 rounded border-input accent-primary focus:ring-2 focus:ring-ring"
+              onCheckedChange={(c) => set('taxInclusive', c === true)}
             />
             <span>Prices include tax</span>
-          </label>
+          </Label>
 
           <Field label="Receipt header">
-            <textarea
+            <Textarea
               value={form.receiptHeader}
               onChange={(e) => set('receiptHeader', e.target.value)}
               rows={2}
               placeholder="Shown at the top of printed receipts"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
 
           <Field label="Receipt footer">
-            <textarea
+            <Textarea
               value={form.receiptFooter}
               onChange={(e) => set('receiptFooter', e.target.value)}
               rows={2}
               placeholder="Thank you for shopping with us!"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
         </div>
 
-        {err && <p className="mt-3 text-sm text-destructive">{err}</p>}
+        {err && <p className="text-sm text-destructive">{err}</p>}
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            disabled={busy}
-            onClick={save}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-          >
+          </Button>
+          <Button disabled={busy} onClick={save}>
             {busy ? 'Saving…' : outlet ? 'Save changes' : 'Create outlet'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block text-sm">
-      <span className="mb-1 block text-muted-foreground">{label}</span>
+    <div className="space-y-1.5 text-sm">
+      <Label className="text-muted-foreground">{label}</Label>
       {children}
-    </label>
+    </div>
   );
 }

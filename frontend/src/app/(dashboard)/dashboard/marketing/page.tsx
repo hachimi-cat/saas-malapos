@@ -7,7 +7,6 @@ import {
   Loader2,
   Tag,
   Plus,
-  X,
   RefreshCw,
   Gift,
   ExternalLink,
@@ -15,6 +14,24 @@ import {
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 /*
  * Marketing dashboard — the Marketing (Ripllo) module's deep-link target
@@ -110,7 +127,7 @@ export default function MarketingPage() {
   if (moduleOff) {
     return (
       <div className="mx-auto max-w-6xl">
-        <div className="rounded-lg border border-border bg-card px-8 py-16 text-center">
+        <Card className="px-8 py-16 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Megaphone className="h-6 w-6 text-primary" />
           </div>
@@ -120,13 +137,12 @@ export default function MarketingPage() {
             your outlets. Turn on the Marketing module to reward repeat customers and stamp
             redemptions at the till.
           </p>
-          <Link
-            href="/dashboard/settings/modules"
-            className="mt-6 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Go to Modules <ExternalLink className="h-4 w-4" />
-          </Link>
-        </div>
+          <Button asChild className="mt-6">
+            <Link href="/dashboard/settings/modules">
+              Go to Modules <ExternalLink className="h-4 w-4" />
+            </Link>
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -143,26 +159,17 @@ export default function MarketingPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href="/dashboard/marketing/loyalty"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
-          >
-            <Gift className="h-4 w-4" /> Loyalty
-          </Link>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
-          >
+          <Button asChild variant="outline">
+            <Link href="/dashboard/marketing/loyalty">
+              <Gift className="h-4 w-4" /> Loyalty
+            </Link>
+          </Button>
+          <Button variant="outline" onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" /> Refresh
-          </button>
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" /> New code
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -173,17 +180,17 @@ export default function MarketingPage() {
       )}
 
       {/* ── Discount codes ───────────────────────────────────────────── */}
-      <div className="rounded-lg border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="flex items-center gap-2 font-semibold">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border px-6 py-4">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
             <Tag className="h-4 w-4 text-muted-foreground" /> Discount codes
-          </h2>
+          </CardTitle>
           <span className="text-xs text-muted-foreground">{codes.length} total</span>
-        </div>
+        </CardHeader>
         {codes.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-muted-foreground">
+          <CardContent className="px-6 py-12 text-center text-sm text-muted-foreground">
             No discount codes yet. Create one to give customers a reason to come back.
-          </div>
+          </CardContent>
         ) : (
           <div className="divide-y divide-border">
             {codes.map((c) => (
@@ -191,15 +198,21 @@ export default function MarketingPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-medium">{c.code}</span>
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        c.active
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {c.active ? 'Active' : 'Archived'}
-                    </span>
+                    {c.active ? (
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+                      >
+                        Active
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                      >
+                        Archived
+                      </Badge>
+                    )}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {formatType(c.type, c.value)}
@@ -209,19 +222,20 @@ export default function MarketingPage() {
                   </div>
                 </div>
                 {c.active && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => void archive(c.id)}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs hover:bg-muted"
+                    className="shrink-0"
                   >
                     <Archive className="h-3.5 w-3.5" /> Archive
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {createOpen && (
         <CreateCodeModal
@@ -272,92 +286,77 @@ function CreateCodeModal({
   const isPercent = type === 'percent' || type === 'shipping_percent';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-10">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card shadow-xl">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="font-semibold">New discount code</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="space-y-4 px-6 py-4">
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>New discount code</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
           {error && (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
             </div>
           )}
 
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">Code</span>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="code">Code</Label>
+            <Input
+              id="code"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="WELCOME10"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-sm uppercase focus:border-primary focus:outline-none"
+              className="font-mono uppercase"
             />
-          </label>
+          </div>
 
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">Type</span>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as DiscountType)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-            >
-              <option value="percent">Percent off</option>
-              <option value="fixed">Fixed amount off (IDR)</option>
-            </select>
-          </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="type">Type</Label>
+            <Select value={type} onValueChange={(v) => setType(v as DiscountType)}>
+              <SelectTrigger id="type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="percent">Percent off</SelectItem>
+                <SelectItem value="fixed">Fixed amount off (IDR)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">
-                {isPercent ? 'Percent' : 'Amount (IDR)'}
-              </span>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="value">{isPercent ? 'Percent' : 'Amount (IDR)'}</Label>
+              <Input
+                id="value"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 inputMode="numeric"
                 placeholder={isPercent ? '10' : '15000'}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
               />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">
-                Min. purchase (IDR)
-              </span>
-              <input
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="minPurchase">Min. purchase (IDR)</Label>
+              <Input
+                id="minPurchase"
                 value={minPurchase}
                 onChange={(e) => setMinPurchase(e.target.value)}
                 inputMode="numeric"
                 placeholder="optional"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
               />
-            </label>
+            </div>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-border px-6 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-border px-3 py-2 text-sm hover:bg-muted"
-          >
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             disabled={!code.trim() || !value || submitting}
             onClick={() => void submit()}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />} Create code
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

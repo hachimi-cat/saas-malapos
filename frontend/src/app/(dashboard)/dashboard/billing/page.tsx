@@ -19,6 +19,9 @@ import { useSearchParams } from 'next/navigation';
 import { Check } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const TIER_ORDER = ['free', 'starter', 'growth', 'business'];
 function tierRank(id: string): number {
@@ -162,7 +165,7 @@ function BillingContent() {
       )}
 
       {/* ── Current plan ─────────────────────────────────────────── */}
-      <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <Card className="p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Current plan
         </h2>
@@ -173,13 +176,14 @@ function BillingContent() {
             <span className="text-2xl font-bold tracking-tight">
               {currentDef?.name ?? currentTier}
             </span>
-            <span
-              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+            <Badge
+              variant="outline"
+              className={`rounded-full font-medium ${
                 STATUS_TONES[sub?.status ?? 'active'] ?? STATUS_TONES.active
               }`}
             >
               {(sub?.status ?? 'active').replace('_', ' ')}
-            </span>
+            </Badge>
             <span className="text-sm text-muted-foreground">
               {earlyAccess
                 ? 'Free during early access'
@@ -199,7 +203,7 @@ function BillingContent() {
             )}
           </div>
         )}
-      </section>
+      </Card>
 
       {/* ── Tier cards ───────────────────────────────────────────── */}
       <section>
@@ -210,20 +214,18 @@ function BillingContent() {
           {(data?.tiers ?? []).map((tier) => {
             const isCurrent = tier.id === currentTier;
             return (
-              <div
+              <Card
                 key={tier.id}
-                className={`flex flex-col rounded-xl border bg-card p-5 ${
-                  isCurrent
-                    ? 'border-primary shadow-lg shadow-primary/10'
-                    : 'border-border shadow-sm'
+                className={`flex flex-col p-5 ${
+                  isCurrent ? 'border-primary shadow-lg shadow-primary/10' : ''
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-base font-bold">{tier.name}</h3>
                   {isCurrent && (
-                    <span className="inline-flex shrink-0 items-center rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                    <Badge className="shrink-0 rounded-full px-2 py-0.5 text-[10px]">
                       Current plan
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 <p className="mt-1 text-xs leading-snug text-muted-foreground">{tier.blurb}</p>
@@ -254,41 +256,39 @@ function BillingContent() {
                       Your plan
                     </div>
                   ) : (
-                    <button
-                      disabled
-                      className="mt-5 cursor-not-allowed rounded-md border border-border py-2 text-center text-sm font-medium text-muted-foreground opacity-70"
-                    >
+                    <Button variant="outline" disabled className="mt-5 w-full text-muted-foreground">
                       Free during early access
-                    </button>
+                    </Button>
                   )
                 ) : isCurrent ? (
                   <div className="mt-5 rounded-md border border-border py-2 text-center text-sm font-medium text-muted-foreground">
                     {sub?.status === 'canceled' ? 'Ends at period end' : 'Your plan'}
                   </div>
                 ) : tier.priceIdr === 0 ? (
-                  <button
+                  <Button
+                    variant="outline"
                     onClick={downgradeToFree}
                     disabled={busyTier !== null || !data || sub?.status === 'canceled'}
-                    className="mt-5 rounded-md border border-border py-2 text-center text-sm font-medium text-muted-foreground transition-colors hover:border-destructive hover:text-destructive disabled:opacity-50"
+                    className="mt-5 w-full text-muted-foreground hover:border-destructive hover:text-destructive"
                   >
                     {busyTier === 'free'
                       ? 'Downgrading…'
                       : sub?.status === 'canceled'
                         ? 'Scheduled at period end'
                         : 'Downgrade to Free'}
-                  </button>
+                  </Button>
                 ) : (
-                  <button
+                  <Button
                     onClick={() => upgrade(tier.id)}
                     disabled={busyTier !== null || !data}
-                    className="mt-5 rounded-md bg-primary py-2 text-center text-sm font-medium text-primary-foreground transition-colors hover:opacity-90 disabled:opacity-50"
+                    className="mt-5 w-full"
                   >
                     {busyTier === tier.id
                       ? 'Redirecting…'
                       : `${tierRank(tier.id) < tierRank(currentTier) ? 'Downgrade' : 'Upgrade'} to ${tier.name}`}
-                  </button>
+                  </Button>
                 )}
-              </div>
+              </Card>
             );
           })}
           {!data &&

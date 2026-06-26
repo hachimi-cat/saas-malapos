@@ -7,13 +7,41 @@ import {
   Trash2,
   Truck,
   PackageCheck,
-  X,
   Send,
   Ban,
   ClipboardList,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /*
  * Purchasing — restocking from suppliers. Two tabs:
@@ -76,9 +104,9 @@ const STATUS_STYLE: Record<POStatus, string> = {
 
 function StatusBadge({ status }: { status: POStatus }) {
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[status]}`}>
+    <Badge variant="outline" className={`rounded-full font-medium ${STATUS_STYLE[status]}`}>
       {status.charAt(0) + status.slice(1).toLowerCase()}
-    </span>
+    </Badge>
   );
 }
 
@@ -94,40 +122,19 @@ export default function PurchasingPage() {
         </p>
       </div>
 
-      <div className="mb-6 flex gap-1 border-b border-border">
-        <TabButton active={tab === 'orders'} onClick={() => setTab('orders')}>
-          Purchase Orders
-        </TabButton>
-        <TabButton active={tab === 'suppliers'} onClick={() => setTab('suppliers')}>
-          Suppliers
-        </TabButton>
-      </div>
-
-      {tab === 'orders' ? <OrdersTab /> : <SuppliersTab />}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as 'orders' | 'suppliers')}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="orders">Purchase Orders</TabsTrigger>
+          <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
+        </TabsList>
+        <TabsContent value="orders">
+          <OrdersTab />
+        </TabsContent>
+        <TabsContent value="suppliers">
+          <SuppliersTab />
+        </TabsContent>
+      </Tabs>
     </div>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-        active
-          ? 'border-primary text-foreground'
-          : 'border-transparent text-muted-foreground hover:text-foreground'
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -199,102 +206,100 @@ function OrdersTab() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1">
           {STATUSES.map((s) => (
-            <button
+            <Button
               key={s}
+              size="sm"
+              variant="outline"
               onClick={() => changeFilter(s)}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-                filter === s ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-accent'
-              }`}
+              className={filter === s ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10' : ''}
             >
               {s === 'ALL' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase()}
-            </button>
+            </Button>
           ))}
         </div>
-        <button
-          onClick={() => setBuilding(true)}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
+        <Button onClick={() => setBuilding(true)}>
           <Plus className="h-4 w-4" /> New PO
-        </button>
+        </Button>
       </div>
 
       {loading ? (
         <div className="p-6 text-muted-foreground">Loading…</div>
       ) : orders.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-12 text-center">
+        <Card className="p-12 text-center">
           <ClipboardList className="mx-auto h-10 w-10 text-muted-foreground" />
           <h2 className="mt-3 text-base font-medium">No purchase orders</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Raise a PO to restock from a supplier.
           </p>
-          <button
-            onClick={() => setBuilding(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
+          <Button onClick={() => setBuilding(true)} className="mt-4">
             <Plus className="h-4 w-4" /> New PO
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Number</th>
-                <th className="px-4 py-3 font-medium">Supplier</th>
-                <th className="px-4 py-3 font-medium">Outlet</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Total</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
+        <Card className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Number</TableHead>
+                <TableHead>Supplier</TableHead>
+                <TableHead>Outlet</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {orders.map((po) => (
-                <tr key={po.id} className="border-b border-border last:border-0 hover:bg-accent">
-                  <td className="px-4 py-3 font-medium">{po.number}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{po.supplier?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{outletName(po.outletId)}</td>
-                  <td className="px-4 py-3">
+                <TableRow key={po.id}>
+                  <TableCell className="font-medium">{po.number}</TableCell>
+                  <TableCell className="text-muted-foreground">{po.supplier?.name ?? '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{outletName(po.outletId)}</TableCell>
+                  <TableCell>
                     <StatusBadge status={po.status} />
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium">{rupiah(po.total)}</td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell className="text-right font-medium">{rupiah(po.total)}</TableCell>
+                  <TableCell>
                     <div className="flex justify-end gap-1">
                       {po.status === 'DRAFT' && (
-                        <button
+                        <Button
+                          variant="outline"
+                          size="sm"
                           disabled={acting === po.id}
                           onClick={() => act(po, 'order')}
-                          className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-background disabled:opacity-40"
                           title="Mark as ordered"
                         >
                           <Send className="h-3.5 w-3.5" /> Order
-                        </button>
+                        </Button>
                       )}
                       {(po.status === 'ORDERED' || po.status === 'PARTIAL') && (
-                        <button
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => setReceiving(po)}
-                          className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-background"
                           title="Receive stock"
                         >
                           <PackageCheck className="h-3.5 w-3.5" /> Receive
-                        </button>
+                        </Button>
                       )}
                       {(po.status === 'DRAFT' || po.status === 'ORDERED') && (
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           disabled={acting === po.id}
                           onClick={() => act(po, 'cancel')}
-                          className="inline-flex items-center gap-1 rounded-md p-1.5 text-muted-foreground hover:bg-background hover:text-destructive disabled:opacity-40"
                           title="Cancel"
+                          className="text-muted-foreground hover:text-destructive"
                         >
                           <Ban className="h-3.5 w-3.5" />
-                        </button>
+                        </Button>
                       )}
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </Card>
       )}
 
       {building && (
@@ -451,58 +456,57 @@ function POBuilderModal({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-border bg-card p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">New purchase order</h2>
-          <button onClick={onClose}>
-            <X className="h-5 w-5 text-muted-foreground" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>New purchase order</DialogTitle>
+        </DialogHeader>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Outlet">
-            <select
-              value={outletId}
-              onChange={(e) => setOutletId(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            <Select
+              value={outletId || '__none__'}
+              onValueChange={(v) => setOutletId(v === '__none__' ? '' : v)}
             >
-              {outlets.length === 0 && <option value="">No outlets</option>}
-              {outlets.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {outlets.length === 0 && <SelectItem value="__none__">No outlets</SelectItem>}
+                {outlets.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <Field label="Supplier (optional)">
-            <select
-              value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            <Select
+              value={supplierId || '__none__'}
+              onValueChange={(v) => setSupplierId(v === '__none__' ? '' : v)}
             >
-              <option value="">— None —</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— None —</SelectItem>
+                {suppliers.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         </div>
 
-        <div className="mt-5">
+        <div className="mt-1">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium">Line items</span>
-            <button
-              onClick={addLine}
-              className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-accent"
-            >
+            <Button variant="outline" size="sm" onClick={addLine}>
               <Plus className="h-3.5 w-3.5" /> Add line
-            </button>
+            </Button>
           </div>
 
           {lines.length === 0 ? (
@@ -517,81 +521,85 @@ function POBuilderModal({
                   <div key={l.key} className="rounded-md border border-border p-3">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-12">
                       <div className="sm:col-span-5">
-                        <select
-                          value={l.productId}
-                          onChange={(e) => onProduct(l.key, e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                        <Select
+                          value={l.productId || undefined}
+                          onValueChange={(v) => onProduct(l.key, v)}
                         >
-                          <option value="">Pick product…</option>
-                          {products.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Pick product…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="sm:col-span-3">
-                        <select
-                          value={l.variantId}
-                          onChange={(e) => onVariant(l.key, l.productId, e.target.value)}
+                        <Select
+                          value={l.variantId || undefined}
+                          onValueChange={(v) => onVariant(l.key, l.productId, v)}
                           disabled={!prod}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                         >
-                          {!prod && <option value="">Variant</option>}
-                          {prod?.variants.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Variant" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {prod?.variants.map((v) => (
+                              <SelectItem key={v.id} value={v.id}>
+                                {v.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="sm:col-span-2">
-                        <input
+                        <Input
                           type="number"
                           min={1}
                           value={l.quantity}
                           onChange={(e) => updateLine(l.key, { quantity: Math.max(0, Number(e.target.value)) })}
                           placeholder="Qty"
-                          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
                       <div className="sm:col-span-2">
-                        <input
+                        <Input
                           type="number"
                           min={0}
                           value={l.cost}
                           onChange={(e) => updateLine(l.key, { cost: Math.max(0, Number(e.target.value)) })}
                           placeholder="Cost"
-                          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
                     </div>
                     <div className="mt-2 grid grid-cols-2 items-end gap-2 sm:grid-cols-12">
                       <div className="sm:col-span-4">
-                        <input
+                        <Input
                           value={l.batchNo}
                           onChange={(e) => updateLine(l.key, { batchNo: e.target.value })}
                           placeholder="Batch no. (optional)"
-                          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
                       <div className="sm:col-span-4">
-                        <input
+                        <Input
                           type="date"
                           value={l.expiryDate}
                           onChange={(e) => updateLine(l.key, { expiryDate: e.target.value })}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
                       <div className="flex items-center justify-end gap-3 sm:col-span-4">
                         <span className="text-sm font-medium">{rupiah((l.cost || 0) * (l.quantity || 0))}</span>
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => removeLine(l.key)}
-                          className="rounded p-1 text-muted-foreground hover:text-destructive"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
                           title="Remove line"
                         >
                           <Trash2 className="h-4 w-4" />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -602,39 +610,31 @@ function POBuilderModal({
         </div>
 
         <Field label="Note (optional)">
-          <textarea
+          <Textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}
             placeholder="Internal note for this order"
-            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
         </Field>
 
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+        <div className="flex items-center justify-between border-t border-border pt-3">
           <span className="text-sm text-muted-foreground">Total</span>
           <span className="text-base font-semibold text-primary">{rupiah(total)}</span>
         </div>
 
-        {err && <p className="mt-3 text-sm text-destructive">{err}</p>}
+        {err && <p className="text-sm text-destructive">{err}</p>}
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            disabled={busy}
-            onClick={save}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-          >
+          </Button>
+          <Button disabled={busy} onClick={save}>
             {busy ? 'Saving…' : 'Create PO'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -693,22 +693,14 @@ function ReceiveModal({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-card p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">Receive stock</h2>
-            <p className="text-sm text-muted-foreground">{po.number}</p>
-          </div>
-          <button onClick={onClose}>
-            <X className="h-5 w-5 text-muted-foreground" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Receive stock</DialogTitle>
+          <p className="text-sm text-muted-foreground">{po.number}</p>
+        </DialogHeader>
 
-        <div className="mt-4 space-y-2">
+        <div className="space-y-2">
           {po.items.map((it) => {
             const row = rows.find((r) => r.itemId === it.id)!;
             const outstanding = Math.max(0, it.quantity - it.receivedQty);
@@ -723,31 +715,28 @@ function ReceiveModal({
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <label className="block text-xs">
                     <span className="mb-1 block text-muted-foreground">Receive qty</span>
-                    <input
+                    <Input
                       type="number"
                       min={0}
                       max={outstanding}
                       value={row.receivedQty}
                       onChange={(e) => update(it.id, { receivedQty: Math.max(0, Number(e.target.value)) })}
-                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
                     />
                   </label>
                   <label className="block text-xs">
                     <span className="mb-1 block text-muted-foreground">Batch no.</span>
-                    <input
+                    <Input
                       value={row.batchNo}
                       onChange={(e) => update(it.id, { batchNo: e.target.value })}
                       placeholder="Optional"
-                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
                     />
                   </label>
                   <label className="block text-xs">
                     <span className="mb-1 block text-muted-foreground">Expiry</span>
-                    <input
+                    <Input
                       type="date"
                       value={row.expiryDate}
                       onChange={(e) => update(it.id, { expiryDate: e.target.value })}
-                      className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
                     />
                   </label>
                 </div>
@@ -756,26 +745,19 @@ function ReceiveModal({
           })}
         </div>
 
-        {err && <p className="mt-3 text-sm text-destructive">{err}</p>}
+        {err && <p className="text-sm text-destructive">{err}</p>}
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            disabled={busy}
-            onClick={submit}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-          >
+          </Button>
+          <Button disabled={busy} onClick={submit}>
             <PackageCheck className="h-4 w-4" />
             {busy ? 'Receiving…' : 'Receive'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -843,78 +825,77 @@ function SuppliersTab() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-end">
-        <button
-          onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
+        <Button onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4" /> Add supplier
-        </button>
+        </Button>
       </div>
 
       {suppliers.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-12 text-center">
+        <Card className="p-12 text-center">
           <Truck className="mx-auto h-10 w-10 text-muted-foreground" />
           <h2 className="mt-3 text-base font-medium">No suppliers yet</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Add your first supplier to raise purchase orders against them.
           </p>
-          <button
-            onClick={() => setCreating(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
+          <Button onClick={() => setCreating(true)} className="mt-4">
             <Plus className="h-4 w-4" /> Add supplier
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Contact</th>
-                <th className="px-4 py-3 font-medium">Phone</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
+        <Card className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {suppliers.map((s) => (
-                <tr key={s.id} className="border-b border-border last:border-0 hover:bg-accent">
-                  <td className="px-4 py-3 font-medium">{s.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{s.contact || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{s.phone || '—'}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                        s.isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {s.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
+                <TableRow key={s.id}>
+                  <TableCell className="font-medium">{s.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{s.contact || '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{s.phone || '—'}</TableCell>
+                  <TableCell>
+                    {s.isActive ? (
+                      <Badge variant="outline" className="rounded-full border-primary/40 bg-primary/10 font-medium text-primary">
+                        Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="rounded-full bg-muted font-medium text-muted-foreground">
+                        Inactive
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <div className="flex justify-end gap-1">
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => setEditing(s)}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
                         title="Edit"
                       >
                         <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => remove(s)}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-destructive"
                         title="Delete"
+                        className="text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </Card>
       )}
 
       {(creating || editing) && (
@@ -987,97 +968,78 @@ function SupplierModal({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{supplier ? 'Edit supplier' : 'New supplier'}</h2>
-          <button onClick={onClose}>
-            <X className="h-5 w-5 text-muted-foreground" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{supplier ? 'Edit supplier' : 'New supplier'}</DialogTitle>
+        </DialogHeader>
 
-        <div className="mt-4 space-y-4">
+        <div className="space-y-4">
           <Field label="Name">
-            <input
+            <Input
               autoFocus
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
               placeholder="PT Sumber Sehat"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Contact person">
-              <input
+              <Input
                 value={form.contact}
                 onChange={(e) => set('contact', e.target.value)}
                 placeholder="Budi"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
             </Field>
             <Field label="Phone">
-              <input
+              <Input
                 value={form.phone}
                 onChange={(e) => set('phone', e.target.value)}
                 placeholder="+62…"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
             </Field>
           </div>
 
           <Field label="Email">
-            <input
+            <Input
               type="email"
               value={form.email}
               onChange={(e) => set('email', e.target.value)}
               placeholder="sales@supplier.co.id"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
 
           <Field label="Address">
-            <input
+            <Input
               value={form.address}
               onChange={(e) => set('address', e.target.value)}
               placeholder="Jl. Industri No. 5"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
 
           <Field label="Note">
-            <textarea
+            <Textarea
               value={form.note}
               onChange={(e) => set('note', e.target.value)}
               rows={2}
               placeholder="Payment terms, lead time, etc."
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
         </div>
 
-        {err && <p className="mt-3 text-sm text-destructive">{err}</p>}
+        {err && <p className="text-sm text-destructive">{err}</p>}
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            disabled={busy}
-            onClick={save}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-          >
+          </Button>
+          <Button disabled={busy} onClick={save}>
             {busy ? 'Saving…' : supplier ? 'Save changes' : 'Create supplier'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1087,9 +1049,9 @@ function SupplierModal({
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block text-sm">
-      <span className="mb-1 block text-muted-foreground">{label}</span>
+    <div className="space-y-1.5 text-sm">
+      <Label className="text-muted-foreground">{label}</Label>
       {children}
-    </label>
+    </div>
   );
 }

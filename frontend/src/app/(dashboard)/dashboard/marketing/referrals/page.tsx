@@ -19,6 +19,20 @@ import {
 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/data-table';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /**
  * /dashboard/marketing/referrals — per-merchant referral program (Phase F.5).
@@ -131,7 +145,7 @@ export default function ReferralsPage() {
       )}
 
       {/* ── Config ────────────────────────────────────────────────────────── */}
-      <section className="rounded-lg border border-border bg-card p-5 space-y-4">
+      <Card className="space-y-4 p-5">
         <label className="flex cursor-pointer items-center justify-between gap-3">
           <div>
             <div className="text-sm font-medium">Enable referral program</div>
@@ -140,56 +154,55 @@ export default function ReferralsPage() {
               remain redeemable.
             </p>
           </div>
-          <input
-            type="checkbox"
+          <Switch
             checked={form.enabled}
-            onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
-            className="h-5 w-5"
+            onCheckedChange={(checked) => setForm({ ...form, enabled: checked })}
           />
         </label>
 
         <div>
-          <label htmlFor="rewardType" className="mb-1 block text-xs font-medium">Reward type</label>
-          <select
-            id="rewardType"
+          <Label htmlFor="rewardType" className="mb-1 block text-xs font-medium">Reward type</Label>
+          <Select
             value={form.rewardType}
-            onChange={(e) => setForm({ ...form, rewardType: e.target.value as ReferralProgramConfig['rewardType'] })}
-            className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            onValueChange={(v) => setForm({ ...form, rewardType: v as ReferralProgramConfig['rewardType'] })}
           >
-            <option value="percent">Percent off cart</option>
-            <option value="fixed">Fixed amount off cart</option>
-            <option value="shipping_percent">Percent off shipping</option>
-            <option value="shipping_fixed">Fixed amount off shipping</option>
-          </select>
+            <SelectTrigger id="rewardType">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="percent">Percent off cart</SelectItem>
+              <SelectItem value="fixed">Fixed amount off cart</SelectItem>
+              <SelectItem value="shipping_percent">Percent off shipping</SelectItem>
+              <SelectItem value="shipping_fixed">Fixed amount off shipping</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label htmlFor="referrerValue" className="mb-1 block text-xs font-medium">
+            <Label htmlFor="referrerValue" className="mb-1 block text-xs font-medium">
               Referrer reward {isPercent ? '(1–100)' : '(smallest currency unit)'}
-            </label>
-            <input
+            </Label>
+            <Input
               id="referrerValue"
               type="number"
               value={form.referrerValue}
               onChange={(e) => setForm({ ...form, referrerValue: parseInt(e.target.value, 10) || 0 })}
               min={1}
               max={isPercent ? 100 : undefined}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
           <div>
-            <label htmlFor="refereeValue" className="mb-1 block text-xs font-medium">
+            <Label htmlFor="refereeValue" className="mb-1 block text-xs font-medium">
               Referee (new buyer) reward {isPercent ? '(1–100)' : '(smallest currency unit)'}
-            </label>
-            <input
+            </Label>
+            <Input
               id="refereeValue"
               type="number"
               value={form.refereeValue}
               onChange={(e) => setForm({ ...form, refereeValue: parseInt(e.target.value, 10) || 0 })}
               min={1}
               max={isPercent ? 100 : undefined}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
               Tip: a slightly bigger pull for new buyers (the referee) typically converts better.
@@ -199,80 +212,83 @@ export default function ReferralsPage() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label htmlFor="currency" className="mb-1 block text-xs font-medium">Currency</label>
-            <input
+            <Label htmlFor="currency" className="mb-1 block text-xs font-medium">Currency</Label>
+            <Input
               id="currency"
               value={form.currency}
               onChange={(e) => setForm({ ...form, currency: e.target.value.toUpperCase() })}
               maxLength={8}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm uppercase focus:outline-none focus:ring-1 focus:ring-primary"
+              className="uppercase"
             />
           </div>
           <div>
-            <label htmlFor="minPurchase" className="mb-1 block text-xs font-medium">Minimum purchase (smallest unit, optional)</label>
-            <input
+            <Label htmlFor="minPurchase" className="mb-1 block text-xs font-medium">Minimum purchase (smallest unit, optional)</Label>
+            <Input
               id="minPurchase"
               type="number"
               value={form.minPurchaseAmount ?? ''}
               onChange={(e) => setForm({ ...form, minPurchaseAmount: e.target.value ? parseInt(e.target.value, 10) : null })}
               placeholder="None"
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
-            <label htmlFor="rewardExpiryDays" className="mb-1 block text-xs font-medium">Reward code expires after</label>
-            <select
-              id="rewardExpiryDays"
-              value={form.rewardExpiryDays}
-              onChange={(e) => setForm({ ...form, rewardExpiryDays: parseInt(e.target.value, 10) })}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            <Label htmlFor="rewardExpiryDays" className="mb-1 block text-xs font-medium">Reward code expires after</Label>
+            <Select
+              value={String(form.rewardExpiryDays)}
+              onValueChange={(v) => setForm({ ...form, rewardExpiryDays: parseInt(v, 10) })}
             >
-              {[30, 60, 90, 120, 180, 365].map((d) => (
-                <option key={d} value={d}>{d} days</option>
-              ))}
-            </select>
+              <SelectTrigger id="rewardExpiryDays">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[30, 60, 90, 120, 180, 365].map((d) => (
+                  <SelectItem key={d} value={String(d)}>{d} days</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
-            <label htmlFor="attributionWindowDays" className="mb-1 block text-xs font-medium">Attribution window</label>
-            <select
-              id="attributionWindowDays"
-              value={form.attributionWindowDays}
-              onChange={(e) => setForm({ ...form, attributionWindowDays: parseInt(e.target.value, 10) })}
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            <Label htmlFor="attributionWindowDays" className="mb-1 block text-xs font-medium">Attribution window</Label>
+            <Select
+              value={String(form.attributionWindowDays)}
+              onValueChange={(v) => setForm({ ...form, attributionWindowDays: parseInt(v, 10) })}
             >
-              {[7, 14, 30, 60, 90, 180].map((d) => (
-                <option key={d} value={d}>{d} days</option>
-              ))}
-            </select>
+              <SelectTrigger id="attributionWindowDays">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[7, 14, 30, 60, 90, 180].map((d) => (
+                  <SelectItem key={d} value={String(d)}>{d} days</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="mt-1 text-[11px] text-muted-foreground">
               How long after clicking a link the buyer has to convert for the referrer to earn.
             </p>
           </div>
           <div>
-            <label htmlFor="maxRewards" className="mb-1 block text-xs font-medium">Max rewards per referrer (optional)</label>
-            <input
+            <Label htmlFor="maxRewards" className="mb-1 block text-xs font-medium">Max rewards per referrer (optional)</Label>
+            <Input
               id="maxRewards"
               type="number"
               value={form.maxRewardsPerReferrer ?? ''}
               onChange={(e) => setForm({ ...form, maxRewardsPerReferrer: e.target.value ? parseInt(e.target.value, 10) : null })}
               placeholder="Unlimited"
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
         </div>
 
         <div>
-          <label htmlFor="programTerms" className="mb-1 block text-xs font-medium">Program terms (optional, shown on buyer refer page)</label>
-          <textarea
+          <Label htmlFor="programTerms" className="mb-1 block text-xs font-medium">Program terms (optional, shown on buyer refer page)</Label>
+          <Textarea
             id="programTerms"
             value={form.programTerms ?? ''}
             onChange={(e) => setForm({ ...form, programTerms: e.target.value || null })}
             rows={3}
             maxLength={10000}
-            className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="e.g. Rewards are single-use per code. Not combinable with other promotions. Valid for your first paid order only."
           />
         </div>
@@ -284,26 +300,21 @@ export default function ReferralsPage() {
         />
 
         <div className="flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
+          <Button type="button" onClick={save} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
 
       <section>
         <header className="mb-2 text-sm font-semibold">
           Top referrers <span className="ml-1 text-xs font-normal text-muted-foreground">(last 20)</span>
         </header>
         {links.length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          <Card className="p-8 text-center text-sm text-muted-foreground">
             No referral links yet. Once enabled, every signed-in buyer gets a unique link they can share.
-          </div>
+          </Card>
         ) : (
           <DataTable
             rows={links}
@@ -371,9 +382,9 @@ export default function ReferralsPage() {
           Recent attributions <span className="ml-1 text-xs font-normal text-muted-foreground">(last 20)</span>
         </header>
         {attributions.length === 0 ? (
-          <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          <Card className="p-8 text-center text-sm text-muted-foreground">
             Attributions appear here once new buyers sign up via a referral link.
-          </div>
+          </Card>
         ) : (
           <DataTable
             rows={attributions}
@@ -428,31 +439,31 @@ export default function ReferralsPage() {
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: string; icon: React.ComponentType<{ className?: string }> }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <Card className="p-4">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </div>
       <div className="mt-1 text-xl font-bold">{value}</div>
-    </div>
+    </Card>
   );
 }
 
 function StatusPill({ status, reason }: { status: string; reason: string | null }) {
-  const base = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium';
+  const base = 'gap-1 rounded-full border-transparent px-2 py-0.5 text-[11px] font-medium';
   if (status === 'rewarded') {
-    return <span className={`${base} bg-green-100 text-green-900`}>Rewarded</span>;
+    return <Badge variant="outline" className={`${base} bg-green-100 text-green-900`}>Rewarded</Badge>;
   }
   if (status === 'pending') {
-    return <span className={`${base} bg-amber-100 text-amber-900`}>Pending</span>;
+    return <Badge variant="outline" className={`${base} bg-amber-100 text-amber-900`}>Pending</Badge>;
   }
   if (status === 'expired') {
-    return <span className={`${base} bg-muted text-muted-foreground`}>Expired</span>;
+    return <Badge variant="outline" className={`${base} bg-muted text-muted-foreground`}>Expired</Badge>;
   }
   return (
-    <span className={`${base} bg-red-100 text-red-900`} title={reason ?? undefined}>
+    <Badge variant="outline" className={`${base} bg-red-100 text-red-900`} title={reason ?? undefined}>
       Voided{reason ? ` · ${reason}` : ''}
-    </span>
+    </Badge>
   );
 }
 

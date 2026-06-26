@@ -4,9 +4,28 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Megaphone, Lock, Plus, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { Button, ErrorBox } from '@/components/dashboard/ui';
+import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface PlanInfo { plan: string; isForjioInternal: boolean }
 
@@ -92,7 +111,7 @@ export default function CampaignsPage() {
         icon={Megaphone}
         title="Creator briefs"
         description="Brief paid creator collabs. Public + invite-only. Optionally link a brief to a parent Campaign for roll-up reporting."
-        action={enabled ? <Button onClick={() => setShowForm(true)}><Plus size={14} /> New brief</Button> : undefined}
+        action={enabled ? <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New brief</Button> : undefined}
       />
 
       {error && <ErrorBox>{error}</ErrorBox>}
@@ -110,9 +129,9 @@ export default function CampaignsPage() {
       ) : campaigns === null ? (
         <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : campaigns.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+        <Card className="p-12 text-center text-sm text-muted-foreground">
           No creator briefs yet.
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={campaigns}
@@ -191,56 +210,67 @@ export default function CampaignsPage() {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={() => setShowForm(false)}>
-          <form onSubmit={create} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-card p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold">New creator brief</h2>
-            <Field label="Name">
-              <input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </Field>
-            <Field label="Brief (what creators need to do)">
-              <textarea rows={4} required value={form.brief} onChange={(e) => setForm({ ...form, brief: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </Field>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Budget (IDR)">
-                <input type="number" min="0" value={form.budgetIdr} onChange={(e) => setForm({ ...form, budgetIdr: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-              </Field>
-              <Field label="Discovery">
-                <select value={form.discoveryMode} onChange={(e) => setForm({ ...form, discoveryMode: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-                  <option value="public">Public — anyone applies</option>
-                  <option value="invite_only">Invite only</option>
-                </select>
-              </Field>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Pricing model">
-                <select value={form.pricingModel} onChange={(e) => setForm({ ...form, pricingModel: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-                  <option value="flat">Flat fee</option>
-                  <option value="cpm">CPM</option>
-                  <option value="hybrid">Hybrid</option>
-                </select>
-              </Field>
-              <Field label="Ripllo platform fee (%)">
-                <input type="number" min="0" max="50" step="0.5" value={form.platformFeeRate} onChange={(e) => setForm({ ...form, platformFeeRate: Number(e.target.value) })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-              </Field>
-            </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setShowForm(false)} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
-              <button type="submit" disabled={working} className="flex-1 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-600 disabled:opacity-60">
-                {working ? 'Creating…' : 'Create brief'}
-              </button>
-            </div>
-          </form>
-        </div>
+        <Dialog open onOpenChange={(o) => !o && setShowForm(false)}>
+          <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>New creator brief</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={create} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="brief-name">Name</Label>
+                <Input id="brief-name" type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="brief-brief">Brief (what creators need to do)</Label>
+                <Textarea id="brief-brief" rows={4} required value={form.brief} onChange={(e) => setForm({ ...form, brief: e.target.value })} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="brief-budget">Budget (IDR)</Label>
+                  <Input id="brief-budget" type="number" min="0" value={form.budgetIdr} onChange={(e) => setForm({ ...form, budgetIdr: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="brief-discovery">Discovery</Label>
+                  <Select value={form.discoveryMode} onValueChange={(v) => setForm({ ...form, discoveryMode: v })}>
+                    <SelectTrigger id="brief-discovery">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="public">Public — anyone applies</SelectItem>
+                      <SelectItem value="invite_only">Invite only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="brief-pricing">Pricing model</Label>
+                  <Select value={form.pricingModel} onValueChange={(v) => setForm({ ...form, pricingModel: v })}>
+                    <SelectTrigger id="brief-pricing">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="flat">Flat fee</SelectItem>
+                      <SelectItem value="cpm">CPM</SelectItem>
+                      <SelectItem value="hybrid">Hybrid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="brief-fee">Ripllo platform fee (%)</Label>
+                  <Input id="brief-fee" type="number" min="0" max="50" step="0.5" value={form.platformFeeRate} onChange={(e) => setForm({ ...form, platformFeeRate: Number(e.target.value) })} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+                <Button type="submit" disabled={working}>
+                  {working ? 'Creating…' : 'Create brief'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
-      {children}
-    </label>
   );
 }

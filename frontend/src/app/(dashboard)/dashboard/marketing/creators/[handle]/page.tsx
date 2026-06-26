@@ -22,6 +22,7 @@ import { Loader2, Camera } from 'lucide-react';
 import { ErrorBox } from '@/components/dashboard/ui';
 import { BackLink } from '@/components/dashboard/back-link';
 import { marketingFetch } from '@/lib/marketing-api';
+import { Card } from '@/components/ui/card';
 import {
   CreatorDetailView,
   type CreatorDetail,
@@ -112,10 +113,10 @@ export default function CreatorProfilePage() {
     return (
       <div className="mx-auto max-w-6xl">
         <BackLink href="/dashboard/marketing/creators" label="Creator directory" />
-        <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
+        <Card className="border-dashed p-12 text-center">
           <Camera size={28} className="mx-auto text-muted-foreground/40" />
           <p className="mt-3 text-sm text-muted-foreground">No creator found for @{handle}.</p>
-        </div>
+        </Card>
       </div>
     );
   }

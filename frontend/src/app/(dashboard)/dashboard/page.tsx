@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { ScanLine, Receipt, Boxes, Package, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 /*
  * Dashboard overview — today's pulse + quick jumps. Pulls the reports
@@ -53,12 +55,11 @@ export default function DashboardPage() {
           <h1 className="text-xl font-semibold">Dashboard</h1>
           <p className="text-sm text-muted-foreground">Today&apos;s sales at a glance.</p>
         </div>
-        <Link
-          href="/dashboard/sell"
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
-        >
-          <ScanLine className="h-4 w-4" /> Open sell screen
-        </Link>
+        <Button asChild>
+          <Link href="/dashboard/sell">
+            <ScanLine className="h-4 w-4" /> Open sell screen
+          </Link>
+        </Button>
       </header>
 
       {hasOutlet === false && (
@@ -85,7 +86,7 @@ export default function DashboardPage() {
               All sales <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
-          <div className="overflow-hidden rounded-lg border border-border">
+          <Card className="overflow-hidden">
             {recent.length === 0 && <p className="p-6 text-center text-sm text-muted-foreground">No sales yet.</p>}
             {recent.map((s) => (
               <div key={s.id} className="flex items-center justify-between border-b border-border px-4 py-2.5 text-sm last:border-0">
@@ -94,7 +95,7 @@ export default function DashboardPage() {
                 <span className="font-semibold">{rupiah(s.total)}</span>
               </div>
             ))}
-          </div>
+          </Card>
         </section>
 
         <aside>
@@ -114,11 +115,11 @@ export default function DashboardPage() {
 
 function Stat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <Card className="p-4">
       <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {icon} {label}
       </div>
       <p className="mt-2 text-2xl font-bold">{value}</p>
-    </div>
+    </Card>
   );
 }

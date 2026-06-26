@@ -8,6 +8,16 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiRequestError } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface ApiKey {
   id: string;
@@ -59,12 +69,7 @@ export default function ApiKeysPage() {
             . Keys are shown once — store them like passwords.
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
-        >
-          Create key
-        </button>
+        <Button onClick={() => setShowCreate(true)}>Create key</Button>
       </header>
 
       {error && (
@@ -80,7 +85,7 @@ export default function ApiKeysPage() {
           No API keys yet. Create one to call the Malapos API from your own code.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border">
+        <Card className="overflow-hidden">
           <div className="hidden grid-cols-[1fr_8rem_7rem_7rem_4rem] gap-4 border-b border-border bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:grid">
             <span>Name</span>
             <span>Key</span>
@@ -109,7 +114,7 @@ export default function ApiKeysPage() {
               </button>
             </div>
           ))}
-        </div>
+        </Card>
       )}
 
       {showCreate && (
@@ -157,78 +162,68 @@ function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreate
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={created ? undefined : onClose}
-    >
-      {created ? (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md space-y-3 rounded-xl border border-border bg-background p-5 shadow-xl"
-        >
-          <h2 className="text-lg font-semibold">Your new API key</h2>
-          <p className="text-xs text-muted-foreground">
-            This is the only time the full key is shown. Copy it now and store it securely — if
-            you lose it, delete the key and create a new one.
-          </p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 break-all rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs">
-              {created}
-            </code>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(created);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-              }}
-              className="shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
+    <Dialog open onOpenChange={(o) => { if (!o && !created) onClose(); }}>
+      <DialogContent className="max-w-md">
+        {created ? (
+          <div className="space-y-3">
+            <DialogHeader>
+              <DialogTitle>Your new API key</DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-muted-foreground">
+              This is the only time the full key is shown. Copy it now and store it securely — if
+              you lose it, delete the key and create a new one.
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 break-all rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs">
+                {created}
+              </code>
+              <Button
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  navigator.clipboard.writeText(created);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                }}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={onClose}>
+                Done
+              </Button>
+            </DialogFooter>
           </div>
-          <div className="flex justify-end pt-1">
-            <button
-              onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      ) : (
-        <form
-          onSubmit={submit}
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md space-y-3 rounded-xl border border-border bg-background p-5 shadow-xl"
-        >
-          <h2 className="text-lg font-semibold">Create API key</h2>
-          <p className="text-xs text-muted-foreground">
-            Give it a name you&apos;ll recognize later (e.g. “Back-office sync”, “Zapier”).
-          </p>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <input
-            required
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Key name"
-            maxLength={120}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          />
-          <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm">
-              Cancel
-            </button>
-            <button
-              disabled={busy}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-            >
-              {busy ? 'Creating…' : 'Create key'}
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
+        ) : (
+          <form onSubmit={submit} className="space-y-3">
+            <DialogHeader>
+              <DialogTitle>Create API key</DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-muted-foreground">
+              Give it a name you&apos;ll recognize later (e.g. “Back-office sync”, “Zapier”).
+            </p>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Input
+              required
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Key name"
+              maxLength={120}
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy}>
+                {busy ? 'Creating…' : 'Create key'}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -257,31 +252,26 @@ function ConfirmDeleteDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md space-y-3 rounded-xl border border-border bg-background p-5 shadow-xl"
-      >
-        <h2 className="text-lg font-semibold">Delete API key?</h2>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Delete API key?</DialogTitle>
+        </DialogHeader>
         <p className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{apiKey.name}</span>{' '}
           (<code className="font-mono text-xs">{apiKey.keyPrefix}…</code>) will stop working
           immediately. Anything still using it will get 401s.
         </p>
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <div className="flex justify-end gap-2 pt-1">
-          <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm">
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            onClick={confirm}
-            disabled={busy}
-            className="rounded-lg bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-50"
-          >
+          </Button>
+          <Button variant="destructive" onClick={confirm} disabled={busy}>
             {busy ? 'Deleting…' : 'Delete key'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

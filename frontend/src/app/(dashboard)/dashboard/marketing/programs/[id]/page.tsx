@@ -9,6 +9,18 @@ import { BackLink } from '@/components/dashboard/back-link';
 import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
+import { cn } from '@/lib/utils';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface Program {
   id: string;
@@ -174,21 +186,21 @@ export default function ProgramDetailPage() {
 
       {tab === 'brief' && (
         <div className="space-y-4">
-          <section className="rounded-xl border border-border bg-card p-6">
+          <Card className="p-6">
             {program.description ? (
               <p className="whitespace-pre-wrap text-sm text-muted-foreground">{program.description}</p>
             ) : (
               <p className="text-sm italic text-muted-foreground">No brief written yet.</p>
             )}
-          </section>
-          <section className="rounded-xl border border-border bg-card p-6">
+          </Card>
+          <Card className="p-6">
             <h3 className="mb-3 text-sm font-semibold">Campaign linkage</h3>
             <CampaignSelect
               value={program.marketingCampaignId ?? null}
               onChange={updateCampaignLinkage}
               disabled={working === 'campaign'}
             />
-          </section>
+          </Card>
         </div>
       )}
 
@@ -196,64 +208,64 @@ export default function ProgramDetailPage() {
         enrollments === null ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : enrollments.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          <Card className="p-8 text-center text-sm text-muted-foreground">
             No enrollments yet. Affiliators can join from{' '}
             <Link href="https://ripllo.com/affiliators" target="_blank" className="text-brand-500 hover:underline">ripllo.com/affiliators</Link>.
-          </div>
+          </Card>
         ) : (
           <>
-            <div className="hidden overflow-hidden rounded-xl border border-border bg-card md:block">
-              <table className="w-full text-sm">
-                <thead className="border-b border-border bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Affiliator</th>
-                    <th className="px-4 py-3 text-left">Channel</th>
-                    <th className="px-4 py-3 text-right">Audience</th>
-                    <th className="px-4 py-3 text-left">Status</th>
-                    <th className="px-4 py-3 text-left">Code</th>
-                    <th className="px-4 py-3 text-right">Clicks · Conv · GMV</th>
-                    <th className="px-4 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
+            <Card className="hidden overflow-hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Affiliator</TableHead>
+                    <TableHead>Channel</TableHead>
+                    <TableHead className="text-right">Audience</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead className="text-right">Clicks · Conv · GMV</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {enrollments.map((e) => (
-                    <tr key={e.id} className="border-t border-border">
-                      <td className="px-4 py-3">
+                    <TableRow key={e.id}>
+                      <TableCell>
                         <div className="font-medium">{e.affiliator?.displayName ?? e.affiliatorId}</div>
                         <div className="text-xs text-muted-foreground">@{e.affiliator?.handle ?? '?'}</div>
-                      </td>
-                      <td className="px-4 py-3 capitalize">{e.affiliator?.primaryChannel ?? '—'}</td>
-                      <td className="px-4 py-3 text-right font-mono">{e.affiliator?.audienceSize.toLocaleString() ?? '—'}</td>
-                      <td className="px-4 py-3 capitalize">{e.status}</td>
-                      <td className="px-4 py-3 font-mono text-xs">{e.link?.code ?? '—'}</td>
-                      <td className="px-4 py-3 text-right text-xs">
+                      </TableCell>
+                      <TableCell className="capitalize">{e.affiliator?.primaryChannel ?? '—'}</TableCell>
+                      <TableCell className="text-right font-mono">{e.affiliator?.audienceSize.toLocaleString() ?? '—'}</TableCell>
+                      <TableCell className="capitalize">{e.status}</TableCell>
+                      <TableCell className="font-mono text-xs">{e.link?.code ?? '—'}</TableCell>
+                      <TableCell className="text-right text-xs">
                         {e.link ? `${e.link.clickCount} · ${e.link.conversionCount} · Rp ${e.link.totalGmvIdr.toLocaleString()}` : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         {e.status === 'pending' && (
                           <div className="flex justify-end gap-1">
-                            <button onClick={() => actEnrollment(e.id, 'approve')} disabled={working === e.id} className="rounded p-1 text-emerald-500 hover:bg-emerald-500/10" title="Approve">
+                            <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'approve')} disabled={working === e.id} className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500" title="Approve">
                               <Check size={14} />
-                            </button>
-                            <button onClick={() => actEnrollment(e.id, 'reject')} disabled={working === e.id} className="rounded p-1 text-destructive hover:bg-destructive/10" title="Reject">
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'reject')} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Reject">
                               <X size={14} />
-                            </button>
+                            </Button>
                           </div>
                         )}
                         {e.status === 'active' && (
-                          <button onClick={() => actEnrollment(e.id, 'revoke')} disabled={working === e.id} className="rounded p-1 text-destructive hover:bg-destructive/10" title="Revoke">
+                          <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'revoke')} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Revoke">
                             <Power size={14} />
-                          </button>
+                          </Button>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-            <ul className="space-y-3 md:hidden">
+                </TableBody>
+              </Table>
+            </Card>
+            <div className="space-y-3 md:hidden">
               {enrollments.map((e) => (
-                <li key={e.id} className="rounded-xl border border-border bg-card p-4">
+                <Card key={e.id} className="p-4">
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-medium">{e.affiliator?.displayName ?? e.affiliatorId}</div>
@@ -270,23 +282,23 @@ export default function ProgramDetailPage() {
                   <div className="mt-2 flex justify-end gap-1">
                     {e.status === 'pending' && (
                       <>
-                        <button onClick={() => actEnrollment(e.id, 'approve')} disabled={working === e.id} className="rounded p-1 text-emerald-500 hover:bg-emerald-500/10" title="Approve">
+                        <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'approve')} disabled={working === e.id} className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500" title="Approve">
                           <Check size={14} />
-                        </button>
-                        <button onClick={() => actEnrollment(e.id, 'reject')} disabled={working === e.id} className="rounded p-1 text-destructive hover:bg-destructive/10" title="Reject">
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'reject')} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Reject">
                           <X size={14} />
-                        </button>
+                        </Button>
                       </>
                     )}
                     {e.status === 'active' && (
-                      <button onClick={() => actEnrollment(e.id, 'revoke')} disabled={working === e.id} className="rounded p-1 text-destructive hover:bg-destructive/10" title="Revoke">
+                      <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'revoke')} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Revoke">
                         <Power size={14} />
-                      </button>
+                      </Button>
                     )}
                   </div>
-                </li>
+                </Card>
               ))}
-            </ul>
+            </div>
           </>
         )
       )}
@@ -295,64 +307,64 @@ export default function ProgramDetailPage() {
         commissions === null ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : commissions.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          <Card className="p-8 text-center text-sm text-muted-foreground">
             No commissions accrued yet. They appear here as affiliators drive sales.
-          </div>
+          </Card>
         ) : (
           <>
-            <div className="hidden overflow-hidden rounded-xl border border-border bg-card md:block">
-              <table className="w-full text-sm">
-                <thead className="border-b border-border bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Affiliator</th>
-                    <th className="px-4 py-3 text-left">Source</th>
-                    <th className="px-4 py-3 text-right">Gross</th>
-                    <th className="px-4 py-3 text-right">Commission</th>
-                    <th className="px-4 py-3 text-right">Net to affiliator</th>
-                    <th className="px-4 py-3 text-left">Status</th>
-                    <th className="px-4 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
+            <Card className="hidden overflow-hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Affiliator</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead className="text-right">Gross</TableHead>
+                    <TableHead className="text-right">Commission</TableHead>
+                    <TableHead className="text-right">Net to affiliator</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {commissions.map((c) => (
-                    <tr key={c.id} className="border-t border-border">
-                      <td className="px-4 py-3">
+                    <TableRow key={c.id}>
+                      <TableCell>
                         <div className="font-medium">{c.affiliator?.displayName ?? c.affiliatorId}</div>
                         <div className="text-xs text-muted-foreground">@{c.affiliator?.handle ?? '?'}</div>
-                      </td>
-                      <td className="px-4 py-3 capitalize text-xs text-muted-foreground">{c.sourceType.replace(/_/g, ' ')}</td>
-                      <td className="px-4 py-3 text-right font-mono">Rp {c.grossAmountIdr.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right font-mono">Rp {c.commissionAmountIdr.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right font-mono">Rp {c.netToAffiliatorIdr.toLocaleString()}</td>
-                      <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${COMMISSION_TONE[c.status] ?? 'bg-secondary text-muted-foreground'}`}>{c.status}</span></td>
-                      <td className="px-4 py-3 text-right">
+                      </TableCell>
+                      <TableCell className="capitalize text-xs text-muted-foreground">{c.sourceType.replace(/_/g, ' ')}</TableCell>
+                      <TableCell className="text-right font-mono">Rp {c.grossAmountIdr.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono">Rp {c.commissionAmountIdr.toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-mono">Rp {c.netToAffiliatorIdr.toLocaleString()}</TableCell>
+                      <TableCell><Badge variant="outline" className={cn('rounded-full border-transparent capitalize', COMMISSION_TONE[c.status] ?? 'bg-secondary text-muted-foreground')}>{c.status}</Badge></TableCell>
+                      <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           {c.status === 'pending' && (
-                            <button onClick={() => actCommission(c.id, 'approve')} disabled={working === c.id} className="rounded p-1 text-emerald-500 hover:bg-emerald-500/10" title="Approve">
+                            <Button variant="ghost" size="icon" onClick={() => actCommission(c.id, 'approve')} disabled={working === c.id} className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500" title="Approve">
                               <Check size={14} />
-                            </button>
+                            </Button>
                           )}
                           {(c.status === 'pending' || c.status === 'approved') && (
-                            <button onClick={() => actCommission(c.id, 'void')} disabled={working === c.id} className="rounded p-1 text-destructive hover:bg-destructive/10" title="Void">
+                            <Button variant="ghost" size="icon" onClick={() => actCommission(c.id, 'void')} disabled={working === c.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Void">
                               <Ban size={14} />
-                            </button>
+                            </Button>
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-            <ul className="space-y-3 md:hidden">
+                </TableBody>
+              </Table>
+            </Card>
+            <div className="space-y-3 md:hidden">
               {commissions.map((c) => (
-                <li key={c.id} className="rounded-xl border border-border bg-card p-4">
+                <Card key={c.id} className="p-4">
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-medium">{c.affiliator?.displayName ?? c.affiliatorId}</div>
                       <div className="text-xs text-muted-foreground">@{c.affiliator?.handle ?? '?'}</div>
                     </div>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${COMMISSION_TONE[c.status] ?? 'bg-secondary text-muted-foreground'}`}>{c.status}</span>
+                    <Badge variant="outline" className={cn('rounded-full border-transparent capitalize', COMMISSION_TONE[c.status] ?? 'bg-secondary text-muted-foreground')}>{c.status}</Badge>
                   </div>
                   <dl className="mt-2 space-y-1 text-xs">
                     <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Source</dt><dd className="capitalize">{c.sourceType.replace(/_/g, ' ')}</dd></div>
@@ -362,19 +374,19 @@ export default function ProgramDetailPage() {
                   </dl>
                   <div className="mt-2 flex justify-end gap-1">
                     {c.status === 'pending' && (
-                      <button onClick={() => actCommission(c.id, 'approve')} disabled={working === c.id} className="rounded p-1 text-emerald-500 hover:bg-emerald-500/10" title="Approve">
+                      <Button variant="ghost" size="icon" onClick={() => actCommission(c.id, 'approve')} disabled={working === c.id} className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500" title="Approve">
                         <Check size={14} />
-                      </button>
+                      </Button>
                     )}
                     {(c.status === 'pending' || c.status === 'approved') && (
-                      <button onClick={() => actCommission(c.id, 'void')} disabled={working === c.id} className="rounded p-1 text-destructive hover:bg-destructive/10" title="Void">
+                      <Button variant="ghost" size="icon" onClick={() => actCommission(c.id, 'void')} disabled={working === c.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Void">
                         <Ban size={14} />
-                      </button>
+                      </Button>
                     )}
                   </div>
-                </li>
+                </Card>
               ))}
-            </ul>
+            </div>
           </>
         )
       )}

@@ -6,6 +6,26 @@ import { Camera, Loader2, Mail, Search, SlidersHorizontal, Users, X } from 'luci
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { CreatorAvatar } from '@/components/marketplace/creator-avatar';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface DirectoryItem {
   id: string;
@@ -102,38 +122,34 @@ export default function MerchantCreatorDirectory() {
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <div className="relative min-w-[240px] flex-1">
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <Input
             type="search"
             placeholder="Search by handle, name, niche…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-md border border-border bg-card py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-brand-500 focus:outline-none"
+            className="bg-card pl-9"
           />
         </div>
-        <button
-          type="button"
-          onClick={() => setFiltersOpen((v) => !v)}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-secondary"
-        >
+        <Button type="button" variant="outline" onClick={() => setFiltersOpen((v) => !v)}>
           <SlidersHorizontal size={14} /> Filters
           {activeFilterCount > 0 && (
             <span className="rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-foreground">{activeFilterCount}</span>
           )}
-        </button>
+        </Button>
       </div>
 
       {filtersOpen && (
-        <div className="mb-5 grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-3">
+        <Card className="mb-5 grid gap-3 p-4 sm:grid-cols-3">
           <FilterSelect label="Niche" value={niche} onChange={setNiche} options={[{ value: '', label: 'All niches' }, ...NICHE_OPTIONS.map((n) => ({ value: n, label: n.charAt(0).toUpperCase() + n.slice(1) }))]} />
           <FilterSelect label="Country" value={country} onChange={setCountry} options={[{ value: '', label: 'All countries' }, ...COUNTRY_OPTIONS.map((c) => ({ value: c.code, label: c.label }))]} />
           <div className="flex items-end">
             {activeFilterCount > 0 && (
-              <button type="button" onClick={() => { setNiche(''); setCountry(''); }} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-secondary">
+              <Button type="button" variant="outline" onClick={() => { setNiche(''); setCountry(''); }} className="text-muted-foreground">
                 <X size={12} /> Clear filters
-              </button>
+              </Button>
             )}
           </div>
-        </div>
+        </Card>
       )}
 
       {loading ? (
@@ -161,10 +177,10 @@ export default function MerchantCreatorDirectory() {
           </div>
           {hasMore && !search && (
             <div className="mt-8 flex justify-center">
-              <button type="button" onClick={() => load(false)} disabled={loadingMore} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-5 py-2 text-sm hover:bg-secondary disabled:opacity-60">
+              <Button type="button" variant="outline" onClick={() => load(false)} disabled={loadingMore}>
                 {loadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                 Load more
-              </button>
+              </Button>
             </div>
           )}
         </>
@@ -192,7 +208,7 @@ function CreatorCard({ c, onInvite }: { c: DirectoryItem; onInvite: () => void }
   const minRate = c.fromPrice ?? 0;
   const country = COUNTRY_OPTIONS.find((x) => x.code === c.country)?.label ?? c.country ?? null;
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-5">
+    <Card className="flex flex-col p-5">
       <div className="flex items-center gap-3">
         <CreatorAvatar profile={c} stats={c.stats ?? null} size={40} />
         <div className="min-w-0 flex-1">
@@ -203,7 +219,7 @@ function CreatorCard({ c, onInvite }: { c: DirectoryItem; onInvite: () => void }
       {c.bio && <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">{c.bio}</p>}
       <div className="mt-3 flex flex-wrap gap-1">
         {c.niches.slice(0, 3).map((n) => (
-          <span key={n} className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{n}</span>
+          <Badge key={n} variant="secondary" className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{n}</Badge>
         ))}
       </div>
       {minRate > 0 && (
@@ -212,14 +228,16 @@ function CreatorCard({ c, onInvite }: { c: DirectoryItem; onInvite: () => void }
         </p>
       )}
       <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
-        <button type="button" onClick={onInvite} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-brand-600">
+        <Button type="button" size="sm" onClick={onInvite} className="flex-1">
           <Mail size={12} /> Invite
-        </button>
-        <Link href={`/dashboard/marketing/creators/${c.handle}`} className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-secondary">
-          Profile
-        </Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/dashboard/marketing/creators/${c.handle}`}>
+            Profile
+          </Link>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -247,54 +265,66 @@ function InviteDialog({ creator, campaigns, onClose, onSent }: { creator: Direct
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-semibold">Invite @{creator.handle}</h2>
-            <p className="mt-1 text-xs text-muted-foreground">{creator.displayName}</p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X size={14} /></button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">Invite @{creator.handle}</DialogTitle>
+          <p className="text-xs text-muted-foreground">{creator.displayName}</p>
+        </DialogHeader>
 
-        {err && <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">{err}</div>}
+        {err && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">{err}</div>}
 
         {campaigns.length === 0 ? (
-          <div className="mt-5 rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+          <div className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
             No open creator briefs. <Link href="/dashboard/marketing/creator-briefs" className="text-brand-500 hover:underline">Create one</Link> first.
           </div>
         ) : (
           <>
-            <label className="mt-5 block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">Campaign</span>
-              <select value={campaignId} onChange={(e) => setCampaignId(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-brand-500 focus:outline-none">
-                {campaigns.map((c) => (<option key={c.id} value={c.id}>{c.title}</option>))}
-              </select>
-            </label>
-            <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">Message (optional)</span>
-              <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} placeholder="Why this creator? Any specific brief?" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-brand-500 focus:outline-none" />
-            </label>
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={onClose} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary">Cancel</button>
-              <button type="button" onClick={send} disabled={submitting || !campaignId} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-600 disabled:opacity-60">
-                {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail size={12} />} Send invite
-              </button>
+            <div className="space-y-1.5">
+              <Label htmlFor="invite-campaign">Campaign</Label>
+              <Select value={campaignId} onValueChange={setCampaignId}>
+                <SelectTrigger id="invite-campaign">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {campaigns.map((c) => (<SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>))}
+                </SelectContent>
+              </Select>
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="invite-message">Message (optional)</Label>
+              <Textarea id="invite-message" value={message} onChange={(e) => setMessage(e.target.value)} rows={3} placeholder="Why this creator? Any specific brief?" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+              <Button type="button" onClick={send} disabled={submitting || !campaignId}>
+                {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail size={12} />} Send invite
+              </Button>
+            </DialogFooter>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+  const id = `filter-${label.toLowerCase()}`;
+  // Radix Select forbids empty-string values, so the "All …" option (value '')
+  // maps to the 'all' sentinel on the wire and back to '' in the handler.
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-brand-500 focus:outline-none">
-        {options.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-      </select>
-    </label>
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Select value={value === '' ? 'all' : value} onValueChange={(v) => onChange(v === 'all' ? '' : v)}>
+        <SelectTrigger id={id} className="bg-background">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value === '' ? 'all' : o.value}>{o.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

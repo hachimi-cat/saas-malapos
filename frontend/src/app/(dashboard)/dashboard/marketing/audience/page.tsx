@@ -1,10 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, Loader2, Plus, List as ListIcon, Upload, X, ShieldOff, Trash2 } from 'lucide-react';
+import { Users, Loader2, Plus, List as ListIcon, Upload, ShieldOff, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column } from '@/components/data-table';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Contact {
   id: string;
@@ -136,13 +148,15 @@ export default function AudiencePage() {
       header: '',
       align: 'right',
       cell: (s) => (
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => removeSuppression(s.email)}
-          className="rounded p-1 text-destructive hover:bg-destructive/10"
+          className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
           title="Remove from suppression"
         >
           <Trash2 size={14} />
-        </button>
+        </Button>
       ),
     },
   ];
@@ -156,27 +170,21 @@ export default function AudiencePage() {
         action={
           <div className="flex items-center gap-2">
             {tab === 'contacts' && (
-              <button
-                onClick={() => setShowImport(true)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary"
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
                 <Upload size={14} /> Import CSV
-              </button>
+              </Button>
             )}
-            <button
-              onClick={() => setShowAdd(tab === 'contacts' ? 'contact' : 'list')}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-600"
-            >
+            <Button size="sm" onClick={() => setShowAdd(tab === 'contacts' ? 'contact' : 'list')}>
               <Plus size={14} /> {tab === 'contacts' ? 'Add contact' : 'New list'}
-            </button>
+            </Button>
           </div>
         }
       />
 
       <div className="mb-4 flex items-center gap-2 text-sm">
-        <button onClick={() => setTab('contacts')} className={`rounded-md px-3 py-1.5 ${tab === 'contacts' ? 'bg-secondary font-medium' : 'text-muted-foreground hover:text-foreground'}`}>Contacts</button>
-        <button onClick={() => setTab('lists')} className={`rounded-md px-3 py-1.5 ${tab === 'lists' ? 'bg-secondary font-medium' : 'text-muted-foreground hover:text-foreground'}`}>Lists</button>
-        <button onClick={() => setTab('suppressions')} className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 ${tab === 'suppressions' ? 'bg-secondary font-medium' : 'text-muted-foreground hover:text-foreground'}`}><ShieldOff size={12} /> Suppressions</button>
+        <Button variant={tab === 'contacts' ? 'secondary' : 'ghost'} size="sm" onClick={() => setTab('contacts')}>Contacts</Button>
+        <Button variant={tab === 'lists' ? 'secondary' : 'ghost'} size="sm" onClick={() => setTab('lists')}>Lists</Button>
+        <Button variant={tab === 'suppressions' ? 'secondary' : 'ghost'} size="sm" onClick={() => setTab('suppressions')}><ShieldOff size={12} /> Suppressions</Button>
       </div>
 
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
@@ -185,7 +193,7 @@ export default function AudiencePage() {
         contacts === null ? (
           <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : contacts.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">No contacts yet.</div>
+          <Card className="p-12 text-center text-sm text-muted-foreground">No contacts yet.</Card>
         ) : (
           <DataTable
             rows={contacts}
@@ -203,16 +211,16 @@ export default function AudiencePage() {
           {lists === null ? (
             <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
           ) : lists.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">No lists yet.</div>
+            <Card className="p-12 text-center text-sm text-muted-foreground">No lists yet.</Card>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {lists.map((l) => (
-                <div key={l.id} className="rounded-xl border border-border bg-card p-5">
+                <Card key={l.id} className="p-5">
                   <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground"><ListIcon size={18} /></span>
                   <p className="mt-3 font-semibold">{l.name}</p>
                   {l.description && <p className="mt-1 text-xs text-muted-foreground">{l.description}</p>}
                   <p className="mt-3 text-xs text-muted-foreground"><span className="font-mono tabular-nums">{l.memberCount}</span> contact(s)</p>
-                </div>
+                </Card>
               ))}
             </div>
           )}
@@ -227,7 +235,7 @@ export default function AudiencePage() {
           {suppressions === null ? (
             <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
           ) : suppressions.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">No suppressions yet. Buyers can opt out via the unsubscribe link in any abandoned-cart email.</div>
+            <Card className="p-12 text-center text-sm text-muted-foreground">No suppressions yet. Buyers can opt out via the unsubscribe link in any abandoned-cart email.</Card>
           ) : (
             <DataTable
               rows={suppressions}
@@ -329,22 +337,19 @@ function ImportCsvModal({ onClose, onDone }: { onClose: () => void; onDone: () =
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-semibold">Import contacts from CSV</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Expected columns: <span className="font-mono">email, phone, first_name, last_name</span>. Header row required. Up to 5,000 rows per import.
-            </p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X size={14} /></button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Import contacts from CSV</DialogTitle>
+          <p className="text-xs text-muted-foreground">
+            Expected columns: <span className="font-mono">email, phone, first_name, last_name</span>. Header row required. Up to 5,000 rows per import.
+          </p>
+        </DialogHeader>
 
-        {error && <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">{error}</div>}
+        {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">{error}</div>}
 
         {summary ? (
-          <div className="mt-5 rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm">
+          <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm">
             <p className="font-semibold">Import complete.</p>
             <ul className="mt-2 space-y-0.5 text-xs">
               <li>· <span className="font-mono">{summary.created}</span> contact(s) created</li>
@@ -355,12 +360,12 @@ function ImportCsvModal({ onClose, onDone }: { onClose: () => void; onDone: () =
               )}
             </ul>
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={onDone} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-600">Done</button>
+              <Button type="button" size="sm" onClick={onDone}>Done</Button>
             </div>
           </div>
         ) : (
           <>
-            <label className="mt-5 block">
+            <label className="block">
               <span className="mb-1 block text-xs font-medium text-muted-foreground">CSV file</span>
               <input
                 type="file"
@@ -371,7 +376,7 @@ function ImportCsvModal({ onClose, onDone }: { onClose: () => void; onDone: () =
             </label>
 
             {parsed.rows.length > 0 && (
-              <div className="mt-4 rounded-lg border border-border bg-background p-3">
+              <div className="rounded-lg border border-border bg-background p-3">
                 <p className="text-xs font-medium">Preview ({parsed.rows.length} row{parsed.rows.length === 1 ? '' : 's'} total · recognized columns: {recognized.length > 0 ? recognized.join(', ') : 'none'})</p>
                 <div className="mt-2 overflow-x-auto">
                   <table className="w-full text-xs">
@@ -388,31 +393,31 @@ function ImportCsvModal({ onClose, onDone }: { onClose: () => void; onDone: () =
               </div>
             )}
 
-            <label className="mt-4 block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">Add to list (optional, created if missing)</span>
-              <input type="text" value={listName} onChange={(e) => setListName(e.target.value)} placeholder="e.g. Newsletter subscribers" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-brand-500 focus:outline-none" />
-            </label>
+            <div className="space-y-1.5">
+              <Label htmlFor="importListName" className="text-xs text-muted-foreground">Add to list (optional, created if missing)</Label>
+              <Input id="importListName" value={listName} onChange={(e) => setListName(e.target.value)} placeholder="e.g. Newsletter subscribers" />
+            </div>
 
-            <label className="mt-3 inline-flex items-center gap-2 text-xs text-muted-foreground">
-              <input type="checkbox" checked={skipExisting} onChange={(e) => setSkipExisting(e.target.checked)} className="h-3.5 w-3.5" />
-              Skip rows that already exist (don&rsquo;t overwrite their fields)
-            </label>
+            <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+              <Checkbox id="skipExisting" checked={skipExisting} onCheckedChange={(v) => setSkipExisting(v === true)} className="h-3.5 w-3.5" />
+              <Label htmlFor="skipExisting" className="text-xs font-normal text-muted-foreground">Skip rows that already exist (don&rsquo;t overwrite their fields)</Label>
+            </div>
 
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={onClose} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary">Cancel</button>
-              <button
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+              <Button
                 type="button"
+                size="sm"
                 onClick={submit}
                 disabled={working || parsed.rows.length === 0}
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-600 disabled:opacity-60"
               >
                 {working ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload size={12} />} Import {parsed.rows.length > 0 ? `${parsed.rows.length} row(s)` : ''}
-              </button>
+              </Button>
             </div>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -444,22 +449,38 @@ function AddContactModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={onClose}>
-      <form onSubmit={submit} className="w-full max-w-md rounded-xl bg-card p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold">Add contact</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">First name</span><input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" /></label>
-          <label className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">Last name</span><input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" /></label>
-        </div>
-        <label className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" /></label>
-        <label className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">Phone (E.164)</span><input type="tel" placeholder="+62…" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono" /></label>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
-          <button type="submit" disabled={working} className="flex-1 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-600 disabled:opacity-60">{working ? 'Saving…' : 'Save contact'}</button>
-        </div>
-      </form>
-    </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <form onSubmit={submit} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Add contact</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="contactFirstName" className="text-xs text-muted-foreground">First name</Label>
+              <Input id="contactFirstName" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="contactLastName" className="text-xs text-muted-foreground">Last name</Label>
+              <Input id="contactLastName" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="contactEmail" className="text-xs text-muted-foreground">Email</Label>
+            <Input id="contactEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="contactPhone" className="text-xs text-muted-foreground">Phone (E.164)</Label>
+            <Input id="contactPhone" type="tel" placeholder="+62…" value={phone} onChange={(e) => setPhone(e.target.value)} className="font-mono" />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button type="submit" disabled={working} className="flex-1">{working ? 'Saving…' : 'Save contact'}</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -487,17 +508,27 @@ function AddListModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={onClose}>
-      <form onSubmit={submit} className="w-full max-w-md rounded-xl bg-card p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold">New contact list</h2>
-        <label className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">Name</span><input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" /></label>
-        <label className="block"><span className="mb-1 block text-xs font-medium text-muted-foreground">Description</span><textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" /></label>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
-          <button type="submit" disabled={working} className="flex-1 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-600 disabled:opacity-60">{working ? 'Creating…' : 'Create list'}</button>
-        </div>
-      </form>
-    </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <form onSubmit={submit} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>New contact list</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="newListName" className="text-xs text-muted-foreground">Name</Label>
+            <Input id="newListName" type="text" required value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="newListDesc" className="text-xs text-muted-foreground">Description</Label>
+            <Textarea id="newListDesc" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button type="submit" disabled={working} className="flex-1">{working ? 'Creating…' : 'Create list'}</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

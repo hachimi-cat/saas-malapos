@@ -7,6 +7,17 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 type Provider =
   | 'email_resend' | 'email_sendgrid' | 'email_mailgun' | 'email_postmark' | 'email_ses'
@@ -187,9 +198,9 @@ export default function ChannelsPage() {
       {channels === null ? (
         <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
       ) : channels.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">No channels connected yet.</div>
+        <Card className="p-8 text-center text-sm text-muted-foreground">No channels connected yet.</Card>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <Card className="overflow-hidden">
           <ul>
             {channels.map((c) => {
               const meta = PROVIDER_BY_KEY[c.provider];
@@ -201,21 +212,21 @@ export default function ChannelsPage() {
                     <p className="font-medium">{c.displayName}</p>
                     <p className="text-xs text-muted-foreground">{meta?.label ?? c.provider} · {meta?.category}</p>
                   </div>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
+                  <Badge variant="outline" className={`rounded-full border-transparent px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
                     c.status === 'active' ? 'bg-emerald-500/10 text-emerald-600' :
                     c.status === 'expired' ? 'bg-amber-500/10 text-amber-600' :
                     c.status === 'revoked' ? 'bg-secondary text-muted-foreground' :
                     'bg-blue-500/10 text-blue-600'
-                  }`}>{c.status}</span>
+                  }`}>{c.status}</Badge>
                   {c.status === 'active' && (
-                    <button onClick={() => setTestFor(c)} className="ml-2 text-xs text-foreground hover:underline">Send test</button>
+                    <Button variant="link" onClick={() => setTestFor(c)} className="ml-2 h-auto p-0 text-xs text-foreground">Send test</Button>
                   )}
-                  <button onClick={() => disconnect(c.id)} className="ml-2 text-xs text-destructive hover:underline">Disconnect</button>
+                  <Button variant="link" onClick={() => disconnect(c.id)} className="ml-2 h-auto p-0 text-xs text-destructive">Disconnect</Button>
                 </li>
               );
             })}
           </ul>
-        </div>
+        </Card>
       )}
 
       <h2 className="mb-3 mt-10 text-sm font-semibold tracking-tight">All channels</h2>
@@ -226,7 +237,7 @@ export default function ChannelsPage() {
           return (
             <div key={cat}>
               <p className="mb-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{cat}</p>
-              <div className="overflow-hidden rounded-xl border border-border bg-card">
+              <Card className="overflow-hidden">
                 <ul>
                   {inCat.map((p) => {
                     const Icon = p.icon;
@@ -240,23 +251,24 @@ export default function ChannelsPage() {
                           <p className="truncate text-xs text-muted-foreground">{p.blurb}</p>
                         </div>
                         {connected ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-emerald-600">
+                          <Badge variant="outline" className="gap-1 rounded-full border-transparent bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-emerald-600">
                             <Check size={10} /> connected
-                          </span>
+                          </Badge>
                         ) : (
-                          <button
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => !isOauth && setAdding(p.key)}
                             disabled={isOauth}
-                            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Plus size={12} /> {isOauth ? 'OAuth (soon)' : 'Connect'}
-                          </button>
+                          </Button>
                         )}
                       </li>
                     );
                   })}
                 </ul>
-              </div>
+              </Card>
             </div>
           );
         })}
@@ -315,35 +327,37 @@ function TestChannelModal({ channel, onClose, onSent }: { channel: Channel; onCl
     : 'recipient handle / id';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-base font-semibold">Send test on {channel.displayName}</h2>
-        <p className="mt-1 text-xs text-muted-foreground">Dispatches a one-shot canned message through this integration so you can confirm credentials and routing.</p>
-        {err && <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">{err}</div>}
-        <label className="mt-5 block">
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Recipient</span>
-          <input
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-base">Send test on {channel.displayName}</DialogTitle>
+          <p className="text-xs text-muted-foreground">Dispatches a one-shot canned message through this integration so you can confirm credentials and routing.</p>
+        </DialogHeader>
+        {err && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">{err}</div>}
+        <div className="space-y-1.5">
+          <Label htmlFor="testRecipient" className="text-xs text-muted-foreground">Recipient</Label>
+          <Input
+            id="testRecipient"
             type="text"
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
             placeholder={placeholder}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
             autoFocus
           />
-        </label>
-        <div className="mt-5 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary">Cancel</button>
-          <button
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button
             type="button"
+            size="sm"
             onClick={send}
             disabled={working || (provider !== 'discord_webhook' && provider !== 'slack_webhook' && !recipient.trim())}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-600 disabled:opacity-60"
           >
             {working ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Send test
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -375,37 +389,40 @@ function ConnectModal({ meta, onClose, onConnected }: { meta: ProviderMeta; onCl
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={onClose}>
-      <form onSubmit={submit} className="w-full max-w-lg rounded-xl bg-card p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-        <div>
-          <h2 className="text-lg font-bold">Connect {meta.label}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{meta.blurb}</p>
-        </div>
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Display name</span>
-          <input type="text" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. @mambo_official" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-        </label>
-        {(meta.fields ?? []).map((f) => (
-          <label key={f.key} className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">{f.label}</span>
-            <input
-              type={f.type ?? 'text'}
-              required
-              value={creds[f.key] ?? ''}
-              onChange={(e) => setCreds({ ...creds, [f.key]: e.target.value })}
-              placeholder={f.placeholder}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono"
-            />
-          </label>
-        ))}
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
-          <button type="submit" disabled={working} className="flex-1 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-600 disabled:opacity-60">
-            {working ? 'Connecting…' : 'Connect'}
-          </button>
-        </div>
-      </form>
-    </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <form onSubmit={submit} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Connect {meta.label}</DialogTitle>
+            <p className="text-xs text-muted-foreground">{meta.blurb}</p>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="connectDisplayName" className="text-xs text-muted-foreground">Display name</Label>
+            <Input id="connectDisplayName" type="text" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. @mambo_official" />
+          </div>
+          {(meta.fields ?? []).map((f) => (
+            <div key={f.key} className="space-y-1.5">
+              <Label htmlFor={`connect-${f.key}`} className="text-xs text-muted-foreground">{f.label}</Label>
+              <Input
+                id={`connect-${f.key}`}
+                type={f.type ?? 'text'}
+                required
+                value={creds[f.key] ?? ''}
+                onChange={(e) => setCreds({ ...creds, [f.key]: e.target.value })}
+                placeholder={f.placeholder}
+                className="font-mono"
+              />
+            </div>
+          ))}
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button type="submit" disabled={working} className="flex-1">
+              {working ? 'Connecting…' : 'Connect'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

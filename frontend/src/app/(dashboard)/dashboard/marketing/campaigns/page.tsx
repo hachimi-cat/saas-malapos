@@ -22,9 +22,27 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Megaphone, Loader2, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { Button, ErrorBox } from '@/components/dashboard/ui';
+import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 type Goal = 'awareness' | 'conversion' | 'retention' | 'launch' | 'other';
 type Status = 'draft' | 'live' | 'paused' | 'completed' | 'archived';
@@ -156,7 +174,7 @@ export default function MarketingCampaignsHubPage() {
         icon={Megaphone}
         title="Campaigns"
         description="Group creator briefs, discounts, broadcasts and more under one push. Each child still works standalone."
-        action={<Button onClick={() => setShowForm(true)}><Plus size={14} /> New campaign</Button>}
+        action={<Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New campaign</Button>}
       />
 
       {error && <ErrorBox>{error}</ErrorBox>}
@@ -164,9 +182,9 @@ export default function MarketingCampaignsHubPage() {
       {campaigns === null ? (
         <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       ) : campaigns.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+        <Card className="p-12 text-center text-sm text-muted-foreground">
           No campaigns yet. Create one to bundle several marketing moves under a shared goal + date range.
-        </div>
+        </Card>
       ) : (
         <DataTable
           rows={campaigns}
@@ -228,56 +246,64 @@ export default function MarketingCampaignsHubPage() {
       )}
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={() => setShowForm(false)}>
-          <form onSubmit={create} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-card p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold">New campaign</h2>
-            <Field label="Name">
-              <input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" placeholder="e.g. Q4 holiday launch" />
-            </Field>
-            <Field label="Description">
-              <textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </Field>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Goal">
-                <select value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value as Goal })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-                  {Object.entries(GOAL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              </Field>
-              <Field label="Status">
-                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Status })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-                  {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
-              </Field>
-            </div>
-            <Field label="Budget (IDR, optional)">
-              <input type="number" min="0" value={form.budgetIdr} onChange={(e) => setForm({ ...form, budgetIdr: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            </Field>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Starts">
-                <input type="date" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-              </Field>
-              <Field label="Ends">
-                <input type="date" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-              </Field>
-            </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setShowForm(false)} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
-              <button type="submit" disabled={working} className="flex-1 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-600 disabled:opacity-60">
-                {working ? 'Creating…' : 'Create campaign'}
-              </button>
-            </div>
-          </form>
-        </div>
+        <Dialog open onOpenChange={(o) => !o && setShowForm(false)}>
+          <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>New campaign</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={create} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="campaign-name">Name</Label>
+                <Input id="campaign-name" type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Q4 holiday launch" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="campaign-description">Description</Label>
+                <Textarea id="campaign-description" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="campaign-goal">Goal</Label>
+                  <Select value={form.goal} onValueChange={(v) => setForm({ ...form, goal: v as Goal })}>
+                    <SelectTrigger id="campaign-goal"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(GOAL_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="campaign-status">Status</Label>
+                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Status })}>
+                    <SelectTrigger id="campaign-status"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(STATUS_LABELS).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="campaign-budget">Budget (IDR, optional)</Label>
+                <Input id="campaign-budget" type="number" min="0" value={form.budgetIdr} onChange={(e) => setForm({ ...form, budgetIdr: e.target.value })} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="campaign-starts">Starts</Label>
+                  <Input id="campaign-starts" type="date" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="campaign-ends">Ends</Label>
+                  <Input id="campaign-ends" type="date" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)} className="flex-1">Cancel</Button>
+                <Button type="submit" disabled={working} className="flex-1">
+                  {working ? 'Creating…' : 'Create campaign'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
-      {children}
-    </label>
   );
 }

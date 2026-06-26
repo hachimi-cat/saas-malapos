@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { feedsApi, type MerchantFeedConfig } from '@/lib/marketing-api';
 import { Loader2, Save, Copy, Check, ExternalLink, Rss, AlertTriangle, ChevronRight } from 'lucide-react';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 /**
  * /dashboard/marketing/feeds — auto-generated product feeds for the three
@@ -79,53 +84,50 @@ export default function FeedsPage() {
         </p>
       </header>
 
-      {error && <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {success && <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800">{success}</div>}
+      {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {success && <div className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm text-primary">{success}</div>}
 
       {/* ── Config ─────────────────────────────────────────────────────── */}
-      <section className="rounded-lg border border-border bg-card p-5 space-y-4">
+      <Card className="space-y-4 p-5">
         <label className="flex cursor-pointer items-center justify-between gap-3">
           <div>
             <div className="text-sm font-medium">Feeds enabled</div>
             <p className="text-xs text-muted-foreground">When off, the public feed URLs return 404 — ad networks stop pulling.</p>
           </div>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={form.enabled}
-            onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
+            onCheckedChange={(v) => setForm({ ...form, enabled: v === true })}
             className="h-5 w-5"
           />
         </label>
 
-        <div>
-          <label htmlFor="cat" className="mb-1 block text-xs font-medium">Default Google product category</label>
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="cat">Default Google product category</Label>
+          <Input
             id="cat"
             value={form.defaultGoogleProductCategory ?? ''}
             onChange={(e) => setForm({ ...form, defaultGoogleProductCategory: e.target.value || null })}
             placeholder="Apparel & Accessories > Clothing > Shirts & Tops"
-            className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           />
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground">
             Path or numeric taxonomy ID. Applied to products that don&apos;t set their own category.{' '}
             <a href="https://support.google.com/merchants/answer/1705911" target="_blank" rel="noreferrer"
               className="text-primary hover:underline">Find yours →</a>
           </p>
         </div>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-          <input
-            type="checkbox"
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/40 p-3">
+          <Checkbox
             checked={form.includeUnpublished}
-            onChange={(e) => setForm({ ...form, includeUnpublished: e.target.checked })}
+            onCheckedChange={(v) => setForm({ ...form, includeUnpublished: v === true })}
             className="mt-0.5 h-5 w-5"
           />
           <div>
-            <div className="flex items-center gap-1 text-sm font-medium text-amber-900">
+            <div className="flex items-center gap-1 text-sm font-medium">
               <AlertTriangle className="h-3.5 w-3.5" />
               Include draft (unpublished) products
             </div>
-            <p className="mt-0.5 text-xs text-amber-800">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               When on, products with <code>published=false</code> appear in ad-network catalogs. Off by default.
             </p>
           </div>
@@ -138,17 +140,12 @@ export default function FeedsPage() {
         />
 
         <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-          >
+          <Button type="button" onClick={save} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save
-          </button>
+          </Button>
         </div>
-      </section>
+      </Card>
 
       {/* ── Feed URLs ──────────────────────────────────────────────────── */}
       <section className="space-y-3">
@@ -209,28 +206,21 @@ function FeedUrlCard({ platform, url, previewHref, copied, onCopy, steps }: {
   steps: string[];
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <Card className="p-4">
       <div className="mb-2 flex items-center gap-2">
         <Rss className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">{platform}</h3>
       </div>
       <div className="flex items-stretch gap-2">
-        <input readOnly value={url} className="flex-1 rounded border border-border bg-muted/30 px-3 py-2 font-mono text-xs" />
-        <button
-          type="button"
-          onClick={onCopy}
-          className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 text-xs font-medium hover:bg-muted"
-        >
+        <Input readOnly value={url} className="flex-1 bg-muted/30 font-mono text-xs" />
+        <Button type="button" variant="outline" onClick={onCopy}>
           {copied ? <><Check className="h-3.5 w-3.5 text-green-600" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}
-        </button>
-        <a
-          href={previewHref}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 text-xs font-medium hover:bg-muted"
-        >
-          <ExternalLink className="h-3.5 w-3.5" /> Preview
-        </a>
+        </Button>
+        <Button asChild variant="outline">
+          <a href={previewHref} target="_blank" rel="noreferrer">
+            <ExternalLink className="h-3.5 w-3.5" /> Preview
+          </a>
+        </Button>
       </div>
       <details className="group mt-2">
         <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
@@ -241,7 +231,7 @@ function FeedUrlCard({ platform, url, previewHref, copied, onCopy, steps }: {
           {steps.map((s, i) => <li key={i}>{s}</li>)}
         </ol>
       </details>
-    </div>
+    </Card>
   );
 }
 

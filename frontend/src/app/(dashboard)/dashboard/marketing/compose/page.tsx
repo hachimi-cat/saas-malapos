@@ -1,11 +1,38 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Mail, Loader2, Send, Plug, Users, FlaskConical, X } from 'lucide-react';
+import { Mail, Loader2, Send, Plug, Users, FlaskConical } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { resolveProviders } from '@/lib/compose-providers';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Channel {
   id: string;
@@ -180,7 +207,7 @@ export default function ComposePage() {
       )}
 
       <Section title="Campaign name">
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. November Flash Sale Announcement" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+        <Input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. November Flash Sale Announcement" />
       </Section>
 
       <Section title="Channels">
@@ -191,13 +218,17 @@ export default function ComposePage() {
             {channels.map((c) => {
               const checked = picked.has(c.id);
               return (
-                <label key={c.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 ${checked ? 'border-brand-500 bg-brand-500/5' : 'border-border'}`}>
-                  <input type="checkbox" checked={checked} onChange={() => toggleProvider(c.id)} className="h-4 w-4" />
+                <div
+                  key={c.id}
+                  onClick={() => toggleProvider(c.id)}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 ${checked ? 'border-brand-500 bg-brand-500/5' : 'border-border'}`}
+                >
+                  <Checkbox checked={checked} className="pointer-events-none h-4 w-4" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{c.displayName}</p>
                     <p className="text-xs text-muted-foreground">{CHANNEL_LABELS[c.provider] ?? c.provider}</p>
                   </div>
-                </label>
+                </div>
               );
             })}
           </div>
@@ -212,13 +243,17 @@ export default function ComposePage() {
             {lists.map((l) => {
               const checked = pickedLists.has(l.id);
               return (
-                <label key={l.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 ${checked ? 'border-brand-500 bg-brand-500/5' : 'border-border'}`}>
-                  <input type="checkbox" checked={checked} onChange={() => toggleList(l.id)} className="h-4 w-4" />
+                <div
+                  key={l.id}
+                  onClick={() => toggleList(l.id)}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 ${checked ? 'border-brand-500 bg-brand-500/5' : 'border-border'}`}
+                >
+                  <Checkbox checked={checked} className="pointer-events-none h-4 w-4" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{l.name}</p>
                     <p className="text-xs text-muted-foreground">{l.memberCount} contact(s)</p>
                   </div>
-                </label>
+                </div>
               );
             })}
           </div>
@@ -227,25 +262,26 @@ export default function ComposePage() {
 
       {needsEmail && (
         <Section title="Email">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">Subject</span>
-            <input type="text" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">HTML body</span>
-            <textarea rows={10} value={emailHtml} onChange={(e) => setEmailHtml(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-mono" placeholder="<h1>Hi {firstName}</h1>" />
-          </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="emailSubject" className="text-xs text-muted-foreground">Subject</Label>
+            <Input id="emailSubject" type="text" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="emailHtml" className="text-xs text-muted-foreground">HTML body</Label>
+            <Textarea id="emailHtml" rows={10} value={emailHtml} onChange={(e) => setEmailHtml(e.target.value)} className="font-mono" placeholder="<h1>Hi {firstName}</h1>" />
+          </div>
         </Section>
       )}
 
       {needsBody && (
         <Section title="Message body" hint="Used for SMS / WhatsApp / Telegram / Discord / Slack. Falls back to a stripped version of the email HTML if you leave it blank.">
-          <textarea rows={5} value={bodyText} onChange={(e) => setBodyText(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm" placeholder="Hey there, our flash sale is live — grab 20% off until Monday!" />
+          <Textarea rows={5} value={bodyText} onChange={(e) => setBodyText(e.target.value)} placeholder="Hey there, our flash sale is live — grab 20% off until Monday!" />
         </Section>
       )}
 
       <div className="mt-8 flex items-center justify-end gap-3 border-t border-border pt-6">
-        <button
+        <Button
+          variant="outline"
           onClick={() => {
             if (picked.size === 0) { setError('Pick at least one channel first'); return; }
             setError(null);
@@ -254,50 +290,51 @@ export default function ComposePage() {
             setShowTest(true);
           }}
           disabled={working || picked.size === 0 || !name.trim()}
-          className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary disabled:opacity-60"
         >
           <FlaskConical size={14} /> Send test
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={send}
           disabled={working || picked.size === 0 || pickedLists.size === 0 || !name.trim()}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:bg-brand-600 disabled:opacity-60"
         >
           {working ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send size={14} />}
           Send now
-        </button>
+        </Button>
       </div>
 
       {showTest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowTest(false)}>
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-base font-semibold">Send test message</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Saves the campaign as a draft and dispatches one message to the recipient you specify.</p>
-              </div>
-              <button type="button" onClick={() => setShowTest(false)} className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X size={14} /></button>
+        <Dialog open onOpenChange={(o) => !o && setShowTest(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-base">Send test message</DialogTitle>
+              <p className="text-xs text-muted-foreground">Saves the campaign as a draft and dispatches one message to the recipient you specify.</p>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="testChannel" className="text-xs text-muted-foreground">Channel</Label>
+              <Select value={testProvider} onValueChange={(v) => setTestProvider(v)}>
+                <SelectTrigger id="testChannel">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pickedProviders.map((p) => (<SelectItem key={p} value={p}>{CHANNEL_LABELS[p] ?? p}</SelectItem>))}
+                </SelectContent>
+              </Select>
             </div>
-            <label className="mt-5 block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">Channel</span>
-              <select value={testProvider} onChange={(e) => setTestProvider(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-brand-500 focus:outline-none">
-                {pickedProviders.map((p) => (<option key={p} value={p}>{CHANNEL_LABELS[p] ?? p}</option>))}
-              </select>
-            </label>
-            <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">Recipient</span>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="testRecipient" className="text-xs text-muted-foreground">Recipient</Label>
+              <Input
+                id="testRecipient"
                 type="text"
                 value={testRecipient}
                 onChange={(e) => setTestRecipient(e.target.value)}
                 placeholder={testProvider.startsWith('email_') ? 'you@example.com' : testProvider.startsWith('sms_') || testProvider === 'whatsapp_cloud' ? '+628…' : 'recipient handle / id'}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-brand-500 focus:outline-none"
               />
-            </label>
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setShowTest(false)} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary">Cancel</button>
-              <button
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowTest(false)}>Cancel</Button>
+              <Button
                 type="button"
+                size="sm"
                 onClick={async () => {
                   if (!testRecipient.trim() || !testProvider) return;
                   // Resolve generic → specific provider keys (PR #3 fix).
@@ -350,45 +387,44 @@ export default function ComposePage() {
                   } finally { setTestWorking(false); }
                 }}
                 disabled={testWorking || !testRecipient.trim() || !testProvider}
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-600 disabled:opacity-60"
               >
                 {testWorking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FlaskConical size={12} />} Send
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {past.length > 0 && (
         <>
           <h2 className="mb-3 mt-12 text-sm font-semibold tracking-tight">Past campaigns</h2>
-          <div className="hidden overflow-hidden rounded-xl border border-border bg-card md:block">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-2.5 text-left">Name</th>
-                  <th className="px-4 py-2.5 text-left">Channels</th>
-                  <th className="px-4 py-2.5 text-left">Status</th>
-                  <th className="px-4 py-2.5 text-right">Messages</th>
-                  <th className="px-4 py-2.5 text-right">Created</th>
-                </tr>
-              </thead>
-              <tbody>
+          <Card className="hidden overflow-hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-secondary/40">
+                  <TableHead className="px-4 text-xs uppercase tracking-wider">Name</TableHead>
+                  <TableHead className="px-4 text-xs uppercase tracking-wider">Channels</TableHead>
+                  <TableHead className="px-4 text-xs uppercase tracking-wider">Status</TableHead>
+                  <TableHead className="px-4 text-right text-xs uppercase tracking-wider">Messages</TableHead>
+                  <TableHead className="px-4 text-right text-xs uppercase tracking-wider">Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {past.map((c) => (
-                  <tr key={c.id} className="border-t border-border">
-                    <td className="px-4 py-2.5 font-medium">{c.name}</td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{c.providers.map((p) => CHANNEL_LABELS[p] ?? p).join(', ')}</td>
-                    <td className="px-4 py-2.5 capitalize text-xs">{c.status}</td>
-                    <td className="px-4 py-2.5 text-right font-mono">{c._count?.messages ?? 0}</td>
-                    <td className="px-4 py-2.5 text-right text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</td>
-                  </tr>
+                  <TableRow key={c.id}>
+                    <TableCell className="px-4 py-2.5 font-medium">{c.name}</TableCell>
+                    <TableCell className="px-4 py-2.5 text-xs text-muted-foreground">{c.providers.map((p) => CHANNEL_LABELS[p] ?? p).join(', ')}</TableCell>
+                    <TableCell className="px-4 py-2.5 capitalize text-xs">{c.status}</TableCell>
+                    <TableCell className="px-4 py-2.5 text-right font-mono">{c._count?.messages ?? 0}</TableCell>
+                    <TableCell className="px-4 py-2.5 text-right text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </Card>
           <ul className="space-y-3 md:hidden">
             {past.map((c) => (
-              <li key={c.id} className="rounded-xl border border-border bg-card p-4">
+              <Card key={c.id} className="p-4">
                 <div className="flex items-baseline justify-between gap-2">
                   <div className="font-medium">{c.name}</div>
                   <span className="text-xs capitalize text-muted-foreground">{c.status}</span>
@@ -398,7 +434,7 @@ export default function ComposePage() {
                   <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Messages</dt><dd className="font-mono">{c._count?.messages ?? 0}</dd></div>
                   <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Created</dt><dd>{new Date(c.createdAt).toLocaleDateString()}</dd></div>
                 </dl>
-              </li>
+              </Card>
             ))}
           </ul>
         </>
@@ -409,11 +445,11 @@ export default function ComposePage() {
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <section className="mb-6 rounded-xl border border-border bg-card p-5">
+    <Card className="mb-6 p-5">
       <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
       <div className="mt-4 space-y-3">{children}</div>
-    </section>
+    </Card>
   );
 }
 
