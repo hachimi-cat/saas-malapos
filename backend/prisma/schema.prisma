@@ -652,6 +652,11 @@ model TransactionItem {
   modifiers     Json     @default("[]")
   lineTotal     Int // (unitPrice * qty) + modifier surcharges − discount
   batchId       String? // pharmacy: which lot this line drew from
+  /// Per-item kitchen-display state — set to NEW alongside the parent
+  /// Transaction.kdsState for F&B sales, null otherwise. The KDS advances
+  /// items individually; the ticket's effective state is the least-advanced
+  /// active item, and Transaction.kdsState is kept in sync to that value.
+  kdsState      KdsState?
   createdAt     DateTime @default(now())
 
   transaction Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)

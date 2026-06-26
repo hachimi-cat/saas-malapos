@@ -1,15 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChefHat, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { ChefHat, ArrowRight, Loader2, CheckCircle2, Undo2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 
 /*
  * Kitchen Display System (KDS) for F&B. A live board of active tickets
  * (NEW → PREPARING → READY), oldest-first, each with its line items + chosen
- * modifiers. One button advances a ticket; advancing a READY ticket marks it
- * SERVED and drops it off the board. Polls every few seconds. F&B-only, but
- * harmless on other business types (the board simply stays empty).
+ * modifiers. Every ITEM carries its own status and can be advanced or undone
+ * independently: tap an item to push it forward a step, or hit ↩ to pull it
+ * back. The ticket lives in the column of its LEAST-advanced active item
+ * (derived server-side as Transaction.kdsState); once every item is served the
+ * ticket drops off the board. Whole-ticket advance/undo buttons move every
+ * item at once for speed. Polls every few seconds. F&B-only, but harmless on
+ * other business types (the board simply stays empty).
  */
 
 type KdsState = 'NEW' | 'PREPARING' | 'READY' | 'SERVED';
@@ -20,6 +24,7 @@ type TicketItem = {
   variantName: string | null;
   quantity: number;
   modifiers: { name: string; price: number }[];
+  kdsState: KdsState | null;
 };
 
 type Ticket = {
@@ -41,6 +46,14 @@ const NEXT_LABEL: Record<KdsState, string> = {
   SERVED: 'Served',
 };
 
+// Per-item badge: short label + color for the item's own status.
+const ITEM_BADGE: Record<KdsState, { label: string; cls: string }> = {
+  NEW: { label: 'New', cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' },
+  PREPARING: { label: 'Preparing', cls: 'bg-primary/15 text-primary' },
+  READY: { label: 'Ready', cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
+  SERVED: { label: 'Served', cls: 'bg-muted text-muted-foreground' },
+};
+
 const COLUMNS: { state: KdsState; label: string; accent: string }[] = [
   { state: 'NEW', label: 'New', accent: 'border-t-amber-500' },
   { state: 'PREPARING', label: 'Preparing', accent: 'border-t-primary' },
@@ -59,7 +72,9 @@ export default function KdsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [advancing, setAdvancing] = useState<string | null>(null);
+  // A single in-flight key (item id or ticket id) so the tapped control spins
+  // and the rest stay live.
+  const [busy, setBusy] = useState<string | null>(null);
   const initial = useRef(true);
 
   const load = useCallback(async () => {
@@ -83,17 +98,25 @@ export default function KdsPage() {
     return () => clearInterval(t);
   }, [load]);
 
-  async function advance(id: string) {
-    setAdvancing(id);
-    try {
-      await api.post(`/kds/${id}/advance`);
-      await load();
-    } catch (e) {
-      setError(e instanceof ApiRequestError ? e.message : 'Failed to advance ticket');
-    } finally {
-      setAdvancing(null);
-    }
-  }
+  const act = useCallback(
+    async (key: string, path: string, fallback: string) => {
+      setBusy(key);
+      try {
+        await api.post(path);
+        await load();
+      } catch (e) {
+        setError(e instanceof ApiRequestError ? e.message : fallback);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [load],
+  );
+
+  const advanceItem = (id: string) => act(`item:${id}`, `/kds/items/${id}/advance`, 'Failed to advance item');
+  const backItem = (id: string) => act(`item:${id}`, `/kds/items/${id}/back`, 'Failed to undo item');
+  const advanceTicket = (id: string) => act(`ticket:${id}`, `/kds/${id}/advance`, 'Failed to advance ticket');
+  const backTicket = (id: string) => act(`ticket:${id}`, `/kds/${id}/back`, 'Failed to undo ticket');
 
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col">
@@ -102,7 +125,7 @@ export default function KdsPage() {
         <div>
           <h1 className="text-xl font-semibold">Kitchen display</h1>
           <p className="text-sm text-muted-foreground">
-            Live tickets from the counter. Tap to advance through prep. Refreshes automatically.
+            Live tickets from the counter. Tap an item to advance it, ↩ to undo. Refreshes automatically.
           </p>
         </div>
       </div>
@@ -130,7 +153,9 @@ export default function KdsPage() {
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{colTickets.length}</span>
                 </div>
                 <div className="flex flex-col gap-3">
-                  {colTickets.map((t) => (
+                  {colTickets.map((t) => {
+                    const ticketBusy = busy === `ticket:${t.id}`;
+                    return (
                     <div key={t.id} className={`rounded-lg border border-t-4 border-border bg-card p-4 ${col.accent}`}>
                       <div className="flex items-center justify-between">
                         <span className="font-semibold">{t.number}</span>
@@ -138,35 +163,84 @@ export default function KdsPage() {
                       </div>
                       <p className="text-xs text-muted-foreground">{t.outlet.name}</p>
                       <ul className="mt-3 space-y-1.5 text-sm">
-                        {t.items.map((it) => (
-                          <li key={it.id}>
-                            <div className="flex justify-between gap-2">
-                              <span>
-                                <span className="font-medium">{it.quantity}×</span> {it.productName}
-                                {it.variantName && it.variantName !== 'Default' ? (
-                                  <span className="text-muted-foreground"> · {it.variantName}</span>
-                                ) : null}
-                              </span>
-                            </div>
-                            {it.modifiers?.length > 0 && (
-                              <p className="pl-5 text-xs text-muted-foreground">
-                                {it.modifiers.map((m) => m.name).join(', ')}
-                              </p>
-                            )}
-                          </li>
-                        ))}
+                        {t.items.map((it) => {
+                          const st = it.kdsState;
+                          const itemBusy = busy === `item:${it.id}`;
+                          const badge = st ? ITEM_BADGE[st] : null;
+                          const canAdvance = st != null && st !== 'SERVED';
+                          const canBack = st != null && st !== 'NEW';
+                          return (
+                            <li
+                              key={it.id}
+                              className="rounded-md border border-border/60 bg-background/40 p-2"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                {/* Tap the item body to advance it a step. */}
+                                <button
+                                  type="button"
+                                  onClick={() => canAdvance && advanceItem(it.id)}
+                                  disabled={!canAdvance || itemBusy}
+                                  title={canAdvance && st ? NEXT_LABEL[st] : undefined}
+                                  className="flex flex-1 items-start gap-2 text-left disabled:cursor-default"
+                                >
+                                  {itemBusy ? (
+                                    <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+                                  ) : badge ? (
+                                    <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.cls}`}>
+                                      {badge.label}
+                                    </span>
+                                  ) : null}
+                                  <span>
+                                    <span className="font-medium">{it.quantity}×</span> {it.productName}
+                                    {it.variantName && it.variantName !== 'Default' ? (
+                                      <span className="text-muted-foreground"> · {it.variantName}</span>
+                                    ) : null}
+                                    {it.modifiers?.length > 0 && (
+                                      <span className="block text-xs text-muted-foreground">
+                                        {it.modifiers.map((m) => m.name).join(', ')}
+                                      </span>
+                                    )}
+                                  </span>
+                                </button>
+                                {/* Undo this item one step. */}
+                                <button
+                                  type="button"
+                                  onClick={() => canBack && backItem(it.id)}
+                                  disabled={!canBack || itemBusy}
+                                  title="Move back a step"
+                                  aria-label="Move item back a step"
+                                  className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
+                                >
+                                  <Undo2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </li>
+                          );
+                        })}
                       </ul>
                       {t.note && <p className="mt-2 text-xs italic text-muted-foreground">“{t.note}”</p>}
-                      <button
-                        onClick={() => advance(t.id)}
-                        disabled={advancing === t.id}
-                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-                      >
-                        {advancing === t.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                        {NEXT_LABEL[t.kdsState]}
-                      </button>
+                      <div className="mt-3 flex items-stretch gap-2">
+                        <button
+                          onClick={() => advanceTicket(t.id)}
+                          disabled={ticketBusy}
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-primary py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                        >
+                          {ticketBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                          {NEXT_LABEL[t.kdsState]}
+                        </button>
+                        <button
+                          onClick={() => backTicket(t.id)}
+                          disabled={ticketBusy || t.kdsState === 'NEW'}
+                          title="Move whole ticket back a step"
+                          aria-label="Move whole ticket back a step"
+                          className="inline-flex items-center justify-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30"
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                  ))}
+                    );
+                  })}
                   {!colTickets.length && (
                     <p className="rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
                       No tickets

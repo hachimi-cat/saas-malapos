@@ -431,7 +431,7 @@ export async function updateParkedSale(
 
   const txn = await prisma.transaction.findFirst({
     where: { id: transactionId, accountId },
-    select: { id: true, status: true, outletId: true },
+    select: { id: true, status: true, outletId: true, kdsState: true },
   });
   if (!txn) throw new ApiError(404, 'NOT_FOUND', 'Transaction not found');
   if (txn.status !== 'PARKED') {
@@ -467,6 +467,10 @@ export async function updateParkedSale(
   const orderDiscount = Math.max(0, input.orderDiscount ?? 0);
   const { taxTotal, total } = priceWithTax(subtotal, orderDiscount, outlet);
 
+  // Editing a parked F&B bill replaces every line, so all new items start at
+  // NEW; the ticket (least-advanced item) therefore re-syncs to NEW too.
+  const itemKdsState = txn.kdsState != null ? 'NEW' : null;
+
   await prisma.$transaction(async (tx) => {
     await tx.transactionItem.deleteMany({ where: { transactionId: txn.id } });
     await tx.transaction.update({
@@ -476,6 +480,7 @@ export async function updateParkedSale(
         discountTotal: orderDiscount,
         taxTotal,
         total,
+        ...(txn.kdsState != null ? { kdsState: itemKdsState } : {}),
         ...(input.note !== undefined ? { note: input.note } : {}),
         ...(input.tableId !== undefined ? { tableId: input.tableId } : {}),
         ...(input.orderType ? { orderType: input.orderType } : {}),
@@ -493,6 +498,7 @@ export async function updateParkedSale(
             discount: l.discount,
             modifiers: l.mods as unknown as Prisma.InputJsonValue,
             lineTotal: l.lineTotal,
+            kdsState: itemKdsState,
           })),
         },
       },
@@ -1107,6 +1113,8 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
             discount: l.discount,
             modifiers: l.mods as unknown as Prisma.InputJsonValue,
             lineTotal: l.lineTotal,
+            // Per-item KDS state mirrors the ticket: NEW for F&B, null otherwise.
+            kdsState,
           })),
         },
         payments: {
