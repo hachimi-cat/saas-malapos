@@ -15,6 +15,25 @@ import {
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /*
  * Customers + loyalty. A debounced search over /customers and a roster table
@@ -121,26 +140,23 @@ export default function CustomersPage() {
             Your customer roster and loyalty points.
           </p>
         </div>
-        <button
-          onClick={() => setAdding(true)}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
+        <Button onClick={() => setAdding(true)}>
           <Plus className="h-4 w-4" /> Add customer
-        </button>
+        </Button>
       </div>
 
       <div className="relative mt-5 max-w-md">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
+        <Input
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name, phone or email…"
-          className="w-full rounded-md border border-input bg-card py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="pl-9"
         />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
+      <Card className="mt-4 overflow-hidden">
         {loading ? (
           <p className="p-8 text-center text-sm text-muted-foreground">Loading…</p>
         ) : error ? (
@@ -154,52 +170,52 @@ export default function CustomersPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Phone</th>
-                  <th className="px-4 py-3 text-right font-medium">Points</th>
-                  <th className="px-4 py-3 text-right font-medium">Total spent</th>
-                  <th className="px-4 py-3 text-right font-medium">Visits</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead className="text-right">Points</TableHead>
+                  <TableHead className="text-right">Total spent</TableHead>
+                  <TableHead className="text-right">Visits</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {customers.map((c) => (
-                  <tr
+                  <TableRow
                     key={c.id}
                     onClick={() => setSelectedId(c.id)}
-                    className="cursor-pointer border-b border-border last:border-0 transition-colors hover:bg-accent"
+                    className="cursor-pointer"
                   >
-                    <td className="px-4 py-3">
+                    <TableCell>
                       <p className="font-medium">{c.name}</p>
                       {c.email && <p className="text-xs text-muted-foreground">{c.email}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.phone || '—'}</td>
-                    <td className="px-4 py-3 text-right">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{c.phone || '—'}</TableCell>
+                    <TableCell className="text-right">
                       <span className="inline-flex items-center gap-1 font-medium text-primary">
                         <Star className="h-3.5 w-3.5" /> {c.loyaltyPoints ?? 0}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium">{rupiah(c.totalSpent ?? 0)}</td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">{c.visits ?? 0}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{rupiah(c.totalSpent ?? 0)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{c.visits ?? 0}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
-      </div>
+      </Card>
 
       {hasMore && !loading && (
         <div className="mt-3 text-center">
-          <button
+          <Button
+            variant="outline"
             disabled={loadingMore}
             onClick={() => cursor && load(query, cursor, true)}
-            className="rounded-md border border-border px-4 py-2 text-sm hover:bg-accent disabled:opacity-40"
           >
             {loadingMore ? 'Loading…' : 'Load more'}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -278,55 +294,47 @@ function CustomerForm({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
-        </div>
-        <div className="mt-4 space-y-3">
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
           <Field label="Name">
-            <input
+            <Input
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
           <Field label="Phone (optional)">
-            <input
+            <Input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
           <Field label="Email (optional)">
-            <input
+            <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
           <Field label="Note (optional)">
-            <textarea
+            <Textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={2}
-              className="mt-1 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="resize-none"
             />
           </Field>
         </div>
-        {err && <p className="mt-3 text-sm text-destructive">{err}</p>}
-        <button
-          disabled={busy}
-          onClick={submit}
-          className="mt-5 w-full rounded-md bg-primary py-2.5 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-        >
+        {err && <p className="text-sm text-destructive">{err}</p>}
+        <Button disabled={busy} onClick={submit} className="w-full">
           {busy ? 'Saving…' : 'Save'}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -417,7 +425,9 @@ function CustomerDetail({
             {customer?.phone && <p className="text-sm text-muted-foreground">{customer.phone}</p>}
             {customer?.email && <p className="text-sm text-muted-foreground">{customer.email}</p>}
           </div>
-          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-5 w-5 text-muted-foreground" />
+          </Button>
         </div>
 
         {loading ? (
@@ -440,30 +450,23 @@ function CustomerDetail({
 
             {/* Actions */}
             <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                onClick={() => setAdjusting(true)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent"
-              >
+              <Button variant="outline" size="sm" onClick={() => setAdjusting(true)}>
                 <ArrowDownUp className="h-4 w-4" /> Adjust points
-              </button>
-              <button
-                onClick={() => setRedeeming(true)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent"
-              >
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setRedeeming(true)}>
                 <Gift className="h-4 w-4" /> Redeem
-              </button>
-              <button
-                onClick={() => setEditing(true)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent"
-              >
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
                 <Pencil className="h-4 w-4" /> Edit
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => { setConfirmingDelete(true); setDeleteErr(null); }}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 <Trash2 className="h-4 w-4" /> Delete
-              </button>
+              </Button>
             </div>
 
             {confirmingDelete && (
@@ -471,19 +474,12 @@ function CustomerDetail({
                 <p className="text-sm">Delete this customer permanently?</p>
                 {deleteErr && <p className="mt-1 text-sm text-destructive">{deleteErr}</p>}
                 <div className="mt-2 flex gap-2">
-                  <button
-                    disabled={busy}
-                    onClick={doDelete}
-                    className="rounded-md bg-destructive px-3 py-1.5 text-sm font-medium text-destructive-foreground hover:opacity-90 disabled:opacity-40"
-                  >
+                  <Button variant="destructive" size="sm" disabled={busy} onClick={doDelete}>
                     {busy ? 'Deleting…' : 'Delete'}
-                  </button>
-                  <button
-                    onClick={() => setConfirmingDelete(false)}
-                    className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent"
-                  >
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setConfirmingDelete(false)}>
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -622,52 +618,45 @@ function PointsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">{hint}</p>
-        <div className="mt-4 space-y-3">
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">{hint}</p>
+        <div className="space-y-3">
           <Field label="Points">
-            <input
+            <Input
               autoFocus
               type="number"
               value={points}
               onChange={(e) => setPoints(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </Field>
           {allowNegative && (
             <Field label="Reason (optional)">
-              <input
+              <Input
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
             </Field>
           )}
         </div>
-        {err && <p className="mt-3 text-sm text-destructive">{err}</p>}
-        <button
-          disabled={busy}
-          onClick={submit}
-          className="mt-5 w-full rounded-md bg-primary py-2.5 font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-        >
+        {err && <p className="text-sm text-destructive">{err}</p>}
+        <Button disabled={busy} onClick={submit} className="w-full">
           {busy ? 'Saving…' : 'Confirm'}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block text-sm">
-      <span className="text-muted-foreground">{label}</span>
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
       {children}
-    </label>
+    </div>
   );
 }
 

@@ -24,6 +24,12 @@ import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { useModules } from '@/hooks/use-modules';
 import { deliveryApi, shipmentsApi, type Shipment } from '@/lib/fulfillment-api';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 /*
  * Sale detail — the full receipt for one POS transaction, on its own route
@@ -107,9 +113,9 @@ function StatusBadge({ status }: { status: SaleStatus }) {
       ? 'bg-destructive/10 text-destructive'
       : 'bg-muted text-muted-foreground';
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}>
+    <Badge variant="outline" className={`rounded-full border-transparent ${cls}`}>
       {statusLabel(status)}
-    </span>
+    </Badge>
   );
 }
 
@@ -121,10 +127,7 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-const btnSecondary =
-  'inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50';
-const btnDanger =
-  'inline-flex items-center gap-2 rounded-md border border-destructive/40 px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50';
+const dangerOutline = 'border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive';
 
 export default function SaleDetailPage() {
   const params = useParams<{ id: string }>();
@@ -216,14 +219,14 @@ export default function SaleDetailPage() {
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
             <StatusBadge status={sale.status} />
             <span className="text-xs text-muted-foreground">{formatDate(sale.createdAt)}</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            <Badge variant="secondary" className="gap-1 rounded-full font-normal text-muted-foreground">
               {sale.orderType === 'DELIVERY' ? <Truck className="h-3 w-3" /> : sale.orderType === 'DINE_IN' ? <Utensils className="h-3 w-3" /> : <Store className="h-3 w-3" />}
               {ORDER_TYPE_LABEL[sale.orderType]}
-            </span>
+            </Badge>
             {sale.table && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              <Badge variant="secondary" className="rounded-full font-normal text-muted-foreground">
                 {sale.table.label}
-              </span>
+              </Badge>
             )}
           </div>
           <p className="mt-1.5 text-xs text-muted-foreground">
@@ -231,18 +234,18 @@ export default function SaleDetailPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
-          <button type="button" onClick={() => window.print()} className={btnSecondary}>
+          <Button type="button" variant="outline" onClick={() => window.print()}>
             <Printer className="h-4 w-4" /> Print receipt
-          </button>
+          </Button>
           {canRefund && !refunding && (
-            <button type="button" onClick={() => setRefunding(true)} className={btnSecondary}>
+            <Button type="button" variant="outline" onClick={() => setRefunding(true)}>
               <RotateCcw className="h-4 w-4" /> Refund
-            </button>
+            </Button>
           )}
           {sale.status === 'COMPLETED' && !confirmingVoid && (
-            <button type="button" onClick={() => setConfirmingVoid(true)} className={btnDanger}>
+            <Button type="button" variant="outline" onClick={() => setConfirmingVoid(true)} className={dangerOutline}>
               <Ban className="h-4 w-4" /> Void sale
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -266,28 +269,23 @@ export default function SaleDetailPage() {
           <p className="text-xs text-muted-foreground">
             This reverses the transaction and restocks the items. This can&apos;t be undone.
           </p>
-          <input
+          <Input
             value={voidReason}
             onChange={(e) => setVoidReason(e.target.value)}
             placeholder="Reason (optional)"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="outline"
               onClick={() => { setConfirmingVoid(false); setVoidReason(''); }}
               disabled={voiding}
-              className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-40"
             >
               Cancel
-            </button>
-            <button
-              onClick={voidSale}
-              disabled={voiding}
-              className="inline-flex items-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-            >
+            </Button>
+            <Button variant="destructive" onClick={voidSale} disabled={voiding}>
               {voiding && <Loader2 className="h-4 w-4 animate-spin" />}
               {voiding ? 'Voiding…' : 'Confirm void'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -315,7 +313,7 @@ export default function SaleDetailPage() {
       <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
         {/* Line items + totals */}
         <div className="space-y-5">
-          <div className="rounded-lg border border-border bg-card p-6">
+          <Card className="p-6">
             <h2 className="mb-4 text-base font-semibold">Items</h2>
             <table className="w-full text-sm">
               <tbody>
@@ -359,10 +357,10 @@ export default function SaleDetailPage() {
                 <span className="tabular-nums">− {rupiah(sale.refundedTotal)}</span>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Payments */}
-          <div className="rounded-lg border border-border bg-card p-6">
+          <Card className="p-6">
             <h2 className="mb-3 text-base font-semibold">Payments</h2>
             <div className="space-y-2 text-sm">
               {sale.payments.length === 0 ? (
@@ -383,13 +381,13 @@ export default function SaleDetailPage() {
                 {sale.changeTotal > 0 && <Row label="Change" value={rupiah(sale.changeTotal)} muted />}
               </div>
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Right column: customer + shipment */}
         <div className="space-y-4">
           {sale.customer && (
-            <div className="rounded-lg border border-border bg-card p-6">
+            <Card className="p-6">
               <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
                 <User className="h-4 w-4 text-muted-foreground" /> Customer
               </h2>
@@ -399,14 +397,14 @@ export default function SaleDetailPage() {
               <p className="mt-2 text-xs text-muted-foreground">
                 Loyalty: <span className="font-medium text-foreground">{sale.customer.loyaltyPoints.toLocaleString('id-ID')}</span> pts
               </p>
-            </div>
+            </Card>
           )}
 
           {sale.note && (
-            <div className="rounded-lg border border-border bg-card p-6">
+            <Card className="p-6">
               <h2 className="mb-2 text-base font-semibold">Order note</h2>
               <p className="text-sm text-muted-foreground">{sale.note}</p>
-            </div>
+            </Card>
           )}
 
           {showShipment && (
@@ -527,7 +525,7 @@ function ShipmentSection({
   // No shipment dispatched yet for a delivery sale.
   if (!shipmentId) {
     return (
-      <div className="rounded-lg border border-border bg-card p-6">
+      <Card className="p-6">
         <h2 className="mb-2 flex items-center gap-2 text-base font-semibold">
           <Truck className="h-4 w-4 text-muted-foreground" /> Delivery
         </h2>
@@ -535,7 +533,7 @@ function ShipmentSection({
           This is a delivery order, but no courier has been dispatched yet. Create a shipment from the{' '}
           <Link href="/dashboard/fulfillment/shipments" className="text-primary hover:underline">Shipments</Link> page.
         </p>
-      </div>
+      </Card>
     );
   }
 
@@ -546,14 +544,14 @@ function ShipmentSection({
   const recipientAddress = (dest.address as string | undefined) ?? null;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
+    <Card className="p-6">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <h2 className="flex items-center gap-2 text-base font-semibold">
           <Truck className="h-4 w-4 text-muted-foreground" /> Shipment
         </h2>
-        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${statusClass(status)}`}>
+        <Badge variant="outline" className={`rounded-full border-transparent text-[10px] ${statusClass(status)}`}>
           {prettyStatus(status)}
-        </span>
+        </Badge>
       </div>
 
       {loading ? (
@@ -605,28 +603,23 @@ function ShipmentSection({
           {/* Manual fulfillment actions for a POS delivery. */}
           <div className="flex flex-wrap gap-2 border-t border-border pt-4 print:hidden">
             {shipment.status === 'pending' && (
-              <button
-                type="button"
-                onClick={confirmPickup}
-                disabled={busy}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-              >
+              <Button type="button" onClick={confirmPickup} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 Book courier
-              </button>
+              </Button>
             )}
-            <button type="button" onClick={viewLabel} className={btnSecondary}>
+            <Button type="button" variant="outline" onClick={viewLabel}>
               <Printer className="h-4 w-4" /> View label
-            </button>
+            </Button>
             {['pending', 'confirmed', 'allocated', 'picking_up'].includes(shipment.status) && (
-              <button type="button" onClick={cancelShipment} disabled={busy} className={btnDanger}>
+              <Button type="button" variant="outline" onClick={cancelShipment} disabled={busy} className={dangerOutline}>
                 <X className="h-4 w-4" /> Cancel
-              </button>
+              </Button>
             )}
           </div>
         </div>
       ) : null}
-    </div>
+    </Card>
   );
 }
 
@@ -694,19 +687,19 @@ function RefundPanel({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-border bg-card p-5 print:hidden">
+    <Card className="space-y-3 p-5 print:hidden">
       <p className="text-sm font-medium">Refund</p>
       <p className="text-xs text-muted-foreground">Refundable balance: {rupiah(refundable)}</p>
 
       <div className="grid max-w-xs grid-cols-2 gap-2">
         {(['lines', 'amount'] as const).map((m) => (
-          <button
+          <Button
             key={m}
+            variant={mode === m ? 'default' : 'outline'}
             onClick={() => setMode(m)}
-            className={`rounded-md border py-1.5 text-sm font-medium ${mode === m ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}
           >
             {m === 'lines' ? 'Select items' : 'Amount'}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -720,7 +713,7 @@ function RefundPanel({
                   <p className="truncate">{it.productName}</p>
                   <p className="text-xs text-muted-foreground">{it.quantity} sold · {rupiah(it.lineTotal)}</p>
                 </div>
-                <input
+                <Input
                   type="number"
                   min={0}
                   max={it.quantity}
@@ -728,55 +721,46 @@ function RefundPanel({
                   onChange={(e) =>
                     setQtyById((m) => ({ ...m, [it.id]: Math.max(0, Math.min(it.quantity, Number(e.target.value))) }))
                   }
-                  className="w-16 rounded-md border border-input bg-background px-2 py-1 text-right text-sm outline-none focus:ring-2 focus:ring-ring"
+                  className="w-16 text-right"
                 />
               </div>
             );
           })}
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={restock} onChange={(e) => setRestock(e.target.checked)} />
+          <Label className="flex items-center gap-2 text-sm font-normal">
+            <Checkbox checked={restock} onCheckedChange={(c) => setRestock(c === true)} />
             <span>Return items to stock</span>
-          </label>
+          </Label>
           <p className="text-sm font-medium">Refund {rupiah(lineEstimate)}</p>
         </div>
       ) : (
-        <label className="block max-w-xs text-sm">
-          <span className="text-muted-foreground">Amount to refund</span>
-          <input
+        <div className="block max-w-xs space-y-1.5 text-sm">
+          <Label>Amount to refund</Label>
+          <Input
             type="number"
             min={0}
             max={refundable}
             value={amount}
             onChange={(e) => setAmount(Math.max(0, Math.min(refundable, Number(e.target.value))))}
-            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring"
           />
-        </label>
+        </div>
       )}
 
-      <input
+      <Input
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         placeholder="Reason (optional)"
-        className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        className="max-w-md"
       />
 
       <div className="flex gap-2">
-        <button
-          onClick={onCancel}
-          disabled={busy}
-          className="rounded-md border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-40"
-        >
+        <Button variant="outline" onClick={onCancel} disabled={busy}>
           Cancel
-        </button>
-        <button
-          onClick={submit}
-          disabled={busy || !valid}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
-        >
+        </Button>
+        <Button onClick={submit} disabled={busy || !valid}>
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}
           {busy ? 'Refunding…' : 'Confirm refund'}
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }

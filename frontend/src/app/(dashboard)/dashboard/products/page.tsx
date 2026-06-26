@@ -1,9 +1,38 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { Search, Plus, X, Pencil, Trash2, Tag, Upload, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /*
  * Catalog manager — the back-office surface for Malapos's product list.
@@ -112,52 +141,53 @@ export default function ProductsPage() {
             Manage your catalog — items, services, variants and categories.
           </p>
         </div>
-        <button
-          onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
+        <Button onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4" /> Add product
-        </button>
+        </Button>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name…"
-            className="w-full rounded-md border border-input bg-card py-2 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+            className="pl-9"
           />
         </div>
-        <select
-          value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        <Select
+          value={categoryId || 'all'}
+          onValueChange={(v) => setCategoryId(v === 'all' ? '' : v)}
         >
-          <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+          <SelectTrigger className="w-auto min-w-[10rem]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {categories.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-3 font-medium">Name</th>
-              <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 font-medium">Kind</th>
-              <th className="px-4 py-3 font-medium">Variants</th>
-              <th className="px-4 py-3 font-medium">Price</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody>
+      <Card className="mt-4 overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Kind</TableHead>
+              <TableHead>Variants</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {filtered.map((p) => (
-              <tr key={p.id} className="border-b border-border last:border-0 hover:bg-accent">
-                <td className="px-4 py-3">
+              <TableRow key={p.id}>
+                <TableCell>
                   <div className="flex items-center gap-3">
                     <ProductThumb name={p.name} imageUrl={p.imageUrl} className="h-9 w-9 shrink-0 rounded-md text-xs" />
                     <div className="min-w-0">
@@ -171,51 +201,49 @@ export default function ProductsPage() {
                       )}
                     </div>
                   </div>
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{catName(p.categoryId)}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${
-                      p.kind === 'SERVICE'
-                        ? 'border-border text-muted-foreground'
-                        : 'border-primary/40 bg-primary/10 text-primary'
-                    }`}
-                  >
-                    {p.kind === 'SERVICE' ? 'Service' : 'Goods'}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{p.variants.length}</td>
-                <td className="px-4 py-3 font-medium">{priceRange(p)}</td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell className="text-muted-foreground">{catName(p.categoryId)}</TableCell>
+                <TableCell>
+                  {p.kind === 'SERVICE' ? (
+                    <Badge variant="outline" className="rounded-full text-muted-foreground">
+                      Service
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="rounded-full border-primary/40 bg-primary/10 text-primary">
+                      Goods
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-muted-foreground">{p.variants.length}</TableCell>
+                <TableCell className="font-medium">{priceRange(p)}</TableCell>
+                <TableCell>
                   <div className="flex justify-end gap-1">
-                    <button
-                      onClick={() => setEditing(p)}
-                      className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
-                      title="Edit"
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => setEditing(p)} title="Edit">
                       <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => onDelete(p)}
-                      className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-destructive"
                       title="Delete"
+                      className="text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
             {!filtered.length && (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                   {products.length ? 'No products match your filters.' : 'No products yet. Add your first one.'}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Card>
 
       {(creating || editing) && (
         <ProductModal
@@ -318,45 +346,48 @@ function ImageField({
               alt="Product"
               className="h-16 w-16 rounded-md border border-border object-cover"
             />
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="icon"
               onClick={() => onChange('')}
               aria-label="Remove image"
-              className="absolute -right-1.5 -top-1.5 rounded-full border border-border bg-card p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              className="absolute -right-1.5 -top-1.5 h-5 w-5 rounded-full bg-card text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             >
               <X className="h-3 w-3" />
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-border bg-background text-muted-foreground">
             <Upload className="h-4 w-4" />
           </div>
         )}
-        <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent">
-          {uploading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Upload className="h-3.5 w-3.5" />
-          )}
-          {value ? 'Replace image' : 'Upload image'}
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            disabled={uploading}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) upload(f);
-              e.target.value = '';
-            }}
-          />
-        </label>
+        <Button asChild variant="outline" size="sm">
+          <label className="cursor-pointer">
+            {uploading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Upload className="h-3.5 w-3.5" />
+            )}
+            {value ? 'Replace image' : 'Upload image'}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={uploading}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) upload(f);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </Button>
       </div>
-      <input
+      <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="…or paste an image URL"
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
       />
       {uploadErr && <p className="text-xs text-destructive">{uploadErr}</p>}
     </div>
@@ -505,100 +536,104 @@ function ProductModal({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-card p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{editing ? 'Edit product' : 'New product'}</h2>
-          <button onClick={onClose}>
-            <X className="h-5 w-5 text-muted-foreground" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{editing ? 'Edit product' : 'New product'}</DialogTitle>
+        </DialogHeader>
 
-        <div className="mt-4 space-y-4">
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Name</span>
-            <input
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="prod-name">Name</Label>
+            <Input
+              id="prod-name"
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Paracetamol 500mg"
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
-          </label>
+          </div>
 
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Description (optional)</span>
-            <textarea
+          <div className="space-y-1.5">
+            <Label htmlFor="prod-desc">Description (optional)</Label>
+            <Textarea
+              id="prod-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
-          </label>
+          </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="block text-sm">
-              <span className="text-muted-foreground">Category (optional)</span>
+            <div className="space-y-1.5">
+              <Label>Category (optional)</Label>
               {showNewCat ? (
-                <div className="mt-1 flex gap-2">
-                  <input
+                <div className="flex gap-2">
+                  <Input
                     value={newCat}
                     onChange={(e) => setNewCat(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), createCategory())}
                     placeholder="New category name"
-                    className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    className="min-w-0 flex-1"
                   />
-                  <button
+                  <Button
                     onClick={createCategory}
                     disabled={catBusy || !newCat.trim()}
-                    className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
                   >
                     {catBusy ? '…' : 'Add'}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
                     onClick={() => { setShowNewCat(false); setNewCat(''); }}
-                    className="rounded-md border border-border px-2 text-sm text-muted-foreground hover:bg-accent"
                   >
                     <X className="h-4 w-4" />
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <div className="mt-1 flex items-center gap-2">
-                  <select
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={categoryId || 'none'}
+                    onValueChange={(v) => setCategoryId(v === 'none' ? '' : v)}
                   >
-                    <option value="">No category</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                  <button
+                    <SelectTrigger className="min-w-0 flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No category</SelectItem>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => setShowNewCat(true)}
-                    className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-border px-2 py-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+                    className="whitespace-nowrap text-muted-foreground"
                   >
                     <Tag className="h-3.5 w-3.5" /> + new
-                  </button>
+                  </Button>
                 </div>
               )}
-            </label>
+            </div>
 
-            <label className="block text-sm">
-              <span className="text-muted-foreground">Kind</span>
-              <select
+            <div className="space-y-1.5">
+              <Label htmlFor="prod-kind">Kind</Label>
+              <Select
                 value={kind}
-                onChange={(e) => setKindAndStock(e.target.value as 'GOODS' | 'SERVICE')}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                onValueChange={(v) => setKindAndStock(v as 'GOODS' | 'SERVICE')}
               >
-                <option value="GOODS">Goods</option>
-                <option value="SERVICE">Service</option>
-              </select>
-            </label>
+                <SelectTrigger id="prod-kind">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GOODS">Goods</SelectItem>
+                  <SelectItem value="SERVICE">Service</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -614,71 +649,75 @@ function ProductModal({
             />
           </div>
 
-          <div className="block text-sm">
-            <span className="text-muted-foreground">Image (optional)</span>
+          <div className="space-y-1.5">
+            <Label>Image (optional)</Label>
             <ImageField value={imageUrl} onChange={setImageUrl} />
           </div>
 
           <div>
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm font-medium">Variants</span>
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
                 onClick={addVariant}
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                className="h-auto p-0"
               >
                 <Plus className="h-3.5 w-3.5" /> Add variant
-              </button>
+              </Button>
             </div>
             <div className="space-y-2">
               {variants.map((v, i) => (
                 <div key={v.id ?? `new-${i}`} className="rounded-md border border-border bg-background p-3">
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    <input
+                    <Input
                       value={v.name}
                       onChange={(e) => updateVariant(i, { name: e.target.value })}
                       placeholder="Name (Default)"
-                      className="rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      className="h-8 bg-card text-sm"
                     />
-                    <input
+                    <Input
                       type="number"
                       value={v.price || ''}
                       onChange={(e) => updateVariant(i, { price: Number(e.target.value) })}
                       placeholder="Price"
-                      className="rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      className="h-8 bg-card text-sm"
                     />
-                    <input
+                    <Input
                       type="number"
                       value={v.cost ?? ''}
                       onChange={(e) =>
                         updateVariant(i, { cost: e.target.value === '' ? null : Number(e.target.value) })
                       }
                       placeholder="Cost"
-                      className="rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      className="h-8 bg-card text-sm"
                     />
                     <div className="flex gap-2">
-                      <input
+                      <Input
                         value={v.sku}
                         onChange={(e) => updateVariant(i, { sku: e.target.value })}
                         placeholder="SKU"
-                        className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                        className="h-8 min-w-0 flex-1 bg-card text-sm"
                       />
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         onClick={() => removeVariant(i)}
                         disabled={variants.length <= 1}
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive disabled:opacity-30"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         title="Remove variant"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
-                  <input
+                  <Input
                     value={v.barcode}
                     onChange={(e) => updateVariant(i, { barcode: e.target.value })}
                     placeholder="Barcode (optional)"
-                    className="mt-2 w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    className="mt-2 h-8 bg-card text-sm"
                   />
                 </div>
               ))}
@@ -699,25 +738,18 @@ function ProductModal({
           )}
         </div>
 
-        {err && <p className="mt-4 text-sm text-destructive">{err}</p>}
+        {err && <p className="text-sm text-destructive">{err}</p>}
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            onClick={submit}
-            disabled={busy}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-          >
+          </Button>
+          <Button onClick={submit} disabled={busy}>
             {busy ? 'Saving…' : editing ? 'Save changes' : 'Create product'}
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -860,53 +892,62 @@ function RecipeEditor({ product }: { product: Product }) {
             <>
               {rows.map((r, i) => (
                 <div key={i} className="grid grid-cols-12 gap-2">
-                  <select
-                    value={r.componentVariantId}
-                    onChange={(e) => updateRow(i, { componentVariantId: e.target.value })}
-                    className="col-span-6 min-w-0 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  <Select
+                    value={r.componentVariantId || undefined}
+                    onValueChange={(v) => updateRow(i, { componentVariantId: v })}
                   >
-                    <option value="">Select component…</option>
-                    {r.componentVariantId &&
-                      !options.some((o) => o.id === r.componentVariantId) && (
-                        <option value={r.componentVariantId}>{r.componentName ?? r.componentVariantId}</option>
-                      )}
-                    {options.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
+                    <SelectTrigger className="col-span-6 h-8 min-w-0 bg-card text-sm">
+                      <SelectValue placeholder="Select component…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {r.componentVariantId &&
+                        !options.some((o) => o.id === r.componentVariantId) && (
+                          <SelectItem value={r.componentVariantId}>
+                            {r.componentName ?? r.componentVariantId}
+                          </SelectItem>
+                        )}
+                      {options.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
                     type="number"
                     step="any"
                     value={r.quantity || ''}
                     onChange={(e) => updateRow(i, { quantity: Number(e.target.value) })}
                     placeholder="Qty"
-                    className="col-span-3 min-w-0 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    className="col-span-3 h-8 min-w-0 bg-card text-sm"
                   />
-                  <input
+                  <Input
                     value={r.unit}
                     onChange={(e) => updateRow(i, { unit: e.target.value })}
                     placeholder="Unit"
-                    className="col-span-2 min-w-0 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    className="col-span-2 h-8 min-w-0 bg-card text-sm"
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon"
                     onClick={() => removeRow(i)}
-                    className="col-span-1 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-destructive"
+                    className="col-span-1 h-8 w-8 text-muted-foreground hover:text-destructive"
                     title="Remove component"
                   >
                     <Trash2 className="h-4 w-4" />
-                  </button>
+                  </Button>
                 </div>
               ))}
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
                 onClick={addRow}
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                className="h-auto p-0"
               >
                 <Plus className="h-3.5 w-3.5" /> Add component
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -916,14 +957,15 @@ function RecipeEditor({ product }: { product: Product }) {
       {msg && <p className="mt-2 text-xs text-primary">{msg}</p>}
 
       <div className="mt-3 flex justify-end">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={save}
           disabled={busy || loading}
-          className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-40"
         >
           {busy ? 'Saving…' : 'Save recipe'}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1023,11 +1065,9 @@ function ModifierAttachEditor({ product }: { product: Product }) {
               key={g.id}
               className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-sm"
             >
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={checked.has(g.id)}
-                onChange={() => toggle(g.id)}
-                className="h-4 w-4 accent-[hsl(var(--primary))]"
+                onCheckedChange={() => toggle(g.id)}
               />
               <span className="font-medium">{g.name}</span>
               <span className="text-xs text-muted-foreground">
@@ -1043,14 +1083,15 @@ function ModifierAttachEditor({ product }: { product: Product }) {
 
       {groups.length > 0 && (
         <div className="mt-3 flex justify-end">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={save}
             disabled={busy || loading}
-            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-40"
           >
             {busy ? 'Saving…' : 'Save customization'}
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -1066,25 +1107,12 @@ function Toggle({
   onChange: (v: boolean) => void;
   label: string;
 }) {
+  const id = useId();
   return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className="flex items-center gap-2 text-sm"
-    >
-      <span
-        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-          checked ? 'bg-primary' : 'bg-input'
-        }`}
-      >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${
-            checked ? 'translate-x-4' : 'translate-x-0.5'
-          }`}
-        />
-      </span>
-      <span>{label}</span>
-    </button>
+    <div className="flex items-center gap-2">
+      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+      <Label htmlFor={id} className="font-normal">{label}</Label>
+    </div>
   );
 }
 

@@ -5,6 +5,24 @@ import { useRouter } from 'next/navigation';
 import { Receipt, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /*
  * Sales history — the merchant's ledger of every transaction. Filter by
@@ -55,9 +73,9 @@ function StatusBadge({ status }: { status: SaleStatus }) {
       ? 'bg-destructive/10 text-destructive'
       : 'bg-muted text-muted-foreground';
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
+    <Badge variant="outline" className={`rounded-full border-transparent ${cls}`}>
       {statusLabel(status)}
-    </span>
+    </Badge>
   );
 }
 
@@ -156,28 +174,36 @@ export default function SalesPage() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
-        <select
-          value={outletId}
-          onChange={(e) => setOutletId(e.target.value)}
-          className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        <Select
+          value={outletId || 'all'}
+          onValueChange={(v) => setOutletId(v === 'all' ? '' : v)}
         >
-          <option value="">All outlets</option>
-          {outlets.map((o) => (
-            <option key={o.id} value={o.id}>{o.name}</option>
-          ))}
-        </select>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          <SelectTrigger className="w-auto min-w-[10rem]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All outlets</SelectItem>
+            {outlets.map((o) => (
+              <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={status || 'all'}
+          onValueChange={(v) => setStatus(v === 'all' ? '' : v)}
         >
-          {STATUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
+          <SelectTrigger className="w-auto min-w-[10rem]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value || 'all'}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
+      <Card className="mt-4 overflow-hidden">
         {loading ? (
           <div className="p-10 text-center text-muted-foreground">Loading…</div>
         ) : error ? (
@@ -185,47 +211,43 @@ export default function SalesPage() {
         ) : !rows.length ? (
           <div className="p-10 text-center text-muted-foreground">No sales match these filters yet.</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Receipt #</th>
-                <th className="px-4 py-3 font-medium">Date / time</th>
-                <th className="px-4 py-3 text-right font-medium">Items</th>
-                <th className="px-4 py-3 font-medium">Payment</th>
-                <th className="px-4 py-3 text-right font-medium">Total</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Receipt #</TableHead>
+                <TableHead>Date / time</TableHead>
+                <TableHead className="text-right">Items</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((row) => (
-                <tr
+                <TableRow
                   key={row.id}
                   onClick={() => router.push(`/dashboard/sales/${row.id}`)}
-                  className="cursor-pointer border-b border-border last:border-0 transition-colors hover:bg-accent"
+                  className="cursor-pointer"
                 >
-                  <td className="px-4 py-3 font-medium">{row.number}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(row.createdAt)}</td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">{row._count.items}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{paymentSummary(row.payments)}</td>
-                  <td className="px-4 py-3 text-right font-medium">{rupiah(row.total)}</td>
-                  <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
-                </tr>
+                  <TableCell className="font-medium">{row.number}</TableCell>
+                  <TableCell className="text-muted-foreground">{formatDate(row.createdAt)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{row._count.items}</TableCell>
+                  <TableCell className="text-muted-foreground">{paymentSummary(row.payments)}</TableCell>
+                  <TableCell className="text-right font-medium">{rupiah(row.total)}</TableCell>
+                  <TableCell><StatusBadge status={row.status} /></TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </Card>
 
       {!loading && !error && hasMore && (
         <div className="mt-4 text-center">
-          <button
-            onClick={loadMore}
-            disabled={loadingMore}
-            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-5 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-40"
-          >
+          <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
             {loadingMore && <Loader2 className="h-4 w-4 animate-spin" />}
             {loadingMore ? 'Loading…' : 'Load more'}
-          </button>
+          </Button>
         </div>
       )}
     </div>

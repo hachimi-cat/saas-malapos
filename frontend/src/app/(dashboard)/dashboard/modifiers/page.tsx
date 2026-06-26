@@ -4,6 +4,18 @@ import { useEffect, useState } from 'react';
 import { Plus, X, Pencil, Trash2, SlidersHorizontal } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 /*
  * Modifiers manager — the back-office surface for F&B-style product
@@ -75,12 +87,9 @@ export default function ModifiersPage() {
             products from the product form&apos;s Customization section.
           </p>
         </div>
-        <button
-          onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-        >
+        <Button onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4" /> New group
-        </button>
+        </Button>
       </div>
 
       <div className="mt-5 space-y-4">
@@ -95,10 +104,10 @@ export default function ModifiersPage() {
           />
         ))}
         {!groups.length && (
-          <div className="rounded-lg border border-dashed border-border bg-card px-4 py-12 text-center text-muted-foreground">
+          <Card className="border-dashed px-4 py-12 text-center text-muted-foreground">
             <SlidersHorizontal className="mx-auto mb-2 h-6 w-6 opacity-60" />
             No modifier groups yet. Create your first one.
-          </div>
+          </Card>
         )}
       </div>
 
@@ -188,27 +197,25 @@ function GroupCard({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
+    <Card className="overflow-hidden">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="min-w-0">
           <div className="font-medium">{group.name}</div>
           <div className="text-xs text-muted-foreground">{selectLabel}</div>
         </div>
         <div className="flex gap-1">
-          <button
-            onClick={onEdit}
-            className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-foreground"
-            title="Edit group"
-          >
+          <Button variant="ghost" size="icon" onClick={onEdit} title="Edit group">
             <Pencil className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onDelete}
-            className="rounded p-1.5 text-muted-foreground hover:bg-background hover:text-destructive"
             title="Delete group"
+            className="text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -227,30 +234,31 @@ function GroupCard({
       </div>
 
       <div className="flex items-center gap-2 border-t border-border bg-background px-4 py-3">
-        <input
+        <Input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addModifier())}
           placeholder="Option name (e.g. Less sugar)"
-          className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="min-w-0 flex-1"
         />
-        <input
+        <Input
           type="number"
           value={newPrice}
           onChange={(e) => setNewPrice(e.target.value === '' ? '' : Number(e.target.value))}
           placeholder="+ Price"
-          className="w-28 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="w-28"
         />
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={addModifier}
           disabled={busy || !newName.trim()}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:opacity-40"
         >
           <Plus className="h-3.5 w-3.5" /> Add option
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -279,34 +287,32 @@ function ModifierRow({
   if (editing) {
     return (
       <div className="flex items-center gap-2 px-4 py-2">
-        <input
+        <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="min-w-0 flex-1"
         />
-        <input
+        <Input
           type="number"
           value={price || ''}
           onChange={(e) => setPrice(Number(e.target.value))}
-          className="w-28 rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="w-28"
         />
-        <button
-          onClick={save}
-          disabled={busy}
-          className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-        >
+        <Button size="sm" onClick={save} disabled={busy}>
           Save
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
           onClick={() => {
             setName(modifier.name);
             setPrice(modifier.price);
             setEditing(false);
           }}
-          className="rounded-md border border-border px-2 py-1.5 text-xs hover:bg-accent"
         >
           <X className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
     );
   }
@@ -318,20 +324,24 @@ function ModifierRow({
         <span className="font-medium text-muted-foreground">
           {modifier.price > 0 ? `+ ${rupiah(modifier.price)}` : 'Free'}
         </span>
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
           onClick={() => setEditing(true)}
-          className="rounded p-1 text-muted-foreground hover:text-foreground"
           title="Edit option"
         >
           <Pencil className="h-3.5 w-3.5" />
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground hover:text-destructive"
           onClick={onDelete}
-          className="rounded p-1 text-muted-foreground hover:text-destructive"
           title="Delete option"
         >
           <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -381,82 +391,71 @@ function GroupModal({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-xl border border-border bg-card p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{editing ? 'Edit group' : 'New modifier group'}</h2>
-          <button onClick={onClose}>
-            <X className="h-5 w-5 text-muted-foreground" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{editing ? 'Edit group' : 'New modifier group'}</DialogTitle>
+        </DialogHeader>
 
-        <div className="mt-4 space-y-4">
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Name</span>
-            <input
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="mod-name">Name</Label>
+            <Input
+              id="mod-name"
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Sugar level"
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
-          </label>
+          </div>
 
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="mod-required"
               checked={required}
-              onChange={(e) => setRequired(e.target.checked)}
-              className="h-4 w-4 accent-[hsl(var(--primary))]"
+              onCheckedChange={(c) => setRequired(c === true)}
             />
-            Required (customer must choose)
-          </label>
+            <Label htmlFor="mod-required" className="font-normal">
+              Required (customer must choose)
+            </Label>
+          </div>
 
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="mod-multi"
               checked={multi}
-              onChange={(e) => setMulti(e.target.checked)}
-              className="h-4 w-4 accent-[hsl(var(--primary))]"
+              onCheckedChange={(c) => setMulti(c === true)}
             />
-            Allow multiple selections
-          </label>
+            <Label htmlFor="mod-multi" className="font-normal">
+              Allow multiple selections
+            </Label>
+          </div>
 
           {multi && (
-            <label className="block text-sm">
-              <span className="text-muted-foreground">Max selectable</span>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="mod-max">Max selectable</Label>
+              <Input
+                id="mod-max"
                 type="number"
                 min={2}
                 value={maxSelect}
                 onChange={(e) => setMaxSelect(Number(e.target.value))}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
-            </label>
+            </div>
           )}
         </div>
 
-        {err && <p className="mt-4 text-sm text-destructive">{err}</p>}
+        {err && <p className="text-sm text-destructive">{err}</p>}
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            onClick={submit}
-            disabled={busy}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40"
-          >
+          </Button>
+          <Button onClick={submit} disabled={busy}>
             {busy ? 'Saving…' : editing ? 'Save changes' : 'Create group'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
