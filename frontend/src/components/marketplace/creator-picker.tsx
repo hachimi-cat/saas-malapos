@@ -177,9 +177,7 @@ function SelectedCard({ value, onClear }: { value: CreatorRow; onClear: () => vo
           {value.country && <> · {flagEmoji(value.country)} {value.country}</>}
         </p>
         <Link
-          href={`/creators/${value.handle}`}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`/dashboard/marketing/creators/${value.handle}`}
           className="mt-1 inline-flex items-center gap-1 text-xs text-brand-500 hover:underline"
         >
           <ExternalLink size={11} /> View full profile

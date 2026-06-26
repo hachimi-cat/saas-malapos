@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Camera, ExternalLink, Loader2, Mail, Search, SlidersHorizontal, Users, X } from 'lucide-react';
+import { Camera, Loader2, Mail, Search, SlidersHorizontal, Users, X } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 
@@ -89,17 +89,7 @@ export default function MerchantCreatorDirectory() {
       <PageHeader
         icon={Users}
         title="Creator directory"
-        description="Browse every verified creator on Ripllo. Invite them to an open campaign or open their public profile."
-        action={
-          <Link
-            href="/creators/directory"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary"
-          >
-            Public view <ExternalLink size={12} />
-          </Link>
-        }
+        description="Browse every verified creator on Ripllo. Invite them to an open campaign or open their profile."
       />
 
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
@@ -220,8 +210,8 @@ function CreatorCard({ c, onInvite }: { c: DirectoryItem; onInvite: () => void }
         <button type="button" onClick={onInvite} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-brand-600">
           <Mail size={12} /> Invite
         </button>
-        <Link href={`/creators/${c.handle}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-secondary">
-          Profile <ExternalLink size={11} />
+        <Link href={`/dashboard/marketing/creators/${c.handle}`} className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-secondary">
+          Profile
         </Link>
       </div>
     </div>
