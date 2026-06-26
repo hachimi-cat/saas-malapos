@@ -17,10 +17,12 @@ import { writeOutbox } from '../lib/outbox.js';
  * order is SERVED and leaves the board.
  *
  *   GET   /                    active tickets (NEW/PREPARING/READY) + items (each w/ kdsState)
+ *   GET   /ready               READY items grouped by table — the server's expo board
  *   POST  /:id/advance         advance ALL of a ticket's items one step
  *   POST  /:id/back            move ALL of a ticket's items back one step (UNDO)
- *   POST  /items/:itemId/advance   advance ONE item one step
+ *   POST  /items/:itemId/advance   advance ONE item one step (READY→SERVED = "serve")
  *   POST  /items/:itemId/back      move ONE item back one step (UNDO)
+ *   POST  /tables/:tableId/serve    serve ALL of a table's READY items at once
  */
 
 const router = Router();
@@ -96,6 +98,93 @@ router.get(
       take: 200,
     });
     sendList(res, req, rows, null, false);
+  }),
+);
+
+// ── "Ready to serve" expo board (server-facing) ─────────────────────────────
+
+/**
+ * GET /ready — every item currently READY, grouped by table, oldest-first.
+ *
+ * This is the WAITER's surface for the dine-in serve step: the kitchen has
+ * cooked items to READY and the server now picks them up and delivers them to
+ * the table (READY→SERVED). Dine-in items group under their table's `label`;
+ * READY items on a table-less ticket (takeaway/counter) fall back to one group
+ * per ticket keyed by its receipt number. Account- (and optionally outlet-)
+ * scoped.
+ *
+ * Shape: [{ tableId, tableLabel, tickets: [{ transactionId, number,
+ *           items: [{ id, name, variantName, qty, modifiers, kdsState }] }] }]
+ */
+router.get(
+  '/ready',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const { outletId } = req.query as Record<string, string | undefined>;
+
+    const rows = await prisma.transaction.findMany({
+      where: {
+        accountId,
+        ...(outletId ? { outletId } : {}),
+        items: { some: { kdsState: 'READY' } },
+      },
+      include: {
+        items: {
+          where: { kdsState: 'READY' },
+          select: {
+            id: true,
+            productName: true,
+            variantName: true,
+            quantity: true,
+            modifiers: true,
+            kdsState: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+        table: { select: { id: true, label: true } },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 200,
+    });
+
+    type ReadyItem = {
+      id: string;
+      name: string;
+      variantName: string | null;
+      qty: number;
+      modifiers: unknown;
+      kdsState: KdsState | null;
+    };
+    type ReadyTicket = { transactionId: string; number: string; items: ReadyItem[] };
+    type ReadyGroup = { tableId: string | null; tableLabel: string; tickets: ReadyTicket[] };
+
+    // Map preserves insertion (= oldest-first) order; dine-in tickets sharing a
+    // table fold into one group, table-less tickets each get their own.
+    const groups = new Map<string, ReadyGroup>();
+    for (const t of rows) {
+      if (!t.items.length) continue;
+      const ticket: ReadyTicket = {
+        transactionId: t.id,
+        number: t.number,
+        items: t.items.map((it) => ({
+          id: it.id,
+          name: it.productName,
+          variantName: it.variantName,
+          qty: it.quantity,
+          modifiers: it.modifiers,
+          kdsState: it.kdsState,
+        })),
+      };
+      const key = t.tableId ?? `txn:${t.id}`;
+      let g = groups.get(key);
+      if (!g) {
+        g = { tableId: t.tableId, tableLabel: t.table?.label ?? t.number, tickets: [] };
+        groups.set(key, g);
+      }
+      g.tickets.push(ticket);
+    }
+
+    sendList(res, req, [...groups.values()], null, false);
   }),
 );
 
@@ -259,6 +348,75 @@ router.post(
     sendOk(res, req, {
       item: { id: item.id, kdsState: prev },
       ticket: { id: item.transactionId, number: item.transaction.number, kdsState: synced },
+    });
+  }),
+);
+
+// ── Serve a whole table (READY→SERVED for every ready item) ──────────────────
+
+/**
+ * POST /tables/:tableId/serve — advance every currently-READY item across all
+ * of a table's active tickets to SERVED in one call, re-syncing each affected
+ * ticket's order state so a fully-served ticket drops off both boards. The
+ * per-item serve reuses POST /items/:itemId/advance (READY→SERVED); this is the
+ * convenience "Serve all" for a table. Account- (and optionally outlet-) scoped;
+ * validates the table belongs to the account.
+ */
+router.post(
+  '/tables/:tableId/serve',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const { outletId } = req.query as Record<string, string | undefined>;
+    const tableId = String(req.params.tableId);
+
+    const table = await prisma.table.findFirst({
+      where: { id: tableId, accountId },
+      select: { id: true, label: true },
+    });
+    if (!table) throw new ApiError(404, 'NOT_FOUND', 'Table not found');
+
+    const tickets = await prisma.transaction.findMany({
+      where: {
+        accountId,
+        tableId,
+        ...(outletId ? { outletId } : {}),
+        items: { some: { kdsState: 'READY' } },
+      },
+      include: { items: { where: { kdsState: 'READY' }, select: { id: true } } },
+    });
+
+    const itemIds = tickets.flatMap((t) => t.items.map((i) => i.id));
+    if (!itemIds.length) throw new ApiError(409, 'CONFLICT', 'No ready items to serve');
+
+    const ticketStates = await prisma.$transaction(async (tx) => {
+      await tx.transactionItem.updateMany({
+        where: { id: { in: itemIds }, accountId },
+        data: { kdsState: 'SERVED' },
+      });
+      const states: { transactionId: string; kdsState: KdsState }[] = [];
+      for (const t of tickets) {
+        states.push({ transactionId: t.id, kdsState: await syncOrderState(tx, t.id) });
+      }
+      await writeOutbox(tx, {
+        type: 'malapos.kds.served.v1',
+        accountId,
+        aggregateId: tableId,
+        data: {
+          tableId,
+          tableLabel: table.label,
+          itemIds,
+          transactionIds: tickets.map((t) => t.id),
+          count: itemIds.length,
+        },
+      });
+      return states;
+    });
+
+    sendOk(res, req, {
+      tableId,
+      tableLabel: table.label,
+      served: itemIds.length,
+      tickets: ticketStates,
     });
   }),
 );

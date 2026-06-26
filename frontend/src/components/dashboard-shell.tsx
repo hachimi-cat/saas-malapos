@@ -54,6 +54,7 @@ import {
   Rss,
   Newspaper,
   Utensils,
+  Hand,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -335,7 +336,11 @@ export function DashboardShell({
     isFnb && section.label === 'Operations'
       ? {
           ...section,
-          items: [{ href: '/dashboard/tables', label: 'Tables', icon: Utensils }, ...(section.items ?? [])],
+          items: [
+            { href: '/dashboard/tables', label: 'Tables', icon: Utensils },
+            { href: '/dashboard/serve', label: 'Ready to serve', icon: Hand },
+            ...(section.items ?? []),
+          ],
         }
       : section,
   );
