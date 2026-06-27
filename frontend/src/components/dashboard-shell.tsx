@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { api } from '@/lib/api';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -313,6 +314,28 @@ export function DashboardShell({
   const isPharmacy = businessType === 'PHARMACY';
   const showPrepBoards = isFnb || isPharmacy;
 
+  // Nav badges: live counts of orders waiting on the serve board + active
+  // kitchen tickets, polled while the prep boards are in the nav.
+  const [kdsCounts, setKdsCounts] = useState<{ active: number; ready: number }>({ active: 0, ready: 0 });
+  useEffect(() => {
+    if (!showPrepBoards) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await api.get<{ active: number; ready: number }>('/kds/counts');
+        if (!cancelled) setKdsCounts({ active: res.data.active ?? 0, ready: res.data.ready ?? 0 });
+      } catch {
+        /* non-fatal — badges just stay hidden */
+      }
+    };
+    load();
+    const t = setInterval(load, 20000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [showPrepBoards]);
+
   // Route guard: typing a gated module URL while the module is off bounces
   // the merchant to the Modules settings page. Lives here (not the
   // server-component layout) because useModules is client-side. Mirrors
@@ -341,8 +364,13 @@ export function DashboardShell({
     ...(isFnb ? [{ href: '/dashboard/tables', label: 'Tables', icon: Utensils }] : []),
     ...(showPrepBoards
       ? [
-          { href: '/dashboard/serve', label: 'Serve display', icon: Hand },
-          { href: '/dashboard/kds', label: isPharmacy ? 'Preparation display' : 'Kitchen display', icon: ChefHat },
+          { href: '/dashboard/serve', label: 'Serve display', icon: Hand, ...(kdsCounts.ready > 0 ? { badge: kdsCounts.ready } : {}) },
+          {
+            href: '/dashboard/kds',
+            label: isPharmacy ? 'Preparation display' : 'Kitchen display',
+            icon: ChefHat,
+            ...(kdsCounts.active > 0 ? { badge: kdsCounts.active } : {}),
+          },
         ]
       : []),
   ];

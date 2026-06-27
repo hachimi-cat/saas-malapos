@@ -131,8 +131,11 @@ router.get(
         items: { some: { kdsState: 'READY' } },
       },
       include: {
+        // All active items (not just READY) so the expo board shows what's
+        // still cooking alongside what's ready to run — the ticket only
+        // surfaces here once it has at least one READY item (outer filter).
         items: {
-          where: { kdsState: 'READY' },
+          where: { kdsState: { in: ACTIVE } },
           select: {
             id: true,
             productName: true,
@@ -206,6 +209,22 @@ router.get(
     }
 
     sendList(res, req, [...groups.values()], null, false);
+  }),
+);
+
+/** GET /counts — nav-badge counts: active kitchen tickets + orders carrying a
+ *  ready item (the serve board). Account-wide; the nav is global. */
+router.get(
+  '/counts',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const { outletId } = req.query as Record<string, string | undefined>;
+    const scope = { accountId, ...(outletId ? { outletId } : {}) };
+    const [active, ready] = await Promise.all([
+      prisma.transaction.count({ where: { ...scope, kdsState: { in: ACTIVE } } }),
+      prisma.transaction.count({ where: { ...scope, items: { some: { kdsState: 'READY' } } } }),
+    ]);
+    sendOk(res, req, { active, ready });
   }),
 );
 

@@ -158,6 +158,8 @@ export default function ServePage() {
     const groupKey = kind === 'table' ? `table:${g.tableId}` : `group:${g.tickets[0]?.transactionId}`;
     const groupBusy = busy === groupKey;
     const itemCount = g.tickets.reduce((n, t) => n + t.items.length, 0);
+    const readyCount = g.tickets.reduce((n, t) => n + t.items.filter((it) => it.kdsState === 'READY').length, 0);
+    const pendingCount = itemCount - readyCount;
     const multi = g.tickets.length > 1;
     // The card's left edge is colour-coded by its WORST wait, so the whole
     // pass reads at a glance — red rails get walked first.
@@ -179,7 +181,9 @@ export default function ServePage() {
                 </Badge>
               )}
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">{itemCount} {itemCount === 1 ? 'dish' : 'dishes'} ready</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {readyCount} ready{pendingCount > 0 ? ` · ${pendingCount} cooking` : ''}
+            </p>
           </div>
           <Badge variant="outline" className={`shrink-0 gap-1 rounded-full border-transparent px-2 py-1 text-xs font-semibold ${waitingBadgeCls(maxMins)}`} title="Longest wait on this order">
             <Clock className="h-3 w-3" /> {waitingLabel(maxMins)}
@@ -206,13 +210,21 @@ export default function ServePage() {
               )}
               {t.items.map((it) => {
                 const itemBusy = busy === `item:${it.id}`;
+                const ready = it.kdsState === 'READY';
                 return (
-                  <div key={it.id} className="flex items-center gap-3 rounded-lg bg-muted/40 p-2">
-                    <span className="grid h-8 min-w-8 shrink-0 place-items-center rounded-md bg-background px-1.5 text-sm font-bold tabular-nums">
+                  <div
+                    key={it.id}
+                    className={`flex items-center gap-3 rounded-lg p-2 ${ready ? 'bg-muted/40' : 'bg-muted/20'}`}
+                  >
+                    <span
+                      className={`grid h-8 min-w-8 shrink-0 place-items-center rounded-md px-1.5 text-sm font-bold tabular-nums ${
+                        ready ? 'bg-background' : 'bg-background/60 text-muted-foreground'
+                      }`}
+                    >
                       {it.qty}×
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium leading-tight">
+                      <p className={`truncate font-medium leading-tight ${ready ? '' : 'text-muted-foreground'}`}>
                         {it.name}
                         {it.variantName && it.variantName !== 'Default' ? (
                           <span className="text-muted-foreground"> · {it.variantName}</span>
@@ -223,10 +235,23 @@ export default function ServePage() {
                       )}
                       {it.note && <p className="truncate text-xs text-amber-700 dark:text-amber-300">{it.note}</p>}
                     </div>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => serveItem(it.id)} disabled={itemBusy || groupBusy} className="h-8 shrink-0">
-                      {itemBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Hand className="h-3.5 w-3.5" />}
-                      Serve
-                    </Button>
+                    {ready ? (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => serveItem(it.id)} disabled={itemBusy || groupBusy} className="h-8 shrink-0">
+                        {itemBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Hand className="h-3.5 w-3.5" />}
+                        Serve
+                      </Button>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className={`shrink-0 gap-1 border-transparent px-2 py-1 text-xs font-semibold ${
+                          it.kdsState === 'PREPARING'
+                            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {it.kdsState === 'PREPARING' ? 'Preparing' : 'Queued'}
+                      </Badge>
+                    )}
                   </div>
                 );
               })}
@@ -239,7 +264,7 @@ export default function ServePage() {
           onClick={() =>
             kind === 'table'
               ? serveTable(g.tableId!)
-              : serveMany(groupKey, g.tickets.flatMap((t) => t.items.map((it) => it.id)))
+              : serveMany(groupKey, g.tickets.flatMap((t) => t.items.filter((it) => it.kdsState === 'READY').map((it) => it.id)))
           }
           disabled={groupBusy}
           className="w-full"

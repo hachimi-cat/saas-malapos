@@ -43,6 +43,7 @@ type SaleRow = {
   number: string;
   total: number;
   status: SaleStatus;
+  orderType: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
   createdAt: string;
   cashierName: string | null;
   payments: Payment[];
@@ -57,6 +58,19 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'PARTIALLY_REFUNDED', label: 'Partially refunded' },
   { value: 'REFUNDED', label: 'Refunded' },
 ];
+
+const ORDER_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'All types' },
+  { value: 'DINE_IN', label: 'Dine-in' },
+  { value: 'TAKEAWAY', label: 'Takeaway' },
+  { value: 'DELIVERY', label: 'Delivery' },
+];
+
+const ORDER_TYPE_LABEL: Record<string, string> = {
+  DINE_IN: 'Dine-in',
+  TAKEAWAY: 'Takeaway',
+  DELIVERY: 'Delivery',
+};
 
 function statusLabel(status: SaleStatus): string {
   if (status === 'PARTIALLY_REFUNDED') return 'Partially refunded';
@@ -98,6 +112,7 @@ export default function SalesPage() {
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [outletId, setOutletId] = useState('');
   const [status, setStatus] = useState('');
+  const [orderType, setOrderType] = useState('');
   const [rows, setRows] = useState<SaleRow[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -127,6 +142,7 @@ export default function SalesPage() {
         const qs = new URLSearchParams();
         if (outletId) qs.set('outletId', outletId);
         if (status) qs.set('status', status);
+        if (orderType) qs.set('orderType', orderType);
         const res = await api.get<SaleRow[]>(`/sales${qs.toString() ? `?${qs}` : ''}`);
         if (cancelled) return;
         setRows(res.data ?? []);
@@ -142,7 +158,7 @@ export default function SalesPage() {
     return () => {
       cancelled = true;
     };
-  }, [outletId, status]);
+  }, [outletId, status, orderType]);
 
   async function loadMore() {
     if (!cursor) return;
@@ -151,6 +167,7 @@ export default function SalesPage() {
       const qs = new URLSearchParams();
       if (outletId) qs.set('outletId', outletId);
       if (status) qs.set('status', status);
+      if (orderType) qs.set('orderType', orderType);
       qs.set('cursor', cursor);
       const res = await api.get<SaleRow[]>(`/sales?${qs}`);
       setRows((r) => [...r, ...(res.data ?? [])]);
@@ -201,6 +218,19 @@ export default function SalesPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={orderType || 'all'}
+          onValueChange={(v) => setOrderType(v === 'all' ? '' : v)}
+        >
+          <SelectTrigger className="w-auto min-w-[10rem]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ORDER_TYPE_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value || 'all'}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Card className="mt-4 overflow-hidden">
@@ -215,6 +245,7 @@ export default function SalesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Receipt #</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Date / time</TableHead>
                 <TableHead className="text-right">Items</TableHead>
                 <TableHead>Payment</TableHead>
@@ -230,6 +261,11 @@ export default function SalesPage() {
                   className="cursor-pointer"
                 >
                   <TableCell className="font-medium">{row.number}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="rounded-full border-transparent bg-muted text-muted-foreground">
+                      {ORDER_TYPE_LABEL[row.orderType] ?? row.orderType}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(row.createdAt)}</TableCell>
                   <TableCell className="text-right text-muted-foreground">{row._count.items}</TableCell>
                   <TableCell className="text-muted-foreground">{paymentSummary(row.payments)}</TableCell>
