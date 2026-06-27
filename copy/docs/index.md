@@ -14,8 +14,9 @@ and reports in sync behind it.
 
 - **Retail** — barcode lookup, product variants, stock tracking, and
   multi-outlet stores.
-- **F&B** — item modifiers (sugar level, extra shot, add-ons), parked
-  bills for open tables, and table-side checkout.
+- **F&B** — item modifiers (sugar level, extra shot, add-ons), a
+  dine-in floor with open table bills, a live kitchen display, plus
+  takeaway and delivery orders.
 - **Pharmacy** — dated stock batches with first-expiry-first-out (FEFO)
   selling and near-expiry alerts.
 
@@ -52,6 +53,21 @@ You pick a **business type** when you set up (`RETAIL`, `FNB`,
   checkout).
 - **Reports** — sales summary, top products, sales by day, and a
   low-stock report.
+- **Order types & kitchen** — ring up a **counter** sale, seat a
+  **dine-in** table on the floor map (layout or list view), or take a
+  **takeaway** or **delivery**. F&B orders flow to a **kitchen display**
+  (KDS, item-by-item) and a ready-to-serve expo board; each ticket is
+  badged dine-in / takeaway / delivery.
+- **Composite items** — a product can be a recipe whose components
+  deduct from stock when it sells.
+- **Gift cards & refunds** — gift cards and store credit work as a
+  tender at the till; sales support full and partial refunds.
+- **Add-on modules** — opt-in partner integrations toggled from
+  Settings: **Payments** (live dynamic QRIS via Plugipay), **Marketing**
+  (discount codes, loyalty & campaigns via Ripllo), and **Fulfillment**
+  (book couriers for delivery via Fulkruma).
+- **Developer** — `sk_live_…` API keys and webhooks for `malapos.*`
+  events. See the [API reference](/docs/api-reference).
 
 ## How the docs are organized
 

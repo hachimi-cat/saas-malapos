@@ -16,9 +16,22 @@ https://malapos.com/api/v1
 
 ## Authentication
 
-The API accepts two auth paths:
+The API accepts three auth paths:
 
-- **Bearer token** — a Huudis-issued JWT:
+- **API key** — an `sk_live_…` bearer token you create under
+  **Developer → API keys** in the dashboard. This is the path for your
+  own integrations:
+
+  ```
+  Authorization: Bearer sk_live_…
+  ```
+
+  The plaintext key is shown once at creation — store it like a
+  password (only a hash is kept server-side). Revoke it any time from
+  the same screen.
+
+- **Huudis JWT** — a Huudis-issued Bearer token, for callers that
+  already hold a platform identity (see [SDKs & CLI](/docs/sdk)):
 
   ```
   Authorization: Bearer <jwt>
@@ -27,10 +40,8 @@ The API accepts two auth paths:
 - **Browser session cookie** — the dashboard's BFF cookie, set on
   sign-in. Server-side calls from the app use this path.
 
-Either way the request resolves to your workspace. There are no
-separate per-workspace API keys in v1; programmatic callers use a
-Huudis Bearer token (see [SDKs & CLI](/docs/sdk)). Requests without a
-valid credential get `401 AUTH_REQUIRED`.
+Every path resolves to your workspace. Requests without a valid
+credential get `401 AUTH_REQUIRED`.
 
 `GET /api/v1/health` is the one unauthenticated endpoint (service
 status + dependency checks).
@@ -272,3 +283,42 @@ Tiers are **Free** (Rp 0), **Starter** (Rp 99.000/mo), **Growth**
 (Rp 199.000/mo), and **Business** (Rp 449.000/mo) — see the
 [pricing page](/pricing) for what each includes. Paid plans are billed
 through Plugipay.
+
+### API keys — `/api-keys`
+
+Programmatic access tokens. The plaintext `sk_live_…` key is returned
+**once** at creation (only a SHA-256 hash is stored); pass it as a
+`Authorization: Bearer` token. IDs are `key_`-prefixed.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api-keys` | List your keys (prefix + last-used only) |
+| POST | `/api-keys` | Create a key (`{ name }`) — response carries the one-time `key` |
+| DELETE | `/api-keys/:id` | Revoke a key immediately |
+
+### Webhooks — `/webhook-subscriptions`
+
+Get an HTTPS POST whenever something happens to your sales or
+subscription. The signing secret (`whsec_…`) is shown **once** at
+creation.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/webhook-subscriptions` | List your endpoints |
+| POST | `/webhook-subscriptions` | Add an endpoint (`{ url, events }`) — response carries the one-time `secret` |
+| PATCH | `/webhook-subscriptions/:id` | Pause/resume (`{ active }`) |
+| DELETE | `/webhook-subscriptions/:id` | Remove an endpoint |
+
+Subscribe to specific events or `["*"]` for all. Event types:
+
+- `malapos.sale.completed.v1` — a sale was finalized and paid
+- `malapos.sale.voided.v1` — a recorded sale was voided
+- `malapos.billing.subscribed.v1` — a workspace started/upgraded a paid plan
+- `malapos.billing.canceled.v1` — a workspace canceled its subscription
+
+Each delivery is a POST of `{ id, type, occurredAt, data }` with a
+`Malapos-Signature: t=<unix>,v1=<hex>` header. Recompute the HMAC-SHA256
+of `` `${t}.${rawBody}` `` with your signing secret and compare; reject
+anything older than ~5 minutes. Delivery is at-most-once in v1 (failures
+are logged, not retried) — reconcile with `GET /sales` if you need
+certainty.

@@ -82,8 +82,12 @@ export const TIER_DEFS: readonly TierDef[] = [
     features: [
       '1 outlet',
       'Up to 50 products',
-      'Sell screen — cash, QRIS & card',
+      'Sell screen — cash, QRIS, card & transfer',
+      'Counter, dine-in, takeaway & delivery',
+      'Kitchen display & expo (F&B)',
+      'Gift cards, store credit & refunds',
       'Printed & shareable receipts',
+      'Developer API + webhooks',
       'Daily sales report',
       '2 cashier seats',
       'Malapos branding on receipts',

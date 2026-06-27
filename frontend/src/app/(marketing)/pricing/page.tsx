@@ -30,8 +30,11 @@ const comparisonRows = [
   { feature: 'Outlets (store locations)', free: '1', starter: '1', growth: '5', business: 'Unlimited' },
   { feature: 'Products', free: 'Up to 50', starter: 'Unlimited', growth: 'Unlimited', business: 'Unlimited' },
   { feature: 'Cashier seats', free: '2', starter: '5', growth: '15', business: '50' },
-  { feature: 'Sell screen — cash, QRIS & card', free: true, starter: true, growth: true, business: true },
+  { feature: 'Sell screen — cash, QRIS, card & transfer', free: true, starter: true, growth: true, business: true },
+  { feature: 'Counter, dine-in, takeaway & delivery', free: true, starter: true, growth: true, business: true },
+  { feature: 'Kitchen display & expo (F&B)', free: true, starter: true, growth: true, business: true },
   { feature: 'Printed & shareable receipts', free: true, starter: true, growth: true, business: true },
+  { feature: 'Gift cards, store credit & partial refunds', free: true, starter: true, growth: true, business: true },
   { feature: 'Inventory + low-stock alerts', free: false, starter: true, growth: true, business: true },
   { feature: 'Cashier shifts + cash reconciliation', free: false, starter: true, growth: true, business: true },
   { feature: 'Customers + loyalty points', free: false, starter: true, growth: true, business: true },
@@ -40,6 +43,8 @@ const comparisonRows = [
   { feature: 'Suppliers + purchase orders', free: false, starter: false, growth: true, business: true },
   { feature: 'Batch & expiry tracking (pharmacy)', free: false, starter: false, growth: true, business: true },
   { feature: 'Hide Malapos branding on receipts', free: false, starter: true, growth: true, business: true },
+  { feature: 'Add-on modules — QRIS, marketing & delivery', free: 'Opt-in', starter: 'Opt-in', growth: 'Opt-in', business: 'Opt-in' },
+  { feature: 'Developer API + webhooks', free: true, starter: true, growth: true, business: true },
   { feature: 'Priority support', free: false, starter: false, growth: false, business: true },
 ];
 

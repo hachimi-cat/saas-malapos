@@ -2,93 +2,111 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   CircleDollarSign,
+  ChefHat,
   Layers,
   Boxes,
-  ShieldCheck,
   Users,
-  Activity,
+  Store,
+  Plug,
+  Code2,
   ArrowRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
-/*
- * FORKERS: replace the placeholder feature copy with what Malapos
- * actually ships. Keep the structure (centered hero → 2-col grid →
- * CTA) — it's the family standard.
- */
-
 export const metadata: Metadata = {
   title: 'Features',
   description:
-    'Everything Malapos ships — a point-of-sale for Indonesian retail, F&B, and pharmacy. Sell, track stock, and run multiple outlets, priced in rupiah.',
+    'Everything Malapos ships — a point-of-sale for Indonesian retail, F&B, and pharmacy. Counter, dine-in, takeaway & delivery; kitchen display; inventory; loyalty; QRIS; reports — priced in rupiah.',
 };
 
 const features = [
   {
     Icon: CircleDollarSign,
-    title: 'Sell screen',
-    body: 'Ring up a sale fast. Search or scan into the cart and take payment however your customer pays.',
+    title: 'Sell, however they order',
+    body: 'One fast screen for every order type. Ring up a counter sale, seat a dine-in table, or take a takeaway or delivery — search or scan into the cart and take payment.',
     details: [
-      'Cash with automatic change, QRIS, or card',
-      'Barcode scan-to-add',
-      'Printed and shareable receipts',
-      'F&B modifiers like sugar level and extra shot',
+      'Counter, dine-in floor, takeaway & delivery',
+      'Cash with automatic change, QRIS, card & transfer',
+      'Barcode scan-to-add and keyboard hotkeys',
+      'Hold & resume open bills, split the bill, printed & shareable receipts',
+    ],
+  },
+  {
+    Icon: ChefHat,
+    title: 'Kitchen display & expo',
+    body: 'Send orders straight to the kitchen. Cooks work a live board from New to Preparing to Ready; the expo screen calls what to plate and serve.',
+    details: [
+      'Live KDS board, item-by-item, oldest first',
+      'Dine-in / takeaway / delivery badge on every ticket (plate vs box)',
+      'Dine-in floor map — seat a table, switch between layout & list',
+      'Ready-to-serve expo board for the front of house',
     ],
   },
   {
     Icon: Layers,
-    title: 'Catalog',
-    body: 'Build your menu or shelf once. Organise products with variants and categories that show up on the sell screen.',
+    title: 'Catalog & recipes',
+    body: 'Build your menu or shelf once. Organise products with variants and categories, add F&B modifiers, and sell bundles that deduct their ingredients.',
     details: [
-      'Products, variants, and categories',
-      'Per-product pricing',
-      'Modifiers for F&B orders',
+      'Products, variants, categories & per-product pricing',
+      'Modifiers like sugar level and extra shot',
+      'Composite items — a recipe deducts its components on sale',
       'Works for retail, cafe, and pharmacy items',
     ],
   },
   {
     Icon: Boxes,
-    title: 'Inventory',
-    body: 'Track every item of stock. Each sale, adjustment, and transfer is recorded so your counts always add up.',
+    title: 'Inventory & pharmacy',
+    body: 'Track every item of stock. Each sale, adjustment, and transfer is recorded so your counts always add up — with dated batches for pharmacy.',
     details: [
-      'Live stock levels',
-      'Append-only stock movement ledger',
+      'Live stock levels + append-only movement ledger',
       'Low-stock alerts and manual adjustments',
       'Inter-outlet stock transfers',
-    ],
-  },
-  {
-    Icon: ShieldCheck,
-    title: 'Pharmacy',
-    body: 'Track every strip and bottle. Sell by expiry so the soonest-to-expire stock leaves first.',
-    details: [
-      'Dated stock batches',
-      'First-expiry-first-out selling',
-      'Expiry alerts before medicine lapses',
-      'Built alongside retail and F&B',
-    ],
-  },
-  {
-    Icon: Activity,
-    title: 'Outlets, shifts & reports',
-    body: 'Run more than one store and keep the till honest. Close every shift against the cash drawer and read what sold.',
-    details: [
-      'Multiple outlets with per-outlet tax and receipt numbering',
-      'Cashier shifts with cash reconciliation',
-      'Sales summary, sales-by-day, and top products',
-      'Payment-method mix and low-stock reports',
+      'Batch & expiry tracking, first-expiry-first-out selling',
     ],
   },
   {
     Icon: Users,
-    title: 'Customers & purchasing',
-    body: 'Keep regulars coming back and shelves stocked. Reward loyalty at the till and receive supplier deliveries into stock.',
+    title: 'Customers, loyalty & gift cards',
+    body: 'Keep regulars coming back. Reward loyalty at the till, sell gift cards and store credit, and refund part of a sale when you need to.',
     details: [
       'Customer directory with loyalty points',
       'Earn on sale, adjust or redeem by hand',
-      'Suppliers and purchase orders',
-      'Receive goods to stock-in and update cost',
+      'Gift cards & store credit as a tender',
+      'Full and partial refunds',
+    ],
+  },
+  {
+    Icon: Store,
+    title: 'Outlets, shifts & reports',
+    body: 'Run more than one store and keep the till honest. Close every shift against the cash drawer, receive supplier deliveries, and read what sold.',
+    details: [
+      'Multiple outlets with per-outlet tax and receipt numbering',
+      'Cashier shifts with cash reconciliation',
+      'Suppliers & purchase orders, receive-to-stock',
+      'Sales-by-day, top products, payment-mix & low-stock reports',
+    ],
+  },
+  {
+    Icon: Plug,
+    title: 'Add-on modules',
+    body: 'Switch on more when you need it. Each module connects a Forjio partner — turn it on from Settings, no extra account juggling.',
+    details: [
+      'Payments — live dynamic QRIS at the till (Plugipay)',
+      'Marketing — discount codes, loyalty & campaigns (Ripllo)',
+      'Fulfillment — book couriers for delivery orders (Fulkruma)',
+      'Help center & live chat support (Suppuo)',
+    ],
+  },
+  {
+    Icon: Code2,
+    title: 'Developer API',
+    body: 'Build on top of your data. Authenticate with an API key and subscribe to events to sync sales into your own tools.',
+    details: [
+      'REST API with sk_live_… bearer keys',
+      'Webhooks for malapos.* events (sale completed, voided, …)',
+      'Signed deliveries you can verify',
+      'CLI for login + day-to-day ops',
     ],
   },
 ];
