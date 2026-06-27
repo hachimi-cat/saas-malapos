@@ -16,7 +16,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Megaphone, Loader2, ExternalLink, Save } from 'lucide-react';
+import { Loader2, ExternalLink, Save } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { ErrorBox } from '@/components/dashboard/ui';
 import { BackLink } from '@/components/dashboard/back-link';
@@ -169,7 +169,6 @@ export default function MarketingCampaignDetailPage() {
     <div>
       <BackLink href="/dashboard/marketing/campaigns" label="All campaigns" />
       <PageHeader
-        icon={Megaphone}
         title={campaign.name}
         description={`${STATUS_LABELS[campaign.status] ?? campaign.status} · ${GOAL_LABELS[campaign.goal] ?? campaign.goal}${campaign.budgetIdr ? ` · Rp ${campaign.budgetIdr.toLocaleString()} budget` : ''}`}
         action={

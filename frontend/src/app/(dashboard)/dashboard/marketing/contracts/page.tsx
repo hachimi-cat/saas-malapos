@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Handshake, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { Card } from '@/components/ui/card';
@@ -61,7 +61,6 @@ export default function ContractsPage() {
   return (
     <div>
       <PageHeader
-        icon={Handshake}
         title="Contracts"
         description="Active creator collaborations across every campaign. Default view is drafts awaiting your review — toggle filters to see in-progress or all."
       />

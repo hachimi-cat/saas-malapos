@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Ban, Check, Coins, Loader2 } from 'lucide-react';
+import { Ban, Check, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
@@ -126,7 +126,6 @@ export default function AffiliateApprovalsPage() {
   return (
     <div>
       <PageHeader
-        icon={Coins}
         title="Affiliate approvals"
         description="Pending affiliator enrollments and commissions across every program. Approve or void before the next monthly payout batch."
       />

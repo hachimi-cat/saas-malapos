@@ -18,6 +18,7 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/data-table';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -117,14 +118,10 @@ export default function ReferralsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Referral program</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Reward your buyers for bringing friends. When a new buyer completes their first paid
-          checkout via a referrer&apos;s link, both sides get an auto-issued discount code. Refunds
-          within the reward window claw back unused codes automatically.
-        </p>
-      </header>
+      <PageHeader
+        title="Referral program"
+        description="Reward your buyers for bringing friends. When a new buyer completes their first paid checkout via a referrer's link, both sides get an auto-issued discount code. Refunds within the reward window claw back unused codes automatically."
+      />
 
       {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       {success && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400">{success}</div>}

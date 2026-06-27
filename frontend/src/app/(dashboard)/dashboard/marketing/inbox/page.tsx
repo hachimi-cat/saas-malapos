@@ -84,7 +84,6 @@ export default function InboxPage() {
   return (
     <div>
       <PageHeader
-        icon={Inbox}
         title="Inbox"
         description="Replies that landed via your connected channels. Currently captures WhatsApp Cloud inbound — Telegram and others as those webhooks land."
       />

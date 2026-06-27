@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, Loader2, Plus, List as ListIcon, Upload, ShieldOff, Trash2 } from 'lucide-react';
+import { Loader2, Plus, List as ListIcon, Upload, ShieldOff, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column } from '@/components/data-table';
@@ -201,7 +201,6 @@ export default function AudiencePage() {
   return (
     <div>
       <PageHeader
-        icon={Users}
         title="Audience"
         description="Your contacts, tags, and lists. The base layer for email + SMS + WA campaigns."
         action={

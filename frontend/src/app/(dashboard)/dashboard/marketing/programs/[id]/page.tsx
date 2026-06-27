@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Check, X, Power, Handshake, FileText, Users, Coins, Ban } from 'lucide-react';
+import { Loader2, Check, X, Power, FileText, Users, Coins, Ban } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { BackLink } from '@/components/dashboard/back-link';
 import { ErrorBox } from '@/components/dashboard/ui';
@@ -177,7 +177,6 @@ export default function ProgramDetailPage() {
     <div className="mx-auto max-w-6xl">
       <BackLink href="/dashboard/marketing/programs" label="All programs" />
       <PageHeader
-        icon={Handshake}
         title={program.name}
         description={`${program.commissionModel.replace(/_/g, ' ')} · ${(program.commissionRate * 100).toFixed(1)}% · ${program.cookieDays}d cookie · ${program.autoApprove ? 'auto-approve' : 'manual review'}`}
       />

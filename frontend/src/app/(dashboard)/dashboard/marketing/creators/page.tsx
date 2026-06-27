@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Camera, Loader2, Mail, Search, SlidersHorizontal, Users, X } from 'lucide-react';
+import { Camera, Loader2, Mail, Search, SlidersHorizontal, X } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { CreatorAvatar } from '@/components/marketplace/creator-avatar';
@@ -111,7 +111,6 @@ export default function MerchantCreatorDirectory() {
   return (
     <div>
       <PageHeader
-        icon={Users}
         title="Creator directory"
         description="Browse every verified creator on Ripllo. Invite them to an open campaign or open their profile."
       />

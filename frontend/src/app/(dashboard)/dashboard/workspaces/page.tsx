@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Workspace {
   id: string;
@@ -24,7 +25,7 @@ interface Workspace {
 const BRAND_SLUG = 'malapos';
 
 export default function WorkspacesPage() {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspaces, setWorkspaces] = useState<Workspace[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [personalId, setPersonalId] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -38,6 +39,7 @@ export default function WorkspacesPage() {
       setWorkspaces(Array.isArray(b?.data) ? b.data : []);
     } catch {
       setError('Could not load workspaces');
+      setWorkspaces([]);
     }
     let personal: string | null = null;
     try {
@@ -107,25 +109,39 @@ export default function WorkspacesPage() {
       )}
 
       <Card className="overflow-hidden">
-        {personalId && (
-          <WorkspaceRow
-            name="Personal workspace"
-            sub="Your private workspace — not shared with a team"
-            role="owner"
-            active={activeId === personalId}
-            onActivate={() => activate(personalId)}
-          />
+        {workspaces === null ? (
+          [0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-4 border-b border-border/60 px-4 py-3 last:border-b-0">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-8 w-20" />
+            </div>
+          ))
+        ) : (
+          <>
+            {personalId && (
+              <WorkspaceRow
+                name="Personal workspace"
+                sub="Your private workspace — not shared with a team"
+                role="owner"
+                active={activeId === personalId}
+                onActivate={() => activate(personalId)}
+              />
+            )}
+            {workspaces.map((w) => (
+              <WorkspaceRow
+                key={w.id}
+                name={w.name}
+                sub={w.slug ?? w.id}
+                role={w.role}
+                active={activeId === w.id}
+                onActivate={() => activate(w.id)}
+              />
+            ))}
+          </>
         )}
-        {workspaces.map((w) => (
-          <WorkspaceRow
-            key={w.id}
-            name={w.name}
-            sub={w.slug ?? w.id}
-            role={w.role}
-            active={activeId === w.id}
-            onActivate={() => activate(w.id)}
-          />
-        ))}
       </Card>
 
       <form onSubmit={createWorkspace} className="mt-6 flex max-w-md gap-2">

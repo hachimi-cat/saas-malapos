@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { pixelsApi, type MerchantPixelsConfig } from '@/lib/marketing-api';
 import { Loader2, Save, BarChart3, Eye, EyeOff, CheckCircle2, Activity, Target } from 'lucide-react';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,14 +75,10 @@ export default function PixelsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Pixels &amp; Conversion Tracking</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Per-merchant tracking pixels for Meta, Google, and TikTok ads. Configure the IDs you use
-          and the storefront injects the scripts + emits standard ecommerce events (PageView,
-          ViewContent, AddToCart, InitiateCheckout, Purchase).
-        </p>
-      </header>
+      <PageHeader
+        title="Pixels & Conversion Tracking"
+        description="Per-merchant tracking pixels for Meta, Google, and TikTok ads. Configure the IDs you use and the storefront injects the scripts + emits standard ecommerce events (PageView, ViewContent, AddToCart, InitiateCheckout, Purchase)."
+      />
 
       {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       {success && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400">{success}</div>}

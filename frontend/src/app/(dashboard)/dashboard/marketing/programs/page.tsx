@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Handshake, Lock, Plus, Loader2 } from 'lucide-react';
+import { Lock, Plus, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
@@ -129,7 +129,6 @@ export default function ProgramsPage() {
   return (
     <div>
       <PageHeader
-        icon={Handshake}
         title="Affiliate Programs"
         description="Self-serve commission-only programs. Auto-mint discount + referral attribution per affiliator."
         action={enabled ? <Button onClick={() => setShowForm(true)}><Plus size={14} /> New program</Button> : undefined}

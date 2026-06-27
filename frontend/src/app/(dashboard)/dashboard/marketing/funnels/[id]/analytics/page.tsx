@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { BarChart3, Loader2, Users, CheckCircle2, LogOut, AlertTriangle } from 'lucide-react';
+import { Loader2, Users, CheckCircle2, LogOut, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { BackLink } from '@/components/dashboard/back-link';
 import { marketingFetch } from '@/lib/marketing-api';
@@ -63,7 +63,6 @@ export default function FunnelAnalyticsPage() {
     <div className="mx-auto max-w-6xl">
       <BackLink href={`/dashboard/marketing/funnels/${id}`} label="Back to funnel" />
       <PageHeader
-        icon={BarChart3}
         title={`${funnelName} — analytics`}
         description={`Per-step performance over the last ${data.windowDays} days. Drop-off is the gap between sequential touched columns.`}
         action={

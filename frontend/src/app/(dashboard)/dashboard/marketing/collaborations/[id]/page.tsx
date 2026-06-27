@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Check, X, ExternalLink, AlertTriangle, Handshake, ShieldAlert } from 'lucide-react';
+import { Loader2, Check, X, ExternalLink, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { BackLink } from '@/components/dashboard/back-link';
 import { marketingFetch } from '@/lib/marketing-api';
@@ -155,7 +155,6 @@ export default function MerchantCollabDetailPage() {
     <div className="mx-auto max-w-6xl">
       <BackLink href="/dashboard/marketing/collaborations" label="All collaborations" />
       <PageHeader
-        icon={Handshake}
         title={collab.campaign.name}
         description={`Creator crt_${collab.creatorId.replace('crt_', '')} · status: ${collab.status.replace(/_/g, ' ')} · Rp ${collab.agreedTotalIdr.toLocaleString()} (Ripllo fee ${(collab.platformFeeRate * 100).toFixed(1)}%)`}
       />

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Megaphone, Plus, Trash2, ArrowDown, Mail, Clock, Split, LogOut, Save, Play, Pause, BarChart3 } from 'lucide-react';
+import { Loader2, Plus, Trash2, ArrowDown, Mail, Clock, Split, LogOut, Save, Play, Pause, BarChart3 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { BackLink } from '@/components/dashboard/back-link';
 import { marketingFetch } from '@/lib/marketing-api';
@@ -164,7 +164,6 @@ export default function FunnelDetailPage() {
     <div className="mx-auto max-w-6xl">
       <BackLink href="/dashboard/marketing/funnels" label="All funnels" />
       <PageHeader
-        icon={Megaphone}
         title={funnel.name}
         description={funnel.description ?? `Trigger: ${funnel.triggerKind.replace(/_/g, ' ')}. Edit the step sequence below.`}
         action={

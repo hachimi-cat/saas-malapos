@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Check, X, Megaphone, UserPlus, FileText, Mail, Users, Handshake } from 'lucide-react';
+import { Loader2, Check, X, UserPlus, FileText, Mail, Users, Handshake } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { BackLink } from '@/components/dashboard/back-link';
 import { ErrorBox } from '@/components/dashboard/ui';
@@ -201,7 +201,6 @@ export default function CampaignDetailPage() {
     <div className="mx-auto max-w-6xl">
       <BackLink href="/dashboard/marketing/creator-briefs" label="All creator briefs" />
       <PageHeader
-        icon={Megaphone}
         title={campaign.name}
         description={`${campaign.status} · ${campaign.discoveryMode.replace('_', ' ')} · ${campaign.pricingModel} · Rp ${campaign.budgetIdr.toLocaleString()} · ${(campaign.platformFeeRate * 100).toFixed(1)}% Ripllo fee`}
         action={<Button onClick={() => setShowInvite(true)}><UserPlus className="h-4 w-4" /> Invite creator</Button>}

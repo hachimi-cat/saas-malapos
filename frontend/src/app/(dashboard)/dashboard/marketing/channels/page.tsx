@@ -196,7 +196,6 @@ export default function ChannelsPage() {
   return (
     <div>
       <PageHeader
-        icon={Plug}
         title="Channels"
         description="Connect the send channels you use. Email, SMS, messaging apps, push, social."
       />

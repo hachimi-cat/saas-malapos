@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Mail, Loader2, Send, Plug, Users, FlaskConical } from 'lucide-react';
+import { Loader2, Send, Plug, Users, FlaskConical } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
@@ -190,7 +190,6 @@ export default function ComposePage() {
   return (
     <div>
       <PageHeader
-        icon={Mail}
         title="Compose"
         description="Write once, fan out across the channels you pick. Audience comes from your lists."
       />

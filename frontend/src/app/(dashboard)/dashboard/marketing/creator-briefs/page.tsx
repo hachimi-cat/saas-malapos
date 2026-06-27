@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Megaphone, Lock, Plus, Loader2 } from 'lucide-react';
+import { Lock, Plus, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
@@ -108,7 +108,6 @@ export default function CampaignsPage() {
   return (
     <div>
       <PageHeader
-        icon={Megaphone}
         title="Creator briefs"
         description="Brief paid creator collabs. Public + invite-only. Optionally link a brief to a parent Campaign for roll-up reporting."
         action={enabled ? <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New brief</Button> : undefined}

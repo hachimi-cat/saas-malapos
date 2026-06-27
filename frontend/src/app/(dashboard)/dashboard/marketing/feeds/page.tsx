@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { feedsApi, type MerchantFeedConfig } from '@/lib/marketing-api';
 import { Loader2, Save, Copy, Check, ExternalLink, Rss, AlertTriangle, ChevronRight } from 'lucide-react';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -74,14 +75,10 @@ export default function FeedsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Product feeds</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Auto-generated Google Shopping / Meta Catalog / TikTok Catalog feeds. Submit one URL per
-          platform and your products show up in image-rich Shopping ads, Advantage+ Catalog
-          campaigns, and TikTok Shop ads. Feeds refresh on every request; ad networks poll daily.
-        </p>
-      </header>
+      <PageHeader
+        title="Product feeds"
+        description="Auto-generated Google Shopping / Meta Catalog / TikTok Catalog feeds. Submit one URL per platform and your products show up in image-rich Shopping ads, Advantage+ Catalog campaigns, and TikTok Shop ads. Feeds refresh on every request; ad networks poll daily."
+      />
 
       {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       {success && <div className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm text-primary">{success}</div>}

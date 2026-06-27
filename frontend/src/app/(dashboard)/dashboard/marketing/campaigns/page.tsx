@@ -20,7 +20,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Megaphone, Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
@@ -171,7 +171,6 @@ export default function MarketingCampaignsHubPage() {
   return (
     <div>
       <PageHeader
-        icon={Megaphone}
         title="Campaigns"
         description="Group creator briefs, discounts, broadcasts and more under one push. Each child still works standalone."
         action={<Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New campaign</Button>}

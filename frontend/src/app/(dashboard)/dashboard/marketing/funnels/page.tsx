@@ -67,7 +67,6 @@ export default function FunnelsPage() {
   return (
     <div>
       <PageHeader
-        icon={Megaphone}
         title="Funnels"
         description="Trigger-driven multi-step automations. Welcome series, abandoned-cart recovery, win-back, post-purchase nurture."
         action={<Button onClick={() => setShowNew(true)}><Plus className="h-4 w-4" /> New funnel</Button>}
