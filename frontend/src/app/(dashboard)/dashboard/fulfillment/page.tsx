@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  Send,
   Loader2,
   Package,
   Plus,
@@ -139,9 +138,7 @@ export default function DeliveryPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight font-display">
-            <Send className="h-6 w-6 text-primary" /> Fulfillment
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Fulfillment</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Dispatch sales for delivery and track couriers in real time. Powered by Fulkruma.
           </p>

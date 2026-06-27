@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChefHat, ArrowRight, Loader2, CheckCircle2, Undo2, StickyNote, Clock } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2, Undo2, StickyNote, Clock } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useRealtime } from '@/hooks/use-realtime';
 import { useBusinessType } from '@/hooks/use-business-type';
@@ -156,14 +156,11 @@ export default function KdsPage() {
 
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col">
-      <div className="flex items-center gap-3">
-        <ChefHat className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">{isPharmacy ? 'Preparation display' : 'Kitchen display'}</h1>
-          <p className="text-sm text-muted-foreground">
-            Live tickets from the counter. Tap an item to advance it, ↩ to undo. Refreshes automatically.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">{isPharmacy ? 'Preparation display' : 'Kitchen display'}</h1>
+        <p className="text-sm text-muted-foreground">
+          Live tickets from the counter. Tap an item to advance it, ↩ to undo. Refreshes automatically.
+        </p>
       </div>
 
       {error && (

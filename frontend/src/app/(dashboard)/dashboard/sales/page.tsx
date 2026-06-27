@@ -182,12 +182,9 @@ export default function SalesPage() {
 
   return (
     <div>
-      <div className="flex items-center gap-3">
-        <Receipt className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Sales</h1>
-          <p className="text-sm text-muted-foreground">Every transaction across your outlets. Click a row for the full receipt.</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Sales</h1>
+        <p className="text-sm text-muted-foreground">Every transaction across your outlets. Click a row for the full receipt.</p>
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-2">

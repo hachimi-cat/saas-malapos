@@ -88,9 +88,7 @@ export default function PaymentSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight font-display">
-          <Settings className="h-5 w-5 text-primary" /> Payment settings
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Payment settings</h1>
         <p className="text-sm text-muted-foreground">
           Configure how Malapos collects and settles money through Plugipay.
         </p>

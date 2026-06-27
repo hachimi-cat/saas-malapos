@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CreditCard, Plus, Loader2, Ban, Copy, Check } from 'lucide-react';
+import { Plus, Loader2, Ban, Copy, Check } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah, parseRupiah } from '@/lib/money';
 import { Button } from '@/components/ui/button';
@@ -109,14 +109,11 @@ export default function GiftCardsPage() {
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <CreditCard className="h-6 w-6 text-primary" />
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight font-display">Gift cards & store credit</h1>
-            <p className="text-sm text-muted-foreground">
-              Issue a prepaid balance and let customers spend it at checkout as a gift-card tender.
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Gift cards & store credit</h1>
+          <p className="text-sm text-muted-foreground">
+            Issue a prepaid balance and let customers spend it at checkout as a gift-card tender.
+          </p>
         </div>
         <Button onClick={() => setIssuing(true)} className="font-semibold">
           <Plus className="h-4 w-4" /> Issue card
