@@ -129,8 +129,23 @@ export default function KdsPage() {
 
   const advanceItem = (id: string) => act(`item:${id}`, `/kds/items/${id}/advance`, 'Failed to advance item');
   const backItem = (id: string) => act(`item:${id}`, `/kds/items/${id}/back`, 'Failed to undo item');
-  const advanceTicket = (id: string) => act(`ticket:${id}`, `/kds/${id}/advance`, 'Failed to advance ticket');
-  const backTicket = (id: string) => act(`ticket:${id}`, `/kds/${id}/back`, 'Failed to undo ticket');
+  // Advance/undo every item in ONE column-card together (a ticket's items that
+  // currently share a state). Items move column individually, so the card's
+  // button just walks the per-item endpoint over the items shown in that card.
+  const cardAct = useCallback(
+    async (key: string, items: TicketItem[], dir: 'advance' | 'back') => {
+      setBusy(key);
+      try {
+        await Promise.all(items.map((it) => api.post(`/kds/items/${it.id}/${dir}`)));
+        await load();
+      } catch (e) {
+        setError(e instanceof ApiRequestError ? e.message : `Failed to ${dir} items`);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [load],
+  );
 
   return (
     <div className="flex h-full min-h-[calc(100vh-7rem)] flex-col">
@@ -159,7 +174,11 @@ export default function KdsPage() {
       ) : (
         <div className="mt-6 grid flex-1 grid-cols-1 gap-4 md:grid-cols-3">
           {COLUMNS.map((col) => {
-            const colTickets = tickets.filter((t) => t.kdsState === col.state);
+            // A ticket appears in EVERY column where it has an item in that
+            // column's state. Each card carries only that state's items, so a
+            // prepared item moves to the next column on its own instead of the
+            // whole ticket-card dragging along behind it.
+            const colTickets = tickets.filter((t) => t.items.some((it) => it.kdsState === col.state));
             return (
               <div key={col.state} className="flex flex-col">
                 <div className="mb-3 flex items-center justify-between">
@@ -168,7 +187,8 @@ export default function KdsPage() {
                 </div>
                 <div className="flex flex-col gap-3">
                   {colTickets.map((t) => {
-                    const ticketBusy = busy === `ticket:${t.id}`;
+                    const cardItems = t.items.filter((it) => it.kdsState === col.state);
+                    const ticketBusy = busy === `ticket:${t.id}:${col.state}`;
                     return (
                     <Card key={t.id} className={`rounded-lg border-t-4 p-4 ${col.accent}`}>
                       <div className="flex items-center justify-between">
@@ -177,7 +197,7 @@ export default function KdsPage() {
                       </div>
                       <p className="text-xs text-muted-foreground">{t.outlet.name}</p>
                       <ul className="mt-3 space-y-1.5 text-sm">
-                        {t.items.map((it) => {
+                        {cardItems.map((it) => {
                           const st = it.kdsState;
                           const itemBusy = busy === `item:${it.id}`;
                           const badge = st ? ITEM_BADGE[st] : null;
@@ -247,29 +267,29 @@ export default function KdsPage() {
                       </ul>
                       {t.note && <p className="mt-2 text-xs italic text-muted-foreground">“{t.note}”</p>}
                       <div className="mt-3 flex items-stretch gap-2">
-                        {t.kdsState === 'READY' ? (
-                          // Kitchen is done — the server marks it served from the
-                          // Ready-to-serve board. No "mark served" here.
+                        {col.state === 'READY' ? (
+                          // Kitchen is done with these — the server marks them
+                          // served from the Ready-to-serve board. No "served" here.
                           <span className="inline-flex flex-1 items-center justify-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 py-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                             <CheckCircle2 className="h-4 w-4" /> Ready — waiting for server
                           </span>
                         ) : (
                           <Button
-                            onClick={() => advanceTicket(t.id)}
+                            onClick={() => cardAct(`ticket:${t.id}:${col.state}`, cardItems, 'advance')}
                             disabled={ticketBusy}
                             className="flex-1"
                           >
                             {ticketBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                            {NEXT_LABEL[t.kdsState]}
+                            {NEXT_LABEL[col.state]}
                           </Button>
                         )}
                         <Button
                           variant="outline"
                           size="icon"
-                          onClick={() => backTicket(t.id)}
-                          disabled={ticketBusy || t.kdsState === 'NEW'}
-                          title="Move whole ticket back a step"
-                          aria-label="Move whole ticket back a step"
+                          onClick={() => cardAct(`ticket:${t.id}:${col.state}`, cardItems, 'back')}
+                          disabled={ticketBusy || col.state === 'NEW'}
+                          title="Move these items back a step"
+                          aria-label="Move these items back a step"
                           className="shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-30"
                         >
                           <Undo2 className="h-4 w-4" />

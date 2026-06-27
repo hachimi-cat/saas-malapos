@@ -1186,7 +1186,24 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
   }
 
   await prisma.$transaction(async (tx) => {
-    // Receipt number — bump the per-outlet counter atomically.
+    // Receipt number — bump the per-outlet counter atomically. First reconcile
+    // the counter up to the highest receipt already issued for this outlet: it
+    // can drift BEHIND an existing number (e.g. a sale inserted/seeded directly
+    // without bumping it), after which a bare `increment: 1` re-issues a taken
+    // number and trips the (outletId, number) unique constraint — which is what
+    // broke "hold" and "split". The conditional fast-forward is a no-op when the
+    // counter is already ahead, so the atomic increment stays collision-free
+    // even under concurrent sales on the same outlet.
+    const last = await tx.transaction.findFirst({
+      where: { outletId: outlet.id },
+      orderBy: { number: 'desc' }, // zero-padded INV-000000 → lexical desc == numeric desc
+      select: { number: true },
+    });
+    const lastSeq = last ? Number(last.number.replace(/\D/g, '')) || 0 : 0;
+    await tx.outlet.updateMany({
+      where: { id: outlet.id, receiptSeq: { lt: lastSeq } },
+      data: { receiptSeq: lastSeq },
+    });
     const bumped = await tx.outlet.update({
       where: { id: outlet.id },
       data: { receiptSeq: { increment: 1 } },

@@ -208,7 +208,6 @@ function OrdersTab() {
           {STATUSES.map((s) => (
             <Button
               key={s}
-              size="sm"
               variant="outline"
               onClick={() => changeFilter(s)}
               className={filter === s ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10' : ''}

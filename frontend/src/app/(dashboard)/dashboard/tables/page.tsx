@@ -47,6 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 /*
  * Tables manager — define the dine-in floor for an F&B outlet. List every
@@ -278,22 +279,6 @@ export default function TablesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-md border border-border p-px">
-            <Button
-              variant={view === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setView('list')}
-            >
-              <List className="h-4 w-4" /> List
-            </Button>
-            <Button
-              variant={view === 'layout' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setView('layout')}
-            >
-              <LayoutGrid className="h-4 w-4" /> Floor layout
-            </Button>
-          </div>
           {outlets.length > 1 && (
             <Select value={outletId} onValueChange={setOutletId}>
               <SelectTrigger className="w-auto min-w-[10rem]">
@@ -321,6 +306,19 @@ export default function TablesPage() {
         onDelete={deleteFloor}
         onMove={moveFloor}
       />
+
+      {floorId && (
+        <Tabs value={view} onValueChange={(v) => setView(v as 'list' | 'layout')}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="list">
+              <List className="h-4 w-4" /> List
+            </TabsTrigger>
+            <TabsTrigger value="layout">
+              <LayoutGrid className="h-4 w-4" /> Floor layout
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
 
       {!floorId ? (
         <Card className="border-dashed p-12 text-center">
