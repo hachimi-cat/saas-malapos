@@ -3,6 +3,7 @@ import {
   Activity,
   ArrowRight,
   Boxes,
+  ChefHat,
   Check,
   CircleDollarSign,
   Layers,
@@ -11,7 +12,9 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  Store,
   Terminal,
+  Users,
   Workflow,
   X as XIcon,
   Zap,
@@ -163,18 +166,19 @@ export default function HomePage() {
               Everything Malapos ships.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground max-w-[52ch]">
-              Six things your counter actually does every day — all running today, no roadmap fluff.
+              Counter to kitchen, stock to loyalty — all running today, no roadmap fluff. Plus
+              opt-in modules (QRIS, marketing, delivery) and a developer API.
             </p>
           </div>
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { Icon: CircleDollarSign, title: 'Sell screen', body: 'Search or scan into the cart and take cash with change, QRIS, or card. Print or share a receipt on the spot.' },
-              { Icon: Layers, title: 'Catalog & modifiers', body: 'Products, variants, and categories — plus F&B modifiers like sugar level and extra shot for cafe orders.' },
-              { Icon: Boxes, title: 'Inventory', body: 'Live stock levels with an append-only movement ledger, low-stock alerts, manual adjustments, and inter-outlet transfers.' },
-              { Icon: ShieldCheck, title: 'Pharmacy batches', body: 'Track dated stock batches, sell first-expiry-first-out, and get alerted before medicine expires.' },
-              { Icon: Activity, title: 'Shifts & reports', body: 'Open and close cashier shifts with cash reconciliation. Read sales summaries, top products, and payment-method mix.' },
-              { Icon: Zap, title: 'Customers & purchasing', body: 'Earn and redeem loyalty points at the till, and receive supplier purchase orders straight into stock.' },
+              { Icon: CircleDollarSign, title: 'Sell, however they order', body: 'One fast screen for counter, dine-in, takeaway, and delivery. Search or scan into the cart; take cash, QRIS, card, or transfer.' },
+              { Icon: ChefHat, title: 'Kitchen display & expo', body: 'F&B orders flow to a live kitchen board (New → Preparing → Ready), badged dine-in / takeaway / delivery, with a ready-to-serve expo screen.' },
+              { Icon: Layers, title: 'Catalog & recipes', body: 'Products, variants, and categories, plus F&B modifiers — and composite items whose components deduct from stock on sale.' },
+              { Icon: Boxes, title: 'Inventory & pharmacy', body: 'Live stock on an append-only ledger, low-stock alerts, inter-outlet transfers, and dated batches sold first-expiry-first-out.' },
+              { Icon: Users, title: 'Customers, loyalty & gift cards', body: 'A customer directory with loyalty points, gift cards and store credit as a tender, plus full and partial refunds.' },
+              { Icon: Store, title: 'Outlets, shifts & reports', body: 'Multiple outlets with per-outlet tax and receipt numbers, cashier shifts with cash reconciliation, suppliers, and sales reports.' },
             ].map(({ Icon, title, body }) => (
               <Card key={title} className="p-6">
                 <div className="size-10 rounded-md flex items-center justify-center bg-primary/10 text-primary mb-4">
@@ -213,7 +217,7 @@ export default function HomePage() {
                 usdCents: 0,
                 priceUnit: 'forever',
                 who: 'For a single counter getting started.',
-                features: ['1 outlet', 'Up to 50 products', 'Cash, QRIS & card', 'Printed & shareable receipts', '2 cashier seats'],
+                features: ['1 outlet', 'Up to 50 products', 'Cash, QRIS, card & transfer', 'Dine-in, takeaway & delivery', 'Printed & shareable receipts', '2 cashier seats'],
                 cta: { label: 'Start free', href: '/signup' },
               },
               {
