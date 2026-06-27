@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import {
   Search,
   Plus,
-  X,
   Users,
   Star,
   Pencil,
@@ -26,6 +25,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -414,21 +419,13 @@ function CustomerDetail({
   const points = balance ?? customer?.loyaltyPoints ?? 0;
 
   return (
-    <div className="fixed inset-0 z-20 flex justify-end bg-black/50" onClick={onClose}>
-      <div
-        className="h-full w-full max-w-lg overflow-y-auto border-l border-border bg-card p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between">
-          <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold font-display">{customer?.name ?? 'Customer'}</h2>
-            {customer?.phone && <p className="text-sm text-muted-foreground">{customer.phone}</p>}
-            {customer?.email && <p className="text-sm text-muted-foreground">{customer.email}</p>}
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5 text-muted-foreground" />
-          </Button>
-        </div>
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetHeader className="pr-8 text-left">
+          <SheetTitle className="truncate font-display">{customer?.name ?? 'Customer'}</SheetTitle>
+          {customer?.phone && <p className="text-sm text-muted-foreground">{customer.phone}</p>}
+          {customer?.email && <p className="text-sm text-muted-foreground">{customer.email}</p>}
+        </SheetHeader>
 
         {loading ? (
           <p className="p-8 text-center text-sm text-muted-foreground">Loading…</p>
@@ -574,8 +571,8 @@ function CustomerDetail({
             }}
           />
         )}
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
