@@ -175,7 +175,7 @@ router.get(
   '/',
   asyncHandler(async (req, res) => {
     const accountId = req.auth!.accountId as string;
-    const { outletId, status, shiftId, tableId } = req.query as Record<string, string | undefined>;
+    const { outletId, status, shiftId, tableId, orderType } = req.query as Record<string, string | undefined>;
     const { limit, cursor } = parsePagination(req.query);
     const rows = await prisma.transaction.findMany({
       where: {
@@ -184,6 +184,7 @@ router.get(
         ...(shiftId ? { shiftId } : {}),
         ...(tableId ? { tableId } : {}),
         ...(status ? { status: status as never } : {}),
+        ...(orderType ? { orderType: orderType as never } : {}),
         ...(cursor
           ? { OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] }
           : {}),

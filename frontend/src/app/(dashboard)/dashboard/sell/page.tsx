@@ -22,6 +22,7 @@ import {
   Landmark,
   Copy,
   Truck,
+  ShoppingBag,
   UserSearch,
   ExternalLink,
 } from 'lucide-react';
@@ -36,6 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -164,6 +166,17 @@ type OpenBill = { transactionId: string; total: number; itemCount: number; opene
 type FloorEntry = { table: FloorTable; openBill: OpenBill | null };
 // The currently selected table on the sell screen + its open-bill id (if any).
 type BoundTable = { id: string; label: string };
+// A held (PARKED) takeaway/delivery order shown in the sell counter tabs.
+type CounterOrder = { id: string; number: string; total: number; itemCount: number; createdAt: string };
+type CounterRow = { id: string; number: string; total: number; createdAt: string; _count?: { items: number } };
+
+// "5m ago" relative label for a held order's age (when it was parked).
+function waitLabel(iso: string): string {
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  return `${Math.floor(mins / 60)}h ${mins % 60}m ago`;
+}
 
 export default function SellPage() {
   const { isFnb } = useBusinessType();
@@ -185,6 +198,13 @@ export default function SellPage() {
   // also has an open bill, `parkedTxnId` is that bill's transaction id.
   // Quick-sale (no table) keeps `table` null and works exactly as before.
   const [view, setView] = useState<'floor' | 'register'>('register');
+  // F&B selection-screen tab: dine-in Floor, or the Takeaway / Delivery counter
+  // queues (held PARKED orders you can resume + append, like a table's bill).
+  const [orderTab, setOrderTab] = useState<'floor' | 'takeaway' | 'delivery'>('floor');
+  const [counterOrders, setCounterOrders] = useState<{ takeaway: CounterOrder[]; delivery: CounterOrder[] }>({
+    takeaway: [],
+    delivery: [],
+  });
   const [table, setTable] = useState<BoundTable | null>(null);
   const [parkedTxnId, setParkedTxnId] = useState<string | null>(null);
   // The open bill's server-side paidTotal (> 0 only when a split was started
@@ -311,6 +331,7 @@ export default function SellPage() {
     if (isFnb && outletId) {
       if (!table) setView('floor');
       loadFloors(outletId);
+      loadCounterOrders(outletId);
     }
     if (!isFnb) setView('register');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -330,7 +351,10 @@ export default function SellPage() {
     enabled: isFnb && !!outletId,
     outletId,
     onChange: (topic) => {
-      if (topic === 'floor') loadFloor(outletId);
+      if (topic === 'floor') {
+        loadFloor(outletId);
+        loadCounterOrders(outletId);
+      }
     },
   });
 
@@ -406,6 +430,7 @@ export default function SellPage() {
     setDelivery(null);
     setView('floor');
     loadFloor(outletId);
+    loadCounterOrders(outletId);
   }
 
   // Start a no-table quick sale from the floor (identical to the retail path).
@@ -417,6 +442,79 @@ export default function SellPage() {
     setCustomer(null);
     setReceipt(null);
     setDelivery(null);
+    setView('register');
+  }
+
+  // Load the open (PARKED) takeaway + delivery orders for the counter tabs.
+  const loadCounterOrders = useCallback(async (oid: string) => {
+    if (!oid) return;
+    try {
+      const [tk, dl] = await Promise.all([
+        api.get<CounterRow[]>(`/sales?status=PARKED&orderType=TAKEAWAY&outletId=${encodeURIComponent(oid)}&limit=100`),
+        api.get<CounterRow[]>(`/sales?status=PARKED&orderType=DELIVERY&outletId=${encodeURIComponent(oid)}&limit=100`),
+      ]);
+      const toOrder = (rows: CounterRow[]): CounterOrder[] =>
+        rows.map((r) => ({ id: r.id, number: r.number, total: r.total, itemCount: r._count?.items ?? 0, createdAt: r.createdAt }));
+      setCounterOrders({ takeaway: toOrder(tk.data ?? []), delivery: toOrder(dl.data ?? []) });
+    } catch {
+      /* non-fatal — the tabs just show no held orders */
+    }
+  }, []);
+
+  // Resume a held counter order: load its items into the cart + bind parkedTxnId
+  // so the next Hold/Charge appends to it (the no-table analogue of pickTable).
+  async function resumeCounterOrder(order: CounterOrder) {
+    setError(null);
+    setReceipt(null);
+    setCustomer(null);
+    setDelivery(null);
+    setTable(null);
+    try {
+      const res = await api.get<{ sale: { items: { variantId: string | null; productName: string; variantName: string | null; unitPrice: number; quantity: number; note: string | null }[]; customer: Customer | null; paidTotal: number } }>(
+        `/sales/${order.id}`,
+      );
+      const items = (res.data.sale.items ?? []).filter((it) => it.variantId);
+      setCart(
+        items.map((it) => ({
+          variantId: it.variantId as string,
+          productId: '',
+          name: it.productName,
+          variantName: it.variantName ?? 'Default',
+          unitPrice: it.unitPrice,
+          qty: it.quantity,
+          note: it.note ?? undefined,
+        })),
+      );
+      setCustomer(res.data.sale.customer ?? null);
+      setParkedTxnId(order.id);
+      setParkedPaid(res.data.sale.paidTotal ?? 0);
+      setView('register');
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to open the order');
+    }
+  }
+
+  // Start a fresh no-table counter order from a tab. Delivery opens with the
+  // Delivery toggle on (address + courier captured in the register); takeaway is
+  // a plain no-table sale.
+  function startNewCounter(orderType: 'TAKEAWAY' | 'DELIVERY') {
+    setError(null);
+    setReceipt(null);
+    setTable(null);
+    setParkedTxnId(null);
+    setParkedPaid(0);
+    setCart([]);
+    setCustomer(null);
+    setDelivery(
+      orderType === 'DELIVERY'
+        ? {
+            dest: { contactName: '', contactPhone: '', email: '', address: '', area: '', postalCode: '' },
+            customerId: null,
+            items: [],
+            rate: null,
+          }
+        : null,
+    );
     setView('register');
   }
 
@@ -436,34 +534,36 @@ export default function SellPage() {
   // F&B "Hold": persist the cart as the table's open bill (PARKED) — create
   // it on first hold, patch its items on a resume — then return to the floor.
   async function hold() {
-    if (!table) return;
     if (!cart.length) {
       backToFloor();
       return;
     }
+    // Dine-in holds onto its table; a no-table hold is a takeaway counter order.
+    const ot = table ? 'DINE_IN' : 'TAKEAWAY';
     setHolding(true);
     setError(null);
     try {
       if (parkedTxnId) {
         await api.patch(`/sales/${parkedTxnId}/items`, {
           items: cartItems(),
-          orderType: 'DINE_IN',
+          orderType: ot,
           customerId: customer?.id ?? null,
         });
       } else {
         await api.post('/sales', {
           outletId,
           customerId: customer?.id ?? null,
-          tableId: table.id,
-          orderType: 'DINE_IN',
+          tableId: table?.id ?? null,
+          orderType: ot,
           status: 'PARKED',
           items: cartItems(),
         });
       }
       setHolding(false);
+      setOrderTab(table ? 'floor' : 'takeaway');
       backToFloor();
     } catch (e) {
-      setError(e instanceof ApiRequestError ? e.message : 'Failed to hold the bill');
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to hold the order');
       setHolding(false);
     }
   }
@@ -770,22 +870,63 @@ export default function SellPage() {
     );
   }
 
-  // ── F&B floor view ──────────────────────────────────────────────────
+  // ── F&B selection screen: Floor / Takeaway / Delivery ────────────────
   if (isFnb && view === 'floor') {
+    const occupied = floor.filter((f) => f.openBill).length;
     return (
-      <FloorView
-        floor={floor}
-        busy={floorBusy}
-        outlets={outlets}
-        outletId={outletId}
-        floors={floors}
-        floorId={floorId}
-        onChangeFloor={setFloorId}
-        onChangeOutlet={changeOutlet}
-        onRefresh={() => loadFloor(outletId, floorId)}
-        onPick={pickTable}
-        onQuickSale={startQuickSale}
-      />
+      <div className="flex h-[calc(100vh-3.5rem)] flex-col lg:h-[calc(100vh-1.5rem)]">
+        <Tabs
+          value={orderTab}
+          onValueChange={(v) => setOrderTab(v as 'floor' | 'takeaway' | 'delivery')}
+          className="flex h-full flex-col"
+        >
+          <TabsList className="mb-4 self-start">
+            <TabsTrigger value="floor">
+              Floor
+              {occupied > 0 && <TabCount n={occupied} />}
+            </TabsTrigger>
+            <TabsTrigger value="takeaway">
+              Takeaway
+              {counterOrders.takeaway.length > 0 && <TabCount n={counterOrders.takeaway.length} />}
+            </TabsTrigger>
+            <TabsTrigger value="delivery">
+              Delivery
+              {counterOrders.delivery.length > 0 && <TabCount n={counterOrders.delivery.length} />}
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="floor" className="mt-0 flex-1 overflow-hidden">
+            <FloorView
+              floor={floor}
+              busy={floorBusy}
+              outlets={outlets}
+              outletId={outletId}
+              floors={floors}
+              floorId={floorId}
+              onChangeFloor={setFloorId}
+              onChangeOutlet={changeOutlet}
+              onRefresh={() => loadFloor(outletId, floorId)}
+              onPick={pickTable}
+              onQuickSale={startQuickSale}
+            />
+          </TabsContent>
+          <TabsContent value="takeaway" className="mt-0 flex-1 overflow-hidden">
+            <CounterOrders
+              kind="TAKEAWAY"
+              orders={counterOrders.takeaway}
+              onResume={resumeCounterOrder}
+              onNew={() => startNewCounter('TAKEAWAY')}
+            />
+          </TabsContent>
+          <TabsContent value="delivery" className="mt-0 flex-1 overflow-hidden">
+            <CounterOrders
+              kind="DELIVERY"
+              orders={counterOrders.delivery}
+              onResume={resumeCounterOrder}
+              onNew={() => startNewCounter('DELIVERY')}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
     );
   }
 
@@ -798,7 +939,7 @@ export default function SellPage() {
         {isFnb && (
           <div className="mb-2 flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={backToFloor}>
-              <ArrowLeft className="h-4 w-4" /> Floor
+              <ArrowLeft className="h-4 w-4" /> Back
             </Button>
             {table ? (
               <Badge
@@ -809,7 +950,14 @@ export default function SellPage() {
                 {parkedTxnId && <span className="text-xs font-normal text-primary/80">· open bill</span>}
               </Badge>
             ) : (
-              <span className="text-sm text-muted-foreground">Quick sale (no table)</span>
+              <Badge
+                variant="outline"
+                className="gap-1.5 border-transparent bg-primary/10 px-2.5 py-1.5 text-sm font-semibold text-primary"
+              >
+                {delivery ? <Truck className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}
+                {delivery ? 'Delivery' : 'Takeaway'}
+                {parkedTxnId && <span className="text-xs font-normal text-primary/80">· open order</span>}
+              </Badge>
             )}
           </div>
         )}
@@ -1054,7 +1202,7 @@ export default function SellPage() {
                 Charge {rupiah(due)}
               </Button>
             </div>
-          ) : (
+          ) : delivery ? (
             <Button
               disabled={!cart.length || (!!delivery && !delivery.rate)}
               onClick={() => setPaying(true)}
@@ -1062,6 +1210,28 @@ export default function SellPage() {
             >
               {delivery && !delivery.rate ? 'Pick a courier to charge' : `Charge ${rupiah(due)}`}
             </Button>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {/* F&B takeaway can be held (resume + append later); retail
+                  quick-sale just charges. */}
+              {isFnb && (
+                <Button
+                  variant="outline"
+                  disabled={!cart.length || holding}
+                  onClick={hold}
+                  className="h-auto w-full gap-1.5 py-3 font-semibold"
+                >
+                  {holding ? <Loader2 className="h-4 w-4 animate-spin" /> : <PauseCircle className="h-4 w-4" />} Hold
+                </Button>
+              )}
+              <Button
+                disabled={!cart.length}
+                onClick={() => setPaying(true)}
+                className="h-auto w-full py-3 font-semibold"
+              >
+                Charge {rupiah(due)}
+              </Button>
+            </div>
           )}
         </div>
       </Card>
@@ -1254,6 +1424,79 @@ function sinceLabel(iso: string): string {
   if (mins < 60) return `${mins}m`;
   const h = Math.floor(mins / 60);
   return `${h}h ${mins % 60}m`;
+}
+
+// A small notification count badge shown on a selection-screen tab trigger.
+function TabCount({ n }: { n: number }) {
+  return (
+    <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold leading-none text-primary-foreground">
+      {n}
+    </span>
+  );
+}
+
+/**
+ * The Takeaway / Delivery counter queue: open (held) orders as resumable cards
+ * plus a "New" button. Tapping a card resumes it (loads its items so the
+ * cashier can append + charge); the empty state guides starting a fresh one.
+ */
+function CounterOrders({
+  kind,
+  orders,
+  onResume,
+  onNew,
+}: {
+  kind: 'TAKEAWAY' | 'DELIVERY';
+  orders: CounterOrder[];
+  onResume: (o: CounterOrder) => void;
+  onNew: () => void;
+}) {
+  const label = kind === 'TAKEAWAY' ? 'Takeaway' : 'Delivery';
+  const Icon = kind === 'TAKEAWAY' ? ShoppingBag : Truck;
+  return (
+    <div className="flex h-full flex-col">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Icon className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-xl font-semibold">{label}</h1>
+            <p className="text-sm text-muted-foreground">
+              {orders.length} open order{orders.length === 1 ? '' : 's'}
+            </p>
+          </div>
+        </div>
+        <Button onClick={onNew} className="font-semibold">
+          <Plus className="h-4 w-4" /> New {label.toLowerCase()}
+        </Button>
+      </div>
+      {orders.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
+          <Icon className="mb-3 h-10 w-10 text-muted-foreground/30" />
+          <p className="text-sm font-medium">No open {label.toLowerCase()} orders</p>
+          <p className="mt-1 text-sm text-muted-foreground">Tap “New {label.toLowerCase()}” to start one.</p>
+        </div>
+      ) : (
+        <div className="grid auto-rows-min grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4">
+          {orders.map((o) => (
+            <button
+              key={o.id}
+              onClick={() => onResume(o)}
+              className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-primary hover:bg-accent focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-sm font-semibold text-primary">#{o.number}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{waitLabel(o.createdAt)}</span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {o.itemCount} item{o.itemCount === 1 ? '' : 's'}
+              </div>
+              <div className="mt-auto font-display text-lg font-bold">{rupiah(o.total)}</div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**
