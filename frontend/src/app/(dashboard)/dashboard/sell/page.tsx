@@ -1023,24 +1023,26 @@ export default function SellPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setQty(l.variantId, l.qty - 1)} className="rounded p-1 hover:bg-background"><Minus className="h-4 w-4" /></button>
+                  <Button variant="ghost" size="icon" onClick={() => setQty(l.variantId, l.qty - 1)} className="h-7 w-7"><Minus className="h-4 w-4" /></Button>
                   <span className="w-6 text-center text-sm">{l.qty}</span>
-                  <button onClick={() => setQty(l.variantId, l.qty + 1)} className="rounded p-1 hover:bg-background"><Plus className="h-4 w-4" /></button>
+                  <Button variant="ghost" size="icon" onClick={() => setQty(l.variantId, l.qty + 1)} className="h-7 w-7"><Plus className="h-4 w-4" /></Button>
                 </div>
                 <span className="w-20 text-right text-sm font-medium">{rupiah(l.unitPrice * l.qty)}</span>
                 {/* Per-item note toggle — reveals the inline note input below. */}
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => {
                     setOpenNoteId((id) => (id === l.variantId ? null : l.variantId));
                     setActiveLineId(l.variantId);
                   }}
                   title="Add a note for the kitchen"
                   aria-label="Add a note for the kitchen"
-                  className={`rounded p-1 transition-colors hover:text-foreground ${l.note ? 'text-primary' : 'text-muted-foreground'}`}
+                  className={`h-7 w-7 ${l.note ? 'text-primary' : 'text-muted-foreground'}`}
                 >
                   <StickyNote className="h-4 w-4" />
-                </button>
-                <button onClick={() => setQty(l.variantId, 0)} className="rounded p-1 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setQty(l.variantId, 0)} className="h-7 w-7 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
               </div>
               {noteOpen && (
                 <Input
@@ -1061,7 +1063,8 @@ export default function SellPage() {
             whose price becomes the delivery fee. */}
         {!table && fulfillmentOn && (
           <div className="border-t border-border p-3">
-            <button
+            <Button
+              variant="outline"
               onClick={() => {
                 if (delivery) {
                   setDelivery(null);
@@ -1089,13 +1092,13 @@ export default function SellPage() {
                   setDeliveryModal(true);
                 }
               }}
-              className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                delivery ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-accent'
+              className={`h-auto w-full justify-between px-3 py-2 text-sm font-medium ${
+                delivery ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary' : ''
               }`}
             >
               <span className="inline-flex items-center gap-2"><Truck className="h-4 w-4" /> Delivery</span>
               <span className="text-xs">{delivery ? 'On' : 'Off'}</span>
-            </button>
+            </Button>
             {delivery && (
               <div className="mt-2 rounded-md border border-border p-2 text-xs">
                 {delivery.rate ? (
@@ -1109,12 +1112,13 @@ export default function SellPage() {
                         {delivery.dest.contactName || 'Recipient'} · {delivery.dest.address || 'No address'}
                       </p>
                     </div>
-                    <button
+                    <Button
+                      variant="link"
                       onClick={() => setDeliveryModal(true)}
-                      className="shrink-0 font-medium text-primary hover:underline"
+                      className="h-auto shrink-0 p-0 font-medium"
                     >
                       Edit
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <Button
@@ -1410,9 +1414,9 @@ function sinceLabel(iso: string): string {
 // A small notification count badge shown on a selection-screen tab trigger.
 function TabCount({ n }: { n: number }) {
   return (
-    <span className="ml-1.5 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold leading-none text-primary-foreground">
+    <Badge className="ml-1.5 h-5 min-w-[1.25rem] justify-center rounded-full px-1.5 text-xs font-semibold leading-none">
       {n}
-    </span>
+    </Badge>
   );
 }
 
@@ -1548,13 +1552,15 @@ function FloorView({
           </div>
           <div className="ml-auto flex h-9 items-center gap-1 rounded-md border border-border p-1">
             {(['all', 'available', 'occupied'] as const).map((s) => (
-              <button
+              <Button
                 key={s}
+                variant="ghost"
+                size="sm"
                 onClick={() => setStatusFilter(s)}
-                className={`inline-flex h-7 items-center rounded px-3 text-xs font-medium capitalize ${statusFilter === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'}`}
+                className={`h-7 rounded px-3 text-xs font-medium capitalize ${statusFilter === s ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground' : 'text-muted-foreground'}`}
               >
                 {s}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -1577,12 +1583,13 @@ function FloorView({
         <div className="mt-10 flex flex-1 flex-col items-center justify-center text-center text-muted-foreground">
           <Search className="h-8 w-8 text-muted-foreground" />
           <p className="mt-3 text-sm">No tables match.</p>
-          <button
+          <Button
+            variant="link"
             onClick={() => { setSearch(''); setStatusFilter('all'); }}
-            className="mt-2 text-sm text-primary underline"
+            className="mt-2 h-auto p-0 text-sm"
           >
             Clear filters
-          </button>
+          </Button>
         </div>
       ) : (
         <FloorBody floor={filtered} onPick={onPick} />
@@ -1990,8 +1997,10 @@ function PaymentModal({
                     <dt className="text-muted-foreground">Account no.</dt>
                     <dd className="flex items-center gap-2 font-mono font-semibold">
                       {transferAccount?.transferBankAccountNumber}
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         title="Copy account number"
                         onClick={async () => {
                           try {
@@ -2004,10 +2013,10 @@ function PaymentModal({
                             /* clipboard blocked — cashier can read it out */
                           }
                         }}
-                        className="text-muted-foreground hover:text-primary"
+                        className="h-6 w-6 text-muted-foreground hover:text-primary"
                       >
                         {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                      </button>
+                      </Button>
                     </dd>
                   </div>
                   {transferAccount?.transferBankAccountHolder?.trim() && (
@@ -2259,9 +2268,9 @@ function SplitModal({
             <div className="mt-4 flex items-center gap-3">
               <span className="text-sm text-muted-foreground">Checks</span>
               <div className="flex items-center gap-1">
-                <button onClick={() => changeN(n - 1)} className="rounded border border-border p-1 hover:bg-accent"><Minus className="h-4 w-4" /></button>
+                <Button variant="outline" size="icon" onClick={() => changeN(n - 1)} className="h-7 w-7"><Minus className="h-4 w-4" /></Button>
                 <span className="w-8 text-center text-sm font-semibold">{n}</span>
-                <button onClick={() => changeN(n + 1)} className="rounded border border-border p-1 hover:bg-accent"><Plus className="h-4 w-4" /></button>
+                <Button variant="outline" size="icon" onClick={() => changeN(n + 1)} className="h-7 w-7"><Plus className="h-4 w-4" /></Button>
               </div>
             </div>
           )}
@@ -2276,13 +2285,15 @@ function SplitModal({
                   </div>
                   <div className="flex flex-wrap items-center gap-1">
                     {Array.from({ length: n }, (_, c) => (
-                      <button
+                      <Button
                         key={c}
+                        variant={assign[i] === c ? 'default' : 'outline'}
+                        size="icon"
                         onClick={() => setAssign((a) => a.map((v, j) => (j === i ? c : v)))}
-                        className={`h-7 w-7 rounded text-xs font-semibold ${assign[i] === c ? 'bg-primary text-primary-foreground' : 'border border-border hover:bg-accent'}`}
+                        className="h-7 w-7 text-xs font-semibold"
                       >
                         {c + 1}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>
@@ -2787,25 +2798,28 @@ function DeliveryModal({
                       <DeliveryMiniField label="Qty" value={r.qty} onChange={(v) => updateRow(i, { qty: v })} type="number" />
                       <DeliveryMiniField label="Wt (g)" value={r.weight} onChange={(v) => updateRow(i, { weight: v })} type="number" />
                       <DeliveryMiniField label="Value" value={r.value} onChange={(v) => updateRow(i, { value: v })} type="number" />
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
                         disabled={rows.length === 1}
                         onClick={() => { setRows((prev) => prev.filter((_, idx) => idx !== i)); setRates([]); setPicked(null); }}
-                        className="mb-1.5 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                        className="mb-1.5 h-7 w-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         title="Remove item"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="link"
                   onClick={() => setRows((prev) => [...prev, { name: '', qty: '1', weight: '500', value: '0' }])}
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  className="h-auto gap-1 p-0 text-xs"
                 >
                   <Plus className="h-3.5 w-3.5" /> Add item
-                </button>
+                </Button>
               </section>
 
               {/* Rates */}
