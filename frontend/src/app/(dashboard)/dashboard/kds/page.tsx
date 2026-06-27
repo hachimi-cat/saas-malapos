@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChefHat, ArrowRight, Loader2, CheckCircle2, Undo2, StickyNote } from 'lucide-react';
+import { ChefHat, ArrowRight, Loader2, CheckCircle2, Undo2, StickyNote, Clock } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useRealtime } from '@/hooks/use-realtime';
 import { Button } from '@/components/ui/button';
@@ -53,13 +53,16 @@ const NEXT_LABEL: Record<KdsState, string> = {
   SERVED: 'Served',
 };
 
-// Per-item badge: short label + color for the item's own status.
-const ITEM_BADGE: Record<KdsState, { label: string; cls: string }> = {
-  NEW: { label: 'New', cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' },
-  PREPARING: { label: 'Preparing', cls: 'bg-primary/15 text-primary' },
-  READY: { label: 'Ready', cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
-  SERVED: { label: 'Served', cls: 'bg-muted text-muted-foreground' },
-};
+// Wait-urgency colour for the ticket's age — the kitchen works the reddest
+// cards first (matches the Ready-to-serve board's rail logic).
+function waitMins(iso: string): number {
+  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+}
+function waitCls(mins: number): string {
+  if (mins >= 15) return 'bg-destructive/15 text-destructive';
+  if (mins >= 8) return 'bg-amber-500/15 text-amber-600 dark:text-amber-400';
+  return 'bg-muted text-muted-foreground';
+}
 
 const COLUMNS: { state: KdsState; label: string; accent: string }[] = [
   { state: 'NEW', label: 'New', accent: 'border-t-amber-500' },
@@ -189,57 +192,59 @@ export default function KdsPage() {
                   {colTickets.map((t) => {
                     const cardItems = t.items.filter((it) => it.kdsState === col.state);
                     const ticketBusy = busy === `ticket:${t.id}:${col.state}`;
+                    const mins = waitMins(t.createdAt);
+                    const rail = mins >= 15 ? 'border-l-destructive' : mins >= 8 ? 'border-l-amber-500' : 'border-l-emerald-500';
                     return (
-                    <Card key={t.id} className={`rounded-lg border-t-4 p-4 ${col.accent}`}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold">{t.number}</span>
-                        <span className="text-xs text-muted-foreground">{waited(t.createdAt)}</span>
+                    <Card key={t.id} className={`flex flex-col gap-3 rounded-xl border-l-[3px] p-4 ${rail}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="font-display text-lg font-bold leading-none tracking-tight">{t.number}</h3>
+                          <p className="mt-1 text-xs text-muted-foreground">{t.outlet.name}</p>
+                        </div>
+                        <Badge variant="outline" className={`shrink-0 gap-1 rounded-full border-transparent px-2 py-1 text-xs font-semibold ${waitCls(mins)}`} title="Waiting time">
+                          <Clock className="h-3 w-3" /> {waited(t.createdAt)}
+                        </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground">{t.outlet.name}</p>
-                      <ul className="mt-3 space-y-1.5 text-sm">
+                      {t.note && (
+                        <p className="flex items-start gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                          <StickyNote className="mt-0.5 h-3 w-3 shrink-0" /> {t.note}
+                        </p>
+                      )}
+                      <div className="flex flex-col gap-2">
                         {cardItems.map((it) => {
                           const st = it.kdsState;
                           const itemBusy = busy === `item:${it.id}`;
-                          const badge = st ? ITEM_BADGE[st] : null;
-                          // Kitchen advances NEW -> PREPARING -> READY and stops. The
-                          // READY -> SERVED step belongs to the server (Ready-to-serve
-                          // board), so the kitchen can't accidentally mark food served.
+                          // Kitchen advances NEW -> PREPARING -> READY and stops; the
+                          // READY -> SERVED step is the server's job (Ready-to-serve).
                           const canAdvance = st != null && st !== 'SERVED' && st !== 'READY';
                           const canBack = st != null && st !== 'NEW';
                           return (
-                            <li
-                              key={it.id}
-                              className="rounded-md border border-border/60 bg-background/40 p-2"
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                {/* Tap the item body to advance it a step. */}
+                            <div key={it.id} className="flex flex-col gap-1 rounded-lg bg-muted/40 p-2">
+                              <div className="flex items-center gap-2">
+                                {/* Tap the dish to advance it a step. */}
                                 <button
                                   type="button"
                                   onClick={() => canAdvance && advanceItem(it.id)}
                                   disabled={!canAdvance || itemBusy}
                                   title={canAdvance && st ? NEXT_LABEL[st] : undefined}
-                                  className="flex flex-1 items-start gap-2 text-left disabled:cursor-default"
+                                  className="flex flex-1 items-center gap-3 text-left disabled:cursor-default"
                                 >
-                                  {itemBusy ? (
-                                    <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
-                                  ) : badge ? (
-                                    <Badge className={`mt-0.5 shrink-0 border-transparent px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.cls}`}>
-                                      {badge.label}
-                                    </Badge>
-                                  ) : null}
-                                  <span>
-                                    <span className="font-medium">{it.quantity}×</span> {it.productName}
-                                    {it.variantName && it.variantName !== 'Default' ? (
-                                      <span className="text-muted-foreground"> · {it.variantName}</span>
-                                    ) : null}
-                                    {it.modifiers?.length > 0 && (
-                                      <span className="block text-xs text-muted-foreground">
-                                        {it.modifiers.map((m) => m.name).join(', ')}
-                                      </span>
-                                    )}
+                                  <span className="grid h-8 min-w-8 shrink-0 place-items-center rounded-md bg-background px-1.5 text-sm font-bold tabular-nums">
+                                    {it.quantity}×
                                   </span>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate font-medium leading-tight">
+                                      {it.productName}
+                                      {it.variantName && it.variantName !== 'Default' ? (
+                                        <span className="text-muted-foreground"> · {it.variantName}</span>
+                                      ) : null}
+                                    </p>
+                                    {it.modifiers?.length > 0 && (
+                                      <p className="truncate text-xs text-muted-foreground">{it.modifiers.map((m) => m.name).join(', ')}</p>
+                                    )}
+                                  </div>
+                                  {itemBusy && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />}
                                 </button>
-                                {/* Undo this item one step. */}
                                 <Button
                                   type="button"
                                   variant="ghost"
@@ -253,23 +258,17 @@ export default function KdsPage() {
                                   <Undo2 className="h-4 w-4" />
                                 </Button>
                               </div>
-                              {/* Per-item instruction from the cashier — highlighted
-                                  so the line cook can't miss it. */}
                               {it.note && (
-                                <p className="mt-1.5 flex items-start gap-1 rounded bg-amber-500/15 px-1.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
-                                  <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
-                                  <span>{it.note}</span>
+                                <p className="flex items-start gap-1 rounded bg-amber-500/15 px-1.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                  <StickyNote className="mt-0.5 h-3 w-3 shrink-0" /> {it.note}
                                 </p>
                               )}
-                            </li>
+                            </div>
                           );
                         })}
-                      </ul>
-                      {t.note && <p className="mt-2 text-xs italic text-muted-foreground">“{t.note}”</p>}
-                      <div className="mt-3 flex items-stretch gap-2">
+                      </div>
+                      <div className="flex items-stretch gap-2">
                         {col.state === 'READY' ? (
-                          // Kitchen is done with these — the server marks them
-                          // served from the Ready-to-serve board. No "served" here.
                           <span className="inline-flex flex-1 items-center justify-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 py-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                             <CheckCircle2 className="h-4 w-4" /> Ready — waiting for server
                           </span>
