@@ -1917,20 +1917,21 @@ function PaymentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Payment</h2>
-          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="block max-w-md">
+        <DialogHeader>
+          <DialogTitle>Payment</DialogTitle>
+        </DialogHeader>
         <p className="mt-1 text-2xl font-bold text-primary">{rupiah(total)}</p>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
           {(['CASH', 'QRIS', 'VA', 'CARD', 'TRANSFER', 'GIFT_CARD'] as const).map((m) => (
-            <button
+            <Button
               key={m}
+              type="button"
+              variant="outline"
               onClick={() => setMethod(m)}
-              className={`rounded-md border py-2 text-xs font-medium ${method === m ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}
+              className={`h-auto py-2 text-xs font-medium ${method === m ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary' : ''}`}
             >
               {m === 'CASH'
                 ? 'Cash'
@@ -1943,7 +1944,7 @@ function PaymentModal({
                 : m === 'TRANSFER'
                 ? 'Transfer'
                 : 'Gift card'}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -2095,8 +2096,8 @@ function PaymentModal({
             ? 'Confirm received'
             : 'Complete sale'}
         </Button>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -2231,25 +2232,26 @@ function SplitModal({
   // ── Config phase ──────────────────────────────────────────────────────
   if (phase === 'config') {
     return (
-      <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-        <div className="w-full max-w-lg rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Split bill</h2>
-            <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
-          </div>
+      <Dialog open onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="block max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Split bill</DialogTitle>
+          </DialogHeader>
           <p className="mt-1 text-sm text-muted-foreground">
             Total <span className="font-semibold text-foreground">{rupiah(total)}</span>
           </p>
 
           <div className="mt-4 grid grid-cols-3 gap-2">
             {(['equal', 'item', 'custom'] as const).map((m) => (
-              <button
+              <Button
                 key={m}
+                type="button"
+                variant="outline"
                 onClick={() => setMethod(m)}
-                className={`rounded-md border py-2 text-xs font-medium ${method === m ? 'border-primary bg-primary/10 text-primary' : 'border-border'}`}
+                className={`h-auto py-2 text-xs font-medium ${method === m ? 'border-primary bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary' : ''}`}
               >
                 {m === 'equal' ? 'Equal' : m === 'item' ? 'By item' : 'Custom'}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -2329,20 +2331,23 @@ function SplitModal({
           >
             Start split · {n} check{n === 1 ? '' : 's'}
           </Button>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
   // ── Pay phase ─────────────────────────────────────────────────────────
   return (
     <>
-      <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/50 p-4" onClick={completed ? undefined : onClose}>
-        <div className="w-full max-w-md rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Split payment</h2>
-            {!completed && <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>}
-          </div>
+      <Dialog open onOpenChange={(o) => { if (!o && !completed) onClose(); }}>
+        <DialogContent
+          className="block max-w-md"
+          onInteractOutside={(e) => completed && e.preventDefault()}
+          onEscapeKeyDown={(e) => completed && e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>Split payment</DialogTitle>
+          </DialogHeader>
 
           {/* Running progress */}
           <div className="mt-3">
@@ -2391,8 +2396,8 @@ function SplitModal({
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       {activeIdx !== null && (
         <PaymentModal
@@ -2461,14 +2466,15 @@ function QrisModal({
   }, [qris.sessionId, onPaid]);
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 text-center">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{isVa ? 'Pay via Virtual Account' : 'Scan to pay'}</h2>
-          <button onClick={onCancel} aria-label="Cancel">
-            <X className="h-5 w-5 text-muted-foreground" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(o) => !o && onCancel()}>
+      <DialogContent
+        className="block max-w-sm text-center"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle>{isVa ? 'Pay via Virtual Account' : 'Scan to pay'}</DialogTitle>
+        </DialogHeader>
         <p className="mt-1 text-2xl font-bold text-primary">{rupiah(qris.amount)}</p>
 
         {status === 'paid' ? (
@@ -2515,8 +2521,8 @@ function QrisModal({
             Cancel sale
           </Button>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
