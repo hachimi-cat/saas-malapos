@@ -1,34 +1,21 @@
 /*
- * Shared UI utilities for the dashboard. Ported from storlaunch's
- * lib/utils.ts, adapted to malapos (no clsx / tailwind-merge dependency
- * in the template — `cn` is a dependency-free class-name joiner).
+ * Shared UI utilities for the dashboard.
+ *
+ * `cn` is the shadcn-standard merger: clsx for conditional joining +
+ * tailwind-merge so that a className override actually REPLACES a
+ * conflicting utility (e.g. `flex-row` wins over a component's default
+ * `flex-col`) instead of both ending up on the element and the cascade
+ * picking the wrong one. The dependency-free joiner this replaced caused
+ * layout bugs everywhere component classes were overridden.
  *
  * Money is IDR integers (no decimals) — formatCurrency renders Rp.
  */
 
-type ClassValue = string | number | null | false | undefined | ClassValue[] | Record<string, boolean>;
-
-function flatten(input: ClassValue, out: string[]): void {
-  if (!input) return;
-  if (typeof input === 'string' || typeof input === 'number') {
-    out.push(String(input));
-    return;
-  }
-  if (Array.isArray(input)) {
-    for (const v of input) flatten(v, out);
-    return;
-  }
-  if (typeof input === 'object') {
-    for (const [k, v] of Object.entries(input)) {
-      if (v) out.push(k);
-    }
-  }
-}
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]): string {
-  const out: string[] = [];
-  for (const i of inputs) flatten(i, out);
-  return out.join(' ');
+  return twMerge(clsx(inputs));
 }
 
 export function formatCurrency(amount: number, currency = 'IDR'): string {
