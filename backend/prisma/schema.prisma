@@ -613,6 +613,12 @@ model Transaction {
   /// → dropping_off → delivered → cancelled). Updated by the inbound
   /// fulkruma webhook. Null until the sale becomes a delivery order.
   deliveryStatus     String?
+  /// Deferred-dispatch draft: the delivery destination + courier + parcel
+  /// captured at ring-up for a DELIVERY order, persisted so the shipment can
+  /// be created later (POST /delivery/sales/:id/dispatch) from the sale-detail
+  /// or serve board instead of auto-dispatching at completion. Null for
+  /// in-store sales; shape mirrors the frontend DeliveryDraft.
+  deliveryDraft      Json?
   /// Plugipay invoice id recorded for this sale when the Payment module is
   /// ON (one paid invoice per completed non-checkout sale → surfaces it in
   /// the payment module's invoices + receipts views, mirroring what a QRIS/VA

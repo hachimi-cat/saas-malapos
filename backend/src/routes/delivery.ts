@@ -287,4 +287,96 @@ router.post(
   }),
 );
 
+/**
+ * POST /sales/:id/dispatch — deferred dispatch. Create the Fulkruma shipment
+ * for a DELIVERY sale from its persisted `deliveryDraft`, instead of at
+ * completion. Lets the operator dispatch from the sale-detail page or the serve
+ * board once they're ready. Idempotent on fulkrumaShipmentId (one shipment per
+ * sale); 409 if the sale has no dispatchable draft.
+ */
+router.post(
+  '/sales/:id/dispatch',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const id = String(req.params.id);
+    const txn = await prisma.transaction.findFirst({
+      where: { id, accountId },
+      select: { id: true, fulkrumaShipmentId: true, deliveryDraft: true },
+    });
+    if (!txn) {
+      return sendErr(res, req, 404, 'NOT_FOUND', 'Sale not found in this workspace', { param: 'id' });
+    }
+
+    try {
+      const client = await requireFulfillmentClient(accountId);
+
+      // Idempotency: one shipment per sale — return the existing one on a
+      // re-dispatch (double-tap on either surface).
+      if (txn.fulkrumaShipmentId) {
+        const { shipment } = await client.shipments.get(txn.fulkrumaShipmentId);
+        return sendOk(res, req, shipment);
+      }
+
+      const draft = txn.deliveryDraft as {
+        dest?: {
+          contactName?: string;
+          contactPhone?: string;
+          email?: string;
+          address?: string;
+          area?: string;
+          postalCode?: string;
+        };
+        customerId?: string | null;
+        items?: Array<{ name?: string; qty?: number; weight?: number; value?: number }>;
+        rate?: { courierCode?: string; courierServiceCode?: string; price?: number; courierType?: string; serviceType?: string } | null;
+      } | null;
+
+      if (!draft?.dest || !draft.rate?.courierCode || !draft.rate?.courierServiceCode) {
+        return sendErr(res, req, 409, 'CONFLICT', 'This sale has no dispatchable delivery draft', {
+          param: 'deliveryDraft',
+        });
+      }
+
+      const dest = draft.dest;
+      const { shipment } = await client.shipments.create({
+        customerId: draft.customerId ?? undefined,
+        customerEmail: dest.email || undefined,
+        courierCode: draft.rate.courierCode,
+        courierServiceCode: draft.rate.courierServiceCode,
+        courierType: draft.rate.courierType ?? draft.rate.serviceType ?? 'regular',
+        price: typeof draft.rate.price === 'number' ? draft.rate.price : 0,
+        insured: false,
+        // Empty origin — Fulkruma fills it from the merchant's saved origin.
+        origin: {},
+        destination: {
+          contactName: dest.contactName,
+          contactPhone: dest.contactPhone,
+          contactEmail: dest.email || undefined,
+          address: [dest.address, dest.area].filter(Boolean).join(', '),
+          area: dest.area,
+          postalCode: dest.postalCode,
+        },
+        items: (draft.items ?? []).map((it) => ({
+          name: it.name || 'Item',
+          quantity: it.qty || 1,
+          weight: it.weight || 0,
+          value: it.value || 0,
+        })),
+        externalSource: 'malapos',
+        externalRef: txn.id,
+      });
+
+      await prisma.transaction.update({
+        where: { id: txn.id },
+        data: { fulkrumaShipmentId: shipment.id, deliveryStatus: shipment.status },
+      });
+
+      return sendOk(res, req, shipment, 201);
+    } catch (err) {
+      return sendFulkrumaErr(res, req, err);
+    }
+  }),
+);
+
 export default router;

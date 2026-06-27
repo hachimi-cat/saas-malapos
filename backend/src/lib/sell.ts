@@ -61,6 +61,10 @@ export interface CreateSaleInput {
    *  in-store sales. The shipment itself is created post-completion via the
    *  Fulfillment module (routes/delivery.ts); this only carries the money. */
   deliveryFee?: number;
+  /** Deferred-dispatch draft for a DELIVERY order: the destination + chosen
+   *  courier + parcel, persisted so the Fulkruma shipment can be created later
+   *  from the sale-detail or serve board. Null/absent for in-store sales. */
+  deliveryDraft?: unknown;
   payments?: SalePayment[];
   status?: 'COMPLETED' | 'PARKED';
   note?: string | null;
@@ -449,6 +453,9 @@ export interface UpdateParkedInput {
   tableId?: string | null;
   orderType?: OrderType;
   customerId?: string | null;
+  /** Re-persist the deferred-dispatch draft when a held DELIVERY order is
+   *  resumed + re-held (so its destination/courier survive the append). */
+  deliveryDraft?: unknown;
 }
 
 /**
@@ -526,6 +533,7 @@ export async function updateParkedSale(
         ...(input.tableId !== undefined ? { tableId: input.tableId } : {}),
         ...(input.orderType ? { orderType: input.orderType } : {}),
         ...(input.customerId !== undefined ? { customerId: input.customerId } : {}),
+        ...(input.deliveryDraft != null ? { deliveryDraft: input.deliveryDraft as Prisma.InputJsonValue } : {}),
         items: {
           create: lines.map((l) => ({
             id: newId('tli'),
@@ -1228,6 +1236,7 @@ export async function createSale(input: CreateSaleInput, ctx: SaleContext): Prom
         discountTotal: orderDiscount,
         taxTotal,
         deliveryFee,
+        ...(input.deliveryDraft != null ? { deliveryDraft: input.deliveryDraft as Prisma.InputJsonValue } : {}),
         total,
         paidTotal,
         changeTotal,

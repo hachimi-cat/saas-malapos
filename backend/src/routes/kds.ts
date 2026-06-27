@@ -173,6 +173,9 @@ router.get(
       customerName: string | null;
       note: string | null;
       orderType: string;
+      /** Set once a DELIVERY order has been dispatched (deferred dispatch) —
+       *  lets the serve board show Dispatch vs Dispatched. */
+      fulkrumaShipmentId: string | null;
       items: ReadyItem[];
     };
     type ReadyGroup = { tableId: string | null; tableLabel: string; tickets: ReadyTicket[] };
@@ -189,6 +192,7 @@ router.get(
         customerName: t.customer?.name ?? null,
         note: t.note,
         orderType: t.orderType,
+        fulkrumaShipmentId: t.fulkrumaShipmentId,
         items: t.items.map((it) => ({
           id: it.id,
           name: it.productName,

@@ -86,6 +86,7 @@ type SaleDetail = {
   voidReason: string | null;
   fulkrumaShipmentId: string | null;
   deliveryStatus: string | null;
+  deliveryDraft: unknown | null;
   outlet: { name: string };
   table: { label: string } | null;
   customer: { name: string; phone: string | null; email: string | null; loyaltyPoints: number } | null;
@@ -410,8 +411,10 @@ export default function SaleDetailPage() {
 
           {showShipment && (
             <ShipmentSection
+              saleId={id}
               shipmentId={sale.fulkrumaShipmentId}
               deliveryStatus={sale.deliveryStatus}
+              canDispatch={Boolean(sale.deliveryDraft)}
               onChanged={load}
             />
           )}
@@ -450,12 +453,16 @@ function prettyStatus(status: string): string {
 }
 
 function ShipmentSection({
+  saleId,
   shipmentId,
   deliveryStatus,
+  canDispatch,
   onChanged,
 }: {
+  saleId: string;
   shipmentId: string | null;
   deliveryStatus: string | null;
+  canDispatch: boolean;
   onChanged: () => Promise<void>;
 }) {
   const [shipment, setShipment] = useState<Shipment | null>(null);
@@ -523,6 +530,20 @@ function ShipmentSection({
     }
   }
 
+  async function dispatch() {
+    if (!confirm('Dispatch this delivery? A courier will be booked to pick up the parcel.')) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await api.post(`/delivery/sales/${saleId}/dispatch`, {});
+      await onChanged();
+    } catch (e) {
+      setErr(e instanceof ApiRequestError ? e.message : 'Failed to dispatch the delivery');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // No shipment dispatched yet for a delivery sale.
   if (!shipmentId) {
     return (
@@ -530,10 +551,22 @@ function ShipmentSection({
         <h2 className="mb-2 flex items-center gap-2 text-base font-semibold font-display">
           <Truck className="h-4 w-4 text-muted-foreground" /> Delivery
         </h2>
-        <p className="text-sm text-muted-foreground">
-          This is a delivery order, but no courier has been dispatched yet. Create a shipment from the{' '}
-          <Link href="/dashboard/fulfillment/shipments" className="text-primary hover:underline">Shipments</Link> page.
-        </p>
+        {canDispatch ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              This delivery is drafted but not dispatched yet. Dispatch it to book a courier for pickup.
+            </p>
+            {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
+            <Button onClick={dispatch} disabled={busy} className="mt-3 gap-1.5 font-semibold">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />} Dispatch delivery
+            </Button>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            This is a delivery order, but no courier has been dispatched yet. Create a shipment from the{' '}
+            <Link href="/dashboard/fulfillment/shipments" className="text-primary hover:underline">Shipments</Link> page.
+          </p>
+        )}
       </Card>
     );
   }

@@ -470,7 +470,7 @@ export default function SellPage() {
     setDelivery(null);
     setTable(null);
     try {
-      const res = await api.get<{ sale: { items: { variantId: string | null; productName: string; variantName: string | null; unitPrice: number; quantity: number; note: string | null }[]; customer: Customer | null; paidTotal: number } }>(
+      const res = await api.get<{ sale: { items: { variantId: string | null; productName: string; variantName: string | null; unitPrice: number; quantity: number; note: string | null }[]; customer: Customer | null; paidTotal: number; orderType: string; deliveryDraft: DeliveryDraft | null } }>(
         `/sales/${order.id}`,
       );
       const items = (res.data.sale.items ?? []).filter((it) => it.variantId);
@@ -488,6 +488,11 @@ export default function SellPage() {
       setCustomer(res.data.sale.customer ?? null);
       setParkedTxnId(order.id);
       setParkedPaid(res.data.sale.paidTotal ?? 0);
+      // Restore a held delivery's destination + courier so the cashier can
+      // append items, re-charge, and dispatch — the draft survives the hold.
+      if (res.data.sale.orderType === 'DELIVERY' && res.data.sale.deliveryDraft) {
+        setDelivery(res.data.sale.deliveryDraft);
+      }
       setView('register');
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to open the order');
@@ -538,8 +543,9 @@ export default function SellPage() {
       backToFloor();
       return;
     }
-    // Dine-in holds onto its table; a no-table hold is a takeaway counter order.
-    const ot = table ? 'DINE_IN' : 'TAKEAWAY';
+    // Dine-in holds onto its table; a no-table hold is a takeaway or (when a
+    // delivery is attached) a delivery counter order.
+    const ot = table ? 'DINE_IN' : delivery ? 'DELIVERY' : 'TAKEAWAY';
     setHolding(true);
     setError(null);
     try {
@@ -548,6 +554,7 @@ export default function SellPage() {
           items: cartItems(),
           orderType: ot,
           customerId: customer?.id ?? null,
+          ...(delivery ? { deliveryDraft: delivery } : {}),
         });
       } else {
         await api.post('/sales', {
@@ -557,10 +564,11 @@ export default function SellPage() {
           orderType: ot,
           status: 'PARKED',
           items: cartItems(),
+          ...(delivery ? { deliveryFee, deliveryDraft: delivery } : {}),
         });
       }
       setHolding(false);
-      setOrderTab(table ? 'floor' : 'takeaway');
+      setOrderTab(table ? 'floor' : delivery ? 'delivery' : 'takeaway');
       backToFloor();
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to hold the order');
@@ -622,37 +630,6 @@ export default function SellPage() {
     setParkedPaid(0);
     setView('floor');
     loadFloor(outletId);
-  }
-
-  // Create the Fulkruma shipment for a now-completed DELIVERY sale, mirroring
-  // the fulfillment create-from-sale flow (destination + chosen courier +
-  // a single weighted parcel). The backend stamps fulkrumaShipmentId on the
-  // sale and is idempotent (a sale that already has a shipment returns the
-  // existing one), so a double-fire never mints two shipments. Best-effort:
-  // the sale is already paid, so a courier hiccup surfaces as an error toast
-  // rather than failing the completed sale.
-  async function createDeliveryShipment(saleId: string, d: DeliveryDraft) {
-    if (!d.rate) return;
-    const r = d.rate as Rate & { courierType?: string; serviceType?: string };
-    try {
-      await api.post('/delivery/shipments', {
-        transactionId: saleId,
-        destination: deliveryDestinationPayload(d.dest),
-        courierCode: d.rate.courierCode,
-        courierServiceCode: d.rate.courierServiceCode,
-        courierType: r.courierType ?? r.serviceType ?? undefined,
-        price: d.rate.price,
-        items: deliveryItemsPayload(d.items),
-        customerId: d.customerId ?? undefined,
-        customerEmail: d.dest.email || undefined,
-      });
-    } catch (e) {
-      setError(
-        e instanceof ApiRequestError
-          ? `Sale completed, but creating the delivery failed: ${e.message}`
-          : 'Sale completed, but creating the delivery failed.',
-      );
-    }
   }
 
   const filtered = useMemo(() => {
@@ -1203,13 +1180,27 @@ export default function SellPage() {
               </Button>
             </div>
           ) : delivery ? (
-            <Button
-              disabled={!cart.length || (!!delivery && !delivery.rate)}
-              onClick={() => setPaying(true)}
-              className="mt-3 h-auto w-full py-3 font-semibold"
-            >
-              {delivery && !delivery.rate ? 'Pick a courier to charge' : `Charge ${rupiah(due)}`}
-            </Button>
+            <div className="mt-3 space-y-2">
+              {/* A delivery order can be held (resume to add items, pick a
+                  courier, or dispatch later) — F&B only; retail just charges. */}
+              {isFnb && (
+                <Button
+                  variant="outline"
+                  disabled={!cart.length || holding}
+                  onClick={hold}
+                  className="h-auto w-full gap-1.5 py-3 font-semibold"
+                >
+                  {holding ? <Loader2 className="h-4 w-4 animate-spin" /> : <PauseCircle className="h-4 w-4" />} Hold
+                </Button>
+              )}
+              <Button
+                disabled={!cart.length || !delivery.rate}
+                onClick={() => setPaying(true)}
+                className="h-auto w-full py-3 font-semibold"
+              >
+                {!delivery.rate ? 'Pick a courier to charge' : `Charge ${rupiah(due)}`}
+              </Button>
+            </div>
           ) : (
             <div className="mt-3 space-y-2">
               {/* F&B takeaway can be held (resume + append later); retail
@@ -1264,7 +1255,7 @@ export default function SellPage() {
                   ...(table
                     ? { tableId: table.id, orderType: 'DINE_IN' }
                     : delivery
-                    ? { orderType: 'DELIVERY', deliveryFee }
+                    ? { orderType: 'DELIVERY', deliveryFee, deliveryDraft: delivery }
                     : {}),
                 });
                 sale = res.data.sale;
@@ -1273,11 +1264,9 @@ export default function SellPage() {
               setCart([]);
               setCustomer(null);
               setPaying(false);
-              // Delivery quick sale → dispatch the courier now that it's paid.
-              if (delivery && !table) {
-                await createDeliveryShipment(sale.id, delivery);
-                setDelivery(null);
-              }
+              // Delivery: the draft is persisted on the sale; dispatch is
+              // deferred to the sale-detail / serve board, not auto-fired here.
+              if (delivery && !table) setDelivery(null);
               if (table) {
                 setTable(null);
                 setParkedTxnId(null);
@@ -1309,7 +1298,7 @@ export default function SellPage() {
                 ...(table
                   ? { tableId: table.id, orderType: 'DINE_IN' }
                   : delivery
-                  ? { orderType: 'DELIVERY', deliveryFee }
+                  ? { orderType: 'DELIVERY', deliveryFee, deliveryDraft: delivery }
                   : {}),
               });
               saleId = sale.data.sale.id;
@@ -1352,11 +1341,8 @@ export default function SellPage() {
             } catch {
               /* the sale settled server-side; the receipt fetch is cosmetic */
             }
-            // Delivery quick sale paid via QRIS/VA → dispatch the courier now.
-            if (delivery && !table) {
-              await createDeliveryShipment(qris.saleId, delivery);
-              setDelivery(null);
-            }
+            // Delivery: the draft is persisted on the sale; dispatch is deferred.
+            if (delivery && !table) setDelivery(null);
             setCart([]);
             setCustomer(null);
             setQris(null);

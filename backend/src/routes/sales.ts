@@ -55,6 +55,9 @@ const createBody = z.object({
   orderDiscount: z.number().int().min(0).optional(),
   // DELIVERY order: the chosen courier rate's price, added to the total.
   deliveryFee: z.number().int().min(0).optional(),
+  // Deferred-dispatch draft for a DELIVERY order (destination + courier + parcel),
+  // persisted so the shipment can be created later from sale-detail / serve.
+  deliveryDraft: z.unknown().optional(),
   payments: z.array(paymentSchema).max(10).optional(),
   status: z.enum(['COMPLETED', 'PARKED']).optional(),
   note: z.string().trim().max(500).nullish(),
@@ -72,6 +75,7 @@ const updateItemsBody = z.object({
   tableId: z.string().trim().nullish(),
   orderType: orderTypeSchema.optional(),
   customerId: z.string().trim().nullish(),
+  deliveryDraft: z.unknown().optional(),
 });
 
 /** Settle an open bill (PARKED → COMPLETED) with manual tenders. */

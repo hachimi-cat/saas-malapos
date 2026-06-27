@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Utensils, Loader2, CheckCircle2, Hand, Clock, User, StickyNote, ShoppingBag } from 'lucide-react';
+import { Utensils, Loader2, CheckCircle2, Hand, Clock, User, StickyNote, ShoppingBag, Truck } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useRealtime } from '@/hooks/use-realtime';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,7 @@ type ReadyTicket = {
   customerName: string | null;
   note: string | null;
   orderType: string;
+  fulkrumaShipmentId: string | null;
   items: ReadyItem[];
 };
 
@@ -149,6 +150,11 @@ export default function ServePage() {
     [load],
   );
 
+  // Deferred dispatch: book the courier for a delivery order straight from the
+  // expo board once the kitchen has it plated.
+  const dispatchOrder = (txnId: string) =>
+    act(`dispatch:${txnId}`, `/delivery/sales/${txnId}/dispatch`, 'Failed to dispatch the delivery');
+
   // The backend tags counter (takeaway/delivery) tickets with a null tableId.
   // Split them off the dine-in tables so each gets its own lane on the board.
   const tableGroups = groups.filter((g) => g.tableId !== null);
@@ -166,6 +172,10 @@ export default function ServePage() {
     const maxMins = g.tickets.reduce((m, t) => Math.max(m, waitingMinutes(t.readyAt)), 0);
     const rail = maxMins >= 15 ? 'border-l-destructive' : maxMins >= 8 ? 'border-l-amber-500' : 'border-l-emerald-500';
     const headType = g.tickets[0]?.orderType;
+    const headTxnId = g.tickets[0]?.transactionId;
+    const isDeliveryCard = headType === 'DELIVERY';
+    const dispatched = Boolean(g.tickets[0]?.fulkrumaShipmentId);
+    const dispatchBusy = busy === `dispatch:${headTxnId}`;
     return (
       <Card
         key={g.tableId ?? `txn:${g.tickets[0]?.transactionId}`}
@@ -259,6 +269,27 @@ export default function ServePage() {
           ))}
         </div>
 
+        {isDeliveryCard && headTxnId && (
+          dispatched ? (
+            <Badge
+              variant="outline"
+              className="w-full justify-center gap-1.5 border-transparent bg-emerald-500/10 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400"
+            >
+              <Truck className="h-3.5 w-3.5" /> Courier booked
+            </Badge>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => dispatchOrder(headTxnId)}
+              disabled={dispatchBusy}
+              className="w-full gap-1.5"
+            >
+              {dispatchBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
+              Dispatch courier
+            </Button>
+          )
+        )}
         <Button
           type="button"
           onClick={() =>
