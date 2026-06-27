@@ -824,16 +824,22 @@ export default function SellPage() {
               className="bg-card pl-9"
             />
           </div>
-          <Select value={outletId} onValueChange={changeOutlet}>
-            <SelectTrigger className="w-44 bg-card">
-              <SelectValue placeholder="Outlet" />
-            </SelectTrigger>
-            <SelectContent>
-              {outlets.map((o) => (
-                <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Retail/pharmacy has no table screen, so the outlet picker lives
+              here on the only screen. For F&B the outlet is a FILTER on the
+              table-selection screen (the table you open sets the outlet), so
+              it must NOT appear on the order screen. */}
+          {!isFnb && (
+            <Select value={outletId} onValueChange={changeOutlet}>
+              <SelectTrigger className="w-44 bg-card">
+                <SelectValue placeholder="Outlet" />
+              </SelectTrigger>
+              <SelectContent>
+                {outlets.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <div
@@ -1316,42 +1322,40 @@ function FloorView({
         </div>
       </div>
 
-      {/* Parent context: pick the outlet first, then its floor. Both render
-          BEFORE the floor view (table board) so the hierarchy reads top-down. */}
-      {(outlets.length > 1 || floors.length > 1) && (
-        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border pb-3">
-          {outlets.length > 1 && (
-            <div className="flex items-center gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">Outlet</Label>
-              <Select value={outletId} onValueChange={onChangeOutlet}>
-                <SelectTrigger className="w-48 bg-card">
-                  <SelectValue placeholder="Outlet" />
-                </SelectTrigger>
-                <SelectContent>
-                  {outlets.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          {floors.length > 1 && (
-            <div className="flex items-center gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">Floor</Label>
-              <Select value={floorId} onValueChange={onChangeFloor}>
-                <SelectTrigger className="w-44 bg-card">
-                  <SelectValue placeholder="Floor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {floors.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+      {/* Table-selection screen filters. The OUTLET picker lives here — you
+          filter the table board by outlet before opening one — always shown
+          (it's the table screen's primary context). The floor switcher only
+          appears when the outlet actually has more than one floor. */}
+      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border pb-3">
+        <div className="flex items-center gap-2">
+          <Label className="text-xs font-medium text-muted-foreground">Outlet</Label>
+          <Select value={outletId} onValueChange={onChangeOutlet}>
+            <SelectTrigger className="w-48 bg-card">
+              <SelectValue placeholder="Outlet" />
+            </SelectTrigger>
+            <SelectContent>
+              {outlets.map((o) => (
+                <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      )}
+        {floors.length > 1 && (
+          <div className="flex items-center gap-2">
+            <Label className="text-xs font-medium text-muted-foreground">Floor</Label>
+            <Select value={floorId} onValueChange={onChangeFloor}>
+              <SelectTrigger className="w-44 bg-card">
+                <SelectValue placeholder="Floor" />
+              </SelectTrigger>
+              <SelectContent>
+                {floors.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
 
       {floor.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
