@@ -9,6 +9,18 @@ import { BillingTabs } from '@/components/payment/BillingTabs';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const STATUS_COLOR: Record<string, string> = {
   active: 'bg-emerald-500/10 text-emerald-400',
@@ -128,48 +140,71 @@ export default function SubscriptionsPage() {
       key: 'actions',
       header: 'Actions',
       cell: (r) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {r.status === 'active' && (
             <>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => handleAction(r.id, 'pause')}
                 disabled={actionLoading === r.id}
                 title="Pause"
-                className="text-muted-foreground hover:text-amber-400 disabled:opacity-50"
+                className="h-8 w-8 text-muted-foreground hover:text-amber-400"
               >
                 {actionLoading === r.id ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <PauseCircle className="h-4 w-4" />
                 )}
-              </button>
-              <button
-                onClick={() => {
-                  if (confirm('Cancel subscription at end of period?')) {
-                    handleAction(r.id, 'cancel');
-                  }
-                }}
-                disabled={actionLoading === r.id}
-                title="Cancel"
-                className="text-muted-foreground hover:text-destructive disabled:opacity-50"
-              >
-                <XCircle className="h-4 w-4" />
-              </button>
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={actionLoading === r.id}
+                    title="Cancel"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancel subscription?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This subscription will be canceled at the end of the current billing
+                      period. The customer keeps access until then.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep subscription</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleAction(r.id, 'cancel')}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Cancel subscription
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </>
           )}
           {r.status === 'paused' && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => handleAction(r.id, 'resume')}
               disabled={actionLoading === r.id}
               title="Resume"
-              className="text-muted-foreground hover:text-emerald-400 disabled:opacity-50"
+              className="h-8 w-8 text-muted-foreground hover:text-emerald-400"
             >
               {actionLoading === r.id ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <PlayCircle className="h-4 w-4" />
               )}
-            </button>
+            </Button>
           )}
         </div>
       ),

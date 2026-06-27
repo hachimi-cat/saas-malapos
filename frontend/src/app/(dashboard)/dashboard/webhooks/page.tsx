@@ -14,6 +14,26 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -72,7 +92,6 @@ export default function WebhooksPage() {
   }
 
   async function remove(sub: Subscription) {
-    if (!window.confirm(`Remove the endpoint ${sub.url}? Deliveries stop immediately.`)) return;
     try {
       await api.delete(`/webhook-subscriptions/${sub.id}`);
       if (newSecret?.id === sub.id) setNewSecret(null);
@@ -130,55 +149,98 @@ export default function WebhooksPage() {
       )}
 
       {subs === null ? (
-        <p className="py-12 text-center text-sm text-muted-foreground">Loading…</p>
+        <Card className="space-y-2 p-4">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </Card>
       ) : subs.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
           No endpoints yet. Add one to receive malapos.* events.
         </div>
       ) : (
         <Card className="overflow-hidden">
-          {subs.map((s) => (
-            <div
-              key={s.id}
-              className="flex flex-wrap items-center gap-3 border-b border-border/60 px-4 py-3 last:border-b-0"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-mono text-sm">{s.url}</p>
-                <p className="mt-0.5 flex flex-wrap gap-1">
-                  {s.events.map((e) => (
-                    <Badge
-                      key={e}
-                      variant="outline"
-                      className="rounded-full bg-muted/40 px-2 py-0.5 font-mono text-[11px] font-normal text-muted-foreground"
-                    >
-                      {e === '*' ? 'all events (*)' : e}
-                    </Badge>
-                  ))}
-                </p>
-              </div>
-              <Switch
-                checked={s.active}
-                onCheckedChange={() => toggleActive(s)}
-                title={s.active ? 'Deliveries on — click to pause' : 'Paused — click to resume'}
-                className="shrink-0"
-              />
-              <span
-                className={`w-14 shrink-0 text-xs font-medium ${
-                  s.active ? 'text-emerald-600' : 'text-muted-foreground'
-                }`}
-              >
-                {s.active ? 'Active' : 'Paused'}
-              </span>
-              <Button
-                variant="link"
-                size="sm"
-                onClick={() => remove(s)}
-                className="h-auto shrink-0 p-0 text-xs text-destructive"
-              >
-                Remove
-              </Button>
-            </div>
-          ))}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Endpoint</TableHead>
+                <TableHead className="w-36">Status</TableHead>
+                <TableHead className="w-24 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {subs.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell>
+                    <p className="truncate font-mono text-sm">{s.url}</p>
+                    <p className="mt-1 flex flex-wrap gap-1">
+                      {s.events.map((e) => (
+                        <Badge
+                          key={e}
+                          variant="outline"
+                          className="rounded-full bg-muted/40 px-2 py-0.5 font-mono text-[11px] font-normal text-muted-foreground"
+                        >
+                          {e === '*' ? 'all events (*)' : e}
+                        </Badge>
+                      ))}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={s.active}
+                        onCheckedChange={() => toggleActive(s)}
+                        title={
+                          s.active
+                            ? 'Deliveries on — click to pause'
+                            : 'Paused — click to resume'
+                        }
+                      />
+                      <span
+                        className={`text-xs font-medium ${
+                          s.active ? 'text-emerald-400' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {s.active ? 'Active' : 'Paused'}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-xs text-destructive"
+                        >
+                          Remove
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remove endpoint?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Deliveries to{' '}
+                            <span className="break-all font-mono text-foreground">{s.url}</span>{' '}
+                            stop immediately. This can&apos;t be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Keep endpoint</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => remove(s)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Remove endpoint
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Card>
       )}
 

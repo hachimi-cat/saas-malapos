@@ -11,6 +11,15 @@ import { api, ApiRequestError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -79,43 +88,54 @@ export default function ApiKeysPage() {
       )}
 
       {keys === null ? (
-        <p className="py-12 text-center text-sm text-muted-foreground">Loading…</p>
+        <Card className="space-y-2 p-4">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </Card>
       ) : keys.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">
           No API keys yet. Create one to call the Malapos API from your own code.
         </div>
       ) : (
         <Card className="overflow-hidden">
-          <div className="hidden grid-cols-[1fr_8rem_7rem_7rem_4rem] gap-4 border-b border-border bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:grid">
-            <span>Name</span>
-            <span>Key</span>
-            <span>Created</span>
-            <span>Last used</span>
-            <span />
-          </div>
-          {keys.map((k) => (
-            <div
-              key={k.id}
-              className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border/60 px-4 py-3 last:border-b-0 sm:grid sm:grid-cols-[1fr_8rem_7rem_7rem_4rem]"
-            >
-              <span className="min-w-0 flex-1 truncate text-sm font-medium sm:flex-none">
-                {k.name}
-              </span>
-              <code className="font-mono text-xs text-muted-foreground">{k.keyPrefix}…</code>
-              <span className="text-xs text-muted-foreground">{fmtDate(k.createdAt)}</span>
-              <span className="text-xs text-muted-foreground">
-                {k.lastUsedAt ? fmtDate(k.lastUsedAt) : 'Never'}
-              </span>
-              <Button
-                variant="link"
-                size="sm"
-                onClick={() => setDeleting(k)}
-                className="h-auto justify-end p-0 text-xs text-destructive sm:text-right"
-              >
-                Delete
-              </Button>
-            </div>
-          ))}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Key</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Last used</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {keys.map((k) => (
+                <TableRow key={k.id}>
+                  <TableCell className="font-medium">{k.name}</TableCell>
+                  <TableCell>
+                    <code className="font-mono text-xs text-muted-foreground">
+                      {k.keyPrefix}…
+                    </code>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{fmtDate(k.createdAt)}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {k.lastUsedAt ? fmtDate(k.lastUsedAt) : 'Never'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => setDeleting(k)}
+                      className="h-auto p-0 text-xs text-destructive"
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Card>
       )}
 
