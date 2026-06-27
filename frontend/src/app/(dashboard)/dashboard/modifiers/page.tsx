@@ -251,11 +251,10 @@ function GroupCard({
         <Button
           type="button"
           variant="outline"
-          size="sm"
           onClick={addModifier}
           disabled={busy || !newName.trim()}
         >
-          <Plus className="h-3.5 w-3.5" /> Add option
+          <Plus className="h-4 w-4" /> Add option
         </Button>
       </div>
     </Card>

@@ -66,7 +66,7 @@ export default function ContractsPage() {
         description="Active creator collaborations across every campaign. Default view is drafts awaiting your review — toggle filters to see in-progress or all."
       />
 
-      <div className="mb-5 flex items-center gap-1 rounded-md border border-border bg-card p-1">
+      <div className="mb-5 flex h-9 items-center gap-1 rounded-md border border-border bg-card p-1">
         <FilterChip active={filter === 'awaiting_review'} onClick={() => setFilter('awaiting_review')} label="Awaiting review" />
         <FilterChip active={filter === 'in_progress'} onClick={() => setFilter('in_progress')} label="In progress" />
         <FilterChip active={filter === 'all'} onClick={() => setFilter('all')} label="All" />
@@ -124,6 +124,7 @@ function FilterChip({ active, onClick, label }: { active: boolean; onClick: () =
       type="button"
       variant={active ? 'default' : 'ghost'}
       size="sm"
+      className="h-7"
       onClick={onClick}
     >
       {label}

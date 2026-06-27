@@ -120,7 +120,7 @@ export default function MerchantCreatorDirectory() {
       {notice && <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm">{notice}</div>}
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[240px] flex-1">
+        <div className="relative w-full max-w-sm">
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -130,7 +130,7 @@ export default function MerchantCreatorDirectory() {
             className="bg-card pl-9"
           />
         </div>
-        <Button type="button" variant="outline" onClick={() => setFiltersOpen((v) => !v)}>
+        <Button type="button" variant="outline" className="ml-auto" onClick={() => setFiltersOpen((v) => !v)}>
           <SlidersHorizontal size={14} /> Filters
           {activeFilterCount > 0 && (
             <span className="rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-foreground">{activeFilterCount}</span>

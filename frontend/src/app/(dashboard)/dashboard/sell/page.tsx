@@ -1338,7 +1338,7 @@ function FloorView({
 
       {floor.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[200px] flex-1">
+          <div className="relative w-full max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
@@ -1347,12 +1347,12 @@ function FloorView({
               className="bg-card pl-9"
             />
           </div>
-          <div className="flex items-center gap-1 rounded-md border border-border p-1">
+          <div className="ml-auto flex h-9 items-center gap-1 rounded-md border border-border p-1">
             {(['all', 'available', 'occupied'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className={`rounded px-3 py-1 text-xs font-medium capitalize ${statusFilter === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'}`}
+                className={`inline-flex h-7 items-center rounded px-3 text-xs font-medium capitalize ${statusFilter === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent'}`}
               >
                 {s}
               </button>

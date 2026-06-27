@@ -277,7 +277,7 @@ export default function TablesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-md border border-border p-0.5">
+          <div className="inline-flex rounded-md border border-border p-px">
             <Button
               variant={view === 'list' ? 'default' : 'ghost'}
               size="sm"

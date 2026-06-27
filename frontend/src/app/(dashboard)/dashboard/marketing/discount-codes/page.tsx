@@ -383,10 +383,10 @@ function EditorModal({ editing, campaignPrefill, onClose, onDone }: { editing: D
           {!isShipping && (
             <div className="space-y-1.5">
               <Label>Scope</Label>
-              <div className="flex gap-1 rounded-lg border border-border bg-muted/30 p-1">
+              <div className="flex h-9 gap-1 rounded-lg border border-border bg-muted/30 p-1">
                 {(['cart', 'products', 'tags'] as const).map((s) => (
                   <Button key={s} type="button" variant="ghost" size="sm" onClick={() => setScope(s)}
-                    className={`flex-1 ${scope === s ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+                    className={`h-7 flex-1 ${scope === s ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
                     {SCOPE_LABEL[s]}
                   </Button>
                 ))}

@@ -122,17 +122,17 @@ export default function ReportsPage() {
       {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
       {/* Range + custom inputs */}
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-muted/30 p-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex h-9 items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
           {presets.map((p) => (
             <Button key={p.id} type="button" variant="ghost" size="sm"
               onClick={() => { setPresetId(p.id); setCustom(null); }}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium ${presetId === p.id && !custom ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
+              className={`h-7 rounded-md px-3 text-xs font-medium ${presetId === p.id && !custom ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
               {p.label}
             </Button>
           ))}
         </div>
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-2 py-1">
+        <div className="flex h-9 items-center gap-2 rounded-lg border border-border bg-muted/30 px-2">
           <Label htmlFor="rpt-from" className="text-xs font-normal text-muted-foreground">From</Label>
           <Input id="rpt-from" type="date" value={custom?.from?.slice(0, 10) ?? (presets.find((x) => x.id === presetId)?.from.toISOString().slice(0, 10) ?? '')}
             onChange={(e) => setCustom({ from: new Date(`${e.target.value}T00:00:00Z`).toISOString(), to: custom?.to ?? activeRange.to })}
