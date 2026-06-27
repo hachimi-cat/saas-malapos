@@ -213,7 +213,7 @@ function FeedUrlCard({ platform, url, previewHref, copied, onCopy, steps }: {
       <div className="flex items-stretch gap-2">
         <Input readOnly value={url} className="flex-1 bg-muted/30 font-mono text-xs" />
         <Button type="button" variant="outline" onClick={onCopy}>
-          {copied ? <><Check className="h-3.5 w-3.5 text-green-600" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}
+          {copied ? <><Check className="h-3.5 w-3.5 text-emerald-400" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}
         </Button>
         <Button asChild variant="outline">
           <a href={previewHref} target="_blank" rel="noreferrer">

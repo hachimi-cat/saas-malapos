@@ -11,10 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const STATUS_COLOR: Record<string, string> = {
-  active: 'bg-green-500/10 text-green-400',
-  trialing: 'bg-blue-500/10 text-blue-400',
+  active: 'bg-emerald-500/10 text-emerald-400',
+  trialing: 'bg-sky-500/10 text-sky-400',
   past_due: 'bg-amber-500/10 text-amber-400',
-  paused: 'bg-yellow-500/10 text-yellow-400',
+  paused: 'bg-amber-500/10 text-amber-400',
   canceled: 'bg-muted text-muted-foreground',
 };
 
@@ -101,7 +101,7 @@ export default function SubscriptionDetailPage() {
     );
   }
 
-  if (!sub) return <div className="p-8 text-sm text-red-400">{error ?? 'Not found'}</div>;
+  if (!sub) return <div className="p-8 text-sm text-destructive">{error ?? 'Not found'}</div>;
 
   const isCanceled = sub.status === 'canceled';
   const isPaused = sub.status === 'paused';
@@ -161,12 +161,12 @@ export default function SubscriptionDetailPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs font-mono text-red-400">
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-mono text-destructive">
           {error}
         </div>
       )}
       {info && (
-        <div className="rounded-md border border-border bg-green-500/10 px-3 py-2 text-xs font-mono text-green-400">
+        <div className="rounded-md border border-border bg-emerald-500/10 px-3 py-2 text-xs font-mono text-emerald-400">
           {info}
         </div>
       )}

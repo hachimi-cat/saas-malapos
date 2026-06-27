@@ -86,7 +86,7 @@ export default function FunnelAnalyticsPage() {
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Tile icon={Users} label="Enrolled" value={data.totals.total} tone="bg-blue-500/10 text-blue-500" />
+        <Tile icon={Users} label="Enrolled" value={data.totals.total} tone="bg-sky-500/10 text-sky-400" />
         <Tile icon={Loader2} label="Active" value={data.totals.active} tone="bg-amber-500/10 text-amber-500" />
         <Tile icon={CheckCircle2} label="Completed" value={data.totals.completed} tone="bg-emerald-500/10 text-emerald-500" />
         <Tile icon={LogOut} label="Exited" value={data.totals.exited} tone="bg-secondary text-foreground" />

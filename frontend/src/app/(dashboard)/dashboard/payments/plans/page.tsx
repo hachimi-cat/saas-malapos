@@ -188,7 +188,7 @@ function PlanForm({ plan, onClose, onSaved }: PlanFormProps) {
             <Label htmlFor="active" className="text-sm">Active (accepting subscriptions)</Label>
           </div>
 
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          {error && <p className="text-xs text-destructive">{error}</p>}
 
           <div className="flex gap-3 pt-2">
             <Button
@@ -313,7 +313,7 @@ export default function PlansPage() {
                   variant="outline"
                   className={cn(
                     'rounded-full border-transparent px-2 py-0.5 text-xs font-medium',
-                    plan.active ? 'bg-green-500/10 text-green-400' : 'bg-muted text-muted-foreground'
+                    plan.active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground'
                   )}
                 >
                   {plan.active ? 'Active' : 'Inactive'}
@@ -355,7 +355,7 @@ export default function PlansPage() {
                     size="icon"
                     onClick={() => handleDelete(plan.id)}
                     disabled={deletingId === plan.id}
-                    className="h-auto w-auto text-muted-foreground hover:text-red-400 disabled:opacity-50"
+                    className="h-auto w-auto text-muted-foreground hover:text-destructive disabled:opacity-50"
                   >
                     {deletingId === plan.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

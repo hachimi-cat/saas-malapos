@@ -70,7 +70,7 @@ type Rate = {
 
 function statusClass(status: string): string {
   const s = status.toLowerCase();
-  if (s === 'delivered') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+  if (s === 'delivered') return 'bg-emerald-500/10 text-emerald-400';
   if (s === 'cancelled' || s === 'returned' || s === 'failed')
     return 'bg-destructive/10 text-destructive';
   if (s === 'pending' || s === 'confirmed' || s === 'allocated')

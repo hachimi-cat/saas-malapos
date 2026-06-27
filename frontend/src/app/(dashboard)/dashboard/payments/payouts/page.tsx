@@ -25,10 +25,10 @@ const STATUS_LABEL: Record<PayoutStatus, string> = {
 };
 
 const STATUS_COLOR: Record<PayoutStatus, string> = {
-  pending: 'bg-yellow-500/10 text-yellow-400',
-  in_transit: 'bg-blue-500/10 text-blue-400',
-  paid: 'bg-green-500/10 text-green-400',
-  failed: 'bg-red-500/10 text-red-400',
+  pending: 'bg-amber-500/10 text-amber-400',
+  in_transit: 'bg-sky-500/10 text-sky-400',
+  paid: 'bg-emerald-500/10 text-emerald-400',
+  failed: 'bg-destructive/10 text-destructive',
   cancelled: 'bg-muted text-muted-foreground',
 };
 
@@ -135,7 +135,7 @@ export default function PayoutsPage() {
             <StatusIcon status={r.status} />
             {STATUS_LABEL[r.status]}
           </Badge>
-          {r.failureReason && <div className="mt-1 text-xs text-red-600">{r.failureReason}</div>}
+          {r.failureReason && <div className="mt-1 text-xs text-destructive">{r.failureReason}</div>}
         </div>
       ),
     },
@@ -152,7 +152,7 @@ export default function PayoutsPage() {
       align: 'right',
       cell: (r) =>
         r.status === 'pending' ? (
-          <Button variant="link" onClick={() => cancel(r.id)} className="h-auto p-0 text-xs text-red-600">
+          <Button variant="link" onClick={() => cancel(r.id)} className="h-auto p-0 text-xs text-destructive">
             Cancel
           </Button>
         ) : null,
@@ -183,7 +183,7 @@ export default function PayoutsPage() {
         </Button>
       </header>
 
-      {error && <div className="rounded-md border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>}
+      {error && <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="p-6">
@@ -295,7 +295,7 @@ function RequestModal({ available, currency, bank, onClose, onDone }: {
             To {bank.bankName} · {bank.bankAccountNumber} · {bank.bankAccountHolder}
           </p>
         </DialogHeader>
-        {error && <div className="mb-3 rounded-md border border-red-500/50 bg-red-500/10 p-2 text-xs text-red-400">{error}</div>}
+        {error && <div className="mb-3 rounded-md border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">{error}</div>}
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="po-amount">
@@ -362,7 +362,7 @@ function BankModal({ initial, onClose, onDone }: { initial: PayoutBankAccount | 
           <DialogTitle>Default bank account</DialogTitle>
           <p className="text-xs text-muted-foreground">Used as the destination for payout requests.</p>
         </DialogHeader>
-        {error && <div className="mb-3 rounded-md border border-red-500/50 bg-red-500/10 p-2 text-xs text-red-400">{error}</div>}
+        {error && <div className="mb-3 rounded-md border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">{error}</div>}
         <form onSubmit={submit} className="space-y-3">
           <div className="grid grid-cols-[1fr_auto] gap-2">
             <div className="space-y-1.5">

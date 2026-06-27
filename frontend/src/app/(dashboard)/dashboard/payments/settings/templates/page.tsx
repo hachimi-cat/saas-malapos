@@ -204,12 +204,12 @@ export default function TemplatesPage() {
       </Tabs>
 
       {error && (
-        <div className="rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs font-mono text-red-400">
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-mono text-destructive">
           {error}
         </div>
       )}
       {info && (
-        <div className="rounded-md border border-border bg-green-500/10 px-3 py-2 text-xs font-mono text-green-400">
+        <div className="rounded-md border border-border bg-emerald-500/10 px-3 py-2 text-xs font-mono text-emerald-400">
           {info}
         </div>
       )}
@@ -318,7 +318,7 @@ function TemplatePreview({ kind, config }: { kind: TemplateKind; config: Record<
   return (
     <Card className="p-4">
       <h3 className="mb-3 text-sm font-semibold font-display">Live preview</h3>
-      {error && <div className="mb-2 font-mono text-xs text-red-400">{error}</div>}
+      {error && <div className="mb-2 font-mono text-xs text-destructive">{error}</div>}
       {html ? (
         <iframe
           srcDoc={html}
@@ -439,7 +439,7 @@ function TemplateEditor({
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs font-mono text-red-400">
+          <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-mono text-destructive">
             {error}
           </div>
         )}

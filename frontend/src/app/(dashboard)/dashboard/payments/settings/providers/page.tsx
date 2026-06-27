@@ -247,12 +247,12 @@ export default function ProvidersSettingsPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs font-mono text-red-400">
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-mono text-destructive">
           {error}
         </div>
       )}
       {info && (
-        <div className="rounded-md border border-border bg-green-500/10 px-3 py-2 text-xs font-mono text-green-400">
+        <div className="rounded-md border border-border bg-emerald-500/10 px-3 py-2 text-xs font-mono text-emerald-400">
           {info}
         </div>
       )}
@@ -393,7 +393,7 @@ export default function ProvidersSettingsPage() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="mt-server" className={labelCls}>
-                Server Key <span className="text-red-500">*</span>
+                Server Key <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="mt-server"
@@ -413,7 +413,7 @@ export default function ProvidersSettingsPage() {
             </div>
             <div>
               <Label htmlFor="mt-client" className={labelCls}>
-                Client Key <span className="text-red-500">*</span>
+                Client Key <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="mt-client"
@@ -424,7 +424,7 @@ export default function ProvidersSettingsPage() {
             </div>
             <div>
               <Label htmlFor="mt-merchant" className={labelCls}>
-                Merchant ID <span className="text-red-500">*</span>
+                Merchant ID <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="mt-merchant"
@@ -514,7 +514,7 @@ export default function ProvidersSettingsPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => setManualBankAccounts((prev) => prev.filter((_, i) => i !== idx))}
-                        className="justify-self-end text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                        className="justify-self-end text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         aria-label="Remove account"
                       >
                         <Trash2 className="h-4 w-4" />

@@ -11,10 +11,10 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 const STATUS_COLOR: Record<string, string> = {
-  active: 'bg-green-500/10 text-green-400',
-  trialing: 'bg-blue-500/10 text-blue-400',
+  active: 'bg-emerald-500/10 text-emerald-400',
+  trialing: 'bg-sky-500/10 text-sky-400',
   past_due: 'bg-orange-500/10 text-orange-400',
-  paused: 'bg-yellow-500/10 text-yellow-400',
+  paused: 'bg-amber-500/10 text-amber-400',
   canceled: 'bg-muted text-muted-foreground',
   created: 'bg-muted text-muted-foreground',
 };
@@ -135,7 +135,7 @@ export default function SubscriptionsPage() {
                 onClick={() => handleAction(r.id, 'pause')}
                 disabled={actionLoading === r.id}
                 title="Pause"
-                className="text-muted-foreground hover:text-yellow-400 disabled:opacity-50"
+                className="text-muted-foreground hover:text-amber-400 disabled:opacity-50"
               >
                 {actionLoading === r.id ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -151,7 +151,7 @@ export default function SubscriptionsPage() {
                 }}
                 disabled={actionLoading === r.id}
                 title="Cancel"
-                className="text-muted-foreground hover:text-red-400 disabled:opacity-50"
+                className="text-muted-foreground hover:text-destructive disabled:opacity-50"
               >
                 <XCircle className="h-4 w-4" />
               </button>
@@ -162,7 +162,7 @@ export default function SubscriptionsPage() {
               onClick={() => handleAction(r.id, 'resume')}
               disabled={actionLoading === r.id}
               title="Resume"
-              className="text-muted-foreground hover:text-green-400 disabled:opacity-50"
+              className="text-muted-foreground hover:text-emerald-400 disabled:opacity-50"
             >
               {actionLoading === r.id ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

@@ -60,7 +60,7 @@ type Tab = 'brief' | 'affiliators' | 'commissions';
 
 const COMMISSION_TONE: Record<string, string> = {
   pending: 'bg-amber-500/10 text-amber-600',
-  approved: 'bg-blue-500/10 text-blue-600',
+  approved: 'bg-sky-500/10 text-sky-400',
   paid: 'bg-emerald-500/10 text-emerald-600',
   voided: 'bg-secondary text-muted-foreground',
 };

@@ -2005,7 +2005,7 @@ function PaymentModal({
                         }}
                         className="text-muted-foreground hover:text-primary"
                       >
-                        {copied ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
                       </button>
                     </dd>
                   </div>
@@ -2360,7 +2360,7 @@ function SplitModal({
 
           {completed ? (
             <div className="my-8 flex flex-col items-center gap-2">
-              <CheckCircle2 className="h-14 w-14 text-green-600" />
+              <CheckCircle2 className="h-14 w-14 text-emerald-400" />
               <p className="font-medium">Bill fully paid</p>
             </div>
           ) : (
@@ -2380,7 +2380,7 @@ function SplitModal({
                   <span className="flex items-center gap-2">
                     <span className="text-sm font-semibold">{rupiah(c.amount)}</span>
                     {c.paid ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400">
                         <CheckCircle2 className="h-4 w-4" /> Paid
                       </span>
                     ) : (
@@ -2473,7 +2473,7 @@ function QrisModal({
 
         {status === 'paid' ? (
           <div className="my-8 flex flex-col items-center gap-2">
-            <CheckCircle2 className="h-14 w-14 text-green-600" />
+            <CheckCircle2 className="h-14 w-14 text-emerald-400" />
             <p className="font-medium">Payment received</p>
           </div>
         ) : status === 'error' ? (

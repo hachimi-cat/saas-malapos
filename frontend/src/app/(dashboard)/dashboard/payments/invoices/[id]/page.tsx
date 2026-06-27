@@ -11,11 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const STATUS_COLOR: Record<string, string> = {
-  paid: 'bg-green-500/10 text-green-400',
-  open: 'bg-yellow-500/10 text-yellow-400',
+  paid: 'bg-emerald-500/10 text-emerald-400',
+  open: 'bg-amber-500/10 text-amber-400',
   draft: 'bg-muted text-muted-foreground',
   void: 'bg-muted text-muted-foreground',
-  uncollectible: 'bg-red-500/10 text-red-400',
+  uncollectible: 'bg-destructive/10 text-destructive',
 };
 
 type InvoiceDetail = Invoice & {
@@ -102,7 +102,7 @@ export default function InvoiceDetailPage() {
     );
   }
 
-  if (!inv) return <div className="p-8 text-sm text-red-400">{error ?? 'Not found'}</div>;
+  if (!inv) return <div className="p-8 text-sm text-destructive">{error ?? 'Not found'}</div>;
 
   const total = inv.total ?? inv.amount;
   const subtotal = inv.subtotal ?? inv.amount;
@@ -222,7 +222,7 @@ export default function InvoiceDetailPage() {
                 onClick={shareLink}
                 className="text-xs"
               >
-                {copied ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                {copied ? <CheckCircle2 className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
                 {copied ? 'Copied' : 'Share link'}
               </Button>
             </div>

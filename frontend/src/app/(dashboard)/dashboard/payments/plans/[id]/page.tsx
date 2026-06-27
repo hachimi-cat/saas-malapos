@@ -134,7 +134,7 @@ export default function PlanDetailPage() {
     );
   }
 
-  if (!plan) return <div className="p-8 text-sm text-red-400">{error ?? 'Not found'}</div>;
+  if (!plan) return <div className="p-8 text-sm text-destructive">{error ?? 'Not found'}</div>;
 
   const prices = plan.prices ?? [];
   const intervalCount = plan.intervalCount ?? 1;
@@ -157,7 +157,7 @@ export default function PlanDetailPage() {
               variant="outline"
               className={cn(
                 'rounded-full border-transparent px-2 py-0.5 text-xs font-medium',
-                plan.active ? 'bg-green-500/10 text-green-400' : 'bg-muted text-muted-foreground',
+                plan.active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground',
               )}
             >
               {plan.active ? 'Active' : 'Archived'}
@@ -177,7 +177,7 @@ export default function PlanDetailPage() {
               variant="outline"
               onClick={archive}
               disabled={busy}
-              className="border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+              className="border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20"
             >
               <Archive className="h-4 w-4" /> Archive
             </Button>
@@ -186,12 +186,12 @@ export default function PlanDetailPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs font-mono text-red-400">
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-mono text-destructive">
           {error}
         </div>
       )}
       {info && (
-        <div className="rounded-md border border-border bg-green-500/10 px-3 py-2 text-xs font-mono text-green-400">
+        <div className="rounded-md border border-border bg-emerald-500/10 px-3 py-2 text-xs font-mono text-emerald-400">
           {info}
         </div>
       )}
@@ -308,7 +308,7 @@ export default function PlanDetailPage() {
                           variant="outline"
                           className={cn(
                             'rounded-full border-transparent px-2 py-0.5 text-xs font-medium',
-                            pr.active ? 'bg-green-500/10 text-green-400' : 'bg-muted text-muted-foreground',
+                            pr.active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground',
                           )}
                         >
                           {pr.active ? 'Active' : 'Archived'}
@@ -341,7 +341,7 @@ export default function PlanDetailPage() {
                       variant="outline"
                       className={cn(
                         'rounded-full border-transparent px-2 py-0.5 text-xs font-medium',
-                        pr.active ? 'bg-green-500/10 text-green-400' : 'bg-muted text-muted-foreground',
+                        pr.active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground',
                       )}
                     >
                       {pr.active ? 'Active' : 'Archived'}

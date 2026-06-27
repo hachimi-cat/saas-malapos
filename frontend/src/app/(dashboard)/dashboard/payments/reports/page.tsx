@@ -172,7 +172,7 @@ function PnlView({ report, fmt }: { report: PnlReport | null; fmt: (n: number, c
     <div className="space-y-4">
       <Card className="rounded-xl border border-border bg-card p-6">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Net profit</p>
-        <p className={`mt-1 text-3xl font-bold ${r.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        <p className={`mt-1 text-3xl font-bold ${r.netProfit >= 0 ? 'text-emerald-400' : 'text-destructive'}`}>
           {fmt(r.netProfit, r.currency)}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -218,7 +218,7 @@ function CashFlowView({ report, fmt }: { report: CashFlowReport | null; fmt: (n:
         </Card>
         <Card className="rounded-xl border border-border bg-card p-6">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Net change</p>
-          <p className={`mt-1 flex items-center gap-1 text-xl font-bold ${cf.netChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <p className={`mt-1 flex items-center gap-1 text-xl font-bold ${cf.netChange >= 0 ? 'text-emerald-400' : 'text-destructive'}`}>
             <TrendingUp className="h-4 w-4" /> {cf.netChange >= 0 ? '+' : '−'}{fmt(Math.abs(cf.netChange), cf.currency)}
           </p>
         </Card>
@@ -230,7 +230,7 @@ function CashFlowView({ report, fmt }: { report: CashFlowReport | null; fmt: (n:
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="rounded-xl border border-border bg-card p-6">
-          <p className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-green-600">
+          <p className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-emerald-400">
             <ArrowDownCircle className="h-4 w-4" /> Inflows · {fmt(cf.totalIn, cf.currency)}
           </p>
           {Object.keys(cf.inflows).length === 0 ? (
@@ -242,7 +242,7 @@ function CashFlowView({ report, fmt }: { report: CashFlowReport | null; fmt: (n:
           )}
         </Card>
         <Card className="rounded-xl border border-border bg-card p-6">
-          <p className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-red-600">
+          <p className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-destructive">
             <ArrowUpCircle className="h-4 w-4" /> Outflows · {fmt(cf.totalOut, cf.currency)}
           </p>
           {Object.keys(cf.outflows).length === 0 ? (

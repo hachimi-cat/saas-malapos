@@ -26,7 +26,7 @@ interface Collab {
 const STATUS_TONE: Record<string, string> = {
   pending_funding: 'bg-amber-500/10 text-amber-600',
   active: 'bg-emerald-500/10 text-emerald-600',
-  delivered: 'bg-blue-500/10 text-blue-600',
+  delivered: 'bg-sky-500/10 text-sky-400',
   approved: 'bg-emerald-500/15 text-emerald-700',
   paid: 'bg-emerald-500/20 text-emerald-700',
   disputed: 'bg-destructive/10 text-destructive',

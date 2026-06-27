@@ -38,20 +38,20 @@ import {
 // dropped — there is no buyersApi here.)
 
 const SUB_STATUS_COLOR: Record<string, string> = {
-  active: 'bg-green-500/10 text-green-400',
-  trialing: 'bg-blue-500/10 text-blue-400',
+  active: 'bg-emerald-500/10 text-emerald-400',
+  trialing: 'bg-sky-500/10 text-sky-400',
   past_due: 'bg-amber-500/10 text-amber-400',
-  paused: 'bg-yellow-500/10 text-yellow-400',
+  paused: 'bg-amber-500/10 text-amber-400',
   canceled: 'bg-muted text-muted-foreground',
 };
 
 const INVOICE_STATUS_COLOR: Record<string, string> = {
-  paid: 'bg-green-500/10 text-green-400',
-  open: 'bg-blue-500/10 text-blue-400',
+  paid: 'bg-emerald-500/10 text-emerald-400',
+  open: 'bg-sky-500/10 text-sky-400',
   past_due: 'bg-amber-500/10 text-amber-400',
   draft: 'bg-muted text-muted-foreground',
   void: 'bg-muted text-muted-foreground',
-  uncollectible: 'bg-red-500/10 text-red-400',
+  uncollectible: 'bg-destructive/10 text-destructive',
 };
 
 export default function CustomerDetailPage() {
@@ -93,7 +93,7 @@ export default function CustomerDetailPage() {
   if (!customer) {
     return (
       <div className="space-y-3 p-8">
-        <p className="text-sm text-red-400">{error ?? 'Customer not found'}</p>
+        <p className="text-sm text-destructive">{error ?? 'Customer not found'}</p>
         <Link href="/dashboard/payments/customers" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
           <ArrowLeft className="h-3 w-3" /> Back to Customers
         </Link>

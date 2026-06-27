@@ -52,7 +52,7 @@ interface Channel { id: string; provider: string; displayName: string; status: s
 const KIND_META: Record<StepKind, { label: string; icon: React.ComponentType<{ size?: number }>; tone: string }> = {
   send: { label: 'Send', icon: Mail, tone: 'border-primary/40 bg-primary/5' },
   delay: { label: 'Wait', icon: Clock, tone: 'border-amber-500/40 bg-amber-500/5' },
-  branch: { label: 'Branch on engagement', icon: Split, tone: 'border-blue-500/40 bg-blue-500/5' },
+  branch: { label: 'Branch on engagement', icon: Split, tone: 'border-sky-500/40 bg-sky-500/5' },
   exit: { label: 'Exit', icon: LogOut, tone: 'border-secondary' },
 };
 

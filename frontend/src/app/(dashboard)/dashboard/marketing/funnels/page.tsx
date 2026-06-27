@@ -95,7 +95,7 @@ export default function FunnelsPage() {
                     f.status === 'active' ? 'bg-emerald-500/10 text-emerald-600' :
                     f.status === 'paused' ? 'bg-amber-500/10 text-amber-600' :
                     f.status === 'archived' ? 'bg-secondary text-muted-foreground' :
-                    'bg-blue-500/10 text-blue-600'
+                    'bg-sky-500/10 text-sky-400'
                   )}>{f.status}</Badge>
                 </Link>
               </li>

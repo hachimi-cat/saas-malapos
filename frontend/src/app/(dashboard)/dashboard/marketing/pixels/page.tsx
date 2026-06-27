@@ -102,9 +102,9 @@ export default function PixelsPage() {
       {/* ── Meta Pixel + CAPI ─────────────────────────────────────────────── */}
       <Card className="p-5">
         <div className="mb-4 flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-blue-600" />
+          <BarChart3 className="h-5 w-5 text-sky-400" />
           <h2 className="text-sm font-semibold font-display">Meta Pixel &amp; Conversions API</h2>
-          {form.metaPixelId && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+          {form.metaPixelId && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
         </div>
         <div className="space-y-3">
           <Field
@@ -147,7 +147,7 @@ export default function PixelsPage() {
         <div className="mb-4 flex items-center gap-2">
           <Activity className="h-5 w-5 text-orange-600" />
           <h2 className="text-sm font-semibold font-display">Google Analytics &amp; Google Ads</h2>
-          {form.googleAnalyticsId && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+          {form.googleAnalyticsId && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
         </div>
         <div className="space-y-3">
           <Field
@@ -182,7 +182,7 @@ export default function PixelsPage() {
         <div className="mb-4 flex items-center gap-2">
           <Target className="h-5 w-5 text-pink-600" />
           <h2 className="text-sm font-semibold font-display">TikTok Pixel</h2>
-          {form.tiktokPixelId && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+          {form.tiktokPixelId && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
         </div>
         <Field
           id="tiktok-pixel"

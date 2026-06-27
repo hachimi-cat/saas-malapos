@@ -29,8 +29,8 @@ function StatusBadge({ delivery }: { delivery: Delivery }) {
   if (s === 'expired')
     return <Badge variant="outline" className="rounded-full border-transparent bg-destructive/10 text-destructive">Expired</Badge>;
   if (s === 'maxed')
-    return <Badge variant="outline" className="rounded-full border-transparent bg-yellow-500/10 text-yellow-400">Limit Reached</Badge>;
-  return <Badge variant="outline" className="rounded-full border-transparent bg-green-500/10 text-green-400">Active</Badge>;
+    return <Badge variant="outline" className="rounded-full border-transparent bg-amber-500/10 text-amber-400">Limit Reached</Badge>;
+  return <Badge variant="outline" className="rounded-full border-transparent bg-emerald-500/10 text-emerald-400">Active</Badge>;
 }
 
 export default function DeliveriesPage() {

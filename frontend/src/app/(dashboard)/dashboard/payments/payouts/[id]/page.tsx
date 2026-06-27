@@ -10,10 +10,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 const STATUS_COLOR: Record<string, string> = {
-  paid: 'bg-green-500/10 text-green-400',
-  in_transit: 'bg-blue-500/10 text-blue-400',
-  pending: 'bg-yellow-500/10 text-yellow-400',
-  failed: 'bg-red-500/10 text-red-400',
+  paid: 'bg-emerald-500/10 text-emerald-400',
+  in_transit: 'bg-sky-500/10 text-sky-400',
+  pending: 'bg-amber-500/10 text-amber-400',
+  failed: 'bg-destructive/10 text-destructive',
   cancelled: 'bg-muted text-muted-foreground',
   canceled: 'bg-muted text-muted-foreground',
 };
@@ -41,7 +41,7 @@ export default function PayoutDetailPage() {
     );
   }
 
-  if (!payout) return <div className="p-8 text-sm text-red-400">{error ?? 'Not found'}</div>;
+  if (!payout) return <div className="p-8 text-sm text-destructive">{error ?? 'Not found'}</div>;
 
   const fmt = (n: number) =>
     payout.currency === 'IDR' ? formatCurrency(n) : `${payout.currency} ${n.toFixed(2)}`;
@@ -113,7 +113,7 @@ export default function PayoutDetailPage() {
             {payout.failureReason && (
               <div className="mt-4">
                 <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">Failure reason</p>
-                <p className="text-sm text-red-400">{payout.failureReason}</p>
+                <p className="text-sm text-destructive">{payout.failureReason}</p>
               </div>
             )}
           </CardContent>

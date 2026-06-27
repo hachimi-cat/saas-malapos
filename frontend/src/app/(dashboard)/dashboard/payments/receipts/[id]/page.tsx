@@ -111,7 +111,7 @@ export default function ReceiptDetailPage() {
   }
 
   if (!receipt) {
-    return <div className="p-8 text-sm text-red-400">{error ?? 'Not found'}</div>;
+    return <div className="p-8 text-sm text-destructive">{error ?? 'Not found'}</div>;
   }
 
   return (
@@ -140,12 +140,12 @@ export default function ReceiptDetailPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs font-mono text-red-400">
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-mono text-destructive">
           {error}
         </div>
       )}
       {info && (
-        <div className="rounded-md border border-border bg-green-500/10 px-3 py-2 text-xs font-mono text-green-400">
+        <div className="rounded-md border border-border bg-emerald-500/10 px-3 py-2 text-xs font-mono text-emerald-400">
           {info}
         </div>
       )}

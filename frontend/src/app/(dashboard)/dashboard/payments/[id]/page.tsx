@@ -11,8 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const STATUS_COLOR: Record<string, string> = {
-  completed: 'bg-green-500/10 text-green-400',
-  open: 'bg-yellow-500/10 text-yellow-400',
+  completed: 'bg-emerald-500/10 text-emerald-400',
+  open: 'bg-amber-500/10 text-amber-400',
   pending_review: 'bg-amber-500/10 text-amber-400',
   expired: 'bg-muted text-muted-foreground',
   canceled: 'bg-muted text-muted-foreground',
@@ -69,7 +69,7 @@ export default function PaymentDetailPage() {
   }
 
   if (!session) {
-    return <div className="p-8 text-sm text-red-400">{error ?? 'Session not found'}</div>;
+    return <div className="p-8 text-sm text-destructive">{error ?? 'Session not found'}</div>;
   }
 
   return (
@@ -116,12 +116,12 @@ export default function PaymentDetailPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs font-mono text-red-400">
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-mono text-destructive">
           {error}
         </div>
       )}
       {info && (
-        <div className="rounded-md border border-border bg-green-500/10 px-3 py-2 text-xs font-mono text-green-400">
+        <div className="rounded-md border border-border bg-emerald-500/10 px-3 py-2 text-xs font-mono text-emerald-400">
           {info}
         </div>
       )}

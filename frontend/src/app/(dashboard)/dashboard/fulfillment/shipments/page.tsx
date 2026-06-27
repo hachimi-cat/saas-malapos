@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 
 function statusClass(status: string): string {
   const s = status.toLowerCase();
-  if (s === 'delivered') return 'bg-green-500/10 text-green-400';
+  if (s === 'delivered') return 'bg-emerald-500/10 text-emerald-400';
   if (s === 'cancelled' || s === 'returned' || s === 'failed') return 'bg-destructive/10 text-destructive';
   if (s === 'pending' || s === 'confirmed' || s === 'allocated') return 'bg-muted text-muted-foreground';
   return 'bg-primary/10 text-primary';

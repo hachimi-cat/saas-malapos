@@ -124,7 +124,7 @@ export default function LedgerPage() {
       sortable: true,
       sortValue: (e) => (e.type === 'credit' ? e.amount : -e.amount),
       cell: (e) => (
-        <span className={`inline-flex items-center gap-1 font-mono ${e.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+        <span className={`inline-flex items-center gap-1 font-mono ${e.type === 'credit' ? 'text-emerald-400' : 'text-destructive'}`}>
           {e.type === 'credit' ? <ArrowDownRight className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
           {e.type === 'credit' ? '+' : '−'}{fmt(e.amount, e.currency)}
         </span>
@@ -179,7 +179,7 @@ export default function LedgerPage() {
         </div>
       </header>
 
-      {error && <div className="rounded-md border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>}
+      {error && <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
       <Card className="rounded-xl p-6">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Running balance</p>

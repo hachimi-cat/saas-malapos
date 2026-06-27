@@ -216,7 +216,7 @@ export default function ChannelsPage() {
                     c.status === 'active' ? 'bg-emerald-500/10 text-emerald-600' :
                     c.status === 'expired' ? 'bg-amber-500/10 text-amber-600' :
                     c.status === 'revoked' ? 'bg-secondary text-muted-foreground' :
-                    'bg-blue-500/10 text-blue-600'
+                    'bg-sky-500/10 text-sky-400'
                   }`}>{c.status}</Badge>
                   {c.status === 'active' && (
                     <Button variant="link" onClick={() => setTestFor(c)} className="ml-2 h-auto p-0 text-xs text-foreground">Send test</Button>

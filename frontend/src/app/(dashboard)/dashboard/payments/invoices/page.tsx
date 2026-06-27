@@ -11,11 +11,11 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 const STATUS_COLOR: Record<string, string> = {
-  paid: 'bg-green-500/10 text-green-400',
-  open: 'bg-yellow-500/10 text-yellow-400',
+  paid: 'bg-emerald-500/10 text-emerald-400',
+  open: 'bg-amber-500/10 text-amber-400',
   draft: 'bg-muted text-muted-foreground',
   void: 'bg-muted text-muted-foreground',
-  uncollectible: 'bg-red-500/10 text-red-400',
+  uncollectible: 'bg-destructive/10 text-destructive',
 };
 
 const STATUS_OPTIONS = [

@@ -15,10 +15,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 const STATUS_COLOR: Record<string, string> = {
-  open: 'bg-yellow-500/10 text-yellow-400',
-  completed: 'bg-green-500/10 text-green-400',
+  open: 'bg-amber-500/10 text-amber-400',
+  completed: 'bg-emerald-500/10 text-emerald-400',
   expired: 'bg-muted text-muted-foreground',
-  refunded: 'bg-red-500/10 text-red-400',
+  refunded: 'bg-destructive/10 text-destructive',
 };
 
 const STATUS_OPTIONS = [
@@ -168,7 +168,7 @@ function CopyButton({ text }: { text: string }) {
   }
   return (
     <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground" title="Copy URL">
-      {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
     </button>
   );
 }

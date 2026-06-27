@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
  */
 
 const STATUS_COLOR: Record<string, string> = {
-  active: 'bg-green-500/10 text-green-400',
+  active: 'bg-emerald-500/10 text-emerald-400',
   revoked: 'bg-destructive/10 text-destructive',
 };
 
@@ -41,7 +41,7 @@ function CopyButton({ text }: { text: string }) {
       title="Copy key"
       className="h-6 w-6 text-muted-foreground hover:text-foreground"
     >
-      {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
     </Button>
   );
 }
