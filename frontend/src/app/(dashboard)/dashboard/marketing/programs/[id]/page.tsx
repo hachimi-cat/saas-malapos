@@ -10,7 +10,7 @@ import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { cn } from '@/lib/utils';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -189,7 +189,7 @@ export default function ProgramDetailPage() {
           <TabsTrigger value="affiliators" className="relative">
             <Users size={14} /> Affiliators
             {typeof enrollments?.length === 'number' && enrollments.length > 0 && (
-              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{enrollments.length}</span>
+              <Badge variant="secondary" className="rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none">{enrollments.length}</Badge>
             )}
             {pendingEnrollments > 0 && (
               <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -198,7 +198,7 @@ export default function ProgramDetailPage() {
           <TabsTrigger value="commissions" className="relative">
             <Coins size={14} /> Commissions
             {typeof commissions?.length === 'number' && commissions.length > 0 && (
-              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{commissions.length}</span>
+              <Badge variant="secondary" className="rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none">{commissions.length}</Badge>
             )}
             {pendingCommissions > 0 && (
               <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -215,13 +215,17 @@ export default function ProgramDetailPage() {
               <p className="text-sm italic text-muted-foreground">No brief written yet.</p>
             )}
           </Card>
-          <Card className="p-6">
-            <h3 className="mb-3 text-sm font-semibold font-display">Campaign linkage</h3>
+          <Card>
+            <CardHeader>
+              <CardTitle className="mb-3 text-sm font-semibold font-display">Campaign linkage</CardTitle>
+            </CardHeader>
+            <CardContent>
             <CampaignSelect
               value={program.marketingCampaignId ?? null}
               onChange={updateCampaignLinkage}
               disabled={working === 'campaign'}
             />
+            </CardContent>
           </Card>
         </div>
         </TabsContent>

@@ -25,7 +25,7 @@ import { rupiah } from '@/lib/money';
 import { useModules } from '@/hooks/use-modules';
 import { deliveryApi, shipmentsApi, type Shipment } from '@/lib/fulfillment-api';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -334,8 +334,11 @@ export default function SaleDetailPage() {
       <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
         {/* Line items + totals */}
         <div className="space-y-5">
-          <Card className="p-6">
-            <h2 className="mb-4 text-base font-semibold font-display">Items</h2>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold font-display">Items</CardTitle>
+            </CardHeader>
+            <CardContent>
             <div className="text-sm">
               {sale.items.map((it) => (
                 <div
@@ -379,11 +382,15 @@ export default function SaleDetailPage() {
                 <span className="tabular-nums">− {rupiah(sale.refundedTotal)}</span>
               </div>
             )}
+            </CardContent>
           </Card>
 
           {/* Payments */}
-          <Card className="p-6">
-            <h2 className="mb-3 text-base font-semibold font-display">Payments</h2>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold font-display">Payments</CardTitle>
+            </CardHeader>
+            <CardContent>
             <div className="space-y-2 text-sm">
               {sale.payments.length === 0 ? (
                 <p className="text-muted-foreground">No payments recorded.</p>
@@ -403,29 +410,38 @@ export default function SaleDetailPage() {
                 {sale.changeTotal > 0 && <Row label="Change" value={rupiah(sale.changeTotal)} muted />}
               </div>
             </div>
+            </CardContent>
           </Card>
         </div>
 
         {/* Right column: customer + shipment */}
         <div className="space-y-4">
           {sale.customer && (
-            <Card className="p-6">
-              <h2 className="mb-3 flex items-center gap-2 text-base font-semibold font-display">
-                <User className="h-4 w-4 text-muted-foreground" /> Customer
-              </h2>
+            <Card>
+              <CardHeader className="flex-row items-center gap-2 space-y-0">
+                <CardTitle className="flex items-center gap-2 text-base font-semibold font-display">
+                  <User className="h-4 w-4 text-muted-foreground" /> Customer
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
               <p className="text-sm">{sale.customer.name}</p>
               {sale.customer.phone && <p className="text-xs text-muted-foreground">{sale.customer.phone}</p>}
               {sale.customer.email && <p className="text-xs text-muted-foreground">{sale.customer.email}</p>}
               <p className="mt-2 text-xs text-muted-foreground">
                 Loyalty: <span className="font-medium text-foreground">{sale.customer.loyaltyPoints.toLocaleString('id-ID')}</span> pts
               </p>
+              </CardContent>
             </Card>
           )}
 
           {sale.note && (
-            <Card className="p-6">
-              <h2 className="mb-2 text-base font-semibold font-display">Order note</h2>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base font-semibold font-display">Order note</CardTitle>
+              </CardHeader>
+              <CardContent>
               <p className="text-sm text-muted-foreground">{sale.note}</p>
+              </CardContent>
             </Card>
           )}
 
@@ -566,10 +582,13 @@ function ShipmentSection({
   // No shipment dispatched yet for a delivery sale.
   if (!shipmentId) {
     return (
-      <Card className="p-6">
-        <h2 className="mb-2 flex items-center gap-2 text-base font-semibold font-display">
-          <Truck className="h-4 w-4 text-muted-foreground" /> Delivery
-        </h2>
+      <Card>
+        <CardHeader className="flex-row items-center gap-2 space-y-0">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold font-display">
+            <Truck className="h-4 w-4 text-muted-foreground" /> Delivery
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
         {canDispatch ? (
           <>
             <p className="text-sm text-muted-foreground">
@@ -602,6 +621,7 @@ function ShipmentSection({
             <Link href="/dashboard/fulfillment/shipments" className="text-primary hover:underline">Shipments</Link> page.
           </p>
         )}
+        </CardContent>
       </Card>
     );
   }
@@ -613,16 +633,16 @@ function ShipmentSection({
   const recipientAddress = (dest.address as string | undefined) ?? null;
 
   return (
-    <Card className="p-6">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h2 className="flex items-center gap-2 text-base font-semibold font-display">
+    <Card>
+      <CardHeader className="flex-row flex-wrap items-center gap-2 space-y-0">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold font-display">
           <Truck className="h-4 w-4 text-muted-foreground" /> Shipment
-        </h2>
+        </CardTitle>
         <Badge variant="outline" className={`rounded-full border-transparent text-[10px] ${statusClass(status)}`}>
           {prettyStatus(status)}
         </Badge>
-      </div>
-
+      </CardHeader>
+      <CardContent>
       {loading ? (
         <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading shipment…
@@ -651,7 +671,7 @@ function ShipmentSection({
               <span className="ml-1 text-xs text-muted-foreground">{shipment.courierServiceCode}</span>
             </Fact>
             <Fact icon={Hash} label="Nomor resi">
-              <span className="font-mono text-[13px]">{shipment.waybillId ?? '—'}</span>
+              <span className="font-mono text-sm">{shipment.waybillId ?? '—'}</span>
             </Fact>
             {shipment.price > 0 && (
               <Fact icon={Truck} label="Shipping cost">{rupiah(shipment.price)}</Fact>
@@ -743,6 +763,7 @@ function ShipmentSection({
           </Dialog>
         </div>
       ) : null}
+      </CardContent>
     </Card>
   );
 }
@@ -752,7 +773,7 @@ function Fact({ icon: Icon, label, children }: { icon: typeof Hash; label: strin
     <div className="flex items-start gap-2.5">
       <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
         <div className="mt-0.5">{children}</div>
       </div>
     </div>

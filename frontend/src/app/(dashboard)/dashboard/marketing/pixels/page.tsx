@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { pixelsApi, type MerchantPixelsConfig } from '@/lib/marketing-api';
 import { Loader2, Save, BarChart3, Eye, EyeOff, CheckCircle2, Activity, Target } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -97,12 +97,13 @@ export default function PixelsPage() {
       </Card>
 
       {/* ── Meta Pixel + CAPI ─────────────────────────────────────────────── */}
-      <Card className="p-5">
-        <div className="mb-4 flex items-center gap-2">
+      <Card>
+        <CardHeader className="flex-row items-center gap-2 space-y-0">
           <BarChart3 className="h-5 w-5 text-sky-400" />
-          <h2 className="text-sm font-semibold font-display">Meta Pixel &amp; Conversions API</h2>
+          <CardTitle className="text-sm font-semibold font-display">Meta Pixel &amp; Conversions API</CardTitle>
           {form.metaPixelId && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
-        </div>
+        </CardHeader>
+        <CardContent>
         <div className="space-y-3">
           <Field
             id="meta-pixel"
@@ -137,15 +138,17 @@ export default function PixelsPage() {
             placeholder="TEST12345"
           />
         </div>
+        </CardContent>
       </Card>
 
       {/* ── Google ────────────────────────────────────────────────────────── */}
-      <Card className="p-5">
-        <div className="mb-4 flex items-center gap-2">
+      <Card>
+        <CardHeader className="flex-row items-center gap-2 space-y-0">
           <Activity className="h-5 w-5 text-orange-600" />
-          <h2 className="text-sm font-semibold font-display">Google Analytics &amp; Google Ads</h2>
+          <CardTitle className="text-sm font-semibold font-display">Google Analytics &amp; Google Ads</CardTitle>
           {form.googleAnalyticsId && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
-        </div>
+        </CardHeader>
+        <CardContent>
         <div className="space-y-3">
           <Field
             id="ga-id"
@@ -172,15 +175,17 @@ export default function PixelsPage() {
             placeholder="abcDEFghijKLmnop"
           />
         </div>
+        </CardContent>
       </Card>
 
       {/* ── TikTok ────────────────────────────────────────────────────────── */}
-      <Card className="p-5">
-        <div className="mb-4 flex items-center gap-2">
+      <Card>
+        <CardHeader className="flex-row items-center gap-2 space-y-0">
           <Target className="h-5 w-5 text-pink-600" />
-          <h2 className="text-sm font-semibold font-display">TikTok Pixel</h2>
+          <CardTitle className="text-sm font-semibold font-display">TikTok Pixel</CardTitle>
           {form.tiktokPixelId && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
-        </div>
+        </CardHeader>
+        <CardContent>
         <Field
           id="tiktok-pixel"
           label="Pixel ID"
@@ -189,6 +194,7 @@ export default function PixelsPage() {
           onChange={(v) => setForm({ ...form, tiktokPixelId: v || null })}
           placeholder="C123ABC..."
         />
+        </CardContent>
       </Card>
 
       <Card className="flex items-center justify-between bg-muted/30 p-4">
@@ -233,7 +239,7 @@ function Field({ id, label, hint, value, onChange, placeholder, type = 'text', r
           <div className="absolute right-2 top-1/2 -translate-y-1/2">{rightSlot}</div>
         )}
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
     </div>
   );
 }

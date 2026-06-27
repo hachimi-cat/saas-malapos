@@ -144,7 +144,7 @@ export default function InvoiceDetailPage() {
               {inv.status}
             </Badge>
           </div>
-          <p className="mt-1 font-mono text-[13px] text-muted-foreground">
+          <p className="mt-1 font-mono text-sm text-muted-foreground">
             {inv.paidAt
               ? `Paid ${formatDate(inv.paidAt)}`
               : `Issued ${formatDate(inv.issuedAt ?? inv.createdAt)}`}
@@ -279,7 +279,7 @@ function Row({ label, amount }: { label: string; amount: string }) {
   return (
     <div className="flex items-center justify-between border-b border-dashed border-border py-2.5">
       <span className="text-sm">{label}</span>
-      <span className="font-mono text-[13px] tabular-nums">{amount}</span>
+      <span className="font-mono text-sm tabular-nums">{amount}</span>
     </div>
   );
 }
@@ -287,8 +287,8 @@ function Row({ label, amount }: { label: string; amount: string }) {
 function Kv({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <p className="mb-0.5 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={mono ? 'font-mono text-[12.5px]' : 'text-sm'}>{value}</p>
+      <p className="mb-0.5 font-mono text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={mono ? 'font-mono text-xs' : 'text-sm'}>{value}</p>
     </div>
   );
 }

@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiRequestError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -178,7 +178,7 @@ export default function WebhooksPage() {
                         <Badge
                           key={e}
                           variant="outline"
-                          className="rounded-full bg-muted/40 px-2 py-0.5 font-mono text-[11px] font-normal text-muted-foreground"
+                          className="rounded-full bg-muted/40 px-2 py-0.5 font-mono text-xs font-normal text-muted-foreground"
                         >
                           {e === '*' ? 'all events (*)' : e}
                         </Badge>
@@ -244,10 +244,13 @@ export default function WebhooksPage() {
         </Card>
       )}
 
-      <Card className="p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-display">
-          Event catalog
-        </h2>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-display">
+            Event catalog
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
         <div className="mt-3 space-y-2">
           {EVENT_CATALOG.map((e) => (
             <div key={e.type} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
@@ -256,12 +259,16 @@ export default function WebhooksPage() {
             </div>
           ))}
         </div>
+        </CardContent>
       </Card>
 
-      <Card className="p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-display">
-          Verifying signatures
-        </h2>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-display">
+            Verifying signatures
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
         <p className="mt-1 text-sm text-muted-foreground">
           Every delivery is an HTTPS POST of <code className="rounded bg-muted/60 px-1 text-xs">{'{ id, type, occurredAt, data }'}</code>{' '}
           with a <code className="rounded bg-muted/60 px-1 text-xs">Malapos-Signature</code> header. Recompute the
@@ -285,6 +292,7 @@ const valid =
           Delivery is at-most-once in v1 (failures are logged, not retried) — reconcile with{' '}
           <code className="rounded bg-muted/60 px-1">GET /api/v1/sales</code> if you need certainty.
         </p>
+        </CardContent>
       </Card>
 
       {showAdd && (

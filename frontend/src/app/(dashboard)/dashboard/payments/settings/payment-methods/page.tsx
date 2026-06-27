@@ -192,7 +192,7 @@ export default function PaymentMethodsSettingsPage() {
               if (!rows || rows.length === 0) return null;
               return (
                 <div key={g}>
-                  <p className="mb-2 text-[11px] font-mono uppercase tracking-wide text-muted-foreground">
+                  <p className="mb-2 text-xs font-mono uppercase tracking-wide text-muted-foreground">
                     {GROUP_LABELS[g]}
                   </p>
                   <div className="divide-y divide-border rounded-md border border-border">
@@ -214,7 +214,7 @@ export default function PaymentMethodsSettingsPage() {
                           />
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium">{m.label}</p>
-                            <p className="text-[11px] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               {isAvailable
                                 ? isEnabled
                                   ? `Position ${orderIdx + 1}`
@@ -227,7 +227,7 @@ export default function PaymentMethodsSettingsPage() {
                               value={currentAdapter}
                               onValueChange={(v) => setProviderFor(m.id, v)}
                             >
-                              <SelectTrigger className="h-auto w-auto gap-1 px-2 py-1 text-[11px]">
+                              <SelectTrigger className="h-auto w-auto gap-1 px-2 py-1 text-xs">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>

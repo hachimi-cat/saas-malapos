@@ -132,7 +132,7 @@ export default function MerchantCreatorDirectory() {
         <Button type="button" variant="outline" className="ml-auto" onClick={() => setFiltersOpen((v) => !v)}>
           <SlidersHorizontal size={14} /> Filters
           {activeFilterCount > 0 && (
-            <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-foreground">{activeFilterCount}</span>
+            <Badge className="rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none">{activeFilterCount}</Badge>
           )}
         </Button>
       </div>
@@ -222,7 +222,7 @@ function CreatorCard({ c, onInvite }: { c: DirectoryItem; onInvite: () => void }
         ))}
       </div>
       {minRate > 0 && (
-        <p className="mt-3 border-t border-border pt-3 font-mono text-[11px] text-muted-foreground">
+        <p className="mt-3 border-t border-border pt-3 font-mono text-xs text-muted-foreground">
           From <span className="font-semibold text-foreground">Rp {minRate.toLocaleString()}</span>
         </p>
       )}

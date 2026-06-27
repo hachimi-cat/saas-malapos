@@ -106,13 +106,13 @@ export default function PayoutDetailPage() {
           <CardContent className="p-6">
             {payout.note && (
               <div>
-                <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">Note</p>
+                <p className="mb-1 font-mono text-xs uppercase tracking-wide text-muted-foreground">Note</p>
                 <p className="text-sm">{payout.note}</p>
               </div>
             )}
             {payout.failureReason && (
               <div className="mt-4">
-                <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">Failure reason</p>
+                <p className="mb-1 font-mono text-xs uppercase tracking-wide text-muted-foreground">Failure reason</p>
                 <p className="text-sm text-destructive">{payout.failureReason}</p>
               </div>
             )}
@@ -126,7 +126,7 @@ export default function PayoutDetailPage() {
 function Kv({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <p className="mb-0.5 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mb-0.5 font-mono text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className={mono ? 'font-mono text-sm' : 'text-sm'}>{value}</p>
     </div>
   );

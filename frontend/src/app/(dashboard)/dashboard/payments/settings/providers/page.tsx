@@ -68,7 +68,7 @@ const KYB_STAGES = [
 ];
 
 const labelCls = 'mb-1.5 block text-xs font-medium text-foreground';
-const helpCls = 'mt-1 text-[11px] text-muted-foreground';
+const helpCls = 'mt-1 text-xs text-muted-foreground';
 
 export default function ProvidersSettingsPage() {
   const [adapters, setAdapters] = React.useState<AdapterConfigMap | null>(null);
@@ -283,9 +283,9 @@ export default function ProvidersSettingsPage() {
                       <Check className="h-3 w-3" strokeWidth={2.5} /> Active
                     </Badge>
                   )}
-                  <h3 className="text-[15px] font-semibold tracking-tight font-display">{o.title}</h3>
-                  <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{o.description}</p>
-                  <p className="mt-3 font-mono text-[11px] text-muted-foreground">{o.meta}</p>
+                  <h3 className="text-sm font-semibold tracking-tight font-display">{o.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{o.description}</p>
+                  <p className="mt-3 font-mono text-xs text-muted-foreground">{o.meta}</p>
                 </button>
               );
             })}
@@ -329,7 +329,7 @@ export default function ProvidersSettingsPage() {
               />
             </div>
             {showActive('xendit')?.secretKeyLast4 && (
-              <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[11px] font-medium">
+              <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-xs font-medium">
                 Currently saved: …{showActive('xendit')?.secretKeyLast4}
               </Badge>
             )}
@@ -459,7 +459,7 @@ export default function ProvidersSettingsPage() {
           <p className="mb-5 max-w-[68ch] text-sm text-muted-foreground">
             For payments Plugipay doesn&rsquo;t route through a PSP: direct bank transfer to your own
             account, cash, EDC receipts. Sessions land in{' '}
-            <code className="rounded bg-muted px-1 py-0.5 text-[12px]">pending_review</code> — you confirm each
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">pending_review</code> — you confirm each
             one from the Checkout Sessions page once the money arrives.
           </p>
           <div className="space-y-6">
@@ -564,8 +564,8 @@ export default function ProvidersSettingsPage() {
 function Kv({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={(mono ? 'font-mono text-[12.5px] ' : 'text-sm ') + 'text-foreground'}>{value}</p>
+      <p className="mb-1 font-mono text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={(mono ? 'font-mono text-xs ' : 'text-sm ') + 'text-foreground'}>{value}</p>
     </div>
   );
 }
@@ -626,14 +626,14 @@ function ManagedOnboardingCard({
                   <div className={'flex shrink-0 flex-col items-center gap-1 ' + (reached ? 'text-foreground' : 'text-muted-foreground')}>
                     <span
                       className={
-                        'flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ' +
+                        'flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ' +
                         (reached ? 'bg-primary text-primary-foreground' : 'border border-border bg-muted text-muted-foreground') +
                         (isCurrent && !rejected ? ' ring-2 ring-primary/40 ring-offset-2 ring-offset-card' : '')
                       }
                     >
                       {i + 1}
                     </span>
-                    <span className="font-mono text-[11px] uppercase tracking-wide">{s.label}</span>
+                    <span className="font-mono text-xs uppercase tracking-wide">{s.label}</span>
                   </div>
                   {i < KYB_STAGES.length - 1 && (
                     <div className={'h-px flex-1 ' + (i < currentIdx ? 'bg-primary' : 'bg-border')} />

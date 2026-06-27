@@ -178,7 +178,7 @@ function WorkspaceRow({
         <p className="text-sm font-medium">{name}</p>
         <p className="truncate text-xs text-muted-foreground">{sub}</p>
       </div>
-      <Badge variant="outline" className="rounded-full text-[11px] font-medium capitalize text-muted-foreground">
+      <Badge variant="outline" className="rounded-full text-xs font-medium capitalize text-muted-foreground">
         {role}
       </Badge>
       {active ? (

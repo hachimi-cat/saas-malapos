@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 interface Thread {
   provider: string;
@@ -119,10 +120,10 @@ export default function InboxPage() {
                         <span className="truncate text-sm font-medium">{t.senderName ?? t.senderHandle}</span>
                         <span className="shrink-0 text-[10px] text-muted-foreground">{relTime(t.lastMessageAt)}</span>
                       </div>
-                      <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{PROVIDER_LABEL[t.provider] ?? t.provider}</span>
                         {t.unreadCount > 0 && (
-                          <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-600">{t.unreadCount}</span>
+                          <Badge variant="outline" className="rounded-full border-transparent bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-400">{t.unreadCount}</Badge>
                         )}
                       </div>
                       <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground">{t.lastBody}</p>

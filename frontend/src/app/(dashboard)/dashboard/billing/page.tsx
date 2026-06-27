@@ -20,7 +20,7 @@ import { Check } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -170,10 +170,13 @@ function BillingContent() {
       )}
 
       {/* ── Current plan ─────────────────────────────────────────── */}
-      <Card className="p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-display">
-          Current plan
-        </h2>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-display">
+            Current plan
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
         {!data ? (
           <p className="mt-3 text-sm text-muted-foreground">{error ? '—' : 'Loading…'}</p>
         ) : (
@@ -208,6 +211,7 @@ function BillingContent() {
             )}
           </div>
         )}
+        </CardContent>
       </Card>
 
       {/* ── Tier cards ───────────────────────────────────────────── */}

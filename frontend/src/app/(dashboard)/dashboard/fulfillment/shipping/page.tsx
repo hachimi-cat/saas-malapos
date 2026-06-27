@@ -6,7 +6,7 @@ import { shippingApi, type ShippingOrigin } from '@/lib/fulfillment-api';
 import { ApiRequestError } from '@/lib/api';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -150,12 +150,12 @@ export default function ShippingSettingsPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        <Card className="p-6">
-          <div className="mb-4 flex items-center gap-2">
+        <Card>
+          <CardHeader className="flex-row items-center gap-2 space-y-0">
             <MapPin className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-lg font-medium font-display">Pickup origin</h2>
-          </div>
-
+            <CardTitle className="text-lg font-medium font-display">Pickup origin</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
             <TextField label="Address" value={origin.address ?? ''} onChange={(v) => field('address', v)} className="md:col-span-2" />
             <TextField label="City" value={origin.city ?? ''} onChange={(v) => field('city', v)} />
@@ -168,11 +168,12 @@ export default function ShippingSettingsPage() {
           <p className="mt-3 text-xs text-muted-foreground">
             Latitude/longitude (set on Fulkruma) are required for instant couriers like GoSend or Grab.
           </p>
+          </CardContent>
         </Card>
 
-        <Card className="p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-medium font-display">Enabled couriers</h2>
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-lg font-medium font-display">Enabled couriers</CardTitle>
             <div className="flex gap-3">
               <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => setCouriers(catalog.map((c) => c.code))} disabled={catalog.length === 0}>
                 Enable all
@@ -181,7 +182,8 @@ export default function ShippingSettingsPage() {
                 Clear
               </Button>
             </div>
-          </div>
+          </CardHeader>
+          <CardContent>
           {catalogError && (
             <div className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-500">{catalogError}</div>
           )}
@@ -198,6 +200,7 @@ export default function ShippingSettingsPage() {
               ))}
             </div>
           )}
+          </CardContent>
         </Card>
 
         <div className="flex justify-end">

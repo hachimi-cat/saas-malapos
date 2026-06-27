@@ -140,7 +140,7 @@ export default function SubscriptionDetailPage() {
               {sub.status.replace(/_/g, ' ')}
             </Badge>
           </div>
-          <p className="mt-1 font-mono text-[13px] text-muted-foreground">
+          <p className="mt-1 font-mono text-sm text-muted-foreground">
             {sub.id} · created {formatDate(sub.createdAt)} · next charge {formatDate(sub.currentPeriodEnd)}
           </p>
         </div>
@@ -244,8 +244,8 @@ export default function SubscriptionDetailPage() {
 function Kv({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2">
-      <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span className={'text-right text-sm text-foreground ' + (mono ? 'font-mono text-[12.5px]' : '')}>{value}</span>
+      <span className="font-mono text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className={'text-right text-sm text-foreground ' + (mono ? 'font-mono text-xs' : '')}>{value}</span>
     </div>
   );
 }

@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,7 +57,7 @@ const DEFAULTS: Record<TemplateKind, Record<string, unknown>> = {
 };
 
 const labelCls = 'mb-1.5 block text-xs font-medium text-foreground';
-const helpCls = 'mt-1 text-[11px] text-muted-foreground';
+const helpCls = 'mt-1 text-xs text-muted-foreground';
 
 export default function TemplatesPage() {
   const [tab, setTab] = React.useState<TemplateKind>('receipt');
@@ -187,7 +187,7 @@ export default function TemplatesPage() {
             <p className="truncate text-sm font-medium">
               {business?.brandName || <span className="italic text-muted-foreground">No business name set</span>}
             </p>
-            <p className="truncate text-[11px] text-muted-foreground">
+            <p className="truncate text-xs text-muted-foreground">
               Logo · name · accent color · address · NPWP live on the Business page and feed every template here.
             </p>
           </div>
@@ -225,15 +225,16 @@ export default function TemplatesPage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
-        <Card className="p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold font-display">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+            <CardTitle className="text-sm font-semibold font-display">
               {tab === 'receipt' ? 'Receipts' : tab === 'invoice' ? 'Invoices' : 'Checkout skins'}
-            </h2>
+            </CardTitle>
             <Button type="button" variant="ghost" size="sm" onClick={addNew} disabled={busy} className="gap-1.5 text-muted-foreground">
               <Plus className="h-4 w-4" /> New
             </Button>
-          </div>
+          </CardHeader>
+          <CardContent>
           <div className="space-y-1">
             {!rows && (
               <div className="flex items-center justify-center py-6 text-muted-foreground">
@@ -264,6 +265,7 @@ export default function TemplatesPage() {
               </button>
             ))}
           </div>
+          </CardContent>
         </Card>
 
         {selected ? (
@@ -326,8 +328,11 @@ function TemplatePreview({ kind, config }: { kind: TemplateKind; config: Record<
   }, [configKey]);
 
   return (
-    <Card className="p-4">
-      <h3 className="mb-3 text-sm font-semibold font-display">Live preview</h3>
+    <Card>
+      <CardHeader>
+        <CardTitle className="mb-3 text-sm font-semibold font-display">Live preview</CardTitle>
+      </CardHeader>
+      <CardContent>
       {error && <div className="mb-2 font-mono text-xs text-destructive">{error}</div>}
       {html ? (
         <iframe
@@ -344,6 +349,7 @@ function TemplatePreview({ kind, config }: { kind: TemplateKind; config: Record<
       <p className="mt-2 text-xs text-muted-foreground">
         Sample data for demonstration — real {kind}s pull the same template + your actual customer and amounts.
       </p>
+      </CardContent>
     </Card>
   );
 }
@@ -428,9 +434,9 @@ function TemplateEditor({
 
   return (
     <div className="space-y-4">
-      <Card className="p-6">
-        <div className="mb-4 flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold font-display">{template.name}</h2>
+      <Card>
+        <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle className="text-base font-semibold font-display">{template.name}</CardTitle>
           <div className="flex items-center gap-2">
             {!template.isDefault && (
               <Button type="button" variant="ghost" size="sm" onClick={onMakeDefault} disabled={busy} className="gap-1.5 text-muted-foreground">
@@ -460,7 +466,8 @@ function TemplateEditor({
               </AlertDialog>
             )}
           </div>
-        </div>
+        </CardHeader>
+        <CardContent>
 
         {error && (
           <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-mono text-destructive">
@@ -632,6 +639,7 @@ function TemplateEditor({
             </Button>
           </div>
         </div>
+        </CardContent>
       </Card>
 
       <TemplatePreview

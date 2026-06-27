@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { TrendingUp, Package, AlertTriangle, BarChart3 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -302,12 +302,12 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <Card className={`p-4 ${className}`}>
-      <div className="mb-3 flex items-center gap-2">
+    <Card className={className}>
+      <CardHeader className="flex-row items-center gap-2 space-y-0">
         {icon}
-        <h2 className="text-sm font-semibold font-display">{title}</h2>
-      </div>
-      {children}
+        <CardTitle className="text-sm font-semibold font-display">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
     </Card>
   );
 }

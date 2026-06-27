@@ -182,7 +182,7 @@ export default function MerchantCollabDetailPage() {
                 <p className="font-semibold">{DELIVERABLE_LABELS[d.kind] ?? d.kind}</p>
                 {d.spec && <p className="mt-1 text-xs text-muted-foreground">{d.spec}</p>}
               </div>
-              <Badge variant="secondary" className="rounded-full text-[11px] font-medium capitalize">
+              <Badge variant="secondary" className="rounded-full text-xs font-medium capitalize">
                 {d.status.replace(/_/g, ' ')}
               </Badge>
             </div>
@@ -304,7 +304,7 @@ export default function MerchantCollabDetailPage() {
               rows={5}
               placeholder="The creator submitted three drafts that ignore the brief's key product callout. They've stopped responding to in-platform messages for 5 days…"
             />
-            <p className="text-[11px] text-muted-foreground">{disputeNotes.length} / 5000</p>
+            <p className="text-xs text-muted-foreground">{disputeNotes.length} / 5000</p>
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => setShowDispute(false)}>Cancel</Button>

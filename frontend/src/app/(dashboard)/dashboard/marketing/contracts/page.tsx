@@ -101,7 +101,7 @@ export default function ContractsPage() {
                       Creator <span className="font-mono">{c.creatorId.replace('crt_', '')}</span> · {c._count?.deliverables ?? 0} deliverable(s)
                     </p>
                   </div>
-                  <Badge variant="outline" className={`rounded-full text-[11px] font-medium capitalize ${STATUS_TONE[c.status] ?? 'bg-secondary text-muted-foreground'}`}>
+                  <Badge variant="outline" className={`rounded-full text-xs font-medium capitalize ${STATUS_TONE[c.status] ?? 'bg-secondary text-muted-foreground'}`}>
                     {c.status.replace(/_/g, ' ')}
                   </Badge>
                 </div>

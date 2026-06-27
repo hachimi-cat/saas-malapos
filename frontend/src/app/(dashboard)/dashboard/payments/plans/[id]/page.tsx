@@ -18,7 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -173,7 +173,7 @@ export default function PlanDetailPage() {
               {plan.active ? 'Active' : 'Archived'}
             </Badge>
           </div>
-          <p className="mt-1 font-mono text-[13px] text-muted-foreground">{plan.id}</p>
+          <p className="mt-1 font-mono text-sm text-muted-foreground">{plan.id}</p>
           {plan.description && <p className="mt-2 max-w-[62ch] text-sm text-muted-foreground">{plan.description}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -222,9 +222,9 @@ export default function PlanDetailPage() {
       )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
-        <Card className="rounded-lg border border-border bg-card p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold font-display">Prices</h2>
+        <Card className="rounded-lg border border-border bg-card">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base font-semibold font-display">Prices</CardTitle>
             <Button
               type="button"
               variant="link"
@@ -233,13 +233,14 @@ export default function PlanDetailPage() {
             >
               <Plus className="h-3 w-3" /> Add price
             </Button>
-          </div>
+          </CardHeader>
+          <CardContent>
 
           {showAddPrice && (
             <div className="mb-4 rounded-md border border-primary/40 bg-primary/5 p-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="newCurrency" className="text-[11px]">Currency</Label>
+                  <Label htmlFor="newCurrency" className="text-xs">Currency</Label>
                   <Input
                     id="newCurrency"
                     value={newCurrency}
@@ -247,7 +248,7 @@ export default function PlanDetailPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="newAmount" className="text-[11px]">Unit amount</Label>
+                  <Label htmlFor="newAmount" className="text-xs">Unit amount</Label>
                   <Input
                     id="newAmount"
                     type="number"
@@ -257,7 +258,7 @@ export default function PlanDetailPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="newTaxMode" className="text-[11px]">Tax mode</Label>
+                  <Label htmlFor="newTaxMode" className="text-xs">Tax mode</Label>
                   <Select
                     value={newTaxMode}
                     onValueChange={(v) => setNewTaxMode(v as 'inclusive' | 'exclusive')}
@@ -392,15 +393,20 @@ export default function PlanDetailPage() {
             </ul>
             </>
           )}
+          </CardContent>
         </Card>
 
-        <Card className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold font-display">Schedule</h2>
-          <div className="space-y-3">
-            <Kv label="Interval" value={`Every ${intervalCount > 1 ? `${intervalCount} ${plan.interval}s` : plan.interval}`} />
-            <Kv label="Trial days" value={String(plan.trialDays ?? plan.trialPeriodDays ?? 0)} />
-            <Kv label="Created" value={formatDate(plan.createdAt)} />
-          </div>
+        <Card className="rounded-lg border border-border bg-card">
+          <CardHeader>
+            <CardTitle className="mb-4 text-base font-semibold font-display">Schedule</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <Kv label="Interval" value={`Every ${intervalCount > 1 ? `${intervalCount} ${plan.interval}s` : plan.interval}`} />
+              <Kv label="Trial days" value={String(plan.trialDays ?? plan.trialPeriodDays ?? 0)} />
+              <Kv label="Created" value={formatDate(plan.createdAt)} />
+            </div>
+          </CardContent>
         </Card>
       </div>
     </div>
@@ -410,7 +416,7 @@ export default function PlanDetailPage() {
 function Kv({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="mb-0.5 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mb-0.5 font-mono text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="text-sm">{value}</p>
     </div>
   );

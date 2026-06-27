@@ -202,7 +202,7 @@ export default function ReferralsPage() {
               min={1}
               max={isPercent ? 100 : undefined}
             />
-            <p className="mt-1 text-[11px] text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               Tip: a slightly bigger pull for new buyers (the referee) typically converts better.
             </p>
           </div>
@@ -263,7 +263,7 @@ export default function ReferralsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="mt-1 text-[11px] text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               How long after clicking a link the buyer has to convert for the referrer to earn.
             </p>
           </div>
@@ -448,7 +448,7 @@ function StatCard({ label, value, icon: Icon }: { label: string; value: string; 
 }
 
 function StatusPill({ status, reason }: { status: string; reason: string | null }) {
-  const base = 'gap-1 rounded-full border-transparent px-2 py-0.5 text-[11px] font-medium';
+  const base = 'gap-1 rounded-full border-transparent px-2 py-0.5 text-xs font-medium';
   if (status === 'rewarded') {
     return <Badge variant="outline" className={`${base} bg-emerald-500/10 text-emerald-400`}>Rewarded</Badge>;
   }

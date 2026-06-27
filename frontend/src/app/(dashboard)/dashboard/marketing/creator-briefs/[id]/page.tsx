@@ -214,13 +214,13 @@ export default function CampaignDetailPage() {
           <TabsTrigger value="invitations" className="relative">
             <Mail size={14} /> Invitations
             {typeof invites?.length === 'number' && invites.length > 0 && (
-              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{invites.length}</span>
+              <Badge variant="secondary" className="rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none">{invites.length}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="applications" className="relative">
             <Users size={14} /> Applications
             {typeof apps?.length === 'number' && apps.length > 0 && (
-              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{apps.length}</span>
+              <Badge variant="secondary" className="rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none">{apps.length}</Badge>
             )}
             {(apps?.filter((a) => a.status === 'pending').length ?? 0) > 0 && (
               <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -229,7 +229,7 @@ export default function CampaignDetailPage() {
           <TabsTrigger value="collaborations" className="relative">
             <Handshake size={14} /> Collaborations
             {typeof collabs?.length === 'number' && collabs.length > 0 && (
-              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{collabs.length}</span>
+              <Badge variant="secondary" className="rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none">{collabs.length}</Badge>
             )}
             {(collabs?.filter((c) => c.status === 'delivered').length ?? 0) > 0 && (
               <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -414,7 +414,7 @@ export default function CampaignDetailPage() {
                   onChange={(e) => setTotalText(e.target.value)}
                   placeholder="e.g. 5000000"
                 />
-                <p className="text-[11px] text-muted-foreground">Mints the collaboration and emails a hosted invoice to fund escrow.</p>
+                <p className="text-xs text-muted-foreground">Mints the collaboration and emails a hosted invoice to fund escrow.</p>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setActionDialog(null)}>Cancel</Button>

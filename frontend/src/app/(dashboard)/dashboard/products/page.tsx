@@ -204,7 +204,7 @@ export default function ProductsPage() {
                       <div className="font-medium">{p.name}</div>
                       {(() => {
                         const code = p.variants[0]?.sku || p.variants[0]?.barcode;
-                        return code ? <div className="font-mono text-[11px] text-muted-foreground">{code}</div> : null;
+                        return code ? <div className="font-mono text-xs text-muted-foreground">{code}</div> : null;
                       })()}
                       {p.description && (
                         <div className="line-clamp-1 text-xs text-muted-foreground">{p.description}</div>

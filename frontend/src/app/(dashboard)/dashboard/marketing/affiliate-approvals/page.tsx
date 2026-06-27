@@ -8,6 +8,7 @@ import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -135,13 +136,13 @@ export default function AffiliateApprovalsPage() {
           <TabsTrigger value="enrollments">
             Pending enrollments
             {enrollmentCount > 0 && (
-              <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-600">{enrollmentCount}</span>
+              <Badge variant="outline" className="rounded-full border-transparent bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-400">{enrollmentCount}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="commissions">
             Pending commissions
             {pendingCommissionCount > 0 && (
-              <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-600">{pendingCommissionCount}</span>
+              <Badge variant="outline" className="rounded-full border-transparent bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-400">{pendingCommissionCount}</Badge>
             )}
           </TabsTrigger>
         </TabsList>

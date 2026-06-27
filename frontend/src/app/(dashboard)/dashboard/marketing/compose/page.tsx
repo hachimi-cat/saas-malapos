@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { resolveProviders } from '@/lib/compose-providers';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -449,10 +449,14 @@ export default function ComposePage() {
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <Card className="mb-6 p-5">
-      <h2 className="text-sm font-semibold tracking-tight font-display">{title}</h2>
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-      <div className="mt-4 space-y-3">{children}</div>
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="text-sm font-semibold tracking-tight font-display">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+        <div className="mt-4 space-y-3">{children}</div>
+      </CardContent>
     </Card>
   );
 }

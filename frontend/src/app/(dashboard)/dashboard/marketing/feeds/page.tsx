@@ -6,7 +6,7 @@ import { Loader2, Save, Copy, Check, ExternalLink, Rss, AlertTriangle, ChevronRi
 import { PageHeader } from '@/components/dashboard/page-header';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -105,7 +105,7 @@ export default function FeedsPage() {
             onChange={(e) => setForm({ ...form, defaultGoogleProductCategory: e.target.value || null })}
             placeholder="Apparel & Accessories > Clothing > Shirts & Tops"
           />
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Path or numeric taxonomy ID. Applied to products that don&apos;t set their own category.{' '}
             <a href="https://support.google.com/merchants/answer/1705911" target="_blank" rel="noreferrer"
               className="text-primary hover:underline">Find yours →</a>
@@ -202,11 +202,12 @@ function FeedUrlCard({ platform, url, previewHref, copied, onCopy, steps }: {
   steps: string[];
 }) {
   return (
-    <Card className="p-4">
-      <div className="mb-2 flex items-center gap-2">
+    <Card>
+      <CardHeader className="flex-row items-center gap-2 space-y-0">
         <Rss className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-semibold font-display">{platform}</h3>
-      </div>
+        <CardTitle className="text-sm font-semibold font-display">{platform}</CardTitle>
+      </CardHeader>
+      <CardContent>
       <div className="flex items-stretch gap-2">
         <Input readOnly value={url} className="flex-1 bg-muted/30 font-mono text-xs" />
         <Button type="button" variant="outline" onClick={onCopy}>
@@ -227,6 +228,7 @@ function FeedUrlCard({ platform, url, previewHref, copied, onCopy, steps }: {
           {steps.map((s, i) => <li key={i}>{s}</li>)}
         </ol>
       </details>
+      </CardContent>
     </Card>
   );
 }

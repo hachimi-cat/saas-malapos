@@ -186,7 +186,7 @@ export default function ServePage() {
             <div className="flex items-center gap-2">
               <h3 className="truncate font-display text-lg font-bold leading-none tracking-tight">{g.tableLabel}</h3>
               {kind === 'counter' && headType && headType !== 'DINE_IN' && (
-                <Badge variant="outline" className="shrink-0 border-transparent bg-sky-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-sky-600 dark:text-sky-400">
+                <Badge variant="outline" className="shrink-0 border-transparent bg-sky-500/15 px-1.5 py-0.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
                   {ORDER_TYPE_LABEL[headType] ?? headType}
                 </Badge>
               )}

@@ -255,7 +255,7 @@ export default function PostEditor({ mode, initial }: Props) {
                 placeholder="how-we-doubled-conversions"
                 className="font-mono"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 URL: <code className="rounded bg-muted px-1 font-mono">/s/&lt;your-slug&gt;/blog/{slug || '…'}</code>
               </p>
             </div>
@@ -281,7 +281,7 @@ export default function PostEditor({ mode, initial }: Props) {
                 placeholder="# Heading&#10;&#10;Your content here. **Bold**, *italic*, [links](https://…), images `![alt](url)`, code blocks with triple-backticks."
                 className="font-mono text-xs"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Supports headings, bold/italic, links, lists, code blocks, blockquotes, images. Preview button renders it.
               </p>
             </div>

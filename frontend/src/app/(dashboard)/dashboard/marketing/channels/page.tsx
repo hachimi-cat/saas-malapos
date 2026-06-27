@@ -266,7 +266,7 @@ export default function ChannelsPage() {
           if (inCat.length === 0) return null;
           return (
             <div key={cat}>
-              <p className="mb-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{cat}</p>
+              <p className="mb-2.5 font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">{cat}</p>
               <Card className="overflow-hidden">
                 <ul>
                   {inCat.map((p) => {

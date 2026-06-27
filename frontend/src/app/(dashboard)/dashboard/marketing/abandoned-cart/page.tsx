@@ -155,7 +155,7 @@ export default function AbandonedCartPage() {
               ))}
             </SelectContent>
           </Select>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             Buyer-facing industry default is 4 hours. Longer delays feel less pushy but reduce recovery rate.
           </p>
         </div>
@@ -178,7 +178,7 @@ export default function AbandonedCartPage() {
             onChange={(e) => setForm({ ...form, emailPreview: e.target.value })}
             maxLength={200}
           />
-          <p className="mt-1 text-[11px] text-muted-foreground">Shown in the inbox list after the subject (Gmail / Apple Mail).</p>
+          <p className="mt-1 text-xs text-muted-foreground">Shown in the inbox list after the subject (Gmail / Apple Mail).</p>
         </div>
 
         <div className="space-y-1.5">
@@ -197,7 +197,7 @@ export default function AbandonedCartPage() {
               ))}
             </SelectContent>
           </Select>
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             Include a promo code in the reminder email to sweeten the recovery. Consider setting a per-customer cap
             on the code so the same buyer can&apos;t reuse it endlessly.
           </p>
@@ -273,11 +273,11 @@ export default function AbandonedCartPage() {
                 sortValue: (r) => (r.recoveredAt ? 'recovered' : 'pending'),
                 cell: (r) =>
                   r.recoveredAt ? (
-                    <Badge variant="outline" className="gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
+                    <Badge variant="outline" className="gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
                       <CheckCircle2 className="h-3 w-3" /> Recovered
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    <Badge variant="outline" className="gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                       <Clock className="h-3 w-3" /> Pending
                     </Badge>
                   ),

@@ -984,7 +984,7 @@ export default function SellPage() {
                 <ProductThumb name={p.name} imageUrl={p.imageUrl} className="mb-2 aspect-square w-full rounded-md" />
                 <span className="line-clamp-2 text-sm font-medium">{p.name}</span>
                 {v.name !== 'Default' && <span className="text-xs text-muted-foreground">{v.name}</span>}
-                {code && <span className="font-mono text-[11px] text-muted-foreground">{code}</span>}
+                {code && <span className="font-mono text-xs text-muted-foreground">{code}</span>}
                 <span className="mt-auto pt-2 text-sm font-semibold text-primary">{rupiah(v.price)}</span>
               </button>
             );
@@ -993,7 +993,7 @@ export default function SellPage() {
         </div>
 
         {/* Cashier hotkey legend */}
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span><Kbd>↑</Kbd><Kbd>↓</Kbd><Kbd>←</Kbd><Kbd>→</Kbd> navigate</span>
           <span><Kbd>Enter</Kbd> add</span>
           <span><Kbd>scan</Kbd> barcode</span>
@@ -1716,7 +1716,7 @@ function FloorBody({ floor, onPick }: { floor: FloorEntry[]; onPick: (entry: Flo
                   {bill && (
                     <div className="mt-auto pt-1">
                       <p className="text-sm font-semibold text-primary">{rupiah(bill.total)}</p>
-                      <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="h-3 w-3" /> {sinceLabel(bill.openedAt)} · {bill.itemCount} item{bill.itemCount === 1 ? '' : 's'}
                       </p>
                     </div>

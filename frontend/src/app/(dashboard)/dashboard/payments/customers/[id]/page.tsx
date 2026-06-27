@@ -229,7 +229,7 @@ export default function CustomerDetailPage() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <Card className="p-4">
-      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
     </Card>
   );
@@ -248,7 +248,7 @@ function Field({
     <div className="flex items-start gap-2">
       <Icon className="mt-0.5 h-4 w-4 text-muted-foreground" />
       <div>
-        <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</dt>
+        <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
         <dd className="font-medium">{value}</dd>
       </div>
     </div>

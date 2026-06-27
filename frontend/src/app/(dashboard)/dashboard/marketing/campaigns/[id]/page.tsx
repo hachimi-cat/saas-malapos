@@ -22,7 +22,7 @@ import { ErrorBox } from '@/components/dashboard/ui';
 import { BackLink } from '@/components/dashboard/back-link';
 import { marketingFetch } from '@/lib/marketing-api';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -228,9 +228,13 @@ export default function MarketingCampaignDetailPage() {
         </Card>
       ) : (
         campaign.description && (
-          <Card className="mb-6 p-5">
-            <h2 className="text-sm font-semibold tracking-tight font-display mb-2">About</h2>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{campaign.description}</p>
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold tracking-tight font-display mb-2">About</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{campaign.description}</p>
+            </CardContent>
           </Card>
         )
       )}
