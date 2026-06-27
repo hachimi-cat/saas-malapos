@@ -159,7 +159,7 @@ export default function ServePage() {
           <p className="text-sm">Plated dishes from the kitchen appear here automatically.</p>
         </div>
       ) : (
-        <div className="mt-6 grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-6 grid flex-1 auto-rows-min grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {groups.map((g) => {
             const key = g.tableId ?? `txn:${g.tickets[0]?.transactionId}`;
             const tableBusy = busy === `table:${g.tableId}`;
@@ -178,11 +178,14 @@ export default function ServePage() {
                   </Badge>
                 </div>
 
-                <div className="mt-3 flex flex-1 flex-col gap-3">
+                <div className="mt-3 flex flex-1 flex-col">
                   {g.tickets.map((t) => {
                     const mins = waitingMinutes(t.readyAt);
                     return (
-                    <div key={t.transactionId}>
+                    <div
+                      key={t.transactionId}
+                      className="border-t border-border/50 pt-3 first:border-t-0 first:pt-0 [&:not(:first-child)]:mt-3"
+                    >
                       {/* Ticket meta line: wait time + order type + receipt #,
                           then customer + note when present. */}
                       <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-xs">
@@ -193,9 +196,14 @@ export default function ServePage() {
                         >
                           <Clock className="h-3 w-3" /> {waitingLabel(mins)}
                         </Badge>
-                        <Badge variant="outline" className="border-transparent bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
-                          {ORDER_TYPE_LABEL[t.orderType] ?? t.orderType}
-                        </Badge>
+                        {/* Dine-in is implicit on a table card — only flag the
+                            ones that AREN'T eaten in (takeaway / delivery), with
+                            a distinct accent so the server spots them. */}
+                        {t.orderType !== 'DINE_IN' && (
+                          <Badge variant="outline" className="border-transparent bg-sky-500/15 px-1.5 py-0.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
+                            {ORDER_TYPE_LABEL[t.orderType] ?? t.orderType}
+                          </Badge>
+                        )}
                         <span className="font-medium text-muted-foreground">{t.number}</span>
                       </div>
                       {(t.customerName || t.note) && (
@@ -214,13 +222,13 @@ export default function ServePage() {
                           )}
                         </div>
                       )}
-                      <ul className="space-y-1.5 text-sm">
+                      <ul className="divide-y divide-border/40 text-sm">
                         {t.items.map((it) => {
                           const itemBusy = busy === `item:${it.id}`;
                           return (
                             <li
                               key={it.id}
-                              className="flex items-start justify-between gap-2 rounded-md border border-border/60 bg-background/40 p-2"
+                              className="flex items-start justify-between gap-2 py-2"
                             >
                               <span className="min-w-0">
                                 <span className="font-medium">{it.qty}×</span> {it.name}
