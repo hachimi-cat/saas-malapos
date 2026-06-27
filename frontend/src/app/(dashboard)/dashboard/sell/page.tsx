@@ -433,18 +433,6 @@ export default function SellPage() {
     loadCounterOrders(outletId);
   }
 
-  // Start a no-table quick sale from the floor (identical to the retail path).
-  function startQuickSale() {
-    setTable(null);
-    setParkedTxnId(null);
-    setParkedPaid(0);
-    setCart([]);
-    setCustomer(null);
-    setReceipt(null);
-    setDelivery(null);
-    setView('register');
-  }
-
   // Load the open (PARKED) takeaway + delivery orders for the counter tabs.
   const loadCounterOrders = useCallback(async (oid: string) => {
     if (!oid) return;
@@ -852,55 +840,62 @@ export default function SellPage() {
     const occupied = floor.filter((f) => f.openBill).length;
     return (
       <div className="flex h-[calc(100vh-3.5rem)] flex-col lg:h-[calc(100vh-1.5rem)]">
+        {/* Page title is always the topmost element. The outlet picker + the
+            single context-aware "New" action live here, shared across tabs. */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight font-display">Sell</h1>
+            <p className="text-sm text-muted-foreground">Ring up dine-in, takeaway, and delivery orders.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {outlets.length > 0 && (
+              <Select value={outletId} onValueChange={changeOutlet}>
+                <SelectTrigger className="w-44 bg-card">
+                  <SelectValue placeholder="Outlet" />
+                </SelectTrigger>
+                <SelectContent>
+                  {outlets.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {orderTab !== 'floor' && (
+              <Button
+                onClick={() => startNewCounter(orderTab === 'delivery' ? 'DELIVERY' : 'TAKEAWAY')}
+                className="gap-1.5 font-semibold capitalize"
+              >
+                <Plus className="h-4 w-4" /> New {orderTab}
+              </Button>
+            )}
+          </div>
+        </div>
         <Tabs
           value={orderTab}
           onValueChange={(v) => setOrderTab(v as 'floor' | 'takeaway' | 'delivery')}
-          className="flex h-full flex-col"
+          className="flex min-h-0 flex-1 flex-col"
         >
           <TabsList className="mb-4 self-start">
-            <TabsTrigger value="floor">
-              Floor
-              {occupied > 0 && <TabCount n={occupied} />}
-            </TabsTrigger>
-            <TabsTrigger value="takeaway">
-              Takeaway
-              {counterOrders.takeaway.length > 0 && <TabCount n={counterOrders.takeaway.length} />}
-            </TabsTrigger>
-            <TabsTrigger value="delivery">
-              Delivery
-              {counterOrders.delivery.length > 0 && <TabCount n={counterOrders.delivery.length} />}
-            </TabsTrigger>
+            <TabsTrigger value="floor">Floor{occupied > 0 && <TabCount n={occupied} />}</TabsTrigger>
+            <TabsTrigger value="takeaway">Takeaway{counterOrders.takeaway.length > 0 && <TabCount n={counterOrders.takeaway.length} />}</TabsTrigger>
+            <TabsTrigger value="delivery">Delivery{counterOrders.delivery.length > 0 && <TabCount n={counterOrders.delivery.length} />}</TabsTrigger>
           </TabsList>
-          <TabsContent value="floor" className="mt-0 flex-1 overflow-hidden">
+          <TabsContent value="floor" className="mt-0 min-h-0 flex-1 overflow-hidden">
             <FloorView
               floor={floor}
               busy={floorBusy}
-              outlets={outlets}
-              outletId={outletId}
               floors={floors}
               floorId={floorId}
               onChangeFloor={setFloorId}
-              onChangeOutlet={changeOutlet}
               onRefresh={() => loadFloor(outletId, floorId)}
               onPick={pickTable}
-              onQuickSale={startQuickSale}
             />
           </TabsContent>
-          <TabsContent value="takeaway" className="mt-0 flex-1 overflow-hidden">
-            <CounterOrders
-              kind="TAKEAWAY"
-              orders={counterOrders.takeaway}
-              onResume={resumeCounterOrder}
-              onNew={() => startNewCounter('TAKEAWAY')}
-            />
+          <TabsContent value="takeaway" className="mt-0 min-h-0 flex-1 overflow-hidden">
+            <CounterOrders kind="TAKEAWAY" orders={counterOrders.takeaway} onResume={resumeCounterOrder} />
           </TabsContent>
-          <TabsContent value="delivery" className="mt-0 flex-1 overflow-hidden">
-            <CounterOrders
-              kind="DELIVERY"
-              orders={counterOrders.delivery}
-              onResume={resumeCounterOrder}
-              onNew={() => startNewCounter('DELIVERY')}
-            />
+          <TabsContent value="delivery" className="mt-0 min-h-0 flex-1 overflow-hidden">
+            <CounterOrders kind="DELIVERY" orders={counterOrders.delivery} onResume={resumeCounterOrder} />
           </TabsContent>
         </Tabs>
       </div>
@@ -1430,40 +1425,31 @@ function CounterOrders({
   kind,
   orders,
   onResume,
-  onNew,
 }: {
   kind: 'TAKEAWAY' | 'DELIVERY';
   orders: CounterOrder[];
   onResume: (o: CounterOrder) => void;
-  onNew: () => void;
 }) {
-  const label = kind === 'TAKEAWAY' ? 'Takeaway' : 'Delivery';
+  const label = kind === 'TAKEAWAY' ? 'takeaway' : 'delivery';
   const Icon = kind === 'TAKEAWAY' ? ShoppingBag : Truck;
-  return (
-    <div className="flex h-full flex-col">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Icon className="h-6 w-6 text-primary" />
-          <div>
-            <h1 className="text-xl font-semibold">{label}</h1>
-            <p className="text-sm text-muted-foreground">
-              {orders.length} open order{orders.length === 1 ? '' : 's'}
-            </p>
-          </div>
-        </div>
-        <Button onClick={onNew} className="font-semibold">
-          <Plus className="h-4 w-4" /> New {label.toLowerCase()}
-        </Button>
-      </div>
-      {orders.length === 0 ? (
+  if (orders.length === 0) {
+    return (
+      <div className="flex h-full flex-col">
         <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
           <Icon className="mb-3 h-10 w-10 text-muted-foreground/30" />
-          <p className="text-sm font-medium">No open {label.toLowerCase()} orders</p>
-          <p className="mt-1 text-sm text-muted-foreground">Tap “New {label.toLowerCase()}” to start one.</p>
+          <p className="text-sm font-medium">No open {label} orders</p>
+          <p className="mt-1 text-sm text-muted-foreground">Use “New {label}” above to start one.</p>
         </div>
-      ) : (
-        <div className="grid auto-rows-min grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4">
-          {orders.map((o) => (
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-full flex-col">
+      <p className="mb-3 text-sm text-muted-foreground">
+        {orders.length} open {label} order{orders.length === 1 ? '' : 's'}
+      </p>
+      <div className="grid auto-rows-min grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4">
+        {orders.map((o) => (
             <button
               key={o.id}
               onClick={() => onResume(o)}
@@ -1478,9 +1464,8 @@ function CounterOrders({
               </div>
               <div className="mt-auto font-display text-lg font-bold">{rupiah(o.total)}</div>
             </button>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }
@@ -1494,27 +1479,19 @@ function CounterOrders({
 function FloorView({
   floor,
   busy,
-  outlets,
-  outletId,
   floors,
   floorId,
   onChangeFloor,
-  onChangeOutlet,
   onRefresh,
   onPick,
-  onQuickSale,
 }: {
   floor: FloorEntry[];
   busy: boolean;
-  outlets: Outlet[];
-  outletId: string;
   floors: Floor[];
   floorId: string;
   onChangeFloor: (id: string) => void;
-  onChangeOutlet: (id: string) => void;
   onRefresh: () => void;
   onPick: (entry: FloorEntry) => void;
-  onQuickSale: () => void;
 }) {
   const occupied = floor.filter((f) => f.openBill).length;
   const [search, setSearch] = useState('');
@@ -1532,44 +1509,9 @@ function FloorView({
   const isFiltered = q !== '' || statusFilter !== 'all';
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Utensils className="h-6 w-6 text-primary" />
-          <div>
-            <h1 className="text-xl font-semibold">Floor</h1>
-            <p className="text-sm text-muted-foreground">
-              {isFiltered ? `${filtered.length} of ${floor.length}` : floor.length} table{floor.length === 1 ? '' : 's'} · {occupied} occupied
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={onRefresh}>
-            Refresh
-          </Button>
-          <Button onClick={onQuickSale} className="font-semibold">
-            Quick sale
-          </Button>
-        </div>
-      </div>
-
-      {/* Table-selection screen filters. The OUTLET picker lives here — you
-          filter the table board by outlet before opening one — always shown
-          (it's the table screen's primary context). The floor switcher only
-          appears when the outlet actually has more than one floor. */}
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border pb-3">
-        <div className="flex items-center gap-2">
-          <Label className="text-xs font-medium text-muted-foreground">Outlet</Label>
-          <Select value={outletId} onValueChange={onChangeOutlet}>
-            <SelectTrigger className="w-48 bg-card">
-              <SelectValue placeholder="Outlet" />
-            </SelectTrigger>
-            <SelectContent>
-              {outlets.map((o) => (
-                <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Toolbar: floor switcher (multi-floor only) + table count + Refresh.
+          The outlet picker now lives in the page header, shared across tabs. */}
+      <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-border pb-3">
         {floors.length > 1 && (
           <div className="flex items-center gap-2">
             <Label className="text-xs font-medium text-muted-foreground">Floor</Label>
@@ -1585,6 +1527,12 @@ function FloorView({
             </Select>
           </div>
         )}
+        <p className="text-sm text-muted-foreground">
+          {isFiltered ? `${filtered.length} of ${floor.length}` : floor.length} table{floor.length === 1 ? '' : 's'} · {occupied} occupied
+        </p>
+        <Button variant="outline" size="sm" onClick={onRefresh} className="ml-auto">
+          Refresh
+        </Button>
       </div>
 
       {floor.length > 0 && (
@@ -1622,7 +1570,7 @@ function FloorView({
           <p className="mt-3 font-medium">No tables yet</p>
           <p className="text-sm">
             Add tables under{' '}
-            <a href="/dashboard/tables" className="text-primary underline">Tables</a>, or start a quick sale.
+            <a href="/dashboard/tables" className="text-primary underline">Tables</a> to seat dine-in orders.
           </p>
         </div>
       ) : !filtered.length ? (
