@@ -95,6 +95,7 @@ router.get(
           },
         },
         outlet: { select: { id: true, name: true } },
+        table: { select: { id: true, label: true } },
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       take: 200,

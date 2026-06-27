@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, Loader2, CheckCircle2, Undo2, StickyNote, Clock } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2, Undo2, StickyNote, Clock, Utensils, ShoppingBag, Truck } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useRealtime } from '@/hooks/use-realtime';
 import { useBusinessType } from '@/hooks/use-business-type';
@@ -33,14 +34,26 @@ type TicketItem = {
   kdsState: KdsState | null;
 };
 
+type OrderType = 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
+
 type Ticket = {
   id: string;
   number: string;
   kdsState: KdsState;
+  orderType: OrderType;
   createdAt: string;
   note: string | null;
   items: TicketItem[];
   outlet: { id: string; name: string };
+  table: { id: string; label: string } | null;
+};
+
+// The cook plates by order type: DINE_IN → a plate; TAKEAWAY/DELIVERY → a
+// takeaway box. Surface it prominently on every ticket so it's unmissable.
+const ORDER_TYPE: Record<OrderType, { label: string; cls: string; Icon: LucideIcon }> = {
+  DINE_IN: { label: 'Dine-in', cls: 'bg-sky-500/10 text-sky-400', Icon: Utensils },
+  TAKEAWAY: { label: 'Takeaway', cls: 'bg-amber-500/10 text-amber-400', Icon: ShoppingBag },
+  DELIVERY: { label: 'Delivery', cls: 'bg-primary/10 text-primary', Icon: Truck },
 };
 
 // SSE pushes board changes instantly; this poll is only a belt-and-suspenders
@@ -200,6 +213,21 @@ export default function KdsPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <h3 className="font-display text-lg font-bold leading-none tracking-tight">{t.number}</h3>
+                          {(() => {
+                            const ot = ORDER_TYPE[t.orderType] ?? ORDER_TYPE.TAKEAWAY;
+                            const OtIcon = ot.Icon;
+                            return (
+                              <Badge
+                                variant="outline"
+                                className={`mt-1.5 gap-1.5 rounded-full border-transparent px-2.5 py-0.5 text-xs font-semibold ${ot.cls}`}
+                                title={`Plate as: ${ot.label}`}
+                              >
+                                <OtIcon className="h-3.5 w-3.5" />
+                                {ot.label}
+                                {t.orderType === 'DINE_IN' && t.table ? ` · ${t.table.label}` : ''}
+                              </Badge>
+                            );
+                          })()}
                           <p className="mt-1 text-xs text-muted-foreground">{t.outlet.name}</p>
                         </div>
                         <Badge variant="outline" className={`shrink-0 gap-1 rounded-full border-transparent px-2 py-1 text-xs font-semibold ${waitCls(mins)}`} title="Waiting time">
