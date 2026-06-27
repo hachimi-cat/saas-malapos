@@ -6,6 +6,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { blogApi, uploadsApi, type BlogPost, type BlogPostInput } from '@/lib/marketing-api';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -179,47 +184,38 @@ export default function PostEditor({ mode, initial }: Props) {
           </Link>
           <h1 className="text-2xl font-semibold tracking-tight font-display">{mode === 'create' ? 'New post' : 'Edit post'}</h1>
           {status === 'published' && (
-            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+            <Badge
+              variant="outline"
+              className="rounded-full border-transparent bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400"
+            >
               Published
-            </span>
+            </Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPreview((p) => !p)}
-            className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium hover:bg-muted"
-          >
+          <Button type="button" variant="outline" size="sm" onClick={() => setPreview((p) => !p)}>
             {preview ? <><EyeOff className="h-3.5 w-3.5" /> Edit</> : <><Eye className="h-3.5 w-3.5" /> Preview</>}
-          </button>
-          <button
-            type="button"
-            onClick={() => save('draft')}
-            disabled={saving}
-            className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
-          >
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => save('draft')} disabled={saving}>
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Save draft
-          </button>
+          </Button>
           {status === 'published' ? (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onUnpublish}
               disabled={saving}
-              className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-400 hover:bg-amber-500/10 disabled:opacity-50"
+              className="border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 hover:text-amber-400"
             >
               <EyeOff className="h-3.5 w-3.5" /> Unpublish
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              onClick={() => save('published')}
-              disabled={saving}
-              className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
+            <Button type="button" size="sm" onClick={() => save('published')} disabled={saving}>
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               Publish
-            </button>
+            </Button>
           )}
         </div>
       </header>
@@ -240,54 +236,52 @@ export default function PostEditor({ mode, initial }: Props) {
       ) : (
         <div className="space-y-4">
           <section className="rounded-lg border border-border bg-card p-5 space-y-4">
-            <div>
-              <label htmlFor="title" className="mb-1 block text-xs font-medium">Title</label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="title" className="text-xs font-medium">Title</Label>
+              <Input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="How we doubled conversions with a simple refund policy change"
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
 
-            <div>
-              <label htmlFor="slug" className="mb-1 block text-xs font-medium">Slug</label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="slug" className="text-xs font-medium">Slug</Label>
+              <Input
                 id="slug"
                 value={slug}
                 onChange={(e) => { setSlugTouched(true); setSlug(e.target.value); }}
                 placeholder="how-we-doubled-conversions"
-                className="w-full rounded border border-border bg-background px-3 py-2 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                className="font-mono"
               />
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 URL: <code className="rounded bg-muted px-1 font-mono">/s/&lt;your-slug&gt;/blog/{slug || '…'}</code>
               </p>
             </div>
 
-            <div>
-              <label htmlFor="excerpt" className="mb-1 block text-xs font-medium">Excerpt</label>
-              <textarea
+            <div className="space-y-1.5">
+              <Label htmlFor="excerpt" className="text-xs font-medium">Excerpt</Label>
+              <Textarea
                 id="excerpt"
                 value={excerpt ?? ''}
                 onChange={(e) => setExcerpt(e.target.value)}
                 rows={2}
                 placeholder="One-line hook shown in the blog list + OG preview card."
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
 
-            <div>
-              <label htmlFor="body" className="mb-1 block text-xs font-medium">Body (Markdown)</label>
-              <textarea
+            <div className="space-y-1.5">
+              <Label htmlFor="body" className="text-xs font-medium">Body (Markdown)</Label>
+              <Textarea
                 id="body"
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={18}
                 placeholder="# Heading&#10;&#10;Your content here. **Bold**, *italic*, [links](https://…), images `![alt](url)`, code blocks with triple-backticks."
-                className="w-full rounded border border-border bg-background px-3 py-2 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                className="font-mono text-xs"
               />
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 Supports headings, bold/italic, links, lists, code blocks, blockquotes, images. Preview button renders it.
               </p>
             </div>
@@ -305,13 +299,15 @@ export default function PostEditor({ mode, initial }: Props) {
                   className="w-full rounded-lg object-cover"
                   unoptimized
                 />
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setCoverImage('')}
-                  className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                  className="absolute right-2 top-2 h-7 w-7 rounded-full bg-black/60 text-white hover:bg-black/80 hover:text-white"
                 >
                   <X className="h-3.5 w-3.5" />
-                </button>
+                </Button>
               </div>
             ) : (
               <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground hover:border-primary hover:text-foreground">
@@ -330,24 +326,22 @@ export default function PostEditor({ mode, initial }: Props) {
           <section className="rounded-lg border border-border bg-card p-5 space-y-4">
             <header className="text-sm font-semibold font-display">Metadata</header>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="author" className="mb-1 block text-xs font-medium">Author name</label>
-                <input
+              <div className="space-y-1.5">
+                <Label htmlFor="author" className="text-xs font-medium">Author name</Label>
+                <Input
                   id="author"
                   value={authorName ?? ''}
                   onChange={(e) => setAuthorName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
-              <div>
-                <label htmlFor="tags" className="mb-1 block text-xs font-medium">Tags (comma-separated)</label>
-                <input
+              <div className="space-y-1.5">
+                <Label htmlFor="tags" className="text-xs font-medium">Tags (comma-separated)</Label>
+                <Input
                   id="tags"
                   value={tagsInput}
                   onChange={(e) => setTagsInput(e.target.value)}
                   placeholder="launch, update, tutorial"
-                  className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             </div>
@@ -360,25 +354,23 @@ export default function PostEditor({ mode, initial }: Props) {
               SEO (optional)
             </summary>
             <div className="border-t border-border p-5 space-y-4">
-              <div>
-                <label htmlFor="metaTitle" className="mb-1 block text-xs font-medium">Meta title</label>
-                <input
+              <div className="space-y-1.5">
+                <Label htmlFor="metaTitle" className="text-xs font-medium">Meta title</Label>
+                <Input
                   id="metaTitle"
                   value={metaTitle ?? ''}
                   onChange={(e) => setMetaTitle(e.target.value)}
                   placeholder="Falls back to post title"
-                  className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
-              <div>
-                <label htmlFor="metaDesc" className="mb-1 block text-xs font-medium">Meta description</label>
-                <textarea
+              <div className="space-y-1.5">
+                <Label htmlFor="metaDesc" className="text-xs font-medium">Meta description</Label>
+                <Textarea
                   id="metaDesc"
                   value={metaDescription ?? ''}
                   onChange={(e) => setMetaDescription(e.target.value)}
                   rows={2}
                   placeholder="Falls back to excerpt. 150-160 chars ideal."
-                  className="w-full rounded border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             </div>
@@ -392,13 +384,15 @@ export default function PostEditor({ mode, initial }: Props) {
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     disabled={saving}
-                    className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 bg-background px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                    className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
-                  </button>
+                  </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
