@@ -845,7 +845,7 @@ export default function SellPage() {
 
         <div
           ref={gridRef}
-          className="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4"
+          className="grid flex-1 auto-rows-min grid-cols-2 gap-2 overflow-y-auto p-1 sm:grid-cols-3 xl:grid-cols-4"
         >
           {cards.map(({ p, v }, i) => {
             const code = v.sku || v.barcode;
@@ -1434,7 +1434,7 @@ function FloorBody({ floor, onPick }: { floor: FloorEntry[]; onPick: (entry: Flo
   const unplaced = floor.filter((e) => e.table.posX == null || e.table.posY == null);
 
   return (
-    <div className="flex-1 space-y-4 overflow-y-auto">
+    <div className="flex-1 space-y-4 overflow-y-auto p-1">
       {placed.length > 0 && (
         <div className="overflow-auto rounded-lg border border-border bg-muted/30">
           <div

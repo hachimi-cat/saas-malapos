@@ -136,7 +136,6 @@ const STATIC_SECTIONS: NavSection[] = [
   {
     label: 'Operations',
     items: [
-      { href: '/dashboard/kds', label: 'Kitchen display', icon: ChefHat },
       { href: '/dashboard/purchasing', label: 'Purchasing', icon: Truck },
       { href: '/dashboard/customers', label: 'Customers', icon: Users },
       { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
@@ -308,8 +307,11 @@ export function DashboardShell({
   const router = useRouter();
   const pathname = usePathname();
   const { modules, loading: modulesLoading } = useModules();
-  // F&B-only: surface the Tables manager in the nav for F&B workspaces.
-  const { isFnb } = useBusinessType();
+  // F&B + pharmacy both have a prep step + a serve hand-off board; retail/
+  // general have neither.
+  const { isFnb, businessType } = useBusinessType();
+  const isPharmacy = businessType === 'PHARMACY';
+  const showPrepBoards = isFnb || isPharmacy;
 
   // Route guard: typing a gated module URL while the module is off bounces
   // the merchant to the Modules settings page. Lives here (not the
@@ -332,18 +334,21 @@ export function DashboardShell({
     ({ module }) => module,
   );
 
-  // Inject the F&B "Tables" item into Operations for F&B workspaces only —
-  // dine-in floor management is meaningless for retail/pharmacy.
+  // Operations nav extras by business type: F&B gets dine-in Tables; F&B +
+  // pharmacy get the prep board (Kitchen / Preparation display) and the Serve
+  // display hand-off board. Retail/general get none of these.
+  const opsExtras = [
+    ...(isFnb ? [{ href: '/dashboard/tables', label: 'Tables', icon: Utensils }] : []),
+    ...(showPrepBoards
+      ? [
+          { href: '/dashboard/serve', label: 'Serve display', icon: Hand },
+          { href: '/dashboard/kds', label: isPharmacy ? 'Preparation display' : 'Kitchen display', icon: ChefHat },
+        ]
+      : []),
+  ];
   const staticSections: NavSection[] = STATIC_SECTIONS.map((section) =>
-    isFnb && section.label === 'Operations'
-      ? {
-          ...section,
-          items: [
-            { href: '/dashboard/tables', label: 'Tables', icon: Utensils },
-            { href: '/dashboard/serve', label: 'Ready to serve', icon: Hand },
-            ...(section.items ?? []),
-          ],
-        }
+    section.label === 'Operations'
+      ? { ...section, items: [...opsExtras, ...(section.items ?? [])] }
       : section,
   );
 

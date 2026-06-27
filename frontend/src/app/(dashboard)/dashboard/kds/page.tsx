@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChefHat, ArrowRight, Loader2, CheckCircle2, Undo2, StickyNote, Clock } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useRealtime } from '@/hooks/use-realtime';
+import { useBusinessType } from '@/hooks/use-business-type';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -79,6 +80,9 @@ function waited(iso: string): string {
 }
 
 export default function KdsPage() {
+  // Pharmacy calls it "Preparation"; F&B calls it "Kitchen".
+  const { businessType } = useBusinessType();
+  const isPharmacy = businessType === 'PHARMACY';
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +159,7 @@ export default function KdsPage() {
       <div className="flex items-center gap-3">
         <ChefHat className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Kitchen display</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">{isPharmacy ? 'Preparation display' : 'Kitchen display'}</h1>
           <p className="text-sm text-muted-foreground">
             Live tickets from the counter. Tap an item to advance it, ↩ to undo. Refreshes automatically.
           </p>

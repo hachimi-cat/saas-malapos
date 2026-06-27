@@ -256,7 +256,7 @@ export default function ServePage() {
       <div className="flex items-center gap-3">
         <Utensils className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="text-xl font-semibold">Ready to serve</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Serve display</h1>
           <p className="text-sm text-muted-foreground">
             Dishes the kitchen has plated, grouped by table. Tap Serve to deliver one, or Serve all to
             clear a table. Refreshes automatically.
