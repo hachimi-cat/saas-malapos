@@ -60,7 +60,7 @@ export default function ApiKeysPage() {
     <div>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">API keys</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">API keys</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Authenticate API calls with{' '}
             <code className="rounded bg-muted/60 px-1 py-0.5 text-xs">

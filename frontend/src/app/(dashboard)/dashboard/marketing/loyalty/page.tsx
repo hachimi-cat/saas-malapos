@@ -106,7 +106,7 @@ export default function LoyaltyPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold">
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight font-display">
           <Gift className="h-6 w-6 text-primary" /> Loyalty program
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">

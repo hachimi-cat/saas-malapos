@@ -58,7 +58,7 @@ export default function PayoutDetailPage() {
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tabular-nums tracking-tight">{fmt(payout.amount)}</h1>
+          <h1 className="text-2xl font-semibold tabular-nums tracking-tight font-display">{fmt(payout.amount)}</h1>
           <div className="mt-2 flex items-center gap-2 text-sm">
             <Badge
               variant="outline"

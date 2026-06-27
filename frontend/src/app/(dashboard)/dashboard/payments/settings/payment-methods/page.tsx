@@ -147,7 +147,7 @@ export default function PaymentMethodsSettingsPage() {
 
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Payment methods</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Payment methods</h1>
           <p className="mt-1 max-w-[62ch] text-sm text-muted-foreground">
             Enable methods, reorder them, and choose which provider handles each one. Only methods
             your connected providers can actually process appear at checkout.

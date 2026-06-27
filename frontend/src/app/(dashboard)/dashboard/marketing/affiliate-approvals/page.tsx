@@ -8,6 +8,7 @@ import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface ProgramRef { id: string; name: string }
 
@@ -125,14 +126,25 @@ export default function AffiliateApprovalsPage() {
         description="Pending affiliator enrollments and commissions across every program. Approve or void before the next monthly payout batch."
       />
 
-      <div className="mb-5 flex items-center gap-1 border-b border-border">
-        <TabButton active={tab === 'enrollments'} onClick={() => setTab('enrollments')} label="Pending enrollments" count={enrollmentCount} />
-        <TabButton active={tab === 'commissions'} onClick={() => setTab('commissions')} label="Pending commissions" count={pendingCommissionCount} />
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+        <TabsList className="mb-5">
+          <TabsTrigger value="enrollments">
+            Pending enrollments
+            {enrollmentCount > 0 && (
+              <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-600">{enrollmentCount}</span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="commissions">
+            Pending commissions
+            {pendingCommissionCount > 0 && (
+              <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-600">{pendingCommissionCount}</span>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
 
-      {tab === 'enrollments' && (
+      <TabsContent value="enrollments">{
         enrollments === null ? (
           <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : enrollments.length === 0 ? (
@@ -162,9 +174,9 @@ export default function AffiliateApprovalsPage() {
             ))}
           </div>
         )
-      )}
+      }</TabsContent>
 
-      {tab === 'commissions' && (
+      <TabsContent value="commissions">{
         commissions === null ? (
           <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : commissions.length === 0 ? (
@@ -259,22 +271,8 @@ export default function AffiliateApprovalsPage() {
             empty="No commissions match."
           />
         )
-      )}
+      }</TabsContent>
+      </Tabs>
     </div>
-  );
-}
-
-function TabButton({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count?: number }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm transition ${active ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-    >
-      {label}
-      {typeof count === 'number' && count > 0 && (
-        <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-600">{count}</span>
-      )}
-    </button>
   );
 }

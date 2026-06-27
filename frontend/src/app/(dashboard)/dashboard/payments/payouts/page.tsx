@@ -169,7 +169,7 @@ export default function PayoutsPage() {
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Payouts</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Payouts</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Withdraw funds to your bank. Platform manually wires funds in manual mode — Xendit
             disbursement auto-transfers once XenPlatform is approved.

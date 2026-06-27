@@ -233,7 +233,7 @@ export default function ProvidersSettingsPage() {
 
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Payment providers</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Payment providers</h1>
           <p className="mt-1 max-w-[62ch] text-sm text-muted-foreground">
             Pick how you want to process payments. You can switch later — existing subscriptions re-route automatically.
           </p>
@@ -283,7 +283,7 @@ export default function ProvidersSettingsPage() {
                       <Check className="h-3 w-3" strokeWidth={2.5} /> Active
                     </Badge>
                   )}
-                  <h3 className="text-[15px] font-semibold tracking-tight">{o.title}</h3>
+                  <h3 className="text-[15px] font-semibold tracking-tight font-display">{o.title}</h3>
                   <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{o.description}</p>
                   <p className="mt-3 font-mono text-[11px] text-muted-foreground">{o.meta}</p>
                 </button>

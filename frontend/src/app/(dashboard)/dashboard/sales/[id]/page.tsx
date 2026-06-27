@@ -26,6 +26,7 @@ import { useModules } from '@/hooks/use-modules';
 import { deliveryApi, shipmentsApi, type Shipment } from '@/lib/fulfillment-api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -314,7 +315,7 @@ export default function SaleDetailPage() {
         {/* Line items + totals */}
         <div className="space-y-5">
           <Card className="p-6">
-            <h2 className="mb-4 text-base font-semibold">Items</h2>
+            <h2 className="mb-4 text-base font-semibold font-display">Items</h2>
             <table className="w-full text-sm">
               <tbody>
                 {sale.items.map((it) => (
@@ -361,7 +362,7 @@ export default function SaleDetailPage() {
 
           {/* Payments */}
           <Card className="p-6">
-            <h2 className="mb-3 text-base font-semibold">Payments</h2>
+            <h2 className="mb-3 text-base font-semibold font-display">Payments</h2>
             <div className="space-y-2 text-sm">
               {sale.payments.length === 0 ? (
                 <p className="text-muted-foreground">No payments recorded.</p>
@@ -388,7 +389,7 @@ export default function SaleDetailPage() {
         <div className="space-y-4">
           {sale.customer && (
             <Card className="p-6">
-              <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
+              <h2 className="mb-3 flex items-center gap-2 text-base font-semibold font-display">
                 <User className="h-4 w-4 text-muted-foreground" /> Customer
               </h2>
               <p className="text-sm">{sale.customer.name}</p>
@@ -402,7 +403,7 @@ export default function SaleDetailPage() {
 
           {sale.note && (
             <Card className="p-6">
-              <h2 className="mb-2 text-base font-semibold">Order note</h2>
+              <h2 className="mb-2 text-base font-semibold font-display">Order note</h2>
               <p className="text-sm text-muted-foreground">{sale.note}</p>
             </Card>
           )}
@@ -526,7 +527,7 @@ function ShipmentSection({
   if (!shipmentId) {
     return (
       <Card className="p-6">
-        <h2 className="mb-2 flex items-center gap-2 text-base font-semibold">
+        <h2 className="mb-2 flex items-center gap-2 text-base font-semibold font-display">
           <Truck className="h-4 w-4 text-muted-foreground" /> Delivery
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -546,7 +547,7 @@ function ShipmentSection({
   return (
     <Card className="p-6">
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h2 className="flex items-center gap-2 text-base font-semibold">
+        <h2 className="flex items-center gap-2 text-base font-semibold font-display">
           <Truck className="h-4 w-4 text-muted-foreground" /> Shipment
         </h2>
         <Badge variant="outline" className={`rounded-full border-transparent text-[10px] ${statusClass(status)}`}>
@@ -691,17 +692,12 @@ function RefundPanel({
       <p className="text-sm font-medium">Refund</p>
       <p className="text-xs text-muted-foreground">Refundable balance: {rupiah(refundable)}</p>
 
-      <div className="grid max-w-xs grid-cols-2 gap-2">
-        {(['lines', 'amount'] as const).map((m) => (
-          <Button
-            key={m}
-            variant={mode === m ? 'default' : 'outline'}
-            onClick={() => setMode(m)}
-          >
-            {m === 'lines' ? 'Select items' : 'Amount'}
-          </Button>
-        ))}
-      </div>
+      <Tabs value={mode} onValueChange={(v) => setMode(v as 'lines' | 'amount')}>
+        <TabsList className="grid w-full max-w-xs grid-cols-2">
+          <TabsTrigger value="lines">Select items</TabsTrigger>
+          <TabsTrigger value="amount">Amount</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {mode === 'lines' ? (
         <div className="space-y-2">

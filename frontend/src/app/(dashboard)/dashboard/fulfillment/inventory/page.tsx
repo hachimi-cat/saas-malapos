@@ -169,7 +169,7 @@ export default function InventoryPage() {
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Inventory</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Inventory</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Fulkruma warehouse stock per product variant. Separate from your POS stock under{' '}
             <a href="/dashboard/inventory" className="text-primary hover:underline">Catalog → Inventory</a>.

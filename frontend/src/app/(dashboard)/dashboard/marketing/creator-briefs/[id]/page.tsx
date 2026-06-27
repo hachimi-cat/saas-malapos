@@ -12,6 +12,7 @@ import { marketingFetch } from '@/lib/marketing-api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -198,20 +199,42 @@ export default function CampaignDetailPage() {
 
       {error && <ErrorBox>{error}</ErrorBox>}
 
-      <div className="mb-5 flex items-center gap-1 border-b border-border">
-        <TabButton active={tab === 'brief'} onClick={() => setTab('brief')} icon={FileText} label="Brief" />
-        <TabButton active={tab === 'invitations'} onClick={() => setTab('invitations')} icon={Mail} label="Invitations" count={invites?.length} />
-        <TabButton active={tab === 'applications'} onClick={() => setTab('applications')} icon={Users} label="Applications" count={apps?.length} pendingCount={apps?.filter((a) => a.status === 'pending').length} />
-        <TabButton active={tab === 'collaborations'} onClick={() => setTab('collaborations')} icon={Handshake} label="Collaborations" count={collabs?.length} pendingCount={collabs?.filter((c) => c.status === 'delivered').length} />
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+        <TabsList className="mb-5">
+          <TabsTrigger value="brief"><FileText size={14} /> Brief</TabsTrigger>
+          <TabsTrigger value="invitations" className="relative">
+            <Mail size={14} /> Invitations
+            {typeof invites?.length === 'number' && invites.length > 0 && (
+              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{invites.length}</span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="applications" className="relative">
+            <Users size={14} /> Applications
+            {typeof apps?.length === 'number' && apps.length > 0 && (
+              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{apps.length}</span>
+            )}
+            {(apps?.filter((a) => a.status === 'pending').length ?? 0) > 0 && (
+              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="collaborations" className="relative">
+            <Handshake size={14} /> Collaborations
+            {typeof collabs?.length === 'number' && collabs.length > 0 && (
+              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{collabs.length}</span>
+            )}
+            {(collabs?.filter((c) => c.status === 'delivered').length ?? 0) > 0 && (
+              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-      {tab === 'brief' && (
-        <Card className="p-6">
-          <p className="whitespace-pre-wrap text-sm text-muted-foreground">{campaign.brief}</p>
-        </Card>
-      )}
+        <TabsContent value="brief">
+          <Card className="p-6">
+            <p className="whitespace-pre-wrap text-sm text-muted-foreground">{campaign.brief}</p>
+          </Card>
+        </TabsContent>
 
-      {tab === 'invitations' && (
+        <TabsContent value="invitations">{
         invites === null ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : invites.length === 0 ? (
@@ -234,9 +257,9 @@ export default function CampaignDetailPage() {
             ))}
           </div>
         )
-      )}
+      }</TabsContent>
 
-      {tab === 'applications' && (
+        <TabsContent value="applications">{
         apps === null ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : apps.length === 0 ? (
@@ -273,9 +296,9 @@ export default function CampaignDetailPage() {
             ))}
           </div>
         )
-      )}
+      }</TabsContent>
 
-      {tab === 'collaborations' && (
+        <TabsContent value="collaborations">{
         collabs === null ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : collabs.length === 0 ? (
@@ -308,7 +331,8 @@ export default function CampaignDetailPage() {
             ))}
           </div>
         )
-      )}
+      }</TabsContent>
+      </Tabs>
 
       {showInvite && (
         <Dialog open onOpenChange={(o) => { if (!o) { setShowInvite(false); setInvitePick(null); } }}>
@@ -337,25 +361,6 @@ export default function CampaignDetailPage() {
         </Dialog>
       )}
     </div>
-  );
-}
-
-function TabButton({ active, onClick, icon: Icon, label, count, pendingCount }: { active: boolean; onClick: () => void; icon: React.ComponentType<{ size?: number }>; label: string; count?: number; pendingCount?: number }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition ${active ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-    >
-      <Icon size={14} />
-      {label}
-      {typeof count === 'number' && count > 0 && (
-        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{count}</span>
-      )}
-      {typeof pendingCount === 'number' && pendingCount > 0 && (
-        <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" title={`${pendingCount} need attention`} />
-      )}
-    </button>
   );
 }
 

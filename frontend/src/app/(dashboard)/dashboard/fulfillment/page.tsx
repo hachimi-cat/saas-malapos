@@ -139,7 +139,7 @@ export default function DeliveryPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight font-display">
             <Send className="h-6 w-6 text-primary" /> Fulfillment
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -169,7 +169,7 @@ export default function DeliveryPage() {
 
       <Card>
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="flex items-center gap-2 font-semibold">
+          <h2 className="flex items-center gap-2 font-semibold font-display">
             <Package className="h-4 w-4 text-muted-foreground" /> Shipments
           </h2>
           <span className="text-xs text-muted-foreground">{shipments.length} total</span>

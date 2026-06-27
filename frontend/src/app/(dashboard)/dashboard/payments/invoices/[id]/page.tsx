@@ -122,7 +122,7 @@ export default function InvoiceDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight font-display">
               Invoice <span className="align-middle font-mono text-xl">{inv.number || inv.id}</span>
             </h1>
             <Badge

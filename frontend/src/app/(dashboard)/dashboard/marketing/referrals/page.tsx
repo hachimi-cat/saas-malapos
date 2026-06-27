@@ -118,7 +118,7 @@ export default function ReferralsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold">Referral program</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Referral program</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Reward your buyers for bringing friends. When a new buyer completes their first paid
           checkout via a referrer&apos;s link, both sides get an auto-issued discount code. Refunds
@@ -309,7 +309,7 @@ export default function ReferralsPage() {
       </Card>
 
       <section>
-        <header className="mb-2 text-sm font-semibold">
+        <header className="mb-2 text-sm font-semibold font-display">
           Top referrers <span className="ml-1 text-xs font-normal text-muted-foreground">(last 20)</span>
         </header>
         {links.length === 0 ? (
@@ -379,7 +379,7 @@ export default function ReferralsPage() {
       </section>
 
       <section>
-        <header className="mb-2 text-sm font-semibold">
+        <header className="mb-2 text-sm font-semibold font-display">
           Recent attributions <span className="ml-1 text-xs font-normal text-muted-foreground">(last 20)</span>
         </header>
         {attributions.length === 0 ? (

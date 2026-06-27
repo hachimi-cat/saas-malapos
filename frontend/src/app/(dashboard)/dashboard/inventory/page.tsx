@@ -157,7 +157,7 @@ export default function InventoryPage() {
     <div>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Inventory</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Inventory</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             On-hand stock, reorder points and expiry tracking per outlet.
           </p>
@@ -238,7 +238,7 @@ export default function InventoryPage() {
 
       {expiring.length > 0 && (
         <div className="mt-8">
-          <h2 className="flex items-center gap-2 text-base font-semibold">
+          <h2 className="flex items-center gap-2 text-base font-semibold font-display">
             <CalendarClock className="h-4 w-4 text-primary" />
             Pharmacy — expiring soon
           </h2>

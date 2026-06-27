@@ -59,7 +59,7 @@ export default function SettingsPage() {
       <div className="flex items-center gap-3">
         <SettingsIcon className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="text-xl font-semibold">Settings</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Settings</h1>
           <p className="text-sm text-muted-foreground">
             Your business profile, and your Forjio account.
           </p>
@@ -232,7 +232,7 @@ function BusinessSection() {
 
           <div className="space-y-4 rounded-md border border-border bg-muted/20 p-4">
             <div>
-              <h3 className="text-sm font-semibold">Bank transfer account</h3>
+              <h3 className="text-sm font-semibold font-display">Bank transfer account</h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Shown to a customer who pays by bank transfer on the sell screen. This is
                 separate from your Plugipay payout account — it&apos;s the account customers
@@ -410,7 +410,7 @@ function SecuritySection() {
     >
       <div className="grid gap-8 md:grid-cols-2">
         <form onSubmit={changeEmail} className="space-y-4">
-          <h3 className="text-sm font-medium">Change email</h3>
+          <h3 className="text-sm font-medium font-display">Change email</h3>
           <div className="space-y-1.5">
             <Label htmlFor="newEmail">New email</Label>
             <Input
@@ -443,7 +443,7 @@ function SecuritySection() {
         </form>
 
         <form onSubmit={changePassword} className="space-y-4">
-          <h3 className="text-sm font-medium">Change password</h3>
+          <h3 className="text-sm font-medium font-display">Change password</h3>
           <div className="space-y-1.5">
             <Label htmlFor="curPw">Current password</Label>
             <Input

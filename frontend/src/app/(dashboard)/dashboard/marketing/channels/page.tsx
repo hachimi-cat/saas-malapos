@@ -194,7 +194,7 @@ export default function ChannelsPage() {
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
       {notice && <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm">{notice}</div>}
 
-      <h2 className="mb-3 text-sm font-semibold tracking-tight">Connected</h2>
+      <h2 className="mb-3 text-sm font-semibold tracking-tight font-display">Connected</h2>
       {channels === null ? (
         <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
       ) : channels.length === 0 ? (
@@ -229,7 +229,7 @@ export default function ChannelsPage() {
         </Card>
       )}
 
-      <h2 className="mb-3 mt-10 text-sm font-semibold tracking-tight">All channels</h2>
+      <h2 className="mb-3 mt-10 text-sm font-semibold tracking-tight font-display">All channels</h2>
       <div className="space-y-8">
         {CATEGORIES.map((cat) => {
           const inCat = PROVIDERS.filter((p) => p.category === cat);

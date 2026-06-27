@@ -167,7 +167,7 @@ export default function PostEditor({ mode, initial }: Props) {
           <Link href="/dashboard/marketing/blog" className="text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <h1 className="text-2xl font-bold">{mode === 'create' ? 'New post' : 'Edit post'}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">{mode === 'create' ? 'New post' : 'Edit post'}</h1>
           {status === 'published' && (
             <span className="rounded-full border border-green-300 bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">
               Published
@@ -284,7 +284,7 @@ export default function PostEditor({ mode, initial }: Props) {
           </section>
 
           <section className="rounded-lg border border-border bg-card p-5 space-y-4">
-            <header className="text-sm font-semibold">Cover image</header>
+            <header className="text-sm font-semibold font-display">Cover image</header>
             {coverImage ? (
               <div className="relative">
                 <Image
@@ -318,7 +318,7 @@ export default function PostEditor({ mode, initial }: Props) {
           </section>
 
           <section className="rounded-lg border border-border bg-card p-5 space-y-4">
-            <header className="text-sm font-semibold">Metadata</header>
+            <header className="text-sm font-semibold font-display">Metadata</header>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="author" className="mb-1 block text-xs font-medium">Author name</label>
@@ -345,7 +345,7 @@ export default function PostEditor({ mode, initial }: Props) {
           </section>
 
           <details className="group rounded-lg border border-border bg-card">
-            <summary className="flex cursor-pointer list-none items-center gap-2 p-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center gap-2 p-4 text-sm font-semibold font-display [&::-webkit-details-marker]:hidden">
               <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90" />
               SEO (optional)
             </summary>

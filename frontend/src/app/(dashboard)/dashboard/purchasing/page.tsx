@@ -116,7 +116,7 @@ export default function PurchasingPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold">Purchasing</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Purchasing</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Restock from suppliers — raise purchase orders and receive stock into your outlets.
         </p>
@@ -226,7 +226,7 @@ function OrdersTab() {
       ) : orders.length === 0 ? (
         <Card className="p-12 text-center">
           <ClipboardList className="mx-auto h-10 w-10 text-muted-foreground" />
-          <h2 className="mt-3 text-base font-medium">No purchase orders</h2>
+          <h2 className="mt-3 text-base font-medium font-display">No purchase orders</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Raise a PO to restock from a supplier.
           </p>
@@ -832,7 +832,7 @@ function SuppliersTab() {
       {suppliers.length === 0 ? (
         <Card className="p-12 text-center">
           <Truck className="mx-auto h-10 w-10 text-muted-foreground" />
-          <h2 className="mt-3 text-base font-medium">No suppliers yet</h2>
+          <h2 className="mt-3 text-base font-medium font-display">No suppliers yet</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Add your first supplier to raise purchase orders against them.
           </p>

@@ -135,7 +135,7 @@ export default function CustomersPage() {
     <div className="mx-auto max-w-6xl">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Customers</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Customers</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Your customer roster and loyalty points.
           </p>
@@ -421,7 +421,7 @@ function CustomerDetail({
       >
         <div className="flex items-start justify-between">
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-semibold">{customer?.name ?? 'Customer'}</h2>
+            <h2 className="truncate text-lg font-semibold font-display">{customer?.name ?? 'Customer'}</h2>
             {customer?.phone && <p className="text-sm text-muted-foreground">{customer.phone}</p>}
             {customer?.email && <p className="text-sm text-muted-foreground">{customer.email}</p>}
           </div>
@@ -672,7 +672,7 @@ function Stat({ icon, label, value }: { icon?: React.ReactNode; label: string; v
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="mt-5">
-      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground font-display">
         {icon} {title}
       </h3>
       <div className="mt-1">{children}</div>

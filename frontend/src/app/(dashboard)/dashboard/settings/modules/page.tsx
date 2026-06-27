@@ -116,7 +116,7 @@ export default function ModulesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Modules</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Modules</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Turn Forjio partner modules on or off. Each module connects Malapos to another Forjio
           product, has its own usage pricing, and is billed through your Malapos subscription
@@ -152,7 +152,7 @@ export default function ModulesPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h2 className="font-semibold">{m.name}</h2>
+                        <h2 className="font-semibold font-display">{m.name}</h2>
                         {enabled && (
                           <Badge
                             variant="outline"

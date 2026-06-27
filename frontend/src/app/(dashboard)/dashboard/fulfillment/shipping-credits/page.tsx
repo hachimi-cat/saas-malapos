@@ -98,7 +98,7 @@ export default function ShippingCreditsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Shipping Credits</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Shipping Credits</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Prepaid balance used to dispatch couriers via Biteship. Top up here so booking a
           pickup actually allocates a driver. Each shipment debits this balance based on the
@@ -132,7 +132,7 @@ export default function ShippingCreditsPage() {
 
         <Card className="space-y-4 p-6">
           <div>
-            <h2 className="text-sm font-semibold">Top up balance</h2>
+            <h2 className="text-sm font-semibold font-display">Top up balance</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
               You&apos;ll be redirected to checkout — pay via QRIS, virtual account, e-wallet, or
               card. Credit applies as soon as payment clears.
@@ -187,7 +187,7 @@ export default function ShippingCreditsPage() {
 
       <Card>
         <div className="border-b border-border p-4">
-          <h2 className="text-sm font-semibold">Transactions</h2>
+          <h2 className="text-sm font-semibold font-display">Transactions</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">Most recent first.</p>
         </div>
         {transactions.length === 0 ? (

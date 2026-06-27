@@ -126,7 +126,7 @@ export default function ReceiptDetailPage() {
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight font-display">
             {receipt.currency === 'IDR' ? formatCurrency(receipt.amount) : `${receipt.currency} ${receipt.amount}`}
           </h1>
           <div className="mt-2 flex items-center gap-2 text-sm">

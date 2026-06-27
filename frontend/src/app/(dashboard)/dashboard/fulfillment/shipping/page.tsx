@@ -129,7 +129,7 @@ export default function ShippingSettingsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold">Shipping</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Shipping</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Configure your pickup origin and the couriers enabled for this workspace. Powered by
           Fulkruma → Biteship.
@@ -153,7 +153,7 @@ export default function ShippingSettingsPage() {
         <Card className="p-6">
           <div className="mb-4 flex items-center gap-2">
             <MapPin className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-lg font-medium">Pickup origin</h2>
+            <h2 className="text-lg font-medium font-display">Pickup origin</h2>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -172,7 +172,7 @@ export default function ShippingSettingsPage() {
 
         <Card className="p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-medium">Enabled couriers</h2>
+            <h2 className="text-lg font-medium font-display">Enabled couriers</h2>
             <div className="flex gap-3">
               <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={() => setCouriers(catalog.map((c) => c.code))} disabled={catalog.length === 0}>
                 Enable all

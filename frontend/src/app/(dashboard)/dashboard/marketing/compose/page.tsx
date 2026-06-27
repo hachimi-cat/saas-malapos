@@ -402,7 +402,7 @@ export default function ComposePage() {
 
       {past.length > 0 && (
         <>
-          <h2 className="mb-3 mt-12 text-sm font-semibold tracking-tight">Past campaigns</h2>
+          <h2 className="mb-3 mt-12 text-sm font-semibold tracking-tight font-display">Past campaigns</h2>
           <Card className="hidden overflow-hidden md:block">
             <Table>
               <TableHeader>
@@ -451,7 +451,7 @@ export default function ComposePage() {
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <Card className="mb-6 p-5">
-      <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+      <h2 className="text-sm font-semibold tracking-tight font-display">{title}</h2>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
       <div className="mt-4 space-y-3">{children}</div>
     </Card>

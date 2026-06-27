@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { Handshake, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Collab {
   id: string;
@@ -66,11 +66,13 @@ export default function ContractsPage() {
         description="Active creator collaborations across every campaign. Default view is drafts awaiting your review — toggle filters to see in-progress or all."
       />
 
-      <div className="mb-5 flex h-9 items-center gap-1 rounded-md border border-border bg-card p-1">
-        <FilterChip active={filter === 'awaiting_review'} onClick={() => setFilter('awaiting_review')} label="Awaiting review" />
-        <FilterChip active={filter === 'in_progress'} onClick={() => setFilter('in_progress')} label="In progress" />
-        <FilterChip active={filter === 'all'} onClick={() => setFilter('all')} label="All" />
-      </div>
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+        <TabsList className="mb-5">
+          <TabsTrigger value="awaiting_review">Awaiting review</TabsTrigger>
+          <TabsTrigger value="in_progress">In progress</TabsTrigger>
+          <TabsTrigger value="all">All</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
 
@@ -115,20 +117,6 @@ export default function ContractsPage() {
         </div>
       )}
     </div>
-  );
-}
-
-function FilterChip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
-  return (
-    <Button
-      type="button"
-      variant={active ? 'default' : 'ghost'}
-      size="sm"
-      className="h-7"
-      onClick={onClick}
-    >
-      {label}
-    </Button>
   );
 }
 

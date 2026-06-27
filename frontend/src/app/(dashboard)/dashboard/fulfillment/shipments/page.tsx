@@ -198,7 +198,7 @@ export default function ShipmentsPage() {
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Shipments</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Shipments</h1>
           <p className="mt-1 text-sm text-muted-foreground">Physical orders via Fulkruma → Biteship.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -494,7 +494,7 @@ function CreateShipmentModal({
               {/* Recipient */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase text-muted-foreground">Recipient</h3>
+                  <h3 className="text-xs font-semibold uppercase text-muted-foreground font-display">Recipient</h3>
                   <Button type="button" variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
                     <UserSearch className="h-3.5 w-3.5" /> Pick customer
                   </Button>
@@ -514,7 +514,7 @@ function CreateShipmentModal({
               {/* Items */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase text-muted-foreground">Parcel items</h3>
+                  <h3 className="text-xs font-semibold uppercase text-muted-foreground font-display">Parcel items</h3>
                   <span className="text-xs text-muted-foreground">Total weight: {totalWeight} g</span>
                 </div>
                 <div className="space-y-2">

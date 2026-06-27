@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { TrendingUp, Package, AlertTriangle, BarChart3 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -146,7 +146,7 @@ export default function ReportsPage() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Reports</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Reports</h1>
           <p className="text-sm text-muted-foreground">Sales performance, payment mix, and stock health.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -164,19 +164,15 @@ export default function ReportsPage() {
               ))}
             </SelectContent>
           </Select>
-          <div className="flex rounded-md border border-border bg-card p-0.5">
-            {RANGES.map((r) => (
-              <Button
-                key={r.key}
-                size="sm"
-                variant={range === r.key ? 'default' : 'ghost'}
-                onClick={() => setRange(r.key)}
-                className={range === r.key ? '' : 'text-muted-foreground'}
-              >
-                {r.label}
-              </Button>
-            ))}
-          </div>
+          <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
+            <TabsList>
+              {RANGES.map((r) => (
+                <TabsTrigger key={r.key} value={r.key}>
+                  {r.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
       </div>
 
@@ -309,7 +305,7 @@ function Panel({
     <Card className={`p-4 ${className}`}>
       <div className="mb-3 flex items-center gap-2">
         {icon}
-        <h2 className="text-sm font-semibold">{title}</h2>
+        <h2 className="text-sm font-semibold font-display">{title}</h2>
       </div>
       {children}
     </Card>

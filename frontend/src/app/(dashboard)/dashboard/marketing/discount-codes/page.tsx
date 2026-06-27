@@ -227,7 +227,7 @@ export default function DiscountCodesPage() {
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Discount codes</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Discount codes</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Promo codes for buyers. Redemptions post to the ledger as a promotion-cost debit, so
             P&amp;L shows discount expense separately.

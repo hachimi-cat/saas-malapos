@@ -152,7 +152,7 @@ export default function PlanDetailPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{plan.name}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight font-display">{plan.name}</h1>
             <Badge
               variant="outline"
               className={cn(
@@ -199,7 +199,7 @@ export default function PlanDetailPage() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[2fr_1fr]">
         <Card className="rounded-lg border border-border bg-card p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold">Prices</h2>
+            <h2 className="text-base font-semibold font-display">Prices</h2>
             <Button
               type="button"
               variant="link"
@@ -370,7 +370,7 @@ export default function PlanDetailPage() {
         </Card>
 
         <Card className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-base font-semibold">Schedule</h2>
+          <h2 className="mb-4 text-base font-semibold font-display">Schedule</h2>
           <div className="space-y-3">
             <Kv label="Interval" value={`Every ${intervalCount > 1 ? `${intervalCount} ${plan.interval}s` : plan.interval}`} />
             <Kv label="Trial days" value={String(plan.trialDays ?? plan.trialPeriodDays ?? 0)} />

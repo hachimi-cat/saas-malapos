@@ -118,7 +118,7 @@ export default function CustomerDetailPage() {
       {/* Identity card */}
       <Card>
         <CardContent className="p-6">
-          <h1 className="text-2xl font-bold tracking-tight">{customer.name ?? customer.email ?? customer.id}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">{customer.name ?? customer.email ?? customer.id}</h1>
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
             {customer.email && <Field icon={Mail} label="Email" value={customer.email} />}
             {customer.phone && <Field icon={Phone} label="Phone" value={customer.phone} />}

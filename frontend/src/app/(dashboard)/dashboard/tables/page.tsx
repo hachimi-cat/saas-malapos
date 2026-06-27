@@ -273,7 +273,7 @@ export default function TablesPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Tables</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Tables</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Your dine-in floor. Seat orders on a table from the sell screen.
           </p>
@@ -323,7 +323,7 @@ export default function TablesPage() {
       {!floorId ? (
         <Card className="border-dashed p-12 text-center">
           <LayoutGrid className="mx-auto h-10 w-10 text-muted-foreground" />
-          <h2 className="mt-3 text-base font-medium">No floors yet</h2>
+          <h2 className="mt-3 text-base font-medium font-display">No floors yet</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Add a floor (e.g. Ground Floor, Rooftop) to start laying out tables.
           </p>
@@ -344,7 +344,7 @@ export default function TablesPage() {
       ) : tables.length === 0 ? (
         <Card className="p-12 text-center">
           <Utensils className="mx-auto h-10 w-10 text-muted-foreground" />
-          <h2 className="mt-3 text-base font-medium">No tables yet</h2>
+          <h2 className="mt-3 text-base font-medium font-display">No tables yet</h2>
           <p className="mt-1 text-sm text-muted-foreground">Add your first table to start seating dine-in orders.</p>
           <Button onClick={() => setCreating(true)} className="mt-4">
             <Plus className="h-4 w-4" /> Add table
@@ -660,7 +660,7 @@ function FloorEditor({
       {/* Sidebar: tray + selected-table controls */}
       <div className="w-full shrink-0 space-y-4 lg:w-72">
         <Card className="p-3">
-          <h3 className="mb-2 text-sm font-semibold">Unplaced tables ({tray.length})</h3>
+          <h3 className="mb-2 text-sm font-semibold font-display">Unplaced tables ({tray.length})</h3>
           {tray.length === 0 ? (
             <p className="text-xs text-muted-foreground">All tables are on the floor.</p>
           ) : (
@@ -699,7 +699,7 @@ function FloorEditor({
         {selected ? (
           <Card className="p-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">{selected.label}</h3>
+              <h3 className="text-sm font-semibold font-display">{selected.label}</h3>
               <span className="text-xs text-muted-foreground">{selected.zone || 'No zone'}</span>
             </div>
 

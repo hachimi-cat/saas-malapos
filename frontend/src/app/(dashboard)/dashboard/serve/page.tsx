@@ -158,86 +158,82 @@ export default function ServePage() {
     const groupKey = kind === 'table' ? `table:${g.tableId}` : `group:${g.tickets[0]?.transactionId}`;
     const groupBusy = busy === groupKey;
     const itemCount = g.tickets.reduce((n, t) => n + t.items.length, 0);
+    const multi = g.tickets.length > 1;
+    // The card's left edge is colour-coded by its WORST wait, so the whole
+    // pass reads at a glance — red rails get walked first.
+    const maxMins = g.tickets.reduce((m, t) => Math.max(m, waitingMinutes(t.readyAt)), 0);
+    const rail = maxMins >= 15 ? 'border-l-destructive' : maxMins >= 8 ? 'border-l-amber-500' : 'border-l-emerald-500';
+    const headType = g.tickets[0]?.orderType;
     return (
       <Card
         key={g.tableId ?? `txn:${g.tickets[0]?.transactionId}`}
-        className="flex flex-col rounded-lg border-t-4 border-t-emerald-500 p-4"
+        className={`flex flex-col gap-3 rounded-xl border-l-[3px] p-4 ${rail}`}
       >
-        <div className="flex items-start justify-between gap-2">
-          <span className="text-2xl font-bold leading-none">{g.tableLabel}</span>
-          <Badge variant="outline" className="shrink-0 rounded-full border-transparent bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-            {itemCount} ready
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="truncate font-display text-2xl font-bold leading-none tracking-tight">{g.tableLabel}</h3>
+              {kind === 'counter' && headType && headType !== 'DINE_IN' && (
+                <Badge variant="outline" className="shrink-0 border-transparent bg-sky-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-sky-600 dark:text-sky-400">
+                  {ORDER_TYPE_LABEL[headType] ?? headType}
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{itemCount} {itemCount === 1 ? 'dish' : 'dishes'} ready</p>
+          </div>
+          <Badge variant="outline" className={`shrink-0 gap-1 rounded-full border-transparent px-2 py-1 text-xs font-semibold ${waitingBadgeCls(maxMins)}`} title="Longest wait on this order">
+            <Clock className="h-3 w-3" /> {waitingLabel(maxMins)}
           </Badge>
         </div>
-        <div className="mt-3 flex flex-1 flex-col">
-          {g.tickets.map((t) => {
-            const mins = waitingMinutes(t.readyAt);
-            return (
-              <div
-                key={t.transactionId}
-                className="border-t border-border/50 pt-3 first:border-t-0 first:pt-0 [&:not(:first-child)]:mt-3"
-              >
-                <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-xs">
-                  <Badge variant="outline" className={`gap-1 border-transparent px-1.5 py-0.5 text-xs font-semibold ${waitingBadgeCls(mins)}`} title="Waiting time">
-                    <Clock className="h-3 w-3" /> {waitingLabel(mins)}
-                  </Badge>
-                  {t.orderType !== 'DINE_IN' && (
-                    <Badge variant="outline" className="border-transparent bg-sky-500/15 px-1.5 py-0.5 text-xs font-semibold text-sky-600 dark:text-sky-400">
-                      {ORDER_TYPE_LABEL[t.orderType] ?? t.orderType}
-                    </Badge>
+
+        <div className="flex flex-col gap-3">
+          {g.tickets.map((t) => (
+            <div key={t.transactionId} className="flex flex-col gap-1.5">
+              {(t.customerName || multi) && (
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                  {t.customerName && (
+                    <span className="flex items-center gap-1 font-semibold text-foreground">
+                      <User className="h-3 w-3 text-muted-foreground" /> {t.customerName}
+                    </span>
                   )}
-                  <span className="font-medium text-muted-foreground">{t.number}</span>
+                  <span className="text-muted-foreground">{t.number}</span>
                 </div>
-                {(t.customerName || t.note) && (
-                  <div className="mb-2 mt-1 space-y-1">
-                    {t.customerName && (
-                      <p className="flex items-center gap-1.5 text-sm font-semibold leading-snug text-foreground">
-                        <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        {t.customerName}
+              )}
+              {t.note && (
+                <p className="flex items-start gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                  <StickyNote className="mt-0.5 h-3 w-3 shrink-0" /> {t.note}
+                </p>
+              )}
+              {t.items.map((it) => {
+                const itemBusy = busy === `item:${it.id}`;
+                return (
+                  <div key={it.id} className="flex items-center gap-3 rounded-lg bg-muted/40 p-2">
+                    <span className="grid h-8 min-w-8 shrink-0 place-items-center rounded-md bg-background px-1.5 text-sm font-bold tabular-nums">
+                      {it.qty}×
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium leading-tight">
+                        {it.name}
+                        {it.variantName && it.variantName !== 'Default' ? (
+                          <span className="text-muted-foreground"> · {it.variantName}</span>
+                        ) : null}
                       </p>
-                    )}
-                    {t.note && (
-                      <p className="flex items-start gap-1 text-xs italic text-muted-foreground">
-                        <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
-                        <span>“{t.note}”</span>
-                      </p>
-                    )}
+                      {it.modifiers?.length > 0 && (
+                        <p className="truncate text-xs text-muted-foreground">{it.modifiers.map((m) => m.name).join(', ')}</p>
+                      )}
+                      {it.note && <p className="truncate text-xs text-amber-700 dark:text-amber-300">{it.note}</p>}
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => serveItem(it.id)} disabled={itemBusy || groupBusy} className="h-8 shrink-0">
+                      {itemBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Hand className="h-3.5 w-3.5" />}
+                      Serve
+                    </Button>
                   </div>
-                )}
-                <ul className="divide-y divide-border/40 text-sm">
-                  {t.items.map((it) => {
-                    const itemBusy = busy === `item:${it.id}`;
-                    return (
-                      <li key={it.id} className="flex items-start justify-between gap-2 py-2">
-                        <span className="min-w-0">
-                          <span className="font-medium">{it.qty}×</span> {it.name}
-                          {it.variantName && it.variantName !== 'Default' ? (
-                            <span className="text-muted-foreground"> · {it.variantName}</span>
-                          ) : null}
-                          {it.modifiers?.length > 0 && (
-                            <span className="block text-xs text-muted-foreground">
-                              {it.modifiers.map((m) => m.name).join(', ')}
-                            </span>
-                          )}
-                          {it.note && (
-                            <span className="mt-1 flex items-start gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
-                              <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
-                              <span>{it.note}</span>
-                            </span>
-                          )}
-                        </span>
-                        <Button type="button" variant="outline" size="sm" onClick={() => serveItem(it.id)} disabled={itemBusy || groupBusy} className="shrink-0">
-                          {itemBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Hand className="h-3.5 w-3.5" />}
-                          Serve
-                        </Button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          ))}
         </div>
+
         <Button
           type="button"
           onClick={() =>
@@ -246,7 +242,7 @@ export default function ServePage() {
               : serveMany(groupKey, g.tickets.flatMap((t) => t.items.map((it) => it.id)))
           }
           disabled={groupBusy}
-          className="mt-3 w-full"
+          className="w-full"
         >
           {groupBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
           Serve all

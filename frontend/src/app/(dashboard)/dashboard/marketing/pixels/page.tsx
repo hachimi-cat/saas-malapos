@@ -75,7 +75,7 @@ export default function PixelsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold">Pixels &amp; Conversion Tracking</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Pixels &amp; Conversion Tracking</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Per-merchant tracking pixels for Meta, Google, and TikTok ads. Configure the IDs you use
           and the storefront injects the scripts + emits standard ecommerce events (PageView,
@@ -103,7 +103,7 @@ export default function PixelsPage() {
       <Card className="p-5">
         <div className="mb-4 flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-blue-600" />
-          <h2 className="text-sm font-semibold">Meta Pixel &amp; Conversions API</h2>
+          <h2 className="text-sm font-semibold font-display">Meta Pixel &amp; Conversions API</h2>
           {form.metaPixelId && <CheckCircle2 className="h-4 w-4 text-green-600" />}
         </div>
         <div className="space-y-3">
@@ -146,7 +146,7 @@ export default function PixelsPage() {
       <Card className="p-5">
         <div className="mb-4 flex items-center gap-2">
           <Activity className="h-5 w-5 text-orange-600" />
-          <h2 className="text-sm font-semibold">Google Analytics &amp; Google Ads</h2>
+          <h2 className="text-sm font-semibold font-display">Google Analytics &amp; Google Ads</h2>
           {form.googleAnalyticsId && <CheckCircle2 className="h-4 w-4 text-green-600" />}
         </div>
         <div className="space-y-3">
@@ -181,7 +181,7 @@ export default function PixelsPage() {
       <Card className="p-5">
         <div className="mb-4 flex items-center gap-2">
           <Target className="h-5 w-5 text-pink-600" />
-          <h2 className="text-sm font-semibold">TikTok Pixel</h2>
+          <h2 className="text-sm font-semibold font-display">TikTok Pixel</h2>
           {form.tiktokPixelId && <CheckCircle2 className="h-4 w-4 text-green-600" />}
         </div>
         <Field

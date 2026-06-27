@@ -11,6 +11,7 @@ import { marketingFetch } from '@/lib/marketing-api';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -178,13 +179,30 @@ export default function ProgramDetailPage() {
 
       {error && <ErrorBox>{error}</ErrorBox>}
 
-      <div className="mb-5 flex items-center gap-1 border-b border-border">
-        <TabButton active={tab === 'brief'} onClick={() => setTab('brief')} icon={FileText} label="Brief" />
-        <TabButton active={tab === 'affiliators'} onClick={() => setTab('affiliators')} icon={Users} label="Affiliators" count={enrollments?.length} pendingCount={pendingEnrollments} />
-        <TabButton active={tab === 'commissions'} onClick={() => setTab('commissions')} icon={Coins} label="Commissions" count={commissions?.length} pendingCount={pendingCommissions} />
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+        <TabsList className="mb-5">
+          <TabsTrigger value="brief"><FileText size={14} /> Brief</TabsTrigger>
+          <TabsTrigger value="affiliators" className="relative">
+            <Users size={14} /> Affiliators
+            {typeof enrollments?.length === 'number' && enrollments.length > 0 && (
+              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{enrollments.length}</span>
+            )}
+            {pendingEnrollments > 0 && (
+              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="commissions" className="relative">
+            <Coins size={14} /> Commissions
+            {typeof commissions?.length === 'number' && commissions.length > 0 && (
+              <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{commissions.length}</span>
+            )}
+            {pendingCommissions > 0 && (
+              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-      {tab === 'brief' && (
+        <TabsContent value="brief">
         <div className="space-y-4">
           <Card className="p-6">
             {program.description ? (
@@ -194,7 +212,7 @@ export default function ProgramDetailPage() {
             )}
           </Card>
           <Card className="p-6">
-            <h3 className="mb-3 text-sm font-semibold">Campaign linkage</h3>
+            <h3 className="mb-3 text-sm font-semibold font-display">Campaign linkage</h3>
             <CampaignSelect
               value={program.marketingCampaignId ?? null}
               onChange={updateCampaignLinkage}
@@ -202,9 +220,9 @@ export default function ProgramDetailPage() {
             />
           </Card>
         </div>
-      )}
+        </TabsContent>
 
-      {tab === 'affiliators' && (
+        <TabsContent value="affiliators">{
         enrollments === null ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : enrollments.length === 0 ? (
@@ -301,9 +319,9 @@ export default function ProgramDetailPage() {
             </div>
           </>
         )
-      )}
+      }</TabsContent>
 
-      {tab === 'commissions' && (
+        <TabsContent value="commissions">{
         commissions === null ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : commissions.length === 0 ? (
@@ -389,26 +407,8 @@ export default function ProgramDetailPage() {
             </div>
           </>
         )
-      )}
+      }</TabsContent>
+      </Tabs>
     </div>
-  );
-}
-
-function TabButton({ active, onClick, icon: Icon, label, count, pendingCount }: { active: boolean; onClick: () => void; icon: React.ComponentType<{ size?: number }>; label: string; count?: number; pendingCount?: number }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition ${active ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-    >
-      <Icon size={14} />
-      {label}
-      {typeof count === 'number' && count > 0 && (
-        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium leading-none">{count}</span>
-      )}
-      {typeof pendingCount === 'number' && pendingCount > 0 && (
-        <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" title={`${pendingCount} need attention`} />
-      )}
-    </button>
   );
 }

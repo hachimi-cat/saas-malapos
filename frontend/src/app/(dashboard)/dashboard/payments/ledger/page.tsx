@@ -166,7 +166,7 @@ export default function LedgerPage() {
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Ledger</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Ledger</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Signed money log. Every sale, refund, fee, shipping charge, and manual
             adjustment lands here with a running balance.

@@ -126,7 +126,7 @@ function BillingContent() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Billing</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           One flat price per workspace, billed in IDR through Plugipay.
         </p>
@@ -166,7 +166,7 @@ function BillingContent() {
 
       {/* ── Current plan ─────────────────────────────────────────── */}
       <Card className="p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-display">
           Current plan
         </h2>
         {!data ? (
@@ -207,7 +207,7 @@ function BillingContent() {
 
       {/* ── Tier cards ───────────────────────────────────────────── */}
       <section>
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-display">
           Plans
         </h2>
         <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -221,7 +221,7 @@ function BillingContent() {
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-base font-bold">{tier.name}</h3>
+                  <h3 className="text-base font-bold font-display">{tier.name}</h3>
                   {isCurrent && (
                     <Badge className="shrink-0 rounded-full px-2 py-0.5 text-[10px]">
                       Current plan

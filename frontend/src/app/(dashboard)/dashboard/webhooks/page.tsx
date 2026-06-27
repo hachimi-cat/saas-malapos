@@ -86,7 +86,7 @@ export default function WebhooksPage() {
     <div className="space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Webhooks</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Webhooks</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Get an HTTPS POST whenever something happens to your sales or subscription.
           </p>
@@ -183,7 +183,7 @@ export default function WebhooksPage() {
       )}
 
       <Card className="p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-display">
           Event catalog
         </h2>
         <div className="mt-3 space-y-2">
@@ -197,7 +197,7 @@ export default function WebhooksPage() {
       </Card>
 
       <Card className="p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground font-display">
           Verifying signatures
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">

@@ -90,7 +90,7 @@ export default function WorkspacesPage() {
   return (
     <div>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Workspaces</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Workspaces</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Each workspace has its own outlets, sales, stock, billing and settings. Managed in{' '}
           <a href="https://huudis.com" target="_blank" rel="noreferrer" className="text-primary hover:underline">

@@ -119,7 +119,7 @@ export default function SubscriptionDetailPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">Subscription</h1>
+            <h1 className="text-2xl font-semibold tracking-tight font-display">Subscription</h1>
             <Badge
               variant="outline"
               className={cn(

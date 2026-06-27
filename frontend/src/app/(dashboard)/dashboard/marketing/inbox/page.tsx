@@ -144,7 +144,7 @@ export default function InboxPage() {
           ) : (
             <>
               <header className="border-b border-border p-5">
-                <h2 className="text-base font-semibold">{active.senderName ?? active.senderHandle}</h2>
+                <h2 className="text-base font-semibold font-display">{active.senderName ?? active.senderHandle}</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">{PROVIDER_LABEL[active.provider] ?? active.provider} · <span className="font-mono">{active.senderHandle}</span></p>
               </header>
               <div className="space-y-3 p-5">

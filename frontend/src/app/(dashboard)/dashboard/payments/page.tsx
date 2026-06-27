@@ -265,7 +265,7 @@ export default function PaymentsPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Checkout Sessions</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Checkout Sessions</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage and create hosted payment sessions</p>
         </div>
         <Button onClick={() => setShowCreate(true)}>

@@ -81,7 +81,7 @@ export default function ModifiersPage() {
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Modifiers</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Modifiers</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Build customization groups (e.g. sugar level, extra shot), then attach them to
             products from the product form&apos;s Customization section.

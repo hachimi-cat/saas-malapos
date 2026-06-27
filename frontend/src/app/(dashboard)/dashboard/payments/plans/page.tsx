@@ -268,7 +268,7 @@ export default function PlansPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Subscription Plans</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Subscription Plans</h1>
           <p className="mt-1 text-sm text-muted-foreground">Create and manage your billing plans</p>
         </div>
         <Button onClick={() => setShowCreate(true)}>
@@ -304,7 +304,7 @@ export default function PlansPage() {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-semibold">{plan.name}</h3>
+                  <h3 className="font-semibold font-display">{plan.name}</h3>
                   {plan.description && (
                     <p className="mt-1 text-xs text-muted-foreground">{plan.description}</p>
                   )}

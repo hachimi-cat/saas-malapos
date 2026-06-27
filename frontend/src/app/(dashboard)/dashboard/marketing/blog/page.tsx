@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 /**
  * /dashboard/marketing/blog — list view of blog posts with status filter +
@@ -47,7 +48,7 @@ export default function BlogListPage() {
     <div className="space-y-6">
       <header className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Blog</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Blog</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Publish posts to <code className="rounded bg-muted px-1 font-mono text-xs">/s/&lt;your-slug&gt;/blog</code>.
             Markdown body, tags, cover images, SEO fields. Each post auto-indexed in your sitemap + RSS feed.
@@ -65,20 +66,15 @@ export default function BlogListPage() {
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Card className="inline-flex p-1 shadow-none">
-          {(['all', 'published', 'draft'] as const).map((s) => (
-            <Button
-              key={s}
-              type="button"
-              variant={filter === s ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setFilter(s)}
-              className={`capitalize ${filter === s ? '' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              {s}
-            </Button>
-          ))}
-        </Card>
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as BlogPostStatus | 'all')}>
+          <TabsList>
+            {(['all', 'published', 'draft'] as const).map((s) => (
+              <TabsTrigger key={s} value={s} className="capitalize">
+                {s}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <div className="relative w-full max-w-sm">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input

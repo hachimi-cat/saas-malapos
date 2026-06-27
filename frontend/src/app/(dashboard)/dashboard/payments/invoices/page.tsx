@@ -158,7 +158,7 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl">Invoices</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Invoices</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             All billing invoices with PDF download
           </p>

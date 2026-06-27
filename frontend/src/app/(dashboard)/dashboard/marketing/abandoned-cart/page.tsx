@@ -106,7 +106,7 @@ export default function AbandonedCartPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold">Abandoned cart recovery</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Abandoned cart recovery</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Opt-in reminder emails for buyers who add items and don&apos;t check out. Cron sweeps
           every 15 minutes. Reminders are sent at most once per cart per 72h, never to opted-out buyers.
@@ -218,7 +218,7 @@ export default function AbandonedCartPage() {
       </Card>
 
       <section>
-        <header className="mb-2 text-sm font-semibold">
+        <header className="mb-2 text-sm font-semibold font-display">
           Recent reminders <span className="ml-1 text-xs font-normal text-muted-foreground">(last 50)</span>
         </header>
         {reminders.length === 0 ? (

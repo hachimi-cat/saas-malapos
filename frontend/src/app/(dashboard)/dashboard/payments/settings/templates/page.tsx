@@ -154,7 +154,7 @@ export default function TemplatesPage() {
       </nav>
 
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Templates</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Templates</h1>
         <p className="mt-1 max-w-[62ch] text-sm text-muted-foreground">
           Checkout pages, receipts, and invoices — build multiple templates per kind and switch the default
           anytime. A mistake in the live template? Keep an old one around and flip the default back in one
@@ -217,7 +217,7 @@ export default function TemplatesPage() {
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">
+            <h2 className="text-sm font-semibold font-display">
               {tab === 'receipt' ? 'Receipts' : tab === 'invoice' ? 'Invoices' : 'Checkout skins'}
             </h2>
             <Button type="button" variant="ghost" size="sm" onClick={addNew} disabled={busy} className="gap-1.5 text-muted-foreground">
@@ -317,7 +317,7 @@ function TemplatePreview({ kind, config }: { kind: TemplateKind; config: Record<
 
   return (
     <Card className="p-4">
-      <h3 className="mb-3 text-sm font-semibold">Live preview</h3>
+      <h3 className="mb-3 text-sm font-semibold font-display">Live preview</h3>
       {error && <div className="mb-2 font-mono text-xs text-red-400">{error}</div>}
       {html ? (
         <iframe
@@ -420,7 +420,7 @@ function TemplateEditor({
     <div className="space-y-4">
       <Card className="p-6">
         <div className="mb-4 flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">{template.name}</h2>
+          <h2 className="text-base font-semibold font-display">{template.name}</h2>
           <div className="flex items-center gap-2">
             {!template.isDefault && (
               <Button type="button" variant="ghost" size="sm" onClick={onMakeDefault} disabled={busy} className="gap-1.5 text-muted-foreground">

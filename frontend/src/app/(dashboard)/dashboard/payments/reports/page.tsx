@@ -107,7 +107,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Reports</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Reports</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             P&L and cash-flow reports derived from the ledger. Export raw entries as CSV for your accountant.
           </p>
@@ -123,15 +123,13 @@ export default function ReportsPage() {
 
       {/* Range + custom inputs */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex h-9 items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
-          {presets.map((p) => (
-            <Button key={p.id} type="button" variant="ghost" size="sm"
-              onClick={() => { setPresetId(p.id); setCustom(null); }}
-              className={`h-7 rounded-md px-3 text-xs font-medium ${presetId === p.id && !custom ? 'bg-background shadow-sm' : 'text-muted-foreground'}`}>
-              {p.label}
-            </Button>
-          ))}
-        </div>
+        <Tabs value={custom ? '' : presetId} onValueChange={(v) => { setPresetId(v); setCustom(null); }}>
+          <TabsList>
+            {presets.map((p) => (
+              <TabsTrigger key={p.id} value={p.id}>{p.label}</TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <div className="flex h-9 items-center gap-2 rounded-lg border border-border bg-muted/30 px-2">
           <Label htmlFor="rpt-from" className="text-xs font-normal text-muted-foreground">From</Label>
           <Input id="rpt-from" type="date" value={custom?.from?.slice(0, 10) ?? (presets.find((x) => x.id === presetId)?.from.toISOString().slice(0, 10) ?? '')}

@@ -122,7 +122,7 @@ export default function OutletsPage() {
     <div>
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Outlets</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Outlets</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Your stores and their tax, timezone, and receipt settings.
           </p>
@@ -135,7 +135,7 @@ export default function OutletsPage() {
       {outlets.length === 0 ? (
         <Card className="p-12 text-center">
           <Store className="mx-auto h-10 w-10 text-muted-foreground" />
-          <h2 className="mt-3 text-base font-medium">No outlets yet</h2>
+          <h2 className="mt-3 text-base font-medium font-display">No outlets yet</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Add your first store to start selling.
           </p>

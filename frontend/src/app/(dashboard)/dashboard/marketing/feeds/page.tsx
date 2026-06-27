@@ -75,7 +75,7 @@ export default function FeedsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold">Product feeds</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Product feeds</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Auto-generated Google Shopping / Meta Catalog / TikTok Catalog feeds. Submit one URL per
           platform and your products show up in image-rich Shopping ads, Advantage+ Catalog
@@ -148,7 +148,7 @@ export default function FeedsPage() {
 
       {/* ── Feed URLs ──────────────────────────────────────────────────── */}
       <section className="space-y-3">
-        <header className="text-sm font-semibold">Feed URLs</header>
+        <header className="text-sm font-semibold font-display">Feed URLs</header>
         <FeedUrlCard
           platform="Google Shopping"
           url={form.urls.google}
@@ -208,7 +208,7 @@ function FeedUrlCard({ platform, url, previewHref, copied, onCopy, steps }: {
     <Card className="p-4">
       <div className="mb-2 flex items-center gap-2">
         <Rss className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-semibold">{platform}</h3>
+        <h3 className="text-sm font-semibold font-display">{platform}</h3>
       </div>
       <div className="flex items-stretch gap-2">
         <Input readOnly value={url} className="flex-1 bg-muted/30 font-mono text-xs" />

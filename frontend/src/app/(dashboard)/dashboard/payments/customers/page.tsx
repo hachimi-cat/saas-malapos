@@ -64,7 +64,7 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold sm:text-2xl">Customers</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Customers</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Everyone you&apos;ve billed — online checkouts, subscriptions, and invoices.
           Open a customer to see their subscriptions and invoice history.

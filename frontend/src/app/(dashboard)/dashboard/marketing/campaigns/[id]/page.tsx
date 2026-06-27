@@ -230,13 +230,13 @@ export default function MarketingCampaignDetailPage() {
       ) : (
         campaign.description && (
           <Card className="mb-6 p-5">
-            <h2 className="text-sm font-semibold tracking-tight mb-2">About</h2>
+            <h2 className="text-sm font-semibold tracking-tight font-display mb-2">About</h2>
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{campaign.description}</p>
           </Card>
         )
       )}
 
-      <h2 className="text-sm font-semibold tracking-tight mb-3 mt-8">Linked items ({totalChildren})</h2>
+      <h2 className="text-sm font-semibold tracking-tight font-display mb-3 mt-8">Linked items ({totalChildren})</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <ChildCard label="Creator briefs" count={counts?.creatorBriefs ?? 0} href="/dashboard/marketing/creator-briefs" />
         <ChildCard label="Affiliate programs" count={counts?.affiliatePrograms ?? 0} href="/dashboard/marketing/programs" />

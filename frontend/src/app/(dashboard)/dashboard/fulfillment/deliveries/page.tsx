@@ -126,7 +126,7 @@ export default function DeliveriesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold sm:text-2xl">Digital deliveries</h1>
+        <h1 className="text-2xl font-semibold tracking-tight font-display">Digital deliveries</h1>
         <p className="mt-1 text-sm text-muted-foreground">Track digital product deliveries to customers.</p>
       </div>
 

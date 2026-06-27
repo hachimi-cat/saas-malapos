@@ -152,7 +152,7 @@ export default function KdsPage() {
       <div className="flex items-center gap-3">
         <ChefHat className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="text-xl font-semibold">Kitchen display</h1>
+          <h1 className="text-2xl font-semibold tracking-tight font-display">Kitchen display</h1>
           <p className="text-sm text-muted-foreground">
             Live tickets from the counter. Tap an item to advance it, ↩ to undo. Refreshes automatically.
           </p>
@@ -182,7 +182,7 @@ export default function KdsPage() {
             return (
               <div key={col.state} className="flex flex-col">
                 <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{col.label}</h2>
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground font-display">{col.label}</h2>
                   <Badge variant="outline" className="rounded-full border-transparent bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">{colTickets.length}</Badge>
                 </div>
                 <div className="flex flex-col gap-3">

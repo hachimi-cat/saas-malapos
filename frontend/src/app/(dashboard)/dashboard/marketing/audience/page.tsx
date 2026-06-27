@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface Contact {
   id: string;
@@ -181,15 +182,16 @@ export default function AudiencePage() {
         }
       />
 
-      <div className="mb-4 flex items-center gap-2 text-sm">
-        <Button variant={tab === 'contacts' ? 'secondary' : 'ghost'} size="sm" onClick={() => setTab('contacts')}>Contacts</Button>
-        <Button variant={tab === 'lists' ? 'secondary' : 'ghost'} size="sm" onClick={() => setTab('lists')}>Lists</Button>
-        <Button variant={tab === 'suppressions' ? 'secondary' : 'ghost'} size="sm" onClick={() => setTab('suppressions')}><ShieldOff size={12} /> Suppressions</Button>
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as 'contacts' | 'lists' | 'suppressions')}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="contacts">Contacts</TabsTrigger>
+          <TabsTrigger value="lists">Lists</TabsTrigger>
+          <TabsTrigger value="suppressions"><ShieldOff size={12} /> Suppressions</TabsTrigger>
+        </TabsList>
 
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
 
-      {tab === 'contacts' && (
+      <TabsContent value="contacts">{
         contacts === null ? (
           <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : contacts.length === 0 ? (
@@ -204,9 +206,9 @@ export default function AudiencePage() {
             empty="No contacts match."
           />
         )
-      )}
+      }</TabsContent>
 
-      {tab === 'lists' && (
+      <TabsContent value="lists">
         <>
           {lists === null ? (
             <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
@@ -225,9 +227,9 @@ export default function AudiencePage() {
             </div>
           )}
         </>
-      )}
+      </TabsContent>
 
-      {tab === 'suppressions' && (
+      <TabsContent value="suppressions">
         <>
           <p className="mb-3 text-xs text-muted-foreground">
             Buyers who unsubscribed from abandoned-cart emails. They keep showing up in your contacts list — they just won&rsquo;t receive recovery messages.
@@ -247,7 +249,8 @@ export default function AudiencePage() {
             />
           )}
         </>
-      )}
+      </TabsContent>
+      </Tabs>
 
       {showAdd === 'contact' && <AddContactModal onClose={() => setShowAdd(null)} onSaved={async () => { setShowAdd(null); await loadContacts(); }} />}
       {showAdd === 'list' && <AddListModal onClose={() => setShowAdd(null)} onSaved={async () => { setShowAdd(null); await loadLists(); }} />}

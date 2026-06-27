@@ -112,7 +112,7 @@ export default function GiftCardsPage() {
         <div className="flex items-center gap-3">
           <CreditCard className="h-6 w-6 text-primary" />
           <div>
-            <h1 className="text-xl font-semibold">Gift cards & store credit</h1>
+            <h1 className="text-2xl font-semibold tracking-tight font-display">Gift cards & store credit</h1>
             <p className="text-sm text-muted-foreground">
               Issue a prepaid balance and let customers spend it at checkout as a gift-card tender.
             </p>
