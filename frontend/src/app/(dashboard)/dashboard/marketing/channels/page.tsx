@@ -191,7 +191,7 @@ export default function ChannelsPage() {
         description="Connect the send channels you use. Email, SMS, messaging apps, push, social."
       />
 
-      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
+      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
       {notice && <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm">{notice}</div>}
 
       <h2 className="mb-3 text-sm font-semibold tracking-tight font-display">Connected</h2>
@@ -333,7 +333,7 @@ function TestChannelModal({ channel, onClose, onSent }: { channel: Channel; onCl
           <DialogTitle className="text-base">Send test on {channel.displayName}</DialogTitle>
           <p className="text-xs text-muted-foreground">Dispatches a one-shot canned message through this integration so you can confirm credentials and routing.</p>
         </DialogHeader>
-        {err && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">{err}</div>}
+        {err && <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2 text-xs">{err}</div>}
         <div className="space-y-1.5">
           <Label htmlFor="testRecipient" className="text-xs text-muted-foreground">Recipient</Label>
           <Input

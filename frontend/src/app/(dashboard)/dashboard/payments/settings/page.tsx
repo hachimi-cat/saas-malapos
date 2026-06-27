@@ -113,7 +113,7 @@ export default function PaymentSettingsPage() {
           {connected ? (
             <Badge
               variant="outline"
-              className="gap-1.5 rounded-full border-transparent bg-green-100 px-3 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400"
+              className="gap-1.5 rounded-full border-transparent bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400"
             >
               <CheckCircle2 className="h-3.5 w-3.5" /> Connected
             </Badge>
@@ -157,7 +157,7 @@ export default function PaymentSettingsPage() {
             variant="outline"
             className={`rounded-full border-transparent px-2.5 py-1 text-xs font-medium ${
               connected
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                ? 'bg-emerald-500/10 text-emerald-400'
                 : 'bg-muted text-muted-foreground'
             }`}
           >

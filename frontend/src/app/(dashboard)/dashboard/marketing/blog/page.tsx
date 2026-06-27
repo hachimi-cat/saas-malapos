@@ -144,7 +144,7 @@ export default function BlogListPage() {
 function StatusBadge({ status }: { status: BlogPostStatus }) {
   if (status === 'published') {
     return (
-      <Badge variant="outline" className="rounded-full border-green-300 bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">
+      <Badge variant="outline" className="rounded-full border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
         Published
       </Badge>
     );

@@ -83,7 +83,7 @@ export default function FunnelAnalyticsPage() {
         }
       />
 
-      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
+      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
         <Tile icon={Users} label="Enrolled" value={data.totals.total} tone="bg-blue-500/10 text-blue-500" />
@@ -124,7 +124,7 @@ export default function FunnelAnalyticsPage() {
                     </span>
                   </div>
                   <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full bg-brand-500" style={{ width: `${fillPct}%` }} />
+                    <div className="h-full bg-primary" style={{ width: `${fillPct}%` }} />
                   </div>
                   {s.kind === 'send' && s.sent > 0 && (
                     <div className="mt-3 grid grid-cols-3 gap-3 text-xs">

@@ -249,7 +249,7 @@ export default function MarketingCampaignDetailPage() {
 
       <p className="mt-6 text-xs text-muted-foreground">
         Linked items roll up performance in Ripllo. To attach a creator brief, discount, broadcast, or other child to this campaign,{' '}
-        <a href={`${RIPLLO_BASE}/dashboard/campaigns/${campaign.id}`} target="_blank" rel="noopener" className="text-brand-500 hover:underline">open this campaign in Ripllo</a>.
+        <a href={`${RIPLLO_BASE}/dashboard/campaigns/${campaign.id}`} target="_blank" rel="noopener" className="text-primary hover:underline">open this campaign in Ripllo</a>.
       </p>
     </div>
   );

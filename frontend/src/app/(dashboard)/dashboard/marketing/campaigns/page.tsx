@@ -222,7 +222,7 @@ export default function MarketingCampaignsHubPage() {
               header: '',
               align: 'right',
               cell: (c) => (
-                <Link href={`/dashboard/marketing/campaigns/${c.id}`} className="text-brand-500 hover:underline text-xs">
+                <Link href={`/dashboard/marketing/campaigns/${c.id}`} className="text-primary hover:underline text-xs">
                   Open
                 </Link>
               ),

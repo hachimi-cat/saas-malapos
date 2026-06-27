@@ -311,7 +311,7 @@ export default function CampaignDetailPage() {
               <Link
                 key={c.id}
                 href={`/dashboard/marketing/collaborations/${c.id}`}
-                className="block rounded-xl border border-border bg-card p-5 transition hover:border-brand-500"
+                className="block rounded-xl border border-border bg-card p-5 transition hover:border-primary"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>

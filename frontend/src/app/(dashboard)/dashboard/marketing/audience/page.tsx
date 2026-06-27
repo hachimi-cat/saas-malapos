@@ -189,7 +189,7 @@ export default function AudiencePage() {
           <TabsTrigger value="suppressions"><ShieldOff size={12} /> Suppressions</TabsTrigger>
         </TabsList>
 
-      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
+      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
 
       <TabsContent value="contacts">{
         contacts === null ? (
@@ -349,7 +349,7 @@ function ImportCsvModal({ onClose, onDone }: { onClose: () => void; onDone: () =
           </p>
         </DialogHeader>
 
-        {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">{error}</div>}
+        {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2 text-xs">{error}</div>}
 
         {summary ? (
           <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm">

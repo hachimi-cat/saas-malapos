@@ -228,7 +228,7 @@ export default function ProgramDetailPage() {
         ) : enrollments.length === 0 ? (
           <Card className="p-8 text-center text-sm text-muted-foreground">
             No enrollments yet. Affiliators can join from{' '}
-            <Link href="https://ripllo.com/affiliators" target="_blank" className="text-brand-500 hover:underline">ripllo.com/affiliators</Link>.
+            <Link href="https://ripllo.com/affiliators" target="_blank" className="text-primary hover:underline">ripllo.com/affiliators</Link>.
           </Card>
         ) : (
           <>

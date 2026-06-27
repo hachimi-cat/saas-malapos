@@ -195,7 +195,7 @@ export default function ComposePage() {
         description="Write once, fan out across the channels you pick. Audience comes from your lists."
       />
 
-      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
+      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
       {notice && <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm">{notice}</div>}
 
       {channels.length === 0 && (
@@ -226,7 +226,7 @@ export default function ComposePage() {
                 <div
                   key={c.id}
                   onClick={() => toggleProvider(c.id)}
-                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 ${checked ? 'border-brand-500 bg-brand-500/5' : 'border-border'}`}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 ${checked ? 'border-primary bg-primary/5' : 'border-border'}`}
                 >
                   <Checkbox checked={checked} className="pointer-events-none h-4 w-4" />
                   <div className="min-w-0 flex-1">
@@ -251,7 +251,7 @@ export default function ComposePage() {
                 <div
                   key={l.id}
                   onClick={() => toggleList(l.id)}
-                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 ${checked ? 'border-brand-500 bg-brand-500/5' : 'border-border'}`}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 ${checked ? 'border-primary bg-primary/5' : 'border-border'}`}
                 >
                   <Checkbox checked={checked} className="pointer-events-none h-4 w-4" />
                   <div className="min-w-0 flex-1">

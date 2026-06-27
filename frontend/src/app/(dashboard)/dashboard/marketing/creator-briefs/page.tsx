@@ -122,7 +122,7 @@ export default function CampaignsPage() {
           <div className="text-sm">
             <p className="font-semibold">Available on Growth + Scale plans</p>
             <p className="mt-1 text-muted-foreground">
-              <Link href="/dashboard/billing" className="text-brand-500 hover:underline">Upgrade to unlock →</Link>
+              <Link href="/dashboard/billing" className="text-primary hover:underline">Upgrade to unlock →</Link>
             </p>
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function CampaignsPage() {
               header: '',
               align: 'right',
               cell: (c) => (
-                <Link href={`/dashboard/marketing/creator-briefs/${c.id}`} className="text-brand-500 hover:underline text-xs">
+                <Link href={`/dashboard/marketing/creator-briefs/${c.id}`} className="text-primary hover:underline text-xs">
                   Manage
                 </Link>
               ),

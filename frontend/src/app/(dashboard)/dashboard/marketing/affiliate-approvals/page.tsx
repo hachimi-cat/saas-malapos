@@ -142,7 +142,7 @@ export default function AffiliateApprovalsPage() {
           </TabsTrigger>
         </TabsList>
 
-      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
+      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
 
       <TabsContent value="enrollments">{
         enrollments === null ? (
@@ -159,10 +159,10 @@ export default function AffiliateApprovalsPage() {
                   <div>
                     <p className="font-semibold">{e.affiliator?.displayName ?? e.affiliatorId}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">@{e.affiliator?.handle ?? '?'} · {e.affiliator?.country ?? '—'} · {e.affiliator?.primaryChannel ?? '—'} · audience {e.affiliator?.audienceSize.toLocaleString() ?? '—'}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">For program: <Link className="text-brand-500 hover:underline" href={`/dashboard/marketing/programs/${e.programId}`}>{e.program?.name ?? e.programId}</Link></p>
+                    <p className="mt-1 text-xs text-muted-foreground">For program: <Link className="text-primary hover:underline" href={`/dashboard/marketing/programs/${e.programId}`}>{e.program?.name ?? e.programId}</Link></p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button size="sm" onClick={() => actEnrollment(e.programId, e.id, 'approve')} disabled={working === e.id} className="hover:bg-brand-600">
+                    <Button size="sm" onClick={() => actEnrollment(e.programId, e.id, 'approve')} disabled={working === e.id} className="hover:bg-primary/90">
                       <Check size={12} /> Approve
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => actEnrollment(e.programId, e.id, 'reject')} disabled={working === e.id} className="hover:bg-destructive/10 hover:text-destructive">
@@ -206,7 +206,7 @@ export default function AffiliateApprovalsPage() {
                 sortable: true,
                 sortValue: (c) => c.program?.name ?? c.programId,
                 cell: (c) => (
-                  <Link href={`/dashboard/marketing/programs/${c.programId}`} className="text-brand-500 hover:underline">
+                  <Link href={`/dashboard/marketing/programs/${c.programId}`} className="text-primary hover:underline">
                     {c.program?.name ?? c.programId}
                   </Link>
                 ),

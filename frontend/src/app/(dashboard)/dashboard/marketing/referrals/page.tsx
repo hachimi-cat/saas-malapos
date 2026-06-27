@@ -126,8 +126,8 @@ export default function ReferralsPage() {
         </p>
       </header>
 
-      {error && <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {success && <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800">{success}</div>}
+      {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {success && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400">{success}</div>}
 
       {/* ── Stats ─────────────────────────────────────────────────────────── */}
       {stats && (
@@ -453,16 +453,16 @@ function StatCard({ label, value, icon: Icon }: { label: string; value: string; 
 function StatusPill({ status, reason }: { status: string; reason: string | null }) {
   const base = 'gap-1 rounded-full border-transparent px-2 py-0.5 text-[11px] font-medium';
   if (status === 'rewarded') {
-    return <Badge variant="outline" className={`${base} bg-green-100 text-green-900`}>Rewarded</Badge>;
+    return <Badge variant="outline" className={`${base} bg-emerald-500/10 text-emerald-400`}>Rewarded</Badge>;
   }
   if (status === 'pending') {
-    return <Badge variant="outline" className={`${base} bg-amber-100 text-amber-900`}>Pending</Badge>;
+    return <Badge variant="outline" className={`${base} bg-amber-500/10 text-amber-400`}>Pending</Badge>;
   }
   if (status === 'expired') {
     return <Badge variant="outline" className={`${base} bg-muted text-muted-foreground`}>Expired</Badge>;
   }
   return (
-    <Badge variant="outline" className={`${base} bg-red-100 text-red-900`} title={reason ?? undefined}>
+    <Badge variant="outline" className={`${base} bg-destructive/10 text-destructive`} title={reason ?? undefined}>
       Voided{reason ? ` · ${reason}` : ''}
     </Badge>
   );

@@ -89,7 +89,7 @@ export default function InboxPage() {
         description="Replies that landed via your connected channels. Currently captures WhatsApp Cloud inbound — Telegram and others as those webhooks land."
       />
 
-      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
+      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
 
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         <Card className="overflow-hidden">

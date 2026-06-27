@@ -169,7 +169,7 @@ export default function PostEditor({ mode, initial }: Props) {
           </Link>
           <h1 className="text-2xl font-semibold tracking-tight font-display">{mode === 'create' ? 'New post' : 'Edit post'}</h1>
           {status === 'published' && (
-            <span className="rounded-full border border-green-300 bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">
+            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
               Published
             </span>
           )}
@@ -196,7 +196,7 @@ export default function PostEditor({ mode, initial }: Props) {
               type="button"
               onClick={onUnpublish}
               disabled={saving}
-              className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-400 hover:bg-amber-500/10 disabled:opacity-50"
             >
               <EyeOff className="h-3.5 w-3.5" /> Unpublish
             </button>
@@ -214,8 +214,8 @@ export default function PostEditor({ mode, initial }: Props) {
         </div>
       </header>
 
-      {error && <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {success && <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800">{success}</div>}
+      {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {success && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400">{success}</div>}
 
       {preview ? (
         <article className="prose prose-sm max-w-none rounded-lg border border-border bg-card p-8">
@@ -375,16 +375,16 @@ export default function PostEditor({ mode, initial }: Props) {
           </details>
 
           {mode === 'edit' && (
-            <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50/50 p-4">
+            <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 p-4">
               <div>
-                <p className="text-sm font-medium text-red-900">Delete this post</p>
-                <p className="text-xs text-red-700">Permanent — removes it from your storefront and RSS.</p>
+                <p className="text-sm font-medium text-destructive">Delete this post</p>
+                <p className="text-xs text-destructive">Permanent — removes it from your storefront and RSS.</p>
               </div>
               <button
                 type="button"
                 onClick={onDelete}
                 disabled={saving}
-                className="inline-flex items-center gap-1 rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 bg-background px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
               >
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>

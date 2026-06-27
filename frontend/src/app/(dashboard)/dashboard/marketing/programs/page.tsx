@@ -143,7 +143,7 @@ export default function ProgramsPage() {
           <div className="text-sm">
             <p className="font-semibold">Available on Starter and above</p>
             <p className="mt-1 text-muted-foreground">
-              <Link href="/dashboard/billing" className="text-brand-500 hover:underline">Upgrade to unlock →</Link>
+              <Link href="/dashboard/billing" className="text-primary hover:underline">Upgrade to unlock →</Link>
             </p>
           </div>
         </div>
@@ -208,7 +208,7 @@ export default function ProgramsPage() {
               header: '',
               align: 'right',
               cell: (p) => (
-                <Link href={`/dashboard/marketing/programs/${p.id}`} className="text-brand-500 hover:underline text-xs">
+                <Link href={`/dashboard/marketing/programs/${p.id}`} className="text-primary hover:underline text-xs">
                   Manage
                 </Link>
               ),

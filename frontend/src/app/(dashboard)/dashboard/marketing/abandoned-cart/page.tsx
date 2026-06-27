@@ -113,8 +113,8 @@ export default function AbandonedCartPage() {
         </p>
       </header>
 
-      {error && <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {success && <div className="rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-800">{success}</div>}
+      {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {success && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400">{success}</div>}
 
       {/* ── Stats (last 30d) ─────────────────────────────────────────────── */}
       {stats && (
@@ -273,7 +273,7 @@ export default function AbandonedCartPage() {
                 sortValue: (r) => (r.recoveredAt ? 'recovered' : 'pending'),
                 cell: (r) =>
                   r.recoveredAt ? (
-                    <Badge variant="outline" className="gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-900">
+                    <Badge variant="outline" className="gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
                       <CheckCircle2 className="h-3 w-3" /> Recovered
                     </Badge>
                   ) : (

@@ -116,7 +116,7 @@ export default function MerchantCreatorDirectory() {
         description="Browse every verified creator on Ripllo. Invite them to an open campaign or open their profile."
       />
 
-      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
+      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
       {notice && <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm">{notice}</div>}
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -133,7 +133,7 @@ export default function MerchantCreatorDirectory() {
         <Button type="button" variant="outline" className="ml-auto" onClick={() => setFiltersOpen((v) => !v)}>
           <SlidersHorizontal size={14} /> Filters
           {activeFilterCount > 0 && (
-            <span className="rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-foreground">{activeFilterCount}</span>
+            <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-foreground">{activeFilterCount}</span>
           )}
         </Button>
       </div>
@@ -272,11 +272,11 @@ function InviteDialog({ creator, campaigns, onClose, onSent }: { creator: Direct
           <p className="text-xs text-muted-foreground">{creator.displayName}</p>
         </DialogHeader>
 
-        {err && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">{err}</div>}
+        {err && <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2 text-xs">{err}</div>}
 
         {campaigns.length === 0 ? (
           <div className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-            No open creator briefs. <Link href="/dashboard/marketing/creator-briefs" className="text-brand-500 hover:underline">Create one</Link> first.
+            No open creator briefs. <Link href="/dashboard/marketing/creator-briefs" className="text-primary hover:underline">Create one</Link> first.
           </div>
         ) : (
           <>

@@ -50,7 +50,7 @@ interface Funnel {
 interface Channel { id: string; provider: string; displayName: string; status: string }
 
 const KIND_META: Record<StepKind, { label: string; icon: React.ComponentType<{ size?: number }>; tone: string }> = {
-  send: { label: 'Send', icon: Mail, tone: 'border-brand-500/40 bg-brand-500/5' },
+  send: { label: 'Send', icon: Mail, tone: 'border-primary/40 bg-primary/5' },
   delay: { label: 'Wait', icon: Clock, tone: 'border-amber-500/40 bg-amber-500/5' },
   branch: { label: 'Branch on engagement', icon: Split, tone: 'border-blue-500/40 bg-blue-500/5' },
   exit: { label: 'Exit', icon: LogOut, tone: 'border-secondary' },
@@ -184,7 +184,7 @@ export default function FunnelDetailPage() {
         }
       />
 
-      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
+      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
       {notice && <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm">{notice}</div>}
 
       <div className="space-y-3">
@@ -274,7 +274,7 @@ function StepConfig({ step, channels, siblings, onChange, onBranchChange }: {
               {channels.map((c) => {
                 const checked = providers.includes(c.provider);
                 return (
-                  <label key={c.id} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${checked ? 'border-brand-500 bg-brand-500/5' : 'border-border'}`}>
+                  <label key={c.id} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${checked ? 'border-primary bg-primary/5' : 'border-border'}`}>
                     <Checkbox checked={checked} onCheckedChange={() => onChange({ providers: checked ? providers.filter((p) => p !== c.provider) : [...providers, c.provider] })} />
                     <span className="flex-1">{c.displayName}</span>
                     <span className="text-xs text-muted-foreground">{c.provider}</span>

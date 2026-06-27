@@ -152,7 +152,7 @@ export default function MerchantCollabDetailPage() {
         description={`Creator crt_${collab.creatorId.replace('crt_', '')} · status: ${collab.status.replace(/_/g, ' ')} · Rp ${collab.agreedTotalIdr.toLocaleString()} (Ripllo fee ${(collab.platformFeeRate * 100).toFixed(1)}%)`}
       />
 
-      {error && <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
+      {error && <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
 
       {collab.status === 'pending_funding' && (
         <div className="mt-2 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
@@ -202,7 +202,7 @@ export default function MerchantCollabDetailPage() {
             {d.publishedUrl && (
               <p className="mt-3 text-xs">
                 <span className="text-muted-foreground">Live: </span>
-                <a href={d.publishedUrl} target="_blank" rel="noopener noreferrer" className="text-brand-500 hover:underline">{d.publishedUrl}</a>
+                <a href={d.publishedUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{d.publishedUrl}</a>
               </p>
             )}
 
@@ -254,7 +254,7 @@ export default function MerchantCollabDetailPage() {
           <Button
             onClick={approveCollab}
             disabled={working === 'approve'}
-            className="px-5 font-semibold hover:bg-brand-600 disabled:opacity-60"
+            className="px-5 font-semibold hover:bg-primary/90 disabled:opacity-60"
           >
             {working === 'approve' && <Loader2 className="h-4 w-4 animate-spin" />}
             Approve collaboration & release payment
@@ -272,7 +272,7 @@ export default function MerchantCollabDetailPage() {
             until the dispute is resolved. Use this for repeated rejections, off-spec
             work, or non-responsive creators.
           </p>
-          {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">{error}</div>}
+          {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2 text-xs">{error}</div>}
           <div className="space-y-1.5">
             <Label htmlFor="dispute-notes" className="text-xs font-medium text-muted-foreground">What happened? (min 20 chars)</Label>
             <Textarea

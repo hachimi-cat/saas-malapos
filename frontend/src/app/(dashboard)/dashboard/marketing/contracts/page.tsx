@@ -74,7 +74,7 @@ export default function ContractsPage() {
         </TabsList>
       </Tabs>
 
-      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">{error}</div>}
+      {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
 
       {rows === null ? (
         <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -94,7 +94,7 @@ export default function ContractsPage() {
               href={`/dashboard/marketing/collaborations/${c.id}`}
               className="block"
             >
-              <Card className="p-5 transition hover:border-brand-500">
+              <Card className="p-5 transition hover:border-primary">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{c.campaign?.name ?? 'Campaign'}</p>

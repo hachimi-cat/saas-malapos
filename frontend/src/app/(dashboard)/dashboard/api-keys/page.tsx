@@ -73,7 +73,7 @@ export default function ApiKeysPage() {
       </header>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">
+        <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">
           {error}
         </div>
       )}

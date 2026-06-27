@@ -165,7 +165,7 @@ export function CreatorPicker({ value, onChange, apiBase = '/api/v1/account/mark
 
 function SelectedCard({ value, onClear }: { value: CreatorRow; onClear: () => void }) {
   return (
-    <div className="flex items-start gap-3 rounded-md border border-brand-500/30 bg-brand-500/5 p-3">
+    <div className="flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 p-3">
       <Avatar avatarKey={value.avatarKey} fallback={value.displayName} size={48} />
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1.5 text-sm font-semibold">
@@ -178,7 +178,7 @@ function SelectedCard({ value, onClear }: { value: CreatorRow; onClear: () => vo
         </p>
         <Link
           href={`/dashboard/marketing/creators/${value.handle}`}
-          className="mt-1 inline-flex items-center gap-1 text-xs text-brand-500 hover:underline"
+          className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
         >
           <ExternalLink size={11} /> View full profile
         </Link>
@@ -209,7 +209,7 @@ function Avatar({ avatarKey, fallback, size = 36 }: { avatarKey: string | null; 
   return (
     <span
       style={{ width: size, height: size }}
-      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-500/15 text-base font-bold text-brand-500"
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-base font-bold text-primary"
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
