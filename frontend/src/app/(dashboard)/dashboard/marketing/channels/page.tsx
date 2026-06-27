@@ -18,6 +18,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 type Provider =
   | 'email_resend' | 'email_sendgrid' | 'email_mailgun' | 'email_postmark' | 'email_ses'
@@ -170,7 +181,6 @@ export default function ChannelsPage() {
   useEffect(() => { load(); }, []);
 
   async function disconnect(id: string) {
-    if (!confirm('Disconnect this channel? Existing scheduled sends will stop.')) return;
     try {
       const r = await marketingFetch(`/api/v1/account/marketing/channels/${id}`, { method: 'DELETE', credentials: 'include' });
       const b = await r.json();
@@ -221,7 +231,28 @@ export default function ChannelsPage() {
                   {c.status === 'active' && (
                     <Button variant="link" onClick={() => setTestFor(c)} className="ml-2 h-auto p-0 text-xs text-foreground">Send test</Button>
                   )}
-                  <Button variant="link" onClick={() => disconnect(c.id)} className="ml-2 h-auto p-0 text-xs text-destructive">Disconnect</Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="link" className="ml-2 h-auto p-0 text-xs text-destructive">Disconnect</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Disconnect this channel?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Existing scheduled sends on this channel will stop.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Keep connected</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => disconnect(c.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Disconnect
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </li>
               );
             })}

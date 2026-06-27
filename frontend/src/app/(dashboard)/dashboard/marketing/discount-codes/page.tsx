@@ -28,6 +28,17 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 /**
  * /dashboard/marketing/discount-codes — create, edit, archive promo codes.
@@ -88,7 +99,6 @@ export default function DiscountCodesPage() {
   useEffect(() => { reload(); }, [reload]);
 
   async function archive(id: string) {
-    if (!confirm('Deactivate this discount code? Past redemptions stay intact.')) return;
     try {
       await discountCodesApi.archive(id);
       await reload();
@@ -194,9 +204,30 @@ export default function DiscountCodesPage() {
             <Pencil className="h-3.5 w-3.5" />
           </Button>
           {c.active && (
-            <Button variant="ghost" size="icon" onClick={() => archive(c.id)} title="Deactivate" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" title="Deactivate" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Deactivate discount code?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Past redemptions stay intact. The code will stop working for new orders.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep active</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => archive(c.id)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Deactivate
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
       ),

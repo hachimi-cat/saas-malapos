@@ -7,6 +7,17 @@ import Image from 'next/image';
 import { blogApi, uploadsApi, type BlogPost, type BlogPostInput } from '@/lib/marketing-api';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
   Loader2,
   Save,
   Send,
@@ -134,7 +145,6 @@ export default function PostEditor({ mode, initial }: Props) {
 
   async function onDelete() {
     if (!initial) return;
-    if (!confirm('Delete this post permanently?')) return;
     setSaving(true);
     try {
       await blogApi.delete(initial.id);
@@ -380,14 +390,34 @@ export default function PostEditor({ mode, initial }: Props) {
                 <p className="text-sm font-medium text-destructive">Delete this post</p>
                 <p className="text-xs text-destructive">Permanent — removes it from your storefront and RSS.</p>
               </div>
-              <button
-                type="button"
-                onClick={onDelete}
-                disabled={saving}
-                className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 bg-background px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Delete
-              </button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 bg-background px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this post permanently?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This removes it from your storefront and RSS. This can&apos;t be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep post</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={onDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete post
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
 
