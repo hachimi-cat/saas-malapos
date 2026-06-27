@@ -12,9 +12,10 @@
 @layer base {
   :root {
     /* Match the shadcn demo: Geist type, restrained borders, flatter dark
-       surfaces. Brand stays violet (--primary / --ring). */
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
+       surfaces. Brand stays violet (--primary / --ring). The --font-* vars
+       are bound on `body` below — that's where Geist defines
+       --font-geist-* (via the layout body class); binding them on :root
+       resolves to invalid (serif fallback). */
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
     --card: 222 38% 14%;
@@ -43,6 +44,10 @@
     @apply border-border;
   }
   body {
+    /* Geist defines --font-geist-* on <body> (layout.tsx), so bind the
+       theme font vars here where they actually resolve. */
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
     @apply bg-background text-foreground antialiased;
   }
   /* The .marketing-site :is(h1...h6) display-font rule ships from
