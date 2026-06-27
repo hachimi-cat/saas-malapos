@@ -25,6 +25,8 @@ import {
   ShoppingBag,
   UserSearch,
   ExternalLink,
+  List as ListIcon,
+  LayoutGrid,
 } from 'lucide-react';
 import Link from 'next/link';
 import { api, ApiRequestError } from '@/lib/api';
@@ -1500,6 +1502,8 @@ function FloorView({
   const occupied = floor.filter((f) => f.openBill).length;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'occupied'>('all');
+  // Layout = the to-scale floor map (placed tables); List = every table as a card.
+  const [viewMode, setViewMode] = useState<'layout' | 'list'>('layout');
   const q = search.trim().toLowerCase();
   const filtered = floor.filter((f) => {
     const okQ =
@@ -1534,9 +1538,29 @@ function FloorView({
         <p className="text-sm text-muted-foreground">
           {isFiltered ? `${filtered.length} of ${floor.length}` : floor.length} table{floor.length === 1 ? '' : 's'} · {occupied} occupied
         </p>
-        <Button variant="outline" size="sm" onClick={onRefresh} className="ml-auto">
-          Refresh
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="flex h-9 items-center gap-1 rounded-md border border-border p-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode('layout')}
+              className={`h-7 gap-1.5 rounded px-2.5 text-xs font-medium ${viewMode === 'layout' ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground' : 'text-muted-foreground'}`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" /> Layout
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className={`h-7 gap-1.5 rounded px-2.5 text-xs font-medium ${viewMode === 'list' ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground' : 'text-muted-foreground'}`}
+            >
+              <ListIcon className="h-3.5 w-3.5" /> List
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={onRefresh}>
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {floor.length > 0 && (
@@ -1592,7 +1616,7 @@ function FloorView({
           </Button>
         </div>
       ) : (
-        <FloorBody floor={filtered} onPick={onPick} />
+        <FloorBody floor={filtered} view={viewMode} onPick={onPick} />
       )}
     </div>
   );
@@ -1613,9 +1637,30 @@ function floorShapeRadius(shape: TableShape): string {
  * familiar grid below (so the screen works before anyone arranges the floor —
  * the seeded demo tables start unplaced). Both call the same onPick handler.
  */
-function FloorBody({ floor, onPick }: { floor: FloorEntry[]; onPick: (entry: FloorEntry) => void }) {
+function FloorBody({
+  floor,
+  view,
+  onPick,
+}: {
+  floor: FloorEntry[];
+  view: 'layout' | 'list';
+  onPick: (entry: FloorEntry) => void;
+}) {
   const placed = floor.filter((e) => e.table.posX != null && e.table.posY != null);
   const unplaced = floor.filter((e) => e.table.posX == null || e.table.posY == null);
+
+  // List view: every table as a card, regardless of map placement.
+  if (view === 'list') {
+    return (
+      <div className="flex-1 overflow-y-auto">
+        <div className="grid auto-rows-min grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {floor.map((entry) => (
+            <TableCard key={entry.table.id} entry={entry} onPick={onPick} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-4 overflow-y-auto">
@@ -1678,56 +1723,62 @@ function FloorBody({ floor, onPick }: { floor: FloorEntry[]; onPick: (entry: Flo
             </p>
           )}
           <div className="grid auto-rows-min grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {unplaced.map((entry) => {
-              const bill = entry.openBill;
-              return (
-                <button
-                  key={entry.table.id}
-                  onClick={() => onPick(entry)}
-                  className={`flex aspect-square flex-col rounded-lg border p-3 text-left transition-colors ${
-                    bill
-                      ? 'border-primary bg-primary/10 hover:bg-primary/15'
-                      : 'border-border bg-card hover:border-primary hover:bg-accent'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-semibold leading-tight">{entry.table.label}</span>
-                    <Badge
-                      variant="outline"
-                      className={`shrink-0 border-transparent px-1.5 py-0.5 text-[10px] font-semibold ${
-                        bill ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                      }`}
-                    >
-                      {bill ? 'Occupied' : 'Available'}
-                    </Badge>
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                    {entry.table.seats != null && (
-                      <span className="inline-flex items-center gap-1">
-                        <Users className="h-3 w-3" /> {entry.table.seats} seat{entry.table.seats === 1 ? '' : 's'}
-                      </span>
-                    )}
-                    {entry.table.zone && (
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3 w-3" /> {entry.table.zone}
-                      </span>
-                    )}
-                  </div>
-                  {bill && (
-                    <div className="mt-auto pt-1">
-                      <p className="text-sm font-semibold text-primary">{rupiah(bill.total)}</p>
-                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" /> {sinceLabel(bill.openedAt)} · {bill.itemCount} item{bill.itemCount === 1 ? '' : 's'}
-                      </p>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+            {unplaced.map((entry) => (
+              <TableCard key={entry.table.id} entry={entry} onPick={onPick} />
+            ))}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+// A single table rendered as a rich card — used in the List view (every table)
+// and the Layout view's "not on the map" grid. Shows status, seats, zone, and
+// the open bill's total + age when occupied.
+function TableCard({ entry, onPick }: { entry: FloorEntry; onPick: (entry: FloorEntry) => void }) {
+  const bill = entry.openBill;
+  return (
+    <button
+      onClick={() => onPick(entry)}
+      className={`flex aspect-square flex-col rounded-lg border p-3 text-left transition-colors ${
+        bill
+          ? 'border-primary bg-primary/10 hover:bg-primary/15'
+          : 'border-border bg-card hover:border-primary hover:bg-accent'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-semibold leading-tight">{entry.table.label}</span>
+        <Badge
+          variant="outline"
+          className={`shrink-0 border-transparent px-1.5 py-0.5 text-[10px] font-semibold ${
+            bill ? 'bg-amber-500/15 text-amber-400' : 'bg-emerald-500/15 text-emerald-400'
+          }`}
+        >
+          {bill ? 'Occupied' : 'Available'}
+        </Badge>
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+        {entry.table.seats != null && (
+          <span className="inline-flex items-center gap-1">
+            <Users className="h-3 w-3" /> {entry.table.seats} seat{entry.table.seats === 1 ? '' : 's'}
+          </span>
+        )}
+        {entry.table.zone && (
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="h-3 w-3" /> {entry.table.zone}
+          </span>
+        )}
+      </div>
+      {bill && (
+        <div className="mt-auto pt-1">
+          <p className="text-sm font-semibold text-primary">{rupiah(bill.total)}</p>
+          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" /> {sinceLabel(bill.openedAt)} · {bill.itemCount} item{bill.itemCount === 1 ? '' : 's'}
+          </p>
+        </div>
+      )}
+    </button>
   );
 }
 
