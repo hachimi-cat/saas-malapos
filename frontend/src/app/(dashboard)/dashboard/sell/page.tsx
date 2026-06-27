@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   Clock,
   Users,
+  MapPin,
   PauseCircle,
   Split,
   StickyNote,
@@ -1464,7 +1465,7 @@ function FloorBody({ floor, onPick }: { floor: FloorEntry[]; onPick: (entry: Flo
                   className={`flex flex-col items-center justify-center border-2 p-1 text-center shadow-sm transition-colors ${
                     bill
                       ? 'border-primary bg-primary/15 hover:bg-primary/25'
-                      : 'border-border bg-card hover:border-primary hover:bg-accent'
+                      : 'border-emerald-500/40 bg-emerald-500/5 hover:border-emerald-500 hover:bg-emerald-500/10'
                   }`}
                 >
                   <span className="text-xs font-semibold leading-tight">{t.label}</span>
@@ -1505,28 +1506,37 @@ function FloorBody({ floor, onPick }: { floor: FloorEntry[]; onPick: (entry: Flo
                       : 'border-border bg-card hover:border-primary hover:bg-accent'
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <span className="font-semibold">{entry.table.label}</span>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-semibold leading-tight">{entry.table.label}</span>
+                    <Badge
+                      variant="outline"
+                      className={`shrink-0 border-transparent px-1.5 py-0.5 text-[10px] font-semibold ${
+                        bill ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                      }`}
+                    >
+                      {bill ? 'Occupied' : 'Available'}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                     {entry.table.seats != null && (
-                      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
-                        <Users className="h-3 w-3" /> {entry.table.seats}
+                      <span className="inline-flex items-center gap-1">
+                        <Users className="h-3 w-3" /> {entry.table.seats} seat{entry.table.seats === 1 ? '' : 's'}
+                      </span>
+                    )}
+                    {entry.table.zone && (
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-3 w-3" /> {entry.table.zone}
                       </span>
                     )}
                   </div>
-                  {entry.table.zone && <span className="text-xs text-muted-foreground">{entry.table.zone}</span>}
-                  <div className="mt-auto">
-                    {bill ? (
-                      <>
-                        <p className="text-sm font-semibold text-primary">{rupiah(bill.total)}</p>
-                        <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <Clock className="h-3 w-3" /> {sinceLabel(bill.openedAt)} · {bill.itemCount} item
-                          {bill.itemCount === 1 ? '' : 's'}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-xs font-medium text-muted-foreground">Available</p>
-                    )}
-                  </div>
+                  {bill && (
+                    <div className="mt-auto pt-1">
+                      <p className="text-sm font-semibold text-primary">{rupiah(bill.total)}</p>
+                      <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <Clock className="h-3 w-3" /> {sinceLabel(bill.openedAt)} · {bill.itemCount} item{bill.itemCount === 1 ? '' : 's'}
+                      </p>
+                    </div>
+                  )}
                 </button>
               );
             })}
