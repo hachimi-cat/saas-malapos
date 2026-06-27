@@ -6,7 +6,22 @@ import { ScanLine, Receipt, Boxes, Package, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /*
  * Dashboard overview — today's pulse + quick jumps. Pulls the reports
@@ -49,77 +64,125 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Dashboard</h1>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">Today&apos;s sales at a glance.</p>
         </div>
         <Button asChild>
           <Link href="/dashboard/sell">
-            <ScanLine className="h-4 w-4" /> Open sell screen
+            <ScanLine /> Open sell screen
           </Link>
         </Button>
-      </header>
-
-      {hasOutlet === false && (
-        <div className="mb-6 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
-          <p className="font-medium">Finish setup to start selling</p>
-          <p className="mt-1 text-muted-foreground">
-            Create an <Link href="/dashboard/outlets" className="text-primary underline">outlet</Link> and add a few{' '}
-            <Link href="/dashboard/products" className="text-primary underline">products</Link>, then head to the sell screen.
-          </p>
-        </div>
-      )}
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Sales today" value={loading ? '…' : String(summary?.salesCount ?? 0)} icon={<Receipt className="h-4 w-4" />} />
-        <Stat label="Gross today" value={loading ? '…' : rupiah(summary?.gross ?? 0)} icon={<ScanLine className="h-4 w-4" />} />
-        <Stat label="Avg ticket" value={loading ? '…' : rupiah(summary?.avgTicket ?? 0)} icon={<Package className="h-4 w-4" />} />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <section className="lg:col-span-2">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Recent sales</h2>
-            <Link href="/dashboard/sales" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-              All sales <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-          <Card className="overflow-hidden">
-            {recent.length === 0 && <p className="p-6 text-center text-sm text-muted-foreground">No sales yet.</p>}
-            {recent.map((s) => (
-              <div key={s.id} className="flex items-center justify-between border-b border-border px-4 py-2.5 text-sm last:border-0">
-                <span className="font-medium">{s.number}</span>
-                <span className="text-xs text-muted-foreground">{new Date(s.createdAt).toLocaleString('id-ID')}</span>
-                <span className="font-semibold">{rupiah(s.total)}</span>
-              </div>
-            ))}
-          </Card>
-        </section>
+      {hasOutlet === false && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="space-y-1.5">
+            <CardTitle className="text-base">Finish setup to start selling</CardTitle>
+            <CardDescription>
+              Create an{' '}
+              <Link href="/dashboard/outlets" className="font-medium text-primary underline-offset-4 hover:underline">
+                outlet
+              </Link>{' '}
+              and add a few{' '}
+              <Link href="/dashboard/products" className="font-medium text-primary underline-offset-4 hover:underline">
+                products
+              </Link>
+              , then head to the sell screen.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
 
-        <aside>
-          <h2 className="mb-2 text-sm font-semibold">Inventory</h2>
-          <Link href="/dashboard/inventory" className="block rounded-lg border border-border bg-card p-4 hover:border-primary">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Boxes className="h-4 w-4" /> Low-stock items
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Stat label="Sales today" value={loading ? '—' : String(summary?.salesCount ?? 0)} icon={Receipt} />
+        <Stat label="Gross today" value={loading ? '—' : rupiah(summary?.gross ?? 0)} icon={ScanLine} />
+        <Stat label="Avg ticket" value={loading ? '—' : rupiah(summary?.avgTicket ?? 0)} icon={Package} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+            <div className="space-y-1.5">
+              <CardTitle>Recent sales</CardTitle>
+              <CardDescription>Your latest transactions today.</CardDescription>
             </div>
-            <p className={`mt-1 text-2xl font-bold ${lowCount ? 'text-destructive' : ''}`}>{loading ? '…' : (lowCount ?? 0)}</p>
-            <p className="text-xs text-muted-foreground">Tap to review &amp; restock</p>
-          </Link>
-        </aside>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/sales">
+                View all <ArrowRight />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="px-0 pb-0">
+            {recent.length === 0 ? (
+              <p className="px-6 pb-6 text-sm text-muted-foreground">No sales yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="pl-6">Receipt</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead className="pr-6 text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recent.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell className="pl-6 font-medium">{s.number}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(s.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                      </TableCell>
+                      <TableCell className="pr-6 text-right font-medium tabular-nums">{rupiah(s.total)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardDescription className="text-sm font-medium text-foreground">Low-stock items</CardDescription>
+            <Boxes className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="flex-1">
+            <div className={`text-3xl font-bold tabular-nums ${lowCount ? 'text-destructive' : ''}`}>
+              {loading ? '—' : (lowCount ?? 0)}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">Items below their reorder point.</p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild variant="outline" size="sm" className="w-full">
+              <Link href="/dashboard/inventory">Review &amp; restock</Link>
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );
 }
 
-function Stat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+function Stat({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
   return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {icon} {label}
-      </div>
-      <p className="mt-2 text-2xl font-bold">{value}</p>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardDescription className="text-sm font-medium text-foreground">{label}</CardDescription>
+        <Icon className="size-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold tabular-nums">{value}</div>
+      </CardContent>
     </Card>
   );
 }

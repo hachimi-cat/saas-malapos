@@ -11,26 +11,30 @@
  */
 @layer base {
   :root {
+    /* Match the shadcn demo: Geist type, restrained borders, flatter dark
+       surfaces. Brand stays violet (--primary / --ring). */
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
-    --card: 217 33% 17%;
+    --card: 222 38% 14%;
     --card-foreground: 210 40% 98%;
-    --popover: 217 33% 17%;
+    --popover: 222 38% 14%;
     --popover-foreground: 210 40% 98%;
     --primary: 262 83% 58%; /* Malapos violet #7C3AED */
     --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 17%;
+    --secondary: 217 28% 17%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 215 28% 17%;
+    --muted: 217 30% 16%;
     --muted-foreground: 215 20% 65%;
-    --accent: 215 28% 17%;
+    --accent: 217 30% 16%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
-    --border: 215 25% 27%;
-    --input: 215 19% 35%;
+    --border: 217 26% 19%;
+    --input: 217 24% 23%;
     --ring: 262 83% 58%;
-    --radius: 0.5rem;
+    --radius: 0.625rem;
   }
 }
 
