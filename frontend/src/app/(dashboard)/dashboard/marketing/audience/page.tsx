@@ -17,6 +17,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 interface Contact {
@@ -75,7 +94,6 @@ export default function AudiencePage() {
   useEffect(() => { if (tab === 'suppressions') loadSuppressions(); }, [tab]);
 
   async function removeSuppression(email: string) {
-    if (!confirm(`Remove ${email} from the suppression list? They'll start receiving abandoned-cart reminders again.`)) return;
     try {
       await marketingFetch(`/api/v1/account/marketing/abandoned-cart/suppressions/${encodeURIComponent(email)}`, { method: 'DELETE', credentials: 'include' });
       await loadSuppressions();
@@ -149,15 +167,33 @@ export default function AudiencePage() {
       header: '',
       align: 'right',
       cell: (s) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => removeSuppression(s.email)}
-          className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-          title="Remove from suppression"
-        >
-          <Trash2 size={14} />
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              title="Remove from suppression"
+            >
+              <Trash2 size={14} />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove from suppression list?</AlertDialogTitle>
+              <AlertDialogDescription>
+                <span className="font-mono text-foreground">{s.email}</span> will start receiving
+                abandoned-cart reminders again.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep suppressed</AlertDialogCancel>
+              <AlertDialogAction onClick={() => removeSuppression(s.email)}>
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       ),
     },
   ];
@@ -382,16 +418,24 @@ function ImportCsvModal({ onClose, onDone }: { onClose: () => void; onDone: () =
               <div className="rounded-lg border border-border bg-background p-3">
                 <p className="text-xs font-medium">Preview ({parsed.rows.length} row{parsed.rows.length === 1 ? '' : 's'} total · recognized columns: {recognized.length > 0 ? recognized.join(', ') : 'none'})</p>
                 <div className="mt-2 overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead><tr className="text-muted-foreground">{parsed.headers.map((h) => <th key={h} className="px-2 py-1 text-left font-mono">{h}</th>)}</tr></thead>
-                    <tbody>
+                  <Table className="text-xs">
+                    <TableHeader>
+                      <TableRow>
+                        {parsed.headers.map((h) => (
+                          <TableHead key={h} className="h-8 px-2 font-mono">{h}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {preview.map((r, i) => (
-                        <tr key={i} className="border-t border-border">
-                          {parsed.headers.map((h) => <td key={h} className="px-2 py-1">{r[h] ?? ''}</td>)}
-                        </tr>
+                        <TableRow key={i}>
+                          {parsed.headers.map((h) => (
+                            <TableCell key={h} className="px-2 py-1">{r[h] ?? ''}</TableCell>
+                          ))}
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             )}

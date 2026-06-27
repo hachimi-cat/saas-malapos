@@ -47,6 +47,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 /*
@@ -105,6 +115,11 @@ export default function TablesPage() {
   const [editing, setEditing] = useState<Table | null>(null);
   const [creating, setCreating] = useState(false);
   const [view, setView] = useState<'list' | 'layout'>('list');
+  // Floor name dialog (add / rename) + delete confirmations — replaces the
+  // native prompt()/confirm() flows with shadcn Dialog / AlertDialog.
+  const [floorDialog, setFloorDialog] = useState<{ mode: 'add' | 'rename'; floor?: Floor } | null>(null);
+  const [deletingFloor, setDeletingFloor] = useState<Floor | null>(null);
+  const [deletingTable, setDeletingTable] = useState<Table | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -175,33 +190,46 @@ export default function TablesPage() {
   }, [outletId, floorId]);
 
   // ── Floor CRUD ─────────────────────────────────────────────────────────
-  async function addFloor() {
-    const name = prompt('New floor name (e.g. First Floor, Rooftop)')?.trim();
-    if (!name) return;
+  // Triggers open dialogs; the do* helpers run the actual mutation once the
+  // user confirms in the shadcn Dialog / AlertDialog.
+  function addFloor() {
+    setFloorDialog({ mode: 'add' });
+  }
+
+  function renameFloor(f: Floor) {
+    setFloorDialog({ mode: 'rename', floor: f });
+  }
+
+  function deleteFloor(f: Floor) {
+    setDeletingFloor(f);
+  }
+
+  async function submitFloorName(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed || !floorDialog) return;
+    const mode = floorDialog.mode;
+    const floor = floorDialog.floor;
+    if (mode === 'rename' && (!floor || trimmed === floor.name)) {
+      setFloorDialog(null);
+      return;
+    }
     setError(null);
     try {
-      const res = await api.post<{ floor: Floor }>('/floors', { outletId, name });
-      await loadFloors(outletId);
-      setFloorId(res.data.floor.id);
+      if (mode === 'add') {
+        const res = await api.post<{ floor: Floor }>('/floors', { outletId, name: trimmed });
+        await loadFloors(outletId);
+        setFloorId(res.data.floor.id);
+      } else if (floor) {
+        await api.patch(`/floors/${floor.id}`, { name: trimmed });
+        await loadFloors(outletId);
+      }
+      setFloorDialog(null);
     } catch (e) {
-      setError(e instanceof ApiRequestError ? e.message : 'Failed to add floor');
+      setError(e instanceof ApiRequestError ? e.message : `Failed to ${mode} floor`);
     }
   }
 
-  async function renameFloor(f: Floor) {
-    const name = prompt('Rename floor', f.name)?.trim();
-    if (!name || name === f.name) return;
-    setError(null);
-    try {
-      await api.patch(`/floors/${f.id}`, { name });
-      await loadFloors(outletId);
-    } catch (e) {
-      setError(e instanceof ApiRequestError ? e.message : 'Failed to rename floor');
-    }
-  }
-
-  async function deleteFloor(f: Floor) {
-    if (!confirm(`Delete floor "${f.name}"? It must have no tables.`)) return;
+  async function doDeleteFloor(f: Floor) {
     setError(null);
     try {
       await api.delete(`/floors/${f.id}`);
@@ -209,6 +237,8 @@ export default function TablesPage() {
       setFloorId(next);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to delete floor');
+    } finally {
+      setDeletingFloor(null);
     }
   }
 
@@ -231,14 +261,19 @@ export default function TablesPage() {
     }
   }
 
-  async function remove(t: Table) {
-    if (!confirm(`Delete table "${t.label}"?`)) return;
+  function remove(t: Table) {
+    setDeletingTable(t);
+  }
+
+  async function doRemoveTable(t: Table) {
     setError(null);
     try {
       await api.delete(`/tables/${t.id}`);
       await load(outletId, floorId);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to delete table');
+    } finally {
+      setDeletingTable(null);
     }
   }
 
@@ -424,12 +459,115 @@ export default function TablesPage() {
         />
       )}
 
+      {floorDialog && (
+        <FloorNameDialog
+          mode={floorDialog.mode}
+          initial={floorDialog.floor?.name ?? ''}
+          onClose={() => setFloorDialog(null)}
+          onSubmit={submitFloorName}
+        />
+      )}
+
+      <AlertDialog open={!!deletingFloor} onOpenChange={(o) => !o && setDeletingFloor(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete floor “{deletingFloor?.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The floor must have no tables. This can&apos;t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingFloor && doDeleteFloor(deletingFloor)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete floor
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deletingTable} onOpenChange={(o) => !o && setDeletingTable(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete table “{deletingTable?.label}”?</AlertDialogTitle>
+            <AlertDialogDescription>This can&apos;t be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingTable && doRemoveTable(deletingTable)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete table
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {error && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 rounded-md bg-destructive px-4 py-2 text-sm text-destructive-foreground shadow-lg">
           {error}
         </div>
       )}
     </div>
+  );
+}
+
+// Add / rename a floor — replaces the native prompt() with a focused Dialog.
+function FloorNameDialog({
+  mode,
+  initial,
+  onClose,
+  onSubmit,
+}: {
+  mode: 'add' | 'rename';
+  initial: string;
+  onClose: () => void;
+  onSubmit: (name: string) => void | Promise<void>;
+}) {
+  const [name, setName] = useState(initial);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setBusy(true);
+    await onSubmit(name);
+    setBusy(false);
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm">
+        <form onSubmit={submit} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>{mode === 'add' ? 'Add floor' : 'Rename floor'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="floorName" className="text-xs text-muted-foreground">
+              Floor name
+            </Label>
+            <Input
+              id="floorName"
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Ground Floor, Rooftop"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy || !name.trim()}>
+              {mode === 'add' ? 'Add floor' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

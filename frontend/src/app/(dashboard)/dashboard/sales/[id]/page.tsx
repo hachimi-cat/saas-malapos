@@ -31,6 +31,25 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 /*
  * Sale detail — the full receipt for one POS transaction, on its own route
@@ -317,31 +336,32 @@ export default function SaleDetailPage() {
         <div className="space-y-5">
           <Card className="p-6">
             <h2 className="mb-4 text-base font-semibold font-display">Items</h2>
-            <table className="w-full text-sm">
-              <tbody>
-                {sale.items.map((it) => (
-                  <tr key={it.id} className="border-b border-dashed border-border last:border-0">
-                    <td className="py-2 pr-2">
-                      <div>
-                        {it.productName} <span className="text-muted-foreground">× {it.quantity}</span>
-                        {it.variantName && it.variantName !== 'Default' && (
-                          <span className="text-muted-foreground"> · {it.variantName}</span>
-                        )}
-                      </div>
-                      {it.modifiers.length > 0 && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {it.modifiers.map((m) => m.name + (m.price ? ` (+${rupiah(m.price)})` : '')).join(' · ')}
-                        </p>
+            <div className="text-sm">
+              {sale.items.map((it) => (
+                <div
+                  key={it.id}
+                  className="flex justify-between gap-2 border-b border-dashed border-border py-2 last:border-0"
+                >
+                  <div>
+                    <div>
+                      {it.productName} <span className="text-muted-foreground">× {it.quantity}</span>
+                      {it.variantName && it.variantName !== 'Default' && (
+                        <span className="text-muted-foreground"> · {it.variantName}</span>
                       )}
-                      {it.note && it.note.trim() && (
-                        <p className="mt-0.5 break-words text-xs text-muted-foreground">Note: {it.note.trim()}</p>
-                      )}
-                    </td>
-                    <td className="py-2 text-right align-top font-medium tabular-nums">{rupiah(it.lineTotal)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    {it.modifiers.length > 0 && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {it.modifiers.map((m) => m.name + (m.price ? ` (+${rupiah(m.price)})` : '')).join(' · ')}
+                      </p>
+                    )}
+                    {it.note && it.note.trim() && (
+                      <p className="mt-0.5 break-words text-xs text-muted-foreground">Note: {it.note.trim()}</p>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-right font-medium tabular-nums">{rupiah(it.lineTotal)}</div>
+                </div>
+              ))}
+            </div>
 
             <div className="mt-4 space-y-1 border-t border-border pt-4 text-sm">
               <Row label="Subtotal" value={rupiah(sale.subtotal)} />
@@ -469,6 +489,8 @@ function ShipmentSection({
   const [loading, setLoading] = useState(Boolean(shipmentId));
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   const reload = useCallback(async () => {
     if (!shipmentId) return;
@@ -490,7 +512,6 @@ function ShipmentSection({
 
   async function confirmPickup() {
     if (!shipmentId) return;
-    if (!confirm('Book courier now? The courier will be dispatched to pick up the parcel.')) return;
     setBusy(true);
     try {
       await deliveryApi.confirmPickup(shipmentId);
@@ -503,13 +524,12 @@ function ShipmentSection({
     }
   }
 
-  async function cancelShipment() {
-    if (!shipmentId) return;
-    const reason = prompt('Cancel reason?');
-    if (!reason) return;
+  async function cancelShipment(reason: string) {
+    if (!shipmentId || !reason.trim()) return;
+    setCancelOpen(false);
     setBusy(true);
     try {
-      await deliveryApi.cancelShipment(shipmentId, reason);
+      await deliveryApi.cancelShipment(shipmentId, reason.trim());
       await reload();
       await onChanged();
     } catch (e) {
@@ -531,7 +551,6 @@ function ShipmentSection({
   }
 
   async function dispatch() {
-    if (!confirm('Dispatch this delivery? A courier will be booked to pick up the parcel.')) return;
     setBusy(true);
     setErr(null);
     try {
@@ -557,9 +576,25 @@ function ShipmentSection({
               This delivery is drafted but not dispatched yet. Dispatch it to book a courier for pickup.
             </p>
             {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
-            <Button onClick={dispatch} disabled={busy} className="mt-3 gap-1.5 font-semibold">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />} Dispatch delivery
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button disabled={busy} className="mt-3 gap-1.5 font-semibold">
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />} Dispatch delivery
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Dispatch this delivery?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    A courier will be booked to pick up the parcel.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Not yet</AlertDialogCancel>
+                  <AlertDialogAction onClick={dispatch}>Dispatch</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
@@ -637,20 +672,75 @@ function ShipmentSection({
           {/* Manual fulfillment actions for a POS delivery. */}
           <div className="flex flex-wrap gap-2 border-t border-border pt-4 print:hidden">
             {shipment.status === 'pending' && (
-              <Button type="button" onClick={confirmPickup} disabled={busy}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                Book courier
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" disabled={busy}>
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    Book courier
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Book courier now?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      The courier will be dispatched to pick up the parcel.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={confirmPickup}>Book courier</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <Button type="button" variant="outline" onClick={viewLabel}>
               <Printer className="h-4 w-4" /> View label
             </Button>
             {['pending', 'confirmed', 'allocated', 'picking_up'].includes(shipment.status) && (
-              <Button type="button" variant="outline" onClick={cancelShipment} disabled={busy} className={dangerOutline}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCancelOpen(true)}
+                disabled={busy}
+                className={dangerOutline}
+              >
                 <X className="h-4 w-4" /> Cancel
               </Button>
             )}
           </div>
+
+          <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Cancel shipment</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-1.5">
+                <Label htmlFor="cancelReason" className="text-xs text-muted-foreground">
+                  Cancel reason
+                </Label>
+                <Textarea
+                  id="cancelReason"
+                  autoFocus
+                  rows={3}
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Why is this shipment being cancelled?"
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCancelOpen(false)}>
+                  Keep shipment
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={!cancelReason.trim() || busy}
+                  onClick={() => cancelShipment(cancelReason)}
+                >
+                  Cancel shipment
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       ) : null}
     </Card>
