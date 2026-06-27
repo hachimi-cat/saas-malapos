@@ -15,6 +15,7 @@ import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
@@ -90,6 +91,13 @@ export default function CampaignDetailPage() {
   const [showInvite, setShowInvite] = useState(false);
   const [invitePick, setInvitePick] = useState<{ id: string; handle: string; displayName: string; bio: string | null; avatarKey: string | null; niches: string[]; country: string | null } | null>(null);
   const [inviteMsg, setInviteMsg] = useState('');
+  const [actionDialog, setActionDialog] = useState<
+    | { kind: 'reject'; aid: string }
+    | { kind: 'accept'; aid: string }
+    | null
+  >(null);
+  const [rejectNotes, setRejectNotes] = useState('');
+  const [totalText, setTotalText] = useState('');
 
   async function load() {
     try {
@@ -110,30 +118,32 @@ export default function CampaignDetailPage() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
 
-  async function review(aid: string, action: 'accept' | 'reject') {
+  async function rejectApplication(aid: string, notes: string) {
     setWorking(aid);
     setError(null);
     try {
-      if (action === 'reject') {
-        const notes = window.prompt('Notes (shown to creator)') ?? '';
-        const r = await marketingFetch(`/api/v1/account/marketing/campaigns/${id}/applications/${aid}/reject`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ notes }),
-        });
-        const b = await r.json();
-        if (!r.ok) throw new Error(b?.error?.message ?? 'review failed');
-        await load();
-        return;
-      }
-      // Accept: prompt for agreed total + merchant email, then mint the
-      // collaboration via /collaborations/from-application/:appId.
-      const totalStr = window.prompt('Agreed total (IDR) for this collaboration?');
-      if (!totalStr) return;
-      const total = Number(totalStr);
-      if (!Number.isFinite(total) || total <= 0) { setError('Invalid total'); return; }
-      // Pull merchant email from the session.
+      const r = await marketingFetch(`/api/v1/account/marketing/campaigns/${id}/applications/${aid}/reject`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ notes }),
+      });
+      const b = await r.json();
+      if (!r.ok) throw new Error(b?.error?.message ?? 'review failed');
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  async function acceptApplication(aid: string, total: number) {
+    setWorking(aid);
+    setError(null);
+    try {
+      // Mint the collaboration via /collaborations/from-application/:appId,
+      // pulling the merchant email from the session.
       const sess = await fetch('/api/v1/session', { credentials: 'include' }).then((r) => r.ok ? r.json() : null);
       const merchantEmail: string | undefined = sess?.user?.email;
       if (!merchantEmail) { setError('Could not resolve merchant email'); return; }
@@ -280,10 +290,10 @@ export default function CampaignDetailPage() {
                     <span className="capitalize">{a.status}</span>
                     {a.status === 'pending' && (
                       <>
-                        <Button variant="ghost" size="icon" onClick={() => review(a.id, 'accept')} disabled={working === a.id} className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500" title="Accept">
+                        <Button variant="ghost" size="icon" onClick={() => { setTotalText(''); setActionDialog({ kind: 'accept', aid: a.id }); }} disabled={working === a.id} className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500" title="Accept">
                           <Check size={14} />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => review(a.id, 'reject')} disabled={working === a.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Reject">
+                        <Button variant="ghost" size="icon" onClick={() => { setRejectNotes(''); setActionDialog({ kind: 'reject', aid: a.id }); }} disabled={working === a.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Reject">
                           <X size={14} />
                         </Button>
                       </>
@@ -360,6 +370,66 @@ export default function CampaignDetailPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog open={!!actionDialog} onOpenChange={(o) => !o && setActionDialog(null)}>
+        <DialogContent className="max-w-sm">
+          {actionDialog?.kind === 'reject' ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Reject application</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-1.5">
+                <Label htmlFor="reject-notes" className="text-xs text-muted-foreground">Notes (shown to creator)</Label>
+                <Textarea
+                  id="reject-notes"
+                  autoFocus
+                  rows={3}
+                  value={rejectNotes}
+                  onChange={(e) => setRejectNotes(e.target.value)}
+                  placeholder="Optional — let the creator know why."
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setActionDialog(null)}>Cancel</Button>
+                <Button
+                  onClick={() => { if (actionDialog) rejectApplication(actionDialog.aid, rejectNotes); setActionDialog(null); }}
+                >
+                  Reject
+                </Button>
+              </DialogFooter>
+            </>
+          ) : actionDialog?.kind === 'accept' ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Accept &amp; set agreed total</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-1.5">
+                <Label htmlFor="agreed-total" className="text-xs text-muted-foreground">Agreed total (IDR)</Label>
+                <Input
+                  id="agreed-total"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  autoFocus
+                  value={totalText}
+                  onChange={(e) => setTotalText(e.target.value)}
+                  placeholder="e.g. 5000000"
+                />
+                <p className="text-[11px] text-muted-foreground">Mints the collaboration and emails a hosted invoice to fund escrow.</p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setActionDialog(null)}>Cancel</Button>
+                <Button
+                  disabled={!Number(totalText) || Number(totalText) <= 0}
+                  onClick={() => { if (actionDialog) acceptApplication(actionDialog.aid, Number(totalText)); setActionDialog(null); }}
+                >
+                  Accept
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

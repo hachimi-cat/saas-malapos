@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 /*
  * Fulfillment → Licenses. malapos port of storlaunch's page over
@@ -160,7 +161,6 @@ export default function LicensesPage() {
   }
 
   async function handleRevoke(id: string) {
-    if (!confirm('Revoke this license key? This cannot be undone.')) return;
     setRevokingId(id);
     try {
       const res = await licensesApi.revoke(id);
@@ -232,16 +232,34 @@ export default function LicensesPage() {
       header: 'Actions',
       cell: (l) =>
         l.status === 'active' ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleRevoke(l.id)}
-            disabled={revokingId === l.id}
-            title="Revoke"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-          >
-            {revokingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={revokingId === l.id}
+                title="Revoke"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              >
+                {revokingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Revoke this license key?</AlertDialogTitle>
+                <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => handleRevoke(l.id)}
+                >
+                  Revoke
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         ) : null,
     },
   ];

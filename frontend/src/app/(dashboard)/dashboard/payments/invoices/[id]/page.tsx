@@ -9,6 +9,13 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const STATUS_COLOR: Record<string, string> = {
   paid: 'bg-emerald-500/10 text-emerald-400',
@@ -38,6 +45,8 @@ export default function InvoiceDetailPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
+  // Manual-copy fallback when the clipboard API is blocked (replaces window.prompt).
+  const [shareUrl, setShareUrl] = React.useState<string | null>(null);
 
   function authedFetch(pathRelative: string) {
     const base = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/api\/v1\/?$/, '');
@@ -75,7 +84,7 @@ export default function InvoiceDetailPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt('Copy this link:', url);
+      setShareUrl(url);
     }
   }
 
@@ -250,6 +259,18 @@ export default function InvoiceDetailPage() {
         )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!shareUrl} onOpenChange={(o) => !o && setShareUrl(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Copy this link</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Clipboard access was blocked — select and copy the link below.
+          </p>
+          <Input readOnly value={shareUrl ?? ''} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

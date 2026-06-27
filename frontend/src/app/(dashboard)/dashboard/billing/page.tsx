@@ -22,6 +22,17 @@ import { rupiah } from '@/lib/money';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const TIER_ORDER = ['free', 'starter', 'growth', 'business'];
 function tierRank(id: string): number {
@@ -101,12 +112,6 @@ function BillingContent() {
   }
 
   async function downgradeToFree() {
-    if (
-      !confirm(
-        'Downgrade to Free? You keep your current plan until the paid period ends — no refund, no further charges.',
-      )
-    )
-      return;
     setError(null);
     setBusyTier('free');
     try {
@@ -265,18 +270,34 @@ function BillingContent() {
                     {sub?.status === 'canceled' ? 'Ends at period end' : 'Your plan'}
                   </div>
                 ) : tier.priceIdr === 0 ? (
-                  <Button
-                    variant="outline"
-                    onClick={downgradeToFree}
-                    disabled={busyTier !== null || !data || sub?.status === 'canceled'}
-                    className="mt-5 w-full text-muted-foreground hover:border-destructive hover:text-destructive"
-                  >
-                    {busyTier === 'free'
-                      ? 'Downgrading…'
-                      : sub?.status === 'canceled'
-                        ? 'Scheduled at period end'
-                        : 'Downgrade to Free'}
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        disabled={busyTier !== null || !data || sub?.status === 'canceled'}
+                        className="mt-5 w-full text-muted-foreground hover:border-destructive hover:text-destructive"
+                      >
+                        {busyTier === 'free'
+                          ? 'Downgrading…'
+                          : sub?.status === 'canceled'
+                            ? 'Scheduled at period end'
+                            : 'Downgrade to Free'}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Downgrade to Free?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          You keep your current plan until the paid period ends — no refund, no
+                          further charges.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Keep plan</AlertDialogCancel>
+                        <AlertDialogAction onClick={downgradeToFree}>Downgrade</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 ) : (
                   <Button
                     onClick={() => upgrade(tier.id)}

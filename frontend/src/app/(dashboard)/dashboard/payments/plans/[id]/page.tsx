@@ -6,6 +6,17 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Loader2, Archive, CheckCircle2, Plus } from 'lucide-react';
 import { plansApi, Plan } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +63,6 @@ export default function PlanDetailPage() {
   }, [load]);
 
   async function archive() {
-    if (!confirm('Archive this plan? Existing subscribers keep their current plan, but no new subscriptions can be created on it.')) return;
     setBusy(true);
     setError(null);
     setInfo(null);
@@ -172,15 +182,30 @@ export default function PlanDetailPage() {
             {plan.active ? 'Deactivate' : 'Activate'}
           </Button>
           {plan.active && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={archive}
-              disabled={busy}
-              className="border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20"
-            >
-              <Archive className="h-4 w-4" /> Archive
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  className="border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20"
+                >
+                  <Archive className="h-4 w-4" /> Archive
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Archive this plan?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Existing subscribers keep their current plan, but no new subscriptions can be created on it.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={archive} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Archive</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
       </div>

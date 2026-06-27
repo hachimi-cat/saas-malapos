@@ -22,6 +22,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Program {
   id: string;
@@ -74,6 +83,12 @@ export default function ProgramDetailPage() {
   const [tab, setTab] = useState<Tab>('brief');
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
+  const [actionDialog, setActionDialog] = useState<
+    | { kind: 'enrollment'; action: 'reject' | 'revoke'; eid: string }
+    | { kind: 'commission'; cid: string }
+    | null
+  >(null);
+  const [reasonText, setReasonText] = useState('');
 
   async function load() {
     try {
@@ -92,12 +107,7 @@ export default function ProgramDetailPage() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
 
-  async function actEnrollment(eid: string, action: 'approve' | 'reject' | 'revoke') {
-    let reason: string | null = null;
-    if (action === 'reject' || action === 'revoke') {
-      reason = window.prompt('Reason (shown to affiliator)') ?? '';
-      if (!reason) return;
-    }
+  async function actEnrollment(eid: string, action: 'approve' | 'reject' | 'revoke', reason?: string) {
     setWorking(eid);
     setError(null);
     try {
@@ -138,12 +148,7 @@ export default function ProgramDetailPage() {
     }
   }
 
-  async function actCommission(cid: string, action: 'approve' | 'void') {
-    let reason: string | null = null;
-    if (action === 'void') {
-      reason = window.prompt('Reason (audit log)') ?? '';
-      if (!reason) return;
-    }
+  async function actCommission(cid: string, action: 'approve' | 'void', reason?: string) {
     setWorking(cid);
     setError(null);
     try {
@@ -265,13 +270,13 @@ export default function ProgramDetailPage() {
                             <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'approve')} disabled={working === e.id} className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500" title="Approve">
                               <Check size={14} />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'reject')} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Reject">
+                            <Button variant="ghost" size="icon" onClick={() => { setReasonText(''); setActionDialog({ kind: 'enrollment', action: 'reject', eid: e.id }); }} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Reject">
                               <X size={14} />
                             </Button>
                           </div>
                         )}
                         {e.status === 'active' && (
-                          <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'revoke')} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Revoke">
+                          <Button variant="ghost" size="icon" onClick={() => { setReasonText(''); setActionDialog({ kind: 'enrollment', action: 'revoke', eid: e.id }); }} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Revoke">
                             <Power size={14} />
                           </Button>
                         )}
@@ -303,13 +308,13 @@ export default function ProgramDetailPage() {
                         <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'approve')} disabled={working === e.id} className="h-7 w-7 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500" title="Approve">
                           <Check size={14} />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'reject')} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Reject">
+                        <Button variant="ghost" size="icon" onClick={() => { setReasonText(''); setActionDialog({ kind: 'enrollment', action: 'reject', eid: e.id }); }} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Reject">
                           <X size={14} />
                         </Button>
                       </>
                     )}
                     {e.status === 'active' && (
-                      <Button variant="ghost" size="icon" onClick={() => actEnrollment(e.id, 'revoke')} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Revoke">
+                      <Button variant="ghost" size="icon" onClick={() => { setReasonText(''); setActionDialog({ kind: 'enrollment', action: 'revoke', eid: e.id }); }} disabled={working === e.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Revoke">
                         <Power size={14} />
                       </Button>
                     )}
@@ -363,7 +368,7 @@ export default function ProgramDetailPage() {
                             </Button>
                           )}
                           {(c.status === 'pending' || c.status === 'approved') && (
-                            <Button variant="ghost" size="icon" onClick={() => actCommission(c.id, 'void')} disabled={working === c.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Void">
+                            <Button variant="ghost" size="icon" onClick={() => { setReasonText(''); setActionDialog({ kind: 'commission', cid: c.id }); }} disabled={working === c.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Void">
                               <Ban size={14} />
                             </Button>
                           )}
@@ -397,7 +402,7 @@ export default function ProgramDetailPage() {
                       </Button>
                     )}
                     {(c.status === 'pending' || c.status === 'approved') && (
-                      <Button variant="ghost" size="icon" onClick={() => actCommission(c.id, 'void')} disabled={working === c.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Void">
+                      <Button variant="ghost" size="icon" onClick={() => { setReasonText(''); setActionDialog({ kind: 'commission', cid: c.id }); }} disabled={working === c.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Void">
                         <Ban size={14} />
                       </Button>
                     )}
@@ -409,6 +414,49 @@ export default function ProgramDetailPage() {
         )
       }</TabsContent>
       </Tabs>
+
+      <Dialog open={!!actionDialog} onOpenChange={(o) => !o && setActionDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {actionDialog?.kind === 'commission'
+                ? 'Void commission'
+                : actionDialog?.action === 'revoke'
+                  ? 'Revoke access'
+                  : 'Reject enrollment'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="reason" className="text-xs text-muted-foreground">
+              {actionDialog?.kind === 'commission' ? 'Reason (audit log)' : 'Reason (shown to affiliator)'}
+            </Label>
+            <Textarea
+              id="reason"
+              autoFocus
+              rows={3}
+              value={reasonText}
+              onChange={(e) => setReasonText(e.target.value)}
+              placeholder={actionDialog?.kind === 'commission' ? 'Recorded in the audit log. Optional.' : 'Shown to the affiliator. Optional.'}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActionDialog(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (actionDialog?.kind === 'enrollment') actEnrollment(actionDialog.eid, actionDialog.action, reasonText);
+                else if (actionDialog?.kind === 'commission') actCommission(actionDialog.cid, 'void', reasonText);
+                setActionDialog(null);
+              }}
+            >
+              {actionDialog?.kind === 'commission'
+                ? 'Void'
+                : actionDialog?.action === 'revoke'
+                  ? 'Revoke'
+                  : 'Reject'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

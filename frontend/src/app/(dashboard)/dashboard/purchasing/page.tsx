@@ -13,6 +13,17 @@ import {
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -186,7 +197,6 @@ function OrdersTab() {
   }
 
   async function act(po: PurchaseOrder, action: 'order' | 'cancel') {
-    if (action === 'cancel' && !confirm(`Cancel ${po.number}? This can't be undone.`)) return;
     setActing(po.id);
     setError(null);
     try {
@@ -281,16 +291,34 @@ function OrdersTab() {
                         </Button>
                       )}
                       {(po.status === 'DRAFT' || po.status === 'ORDERED') && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled={acting === po.id}
-                          onClick={() => act(po, 'cancel')}
-                          title="Cancel"
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <Ban className="h-3.5 w-3.5" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={acting === po.id}
+                              title="Cancel"
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Cancel {po.number}?</AlertDialogTitle>
+                              <AlertDialogDescription>This can&apos;t be undone.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Keep order</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => act(po, 'cancel')}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Cancel order
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                     </div>
                   </TableCell>
@@ -809,7 +837,6 @@ function SuppliersTab() {
   }, []);
 
   async function remove(s: Supplier) {
-    if (!confirm(`Delete supplier "${s.name}"? This can't be undone.`)) return;
     setError(null);
     try {
       await api.delete(`/suppliers/${s.id}`);
@@ -879,15 +906,37 @@ function SuppliersTab() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => remove(s)}
-                        title="Delete"
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Delete"
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Delete supplier &ldquo;{s.name}&rdquo;?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This can&apos;t be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => remove(s)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </TableCell>
                 </TableRow>

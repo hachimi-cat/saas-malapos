@@ -6,6 +6,17 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Pause, Play, X, Loader2 } from 'lucide-react';
 import { subscriptionsApi, Subscription } from '@/lib/payments-api';
 import { formatDate, cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,7 +89,6 @@ export default function SubscriptionDetailPage() {
   }
 
   async function cancel(atPeriodEnd: boolean) {
-    if (!confirm(atPeriodEnd ? 'Cancel at end of current period?' : 'Cancel immediately? This stops billing right now.')) return;
     setBusy(true);
     setError(null);
     setInfo(null);
@@ -149,12 +159,44 @@ export default function SubscriptionDetailPage() {
           )}
           {!isCanceled && (
             <>
-              <Button type="button" variant="outline" onClick={() => cancel(true)} disabled={busy}>
-                Cancel at period end
-              </Button>
-              <Button type="button" variant="destructive" onClick={() => cancel(false)} disabled={busy}>
-                <X className="h-4 w-4" /> Cancel now
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="outline" disabled={busy}>
+                    Cancel at period end
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancel subscription?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Billing stops at the end of the current period. The subscription stays active until then.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep subscription</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => cancel(true)}>Cancel at period end</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="destructive" disabled={busy}>
+                    <X className="h-4 w-4" /> Cancel now
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Cancel subscription now?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This stops billing immediately and ends access right away. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep subscription</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => cancel(false)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Cancel now</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </>
           )}
         </div>

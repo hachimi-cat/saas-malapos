@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 /*
  * Fulfillment → Shipments. malapos port of storlaunch's fulfillment/
@@ -50,6 +52,9 @@ export default function ShipmentsPage() {
   const [error, setError] = useState('');
   const [detail, setDetail] = useState<Shipment | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelTarget, setCancelTarget] = useState<Shipment | null>(null);
 
   async function reload() {
     setLoading(true);
@@ -70,9 +75,9 @@ export default function ShipmentsPage() {
     void reload();
   }, []);
 
-  async function handleCancel(s: Shipment) {
-    const reason = prompt('Cancel reason?');
-    if (!reason) return;
+  async function cancelShipment(s: Shipment, reason: string) {
+    if (!reason.trim()) return;
+    setCancelOpen(false);
     try {
       await shipmentsApi.cancel(s.id, reason);
       await reload();
@@ -92,7 +97,6 @@ export default function ShipmentsPage() {
   }
 
   async function handleConfirmPickup(s: Shipment) {
-    if (!confirm(`Book courier now? ${s.courierCode.toUpperCase()} will be dispatched to pick up the parcel.`)) return;
     try {
       await shipmentsApi.confirmPickup(s.id);
       await reload();
@@ -167,9 +171,25 @@ export default function ShipmentsPage() {
       cell: (r) => (
         <div className="flex justify-end gap-1">
           {r.status === 'pending' && (
-            <Button size="sm" onClick={() => handleConfirmPickup(r)} title="Book courier (parcel is ready)">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Book courier
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" title="Book courier (parcel is ready)">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Book courier
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Book courier now?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {r.courierCode.toUpperCase()} will be dispatched to pick up the parcel.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => handleConfirmPickup(r)}>Book courier</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
           <Button variant="ghost" size="icon" onClick={() => openDetail(r)} title="View detail" className="h-8 w-8 text-muted-foreground hover:text-foreground">
             <ExternalLink className="h-3.5 w-3.5" />
@@ -178,7 +198,7 @@ export default function ShipmentsPage() {
             <Printer className="h-3.5 w-3.5" />
           </Button>
           {['pending', 'confirmed', 'allocated', 'picking_up'].includes(r.status) && (
-            <Button variant="ghost" size="icon" onClick={() => handleCancel(r)} title="Cancel" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+            <Button variant="ghost" size="icon" onClick={() => { setCancelTarget(r); setCancelReason(''); setCancelOpen(true); }} title="Cancel" className="h-8 w-8 text-muted-foreground hover:text-destructive">
               <X className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -284,6 +304,33 @@ export default function ShipmentsPage() {
           }}
         />
       )}
+
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Cancel shipment</DialogTitle></DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="cancelReason" className="text-xs text-muted-foreground">Cancel reason</Label>
+            <Textarea
+              id="cancelReason"
+              autoFocus
+              rows={3}
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Why is this shipment being cancelled?"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelOpen(false)}>Keep shipment</Button>
+            <Button
+              variant="destructive"
+              disabled={!cancelReason.trim()}
+              onClick={() => cancelTarget && cancelShipment(cancelTarget, cancelReason)}
+            >
+              Cancel shipment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

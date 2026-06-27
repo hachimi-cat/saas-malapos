@@ -9,6 +9,15 @@ import { DataTable, type Column, type FilterDef } from '@/components/data-table'
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface ProgramRef { id: string; name: string }
 
@@ -44,6 +53,12 @@ export default function AffiliateApprovalsPage() {
   const [tab, setTab] = useState<Tab>('enrollments');
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
+  const [actionDialog, setActionDialog] = useState<
+    | { kind: 'reject-enrollment'; programId: string; eid: string }
+    | { kind: 'void-commission'; programId: string; cid: string }
+    | null
+  >(null);
+  const [reasonText, setReasonText] = useState('');
 
   async function load() {
     setError(null);
@@ -75,12 +90,7 @@ export default function AffiliateApprovalsPage() {
   }
   useEffect(() => { load(); }, []);
 
-  async function actEnrollment(programId: string, eid: string, action: 'approve' | 'reject') {
-    let reason: string | null = null;
-    if (action === 'reject') {
-      reason = window.prompt('Reason (shown to affiliator)') ?? '';
-      if (!reason) return;
-    }
+  async function actEnrollment(programId: string, eid: string, action: 'approve' | 'reject', reason?: string) {
     setWorking(eid);
     setError(null);
     try {
@@ -95,12 +105,7 @@ export default function AffiliateApprovalsPage() {
     finally { setWorking(null); }
   }
 
-  async function actCommission(programId: string, cid: string, action: 'approve' | 'void') {
-    let reason: string | null = null;
-    if (action === 'void') {
-      reason = window.prompt('Reason (audit log)') ?? '';
-      if (!reason) return;
-    }
+  async function actCommission(programId: string, cid: string, action: 'approve' | 'void', reason?: string) {
     setWorking(cid);
     setError(null);
     try {
@@ -165,7 +170,7 @@ export default function AffiliateApprovalsPage() {
                     <Button size="sm" onClick={() => actEnrollment(e.programId, e.id, 'approve')} disabled={working === e.id} className="hover:bg-primary/90">
                       <Check size={12} /> Approve
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => actEnrollment(e.programId, e.id, 'reject')} disabled={working === e.id} className="hover:bg-destructive/10 hover:text-destructive">
+                    <Button variant="outline" size="sm" onClick={() => { setReasonText(''); setActionDialog({ kind: 'reject-enrollment', programId: e.programId, eid: e.id }); }} disabled={working === e.id} className="hover:bg-destructive/10 hover:text-destructive">
                       Reject
                     </Button>
                   </div>
@@ -246,7 +251,7 @@ export default function AffiliateApprovalsPage() {
                       </Button>
                     )}
                     {(c.status === 'pending' || c.status === 'approved') && (
-                      <Button variant="ghost" size="icon" onClick={() => actCommission(c.programId, c.id, 'void')} disabled={working === c.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Void">
+                      <Button variant="ghost" size="icon" onClick={() => { setReasonText(''); setActionDialog({ kind: 'void-commission', programId: c.programId, cid: c.id }); }} disabled={working === c.id} className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" title="Void">
                         <Ban size={14} />
                       </Button>
                     )}
@@ -273,6 +278,39 @@ export default function AffiliateApprovalsPage() {
         )
       }</TabsContent>
       </Tabs>
+
+      <Dialog open={!!actionDialog} onOpenChange={(o) => !o && setActionDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{actionDialog?.kind === 'reject-enrollment' ? 'Reject enrollment' : 'Void commission'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="reason" className="text-xs text-muted-foreground">
+              {actionDialog?.kind === 'reject-enrollment' ? 'Reason (shown to affiliator)' : 'Reason (audit log)'}
+            </Label>
+            <Textarea
+              id="reason"
+              autoFocus
+              rows={3}
+              value={reasonText}
+              onChange={(e) => setReasonText(e.target.value)}
+              placeholder={actionDialog?.kind === 'reject-enrollment' ? 'Shown to the affiliator. Optional.' : 'Recorded in the audit log. Optional.'}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActionDialog(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (actionDialog?.kind === 'reject-enrollment') actEnrollment(actionDialog.programId, actionDialog.eid, 'reject', reasonText);
+                else if (actionDialog?.kind === 'void-commission') actCommission(actionDialog.programId, actionDialog.cid, 'void', reasonText);
+                setActionDialog(null);
+              }}
+            >
+              {actionDialog?.kind === 'reject-enrollment' ? 'Reject' : 'Void'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

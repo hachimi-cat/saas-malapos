@@ -5,6 +5,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { payoutsApi, type Payout, type PayoutStatus, type PayoutBankAccount } from '@/lib/payments-api';
 import { Loader2, Plus, Landmark, AlertCircle, CheckCircle2, Ban, Truck, Hourglass } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -84,7 +95,6 @@ export default function PayoutsPage() {
     }).format(amount), [balance?.currency]);
 
   async function cancel(id: string) {
-    if (!confirm('Cancel this payout request?')) return;
     try {
       await payoutsApi.cancel(id);
       await reload();
@@ -152,9 +162,25 @@ export default function PayoutsPage() {
       align: 'right',
       cell: (r) =>
         r.status === 'pending' ? (
-          <Button variant="link" onClick={() => cancel(r.id)} className="h-auto p-0 text-xs text-destructive">
-            Cancel
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="link" className="h-auto p-0 text-xs text-destructive">
+                Cancel
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel this payout request?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  The pending payout request will be withdrawn and its locked funds returned to your available balance.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep request</AlertDialogCancel>
+                <AlertDialogAction onClick={() => cancel(r.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Cancel payout</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         ) : null,
     },
   ];

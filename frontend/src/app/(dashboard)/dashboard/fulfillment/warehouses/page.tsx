@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 /*
  * Fulfillment → Warehouses. malapos port of storlaunch's fulfillment/
@@ -41,7 +42,6 @@ export default function WarehousesPage() {
   }, []);
 
   async function handleDelete(w: Warehouse) {
-    if (!confirm(`Delete "${w.name}"? Stock records are preserved.`)) return;
     try {
       await warehousesApi.delete(w.id);
       await refresh();
@@ -107,9 +107,28 @@ export default function WarehousesPage() {
                   <Button variant="ghost" size="icon" onClick={() => setEditing(w)} title="Edit" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(w)} title="Delete" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" title="Delete" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete &ldquo;{w.name}&rdquo;?</AlertDialogTitle>
+                        <AlertDialogDescription>Stock records are preserved.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => handleDelete(w)}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </Card>

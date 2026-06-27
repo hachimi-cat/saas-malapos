@@ -9,6 +9,17 @@ import {
   type TemplateDTO,
   type TemplateKind,
 } from '@/lib/plugipay-settings-api';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -111,7 +122,6 @@ export default function TemplatesPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm('Delete this template? This cannot be undone.')) return;
     setError(null);
     setInfo(null);
     setBusy(true);
@@ -431,9 +441,23 @@ function TemplateEditor({
               <Copy className="h-3.5 w-3.5" /> Duplicate
             </Button>
             {!template.isDefault && (
-              <Button type="button" variant="ghost" size="sm" onClick={onDelete} disabled={busy} className="gap-1.5 text-muted-foreground">
-                <Trash2 className="h-3.5 w-3.5" /> Delete
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm" disabled={busy} className="gap-1.5 text-muted-foreground">
+                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this template?</AlertDialogTitle>
+                    <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </div>

@@ -15,9 +15,21 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface Deliverable {
   id: string;
@@ -73,12 +85,7 @@ export default function MerchantCollabDetailPage() {
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [id]);
 
-  async function review(dId: string, action: 'approve' | 'reject') {
-    let notes: string | null = null;
-    if (action === 'reject') {
-      notes = window.prompt('What needs to change?') ?? '';
-      if (!notes) return;
-    }
+  async function review(dId: string, action: 'approve' | 'reject', notes?: string) {
     setWorking(dId);
     try {
       const r = await marketingFetch(`/api/v1/account/marketing/collaborations/${id}/deliverables/${dId}/${action}`, {
@@ -99,6 +106,8 @@ export default function MerchantCollabDetailPage() {
 
   const [showDispute, setShowDispute] = useState(false);
   const [disputeNotes, setDisputeNotes] = useState('');
+  const [changesFor, setChangesFor] = useState<string | null>(null);
+  const [changesNotes, setChangesNotes] = useState('');
 
   async function fileDispute() {
     if (disputeNotes.trim().length < 20) { setError('Dispute notes must be at least 20 characters.'); return; }
@@ -121,7 +130,6 @@ export default function MerchantCollabDetailPage() {
   }
 
   async function approveCollab() {
-    if (!confirm('Approve the whole collaboration? This snapshots net-to-creator and locks the un-watermarked files for download. Payout is released next.')) return;
     setWorking('approve');
     try {
       const r = await marketingFetch(`/api/v1/account/marketing/collaborations/${id}/approve`, {
@@ -219,7 +227,7 @@ export default function MerchantCollabDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => review(d.id, 'reject')}
+                  onClick={() => { setChangesNotes(''); setChangesFor(d.id); }}
                   disabled={working === d.id}
                   className="gap-1 border-destructive/40 font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-60"
                 >
@@ -251,14 +259,29 @@ export default function MerchantCollabDetailPage() {
           </Button>
         ) : <span />}
         {canApproveCollab && (
-          <Button
-            onClick={approveCollab}
-            disabled={working === 'approve'}
-            className="px-5 font-semibold hover:bg-primary/90 disabled:opacity-60"
-          >
-            {working === 'approve' && <Loader2 className="h-4 w-4 animate-spin" />}
-            Approve collaboration & release payment
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                disabled={working === 'approve'}
+                className="px-5 font-semibold hover:bg-primary/90 disabled:opacity-60"
+              >
+                {working === 'approve' && <Loader2 className="h-4 w-4 animate-spin" />}
+                Approve collaboration & release payment
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Approve collaboration?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This snapshots net-to-creator and locks the un-watermarked files for download. Payout is released next.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={approveCollab}>Approve & release</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
 
@@ -296,6 +319,36 @@ export default function MerchantCollabDetailPage() {
               {working === 'dispute' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldAlert size={12} />} File dispute
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!changesFor} onOpenChange={(o) => !o && setChangesFor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">Request changes</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="changes-notes" className="text-xs font-medium text-muted-foreground">What needs to change?</Label>
+            <Textarea
+              id="changes-notes"
+              autoFocus
+              rows={4}
+              value={changesNotes}
+              onChange={(e) => setChangesNotes(e.target.value)}
+              placeholder="Be specific so the creator can fix it in one pass…"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => setChangesFor(null)}>Cancel</Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={!changesNotes.trim()}
+              onClick={() => { if (changesFor) review(changesFor, 'reject', changesNotes); setChangesFor(null); }}
+            >
+              Send notes
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
