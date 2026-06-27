@@ -60,7 +60,7 @@ export default function TemplatesPage() {
   const load = React.useCallback(async () => {
     setRows(null);
     try {
-      const list = await plugipaySettingsApi.listTemplates(tab);
+      const list = (await plugipaySettingsApi.listTemplates(tab)) ?? [];
       setRows(list);
       if (!list.find((t) => t.id === selectedId)) {
         setSelectedId(list.find((t) => t.isDefault)?.id ?? list[0]?.id ?? null);
@@ -144,7 +144,7 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <nav className="text-xs text-muted-foreground">
         <Link href="/dashboard/settings/business" className="hover:text-foreground">
           Settings
@@ -585,12 +585,12 @@ function TemplateEditor({
           <div>
             <Label htmlFor="tpl-accent" className={labelCls}>Accent color override (optional)</Label>
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 type="color"
                 aria-label="Template accent color"
                 value={accentColor || '#A16207'}
                 onChange={(e) => setAccentColor(e.target.value.toUpperCase())}
-                className="h-9 w-10 shrink-0 cursor-pointer rounded border border-border bg-background"
+                className="h-9 w-10 shrink-0 cursor-pointer p-1"
               />
               <Input
                 id="tpl-accent"

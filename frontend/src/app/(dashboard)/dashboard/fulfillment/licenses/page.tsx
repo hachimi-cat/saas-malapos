@@ -29,16 +29,20 @@ const STATUS_COLOR: Record<string, string> = {
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <button
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
       onClick={() => {
         navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      className="text-muted-foreground hover:text-foreground"
+      title="Copy key"
+      className="h-6 w-6 text-muted-foreground hover:text-foreground"
     >
       {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-    </button>
+    </Button>
   );
 }
 
@@ -257,7 +261,7 @@ export default function LicensesPage() {
   if (moduleOff) return <FulfillmentModuleOff blurb="License keys are issued + validated by Fulkruma. Turn on the Fulfillment module to manage them." />;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />}
 
       <div className="flex items-center justify-between">

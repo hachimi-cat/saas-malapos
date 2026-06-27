@@ -52,13 +52,13 @@ export default function AffiliateApprovalsPage() {
       // fan out client-side. Programs list is small (≤ ~hundreds).
       const programsRes = await marketingFetch('/api/v1/account/marketing/programs', { credentials: 'include' });
       const programsBody = await programsRes.json();
-      const programs: ProgramRef[] = Array.isArray(programsBody?.data) ? programsBody.data : [];
+      const programs: ProgramRef[] = programsBody?.data?.programs ?? [];
       const all: PendingEnrollment[] = [];
       await Promise.all(programs.map(async (p) => {
         const r = await marketingFetch(`/api/v1/account/marketing/programs/${p.id}/enrollments`, { credentials: 'include' });
         if (!r.ok) return;
         const b = await r.json();
-        const rows: PendingEnrollment[] = Array.isArray(b?.data) ? b.data : [];
+        const rows: PendingEnrollment[] = b?.data?.enrollments ?? [];
         for (const row of rows) {
           if (row.status === 'pending') {
             all.push({ ...row, program: { id: p.id, name: p.name } });
@@ -118,7 +118,7 @@ export default function AffiliateApprovalsPage() {
   const pendingCommissionCount = commissions?.filter((c) => c.status === 'pending').length ?? 0;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <PageHeader
         icon={Coins}
         title="Affiliate approvals"

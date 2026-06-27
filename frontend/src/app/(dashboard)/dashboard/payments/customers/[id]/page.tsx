@@ -68,20 +68,17 @@ export default function CustomerDetailPage() {
     setError(null);
     customersApi
       .get(id)
-      .then((res) => {
-        const body = res.data as unknown as { data?: Customer } | Customer;
-        setCustomer(((body as { data?: Customer }).data ?? body) as Customer);
-      })
+      .then((res) => setCustomer(res.data))
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
     // Enrich with the customer's subscriptions + invoices (best-effort).
     subscriptionsApi
       .list({ customerId: id, limit: 100 })
-      .then((res) => setSubscriptions((res.data as unknown as { data?: Subscription[] })?.data ?? (res.data as unknown as Subscription[]) ?? []))
+      .then((res) => setSubscriptions(res.data ?? []))
       .catch(() => setSubscriptions([]));
     invoicesApi
       .list({ customerId: id, limit: 100 })
-      .then((res) => setInvoices((res.data as unknown as { data?: Invoice[] })?.data ?? (res.data as unknown as Invoice[]) ?? []))
+      .then((res) => setInvoices(res.data ?? []))
       .catch(() => setInvoices([]));
   }, [id]);
 
@@ -95,7 +92,7 @@ export default function CustomerDetailPage() {
 
   if (!customer) {
     return (
-      <div className="mx-auto max-w-5xl space-y-3 p-8">
+      <div className="space-y-3 p-8">
         <p className="text-sm text-red-400">{error ?? 'Customer not found'}</p>
         <Link href="/dashboard/payments/customers" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
           <ArrowLeft className="h-3 w-3" /> Back to Customers
@@ -109,7 +106,7 @@ export default function CustomerDetailPage() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <nav className="text-xs text-muted-foreground">
         <Link href="/dashboard/payments/customers" className="inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> Customers

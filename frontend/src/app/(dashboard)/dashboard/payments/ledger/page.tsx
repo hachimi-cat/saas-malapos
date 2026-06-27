@@ -163,7 +163,7 @@ export default function LedgerPage() {
   if (loading) return <div className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold sm:text-2xl">Ledger</h1>
@@ -179,7 +179,7 @@ export default function LedgerPage() {
         </div>
       </header>
 
-      {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="rounded-md border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>}
 
       <Card className="rounded-xl p-6">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Running balance</p>

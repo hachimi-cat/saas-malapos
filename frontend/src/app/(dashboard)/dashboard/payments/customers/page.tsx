@@ -20,13 +20,7 @@ export default function CustomersPage() {
     setLoading(true);
     customersApi
       .list({ limit: 100 })
-      .then((res) =>
-        setCustomers(
-          (res.data as unknown as { data?: Customer[] })?.data ??
-            (res.data as unknown as Customer[]) ??
-            []
-        )
-      )
+      .then((res) => setCustomers(res.data ?? []))
       .catch(() => setCustomers([]))
       .finally(() => setLoading(false));
   }, []);
@@ -68,7 +62,7 @@ export default function CustomersPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold sm:text-2xl">Customers</h1>
         <p className="mt-1 text-sm text-muted-foreground">

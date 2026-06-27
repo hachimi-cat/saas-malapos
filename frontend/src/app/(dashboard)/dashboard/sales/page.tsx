@@ -110,7 +110,7 @@ export default function SalesPage() {
     (async () => {
       try {
         const res = await api.get<{ outlets: Outlet[] }>('/outlets');
-        setOutlets(res.data.outlets);
+        setOutlets(res.data.outlets ?? []);
       } catch {
         // Outlet filter is optional; surface load errors via the list fetch.
       }
@@ -129,7 +129,7 @@ export default function SalesPage() {
         if (status) qs.set('status', status);
         const res = await api.get<SaleRow[]>(`/sales${qs.toString() ? `?${qs}` : ''}`);
         if (cancelled) return;
-        setRows(res.data);
+        setRows(res.data ?? []);
         setCursor(res.meta.cursor ?? null);
         setHasMore(Boolean(res.meta.hasMore));
       } catch (e) {
@@ -153,7 +153,7 @@ export default function SalesPage() {
       if (status) qs.set('status', status);
       qs.set('cursor', cursor);
       const res = await api.get<SaleRow[]>(`/sales?${qs}`);
-      setRows((r) => [...r, ...res.data]);
+      setRows((r) => [...r, ...(res.data ?? [])]);
       setCursor(res.meta.cursor ?? null);
       setHasMore(Boolean(res.meta.hasMore));
     } catch (e) {
@@ -164,7 +164,7 @@ export default function SalesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <div className="flex items-center gap-3">
         <Receipt className="h-6 w-6 text-primary" />
         <div>

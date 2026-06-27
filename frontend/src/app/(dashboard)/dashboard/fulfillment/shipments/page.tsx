@@ -195,7 +195,7 @@ export default function ShipmentsPage() {
   if (moduleOff) return <FulfillmentModuleOff blurb="Shipments dispatch couriers via Fulkruma (Biteship). Turn on the Fulfillment module to ship physical orders." />;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold sm:text-2xl">Shipments</h1>
@@ -628,8 +628,8 @@ function CustomerPicker({
       setLoading(true);
       const q = query.trim();
       api
-        .get<{ items: CustomerLite[] }>(`/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`)
-        .then((res) => setCustomers(res.data.items ?? []))
+        .get<CustomerLite[]>(`/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+        .then((res) => setCustomers(res.data ?? []))
         .catch(() => setCustomers([]))
         .finally(() => setLoading(false));
     }, 250);

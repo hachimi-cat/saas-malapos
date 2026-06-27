@@ -37,7 +37,8 @@ export default function PixelsPage() {
     pixelsApi
       .get()
       .then((res) => {
-        const data = (res.data as { data?: MerchantPixelsConfig })?.data ?? (res.data as MerchantPixelsConfig);
+        // `res.data` is already the unwrapped envelope payload (lib/api.ts).
+        const data = res.data;
         setForm({
           metaPixelId: data.metaPixelId ?? null,
           metaCapiAccessToken: data.metaCapiAccessToken ?? null,
@@ -72,7 +73,7 @@ export default function PixelsPage() {
   const hasAny = !!(form.metaPixelId || form.googleAnalyticsId || form.googleAdsConversionId || form.tiktokPixelId);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold">Pixels &amp; Conversion Tracking</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -123,10 +124,11 @@ export default function PixelsPage() {
             placeholder="EAAB..."
             type={showCapiToken ? 'text' : 'password'}
             rightSlot={(
-              <button type="button" onClick={() => setShowCapiToken((x) => !x)}
-                className="text-muted-foreground hover:text-foreground">
+              <Button type="button" variant="ghost" size="icon"
+                onClick={() => setShowCapiToken((x) => !x)}
+                className="h-6 w-6 text-muted-foreground hover:text-foreground">
                 {showCapiToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+              </Button>
             )}
           />
           <Field

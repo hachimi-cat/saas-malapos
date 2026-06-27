@@ -138,7 +138,7 @@ export default function PaymentMethodsSettingsPage() {
   }, [catalog]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <nav className="text-xs text-muted-foreground">
         <span>Settings</span>
         <span className="mx-1.5 text-muted-foreground/50">/</span>

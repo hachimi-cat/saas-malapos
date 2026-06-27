@@ -109,8 +109,9 @@ export default function TablesPage() {
     (async () => {
       try {
         const res = await api.get<{ outlets: Outlet[] }>('/outlets');
-        setOutlets(res.data.outlets);
-        setOutletId(res.data.outlets[0]?.id ?? '');
+        const list = res.data.outlets ?? [];
+        setOutlets(list);
+        setOutletId(list[0]?.id ?? '');
       } catch (e) {
         setError(e instanceof ApiRequestError ? e.message : 'Failed to load outlets');
         setLoading(false);
@@ -128,7 +129,7 @@ export default function TablesPage() {
     }
     try {
       const res = await api.get<{ floors: Floor[] }>(`/floors?outletId=${encodeURIComponent(oid)}`);
-      const list = res.data.floors;
+      const list = res.data.floors ?? [];
       setFloors(list);
       let next = '';
       setFloorId((prev) => {
@@ -152,7 +153,7 @@ export default function TablesPage() {
       const res = await api.get<{ tables: Table[] }>(
         `/tables?outletId=${encodeURIComponent(oid)}&floorId=${encodeURIComponent(fid)}&includeInactive=true`,
       );
-      setTables(res.data.tables);
+      setTables(res.data.tables ?? []);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to load tables');
     } finally {
@@ -268,7 +269,7 @@ export default function TablesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Tables</h1>

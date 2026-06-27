@@ -50,10 +50,13 @@ export default function AbandonedCartPage() {
       discountCodesApi.list({ active: true, limit: 100 }),
     ])
       .then(([configRes, remindersRes, statsRes, codesRes]) => {
-        const configData = (configRes.data as { data?: AbandonedCartConfig })?.data ?? (configRes.data as AbandonedCartConfig);
-        const remindersData = (remindersRes.data as { data?: AbandonedCartReminder[] })?.data ?? [];
-        const statsData = (statsRes.data as { data?: AbandonedCartStats })?.data ?? null;
-        const codesData = (codesRes.data as { data?: DiscountCode[] })?.data ?? [];
+        // `res.data` is already the unwrapped envelope payload (lib/api.ts).
+        // Config + stats are flat objects; reminders comes back as `{ items }`;
+        // codes is the sendList array.
+        const configData = configRes.data;
+        const remindersData = (remindersRes.data as unknown as { items?: AbandonedCartReminder[] })?.items ?? [];
+        const statsData = statsRes.data ?? null;
+        const codesData = codesRes.data ?? [];
         setForm({
           enabled: configData.enabled ?? false,
           delayHours: configData.delayHours ?? 4,
@@ -101,7 +104,7 @@ export default function AbandonedCartPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold">Abandoned cart recovery</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -119,7 +122,7 @@ export default function AbandonedCartPage() {
           <StatCard label="Reminders sent" value={stats.remindersSent.toLocaleString('en-US')} icon={MailX} />
           <StatCard label="Carts recovered" value={stats.cartsRecovered.toLocaleString('en-US')} icon={CheckCircle2} />
           <StatCard label="Recovery rate" value={fmtPct(stats.recoveryRate)} icon={ShoppingBag} />
-          <StatCard label="Recovered revenue" value={stats.recoveredRevenue > 0 ? fmt(stats.recoveredRevenue) : '—'} icon={CheckCircle2} />
+          <StatCard label="Recovered revenue" value={stats.recoveredValueAtSend > 0 ? fmt(stats.recoveredValueAtSend) : '—'} icon={CheckCircle2} />
         </section>
       )}
 

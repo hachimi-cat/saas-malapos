@@ -93,9 +93,14 @@ export default function ComposePage() {
         // /marketing-campaigns (now the campaign HUB) to /broadcasts.
         marketingFetch('/api/v1/account/marketing/broadcasts', { credentials: 'include' }).then((r) => r.json()),
       ]);
-      setChannels((c?.data ?? []).filter((x: Channel) => x.status === 'active'));
-      setLists(l?.data ?? []);
-      setPast(p?.data ?? []);
+      // The marketing proxy relays Ripllo's payload verbatim: channels →
+      // { channels }, contact-lists → { lists }, broadcasts → { broadcasts }.
+      // Reading `.data` directly gave an object (or undefined), so the lists
+      // silently never populated. Read the wrapped field; fall back to the
+      // bare array for safety.
+      setChannels((c?.data?.channels ?? c?.data ?? []).filter((x: Channel) => x.status === 'active'));
+      setLists(l?.data?.lists ?? l?.data ?? []);
+      setPast(p?.data?.broadcasts ?? p?.data ?? []);
     } catch (e) { setError((e as Error).message); }
   }
   useEffect(() => { loadAll(); }, []);
@@ -183,7 +188,7 @@ export default function ComposePage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <PageHeader
         icon={Mail}
         title="Compose"

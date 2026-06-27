@@ -124,7 +124,7 @@ function BillingContent() {
   const currentDef = data?.tiers.find((t) => t.id === currentTier);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
+    <div className="space-y-8">
       <header>
         <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -313,7 +313,7 @@ function BillingContent() {
 export default function BillingPage() {
   return (
     <Suspense
-      fallback={<div className="mx-auto max-w-6xl text-sm text-muted-foreground">Loading…</div>}
+      fallback={<div className="text-sm text-muted-foreground">Loading…</div>}
     >
       <BillingContent />
     </Suspense>

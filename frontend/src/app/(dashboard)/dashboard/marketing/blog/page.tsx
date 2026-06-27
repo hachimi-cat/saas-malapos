@@ -25,7 +25,8 @@ export default function BlogListPage() {
     setLoading(true);
     try {
       const res = await blogApi.list({ status: filter === 'all' ? undefined : filter });
-      const data = (res.data as { data?: BlogPost[] })?.data ?? (res.data as BlogPost[]);
+      // Backend relays Ripllo's verbatim `{ posts }` shape (see routes/marketing/blog.ts).
+      const data = (res.data as unknown as { posts?: BlogPost[] })?.posts ?? [];
       setPosts(Array.isArray(data) ? data : []);
       setError('');
     } catch (e) {
@@ -43,7 +44,7 @@ export default function BlogListPage() {
     : posts;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Blog</h1>

@@ -93,7 +93,7 @@ export default function ReportsPage() {
     (async () => {
       try {
         const o = await api.get<{ outlets: Outlet[] }>('/outlets');
-        setOutlets(o.data.outlets);
+        setOutlets(o.data.outlets ?? []);
       } catch {
         // The selector falls back to "All outlets" only; report fetch surfaces real errors.
       }
@@ -124,9 +124,9 @@ export default function ReportsPage() {
         ]);
         if (cancelled) return;
         setSummary(s.data);
-        setTopProducts(tp.data.topProducts);
-        setSalesByDay(sbd.data.salesByDay);
-        setLowStock(ls.data.lowStock);
+        setTopProducts(tp.data.topProducts ?? []);
+        setSalesByDay(sbd.data.salesByDay ?? []);
+        setLowStock(ls.data.lowStock ?? []);
       } catch (e) {
         if (cancelled) return;
         setError(e instanceof ApiRequestError ? e.message : 'Failed to load reports');
@@ -143,7 +143,7 @@ export default function ReportsPage() {
   const maxDayTotal = useMemo(() => salesByDay.reduce((m, d) => Math.max(m, d.total), 0), [salesByDay]);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Reports</h1>

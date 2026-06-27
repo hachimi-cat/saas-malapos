@@ -28,10 +28,7 @@ export default function PayoutDetailPage() {
   React.useEffect(() => {
     payoutsApi
       .get(id)
-      .then((res) => {
-        const body = res.data as unknown as { data?: Payout } | Payout;
-        setPayout(((body as { data?: Payout }).data ?? body) as Payout);
-      })
+      .then((res) => setPayout(res.data))
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -50,7 +47,7 @@ export default function PayoutDetailPage() {
     payout.currency === 'IDR' ? formatCurrency(n) : `${payout.currency} ${n.toFixed(2)}`;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <nav className="text-xs text-muted-foreground">
         <Link href="/dashboard/payments/payouts" className="inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> Payouts

@@ -44,8 +44,8 @@ export default function ApiKeysPage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const { data } = await api.get<{ keys: ApiKey[] }>('/api-keys');
-      setKeys(data.keys);
+      const { data } = await api.get<{ apiKeys: ApiKey[] }>('/api-keys');
+      setKeys(data.apiKeys ?? []);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Could not load API keys');
       setKeys([]);
@@ -57,7 +57,7 @@ export default function ApiKeysPage() {
   }, [load]);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">API keys</h1>
@@ -106,12 +106,14 @@ export default function ApiKeysPage() {
               <span className="text-xs text-muted-foreground">
                 {k.lastUsedAt ? fmtDate(k.lastUsedAt) : 'Never'}
               </span>
-              <button
+              <Button
+                variant="link"
+                size="sm"
                 onClick={() => setDeleting(k)}
-                className="text-right text-xs text-destructive hover:underline"
+                className="h-auto justify-end p-0 text-xs text-destructive sm:text-right"
               >
                 Delete
-              </button>
+              </Button>
             </div>
           ))}
         </Card>

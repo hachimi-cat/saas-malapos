@@ -162,7 +162,7 @@ export default function ChannelsPage() {
     try {
       const r = await marketingFetch('/api/v1/account/marketing/channels', { credentials: 'include' });
       const b = await r.json();
-      setChannels(b?.data ?? []);
+      setChannels(b?.data?.channels ?? []);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -184,7 +184,7 @@ export default function ChannelsPage() {
   const connectedKeys = new Set((channels ?? []).filter((c) => c.status !== 'revoked').map((c) => c.provider));
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <PageHeader
         icon={Plug}
         title="Channels"

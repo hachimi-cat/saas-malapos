@@ -121,7 +121,7 @@ export default function DeliveryPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl">
+      <div>
         <div className="flex items-center justify-center py-24">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
@@ -136,7 +136,7 @@ export default function DeliveryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">

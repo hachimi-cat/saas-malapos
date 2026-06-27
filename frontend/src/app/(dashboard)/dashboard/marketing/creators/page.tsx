@@ -41,7 +41,7 @@ interface DirectoryItem {
 }
 interface DirectoryResponse { data: DirectoryItem[]; cursor: string | null; hasMore: boolean }
 
-interface Campaign { id: string; title: string; status: string }
+interface Campaign { id: string; name: string; status: string }
 
 const NICHE_OPTIONS = ['beauty', 'fashion', 'fitness', 'food', 'travel', 'tech', 'gaming', 'lifestyle', 'parenting', 'finance', 'education', 'music', 'comedy'];
 const COUNTRY_OPTIONS = [
@@ -91,7 +91,7 @@ export default function MerchantCreatorDirectory() {
   useEffect(() => {
     marketingFetch('/api/v1/account/marketing/campaigns?status=open', { credentials: 'include' })
       .then((r) => r.ok ? r.json() : null)
-      .then((b) => { if (b?.data) setCampaigns(b.data as Campaign[]); })
+      .then((b) => { if (b?.data?.campaigns) setCampaigns(b.data.campaigns as Campaign[]); })
       .catch(() => {});
   }, []);
 
@@ -109,7 +109,7 @@ export default function MerchantCreatorDirectory() {
   const activeFilterCount = (niche ? 1 : 0) + (country ? 1 : 0);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <PageHeader
         icon={Users}
         title="Creator directory"
@@ -259,7 +259,7 @@ function InviteDialog({ creator, campaigns, onClose, onSent }: { creator: Direct
       });
       const b = await r.json();
       if (!r.ok) throw new Error(b?.error?.message ?? 'invite failed');
-      onSent(campaigns.find((c) => c.id === campaignId)?.title ?? 'campaign');
+      onSent(campaigns.find((c) => c.id === campaignId)?.name ?? 'campaign');
     } catch (e) { setErr((e as Error).message); }
     finally { setSubmitting(false); }
   }
@@ -287,7 +287,7 @@ function InviteDialog({ creator, campaigns, onClose, onSent }: { creator: Direct
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {campaigns.map((c) => (<SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>))}
+                  {campaigns.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>

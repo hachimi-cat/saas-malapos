@@ -35,8 +35,8 @@ export default function FeedsPage() {
     feedsApi
       .get()
       .then((res) => {
-        const data = (res.data as { data?: MerchantFeedConfig })?.data ?? (res.data as MerchantFeedConfig);
-        setForm(data);
+        // `res.data` is already the unwrapped envelope payload (lib/api.ts).
+        if (res.data) setForm(res.data);
       })
       .catch((e) => setError(extractError(e) ?? 'Failed to load'))
       .finally(() => setLoading(false));
@@ -51,8 +51,7 @@ export default function FeedsPage() {
         includeUnpublished: form.includeUnpublished,
         marketingCampaignId: form.marketingCampaignId,
       });
-      const data = (res.data as { data?: MerchantFeedConfig })?.data ?? (res.data as MerchantFeedConfig);
-      setForm(data);
+      if (res.data) setForm(res.data);
       setSuccess('Feed config saved. Ad networks pull on their own schedule (typically daily).');
     } catch (e) {
       setError(extractError(e) ?? 'Save failed');
@@ -74,7 +73,7 @@ export default function FeedsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold">Product feeds</h1>
         <p className="mt-1 text-sm text-muted-foreground">

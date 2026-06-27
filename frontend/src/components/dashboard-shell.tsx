@@ -423,12 +423,16 @@ export function DashboardShell({
           </button>
         </div>
         <main className="min-w-0 flex-1 p-4 md:p-6">
+          {/* Single source of the page content width — every dashboard page
+              is centered at the same max-width here, so pages must NOT set
+              their own `mx-auto max-w-*` root container (would double-constrain
+              and look inconsistent). */}
           {modulesLoading || isGatedAndDisallowed ? (
             <div className="flex items-center justify-center py-24 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : (
-            children
+            <div className="mx-auto w-full max-w-6xl">{children}</div>
           )}
         </main>
       </div>

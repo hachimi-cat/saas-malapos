@@ -51,7 +51,7 @@ export default function WebhooksPage() {
       const { data } = await api.get<{ subscriptions: Subscription[] }>(
         '/webhook-subscriptions',
       );
-      setSubs(data.subscriptions);
+      setSubs(data.subscriptions ?? []);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Could not load webhooks');
       setSubs([]);
@@ -83,7 +83,7 @@ export default function WebhooksPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
+    <div className="space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Webhooks</h1>
@@ -169,12 +169,14 @@ export default function WebhooksPage() {
               >
                 {s.active ? 'Active' : 'Paused'}
               </span>
-              <button
+              <Button
+                variant="link"
+                size="sm"
                 onClick={() => remove(s)}
-                className="shrink-0 text-xs text-destructive hover:underline"
+                className="h-auto shrink-0 p-0 text-xs text-destructive"
               >
                 Remove
-              </button>
+              </Button>
             </div>
           ))}
         </Card>

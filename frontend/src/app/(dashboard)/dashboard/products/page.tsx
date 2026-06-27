@@ -84,8 +84,8 @@ export default function ProductsPage() {
         api.get<{ products: Product[] }>('/products?active=true'),
         api.get<{ categories: Category[] }>('/categories'),
       ]);
-      setProducts(p.data.products);
-      setCategories(c.data.categories);
+      setProducts(p.data.products ?? []);
+      setCategories(c.data.categories ?? []);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to load');
     } finally {
@@ -133,7 +133,7 @@ export default function ProductsPage() {
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Products</h1>
@@ -251,7 +251,7 @@ export default function ProductsPage() {
           categories={categories}
           onCategoryCreated={async () => {
             const c = await api.get<{ categories: Category[] }>('/categories');
-            setCategories(c.data.categories);
+            setCategories(c.data.categories ?? []);
           }}
           onClose={() => {
             setCreating(false);
@@ -798,7 +798,7 @@ function RecipeEditor({ product }: { product: Product }) {
         if (cancelled) return;
         setIsComposite(recipe.data.isComposite);
         setRows(
-          recipe.data.components.map((c) => ({
+          (recipe.data.components ?? []).map((c) => ({
             id: c.id,
             componentVariantId: c.componentVariantId,
             componentName: c.componentName,
@@ -809,7 +809,7 @@ function RecipeEditor({ product }: { product: Product }) {
         // Candidate components: every active variant except this one and other
         // composites (no nesting).
         const opts: VariantOption[] = [];
-        for (const p of all.data.products) {
+        for (const p of all.data.products ?? []) {
           for (const v of p.variants) {
             if (v.id === variant.id) continue;
             if (v.isComposite) continue;
@@ -1003,8 +1003,8 @@ function ModifierAttachEditor({ product }: { product: Product }) {
           api.get<{ groups: ModGroup[] }>(`/modifiers/product/${product.id}`),
         ]);
         if (cancelled) return;
-        setGroups(all.data.groups);
-        setChecked(new Set(attached.data.groups.map((g) => g.id)));
+        setGroups(all.data.groups ?? []);
+        setChecked(new Set((attached.data.groups ?? []).map((g) => g.id)));
       } catch (e) {
         if (!cancelled) setErr(e instanceof ApiRequestError ? e.message : 'Failed to load modifiers');
       } finally {

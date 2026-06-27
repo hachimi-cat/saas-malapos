@@ -82,8 +82,8 @@ export default function InventoryPage() {
     (async () => {
       try {
         const o = await api.get<{ outlets: Outlet[] }>('/outlets');
-        setOutlets(o.data.outlets);
-        setOutletId(o.data.outlets[0]?.id ?? '');
+        setOutlets(o.data.outlets ?? []);
+        setOutletId(o.data.outlets?.[0]?.id ?? '');
       } catch (e) {
         setError(e instanceof ApiRequestError ? e.message : 'Failed to load outlets');
       } finally {
@@ -154,7 +154,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Inventory</h1>
@@ -332,13 +332,15 @@ function ReorderEditor({ value, onSave }: { value: number; onSave: (v: number) =
 
   if (!editing) {
     return (
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => setEditing(true)}
-        className="rounded px-2 py-1 text-sm hover:bg-background"
+        className="h-8 px-2 font-normal"
         title="Edit reorder point"
       >
         {value > 0 ? value : <span className="text-muted-foreground">—</span>}
-      </button>
+      </Button>
     );
   }
 

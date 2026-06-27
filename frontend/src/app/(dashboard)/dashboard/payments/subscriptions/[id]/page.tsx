@@ -35,8 +35,7 @@ export default function SubscriptionDetailPage() {
   const load = React.useCallback(async () => {
     try {
       const res = await subscriptionsApi.get(id);
-      const body = res.data as unknown as { data?: SubscriptionDetail } | SubscriptionDetail;
-      setSub(((body as { data?: SubscriptionDetail }).data ?? body) as SubscriptionDetail);
+      setSub(res.data as unknown as SubscriptionDetail);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
@@ -108,7 +107,7 @@ export default function SubscriptionDetailPage() {
   const isPaused = sub.status === 'paused';
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <nav className="text-xs text-muted-foreground">
         <Link href="/dashboard/payments/subscriptions" className="inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> Subscriptions

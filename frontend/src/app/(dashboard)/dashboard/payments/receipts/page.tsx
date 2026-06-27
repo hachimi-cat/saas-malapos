@@ -27,12 +27,7 @@ export default function ReceiptsPage() {
     setLoading(true);
     receiptsApi
       .list({ limit: 100 })
-      .then((res) =>
-        setReceipts(
-          (res.data as unknown as { data?: Receipt[] })?.data ??
-            (res.data as unknown as Receipt[])
-        )
-      )
+      .then((res) => setReceipts(res.data ?? []))
       .catch(() => setReceipts([]))
       .finally(() => setLoading(false));
   }, []);
@@ -112,7 +107,7 @@ export default function ReceiptsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold sm:text-2xl">Receipts</h1>
         <p className="mt-1 text-sm text-muted-foreground">

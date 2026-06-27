@@ -25,10 +25,10 @@ const STATUS_LABEL: Record<PayoutStatus, string> = {
 };
 
 const STATUS_COLOR: Record<PayoutStatus, string> = {
-  pending: 'bg-amber-100 text-amber-900',
-  in_transit: 'bg-blue-100 text-blue-900',
-  paid: 'bg-green-100 text-green-900',
-  failed: 'bg-red-100 text-red-900',
+  pending: 'bg-yellow-500/10 text-yellow-400',
+  in_transit: 'bg-blue-500/10 text-blue-400',
+  paid: 'bg-green-500/10 text-green-400',
+  failed: 'bg-red-500/10 text-red-400',
   cancelled: 'bg-muted text-muted-foreground',
 };
 
@@ -166,7 +166,7 @@ export default function PayoutsPage() {
   if (loading) return <Card className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></Card>;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold sm:text-2xl">Payouts</h1>
@@ -183,7 +183,7 @@ export default function PayoutsPage() {
         </Button>
       </header>
 
-      {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="rounded-md border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="p-6">
@@ -295,7 +295,7 @@ function RequestModal({ available, currency, bank, onClose, onDone }: {
             To {bank.bankName} · {bank.bankAccountNumber} · {bank.bankAccountHolder}
           </p>
         </DialogHeader>
-        {error && <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-xs text-red-700">{error}</div>}
+        {error && <div className="mb-3 rounded-md border border-red-500/50 bg-red-500/10 p-2 text-xs text-red-400">{error}</div>}
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="po-amount">
@@ -362,7 +362,7 @@ function BankModal({ initial, onClose, onDone }: { initial: PayoutBankAccount | 
           <DialogTitle>Default bank account</DialogTitle>
           <p className="text-xs text-muted-foreground">Used as the destination for payout requests.</p>
         </DialogHeader>
-        {error && <div className="mb-3 rounded border border-red-300 bg-red-50 p-2 text-xs text-red-700">{error}</div>}
+        {error && <div className="mb-3 rounded-md border border-red-500/50 bg-red-500/10 p-2 text-xs text-red-400">{error}</div>}
         <form onSubmit={submit} className="space-y-3">
           <div className="grid grid-cols-[1fr_auto] gap-2">
             <div className="space-y-1.5">

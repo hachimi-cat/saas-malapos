@@ -87,7 +87,7 @@ export default function KdsPage() {
   const load = useCallback(async () => {
     try {
       const res = await api.get<Ticket[]>('/kds');
-      setTickets(res.data);
+      setTickets(res.data ?? []);
       setError(null);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to load tickets');

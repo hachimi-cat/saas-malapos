@@ -59,7 +59,7 @@ export default function WarehousesPage() {
   if (loading) return <div className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Warehouses</h1>

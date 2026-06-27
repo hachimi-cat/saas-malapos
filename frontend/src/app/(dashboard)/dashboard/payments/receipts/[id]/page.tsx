@@ -39,10 +39,7 @@ export default function ReceiptDetailPage() {
   React.useEffect(() => {
     receiptsApi
       .get(id)
-      .then((res) => {
-        const body = res.data as unknown as { data?: Receipt } | Receipt;
-        setReceipt(((body as { data?: Receipt }).data ?? body) as Receipt);
-      })
+      .then((res) => setReceipt(res.data))
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
     // Pull preview HTML via fetch so iframe can render via srcDoc and
@@ -94,13 +91,10 @@ export default function ReceiptDetailPage() {
     setEmailing(true);
     try {
       const res = await receiptsApi.email(id, emailTo.trim() || undefined);
-      const body = res.data as unknown as { data?: { sent: boolean; to: string } } | { to: string };
-      const result = ((body as { data?: { to: string } }).data ?? body) as { to: string };
-      setInfo(`Receipt sent to ${result.to}`);
+      setInfo(`Receipt sent to ${res.data.to}`);
       setEmailTo('');
       const refreshed = await receiptsApi.get(id);
-      const rb = refreshed.data as unknown as { data?: Receipt } | Receipt;
-      setReceipt(((rb as { data?: Receipt }).data ?? rb) as Receipt);
+      setReceipt(refreshed.data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Email failed');
     } finally {
@@ -121,7 +115,7 @@ export default function ReceiptDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <nav className="text-xs text-muted-foreground">
         <Link href="/dashboard/payments/receipts" className="inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> Receipts

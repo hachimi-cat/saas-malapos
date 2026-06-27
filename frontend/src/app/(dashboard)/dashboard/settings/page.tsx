@@ -55,7 +55,7 @@ const TYPE_OPTIONS: { value: BusinessType; label: string; hint: string }[] = [
 
 export default function SettingsPage() {
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
+    <div className="space-y-8">
       <div className="flex items-center gap-3">
         <SettingsIcon className="h-6 w-6 text-primary" />
         <div>

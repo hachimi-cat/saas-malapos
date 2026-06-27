@@ -34,12 +34,7 @@ export default function InvoicesPage() {
     setLoading(true);
     invoicesApi
       .list({ limit: 100 })
-      .then((res) =>
-        setInvoices(
-          (res.data as unknown as { data?: Invoice[] })?.data ??
-            (res.data as unknown as Invoice[])
-        )
-      )
+      .then((res) => setInvoices(res.data ?? []))
       .catch(() => setInvoices([]))
       .finally(() => setLoading(false));
   }, []);
@@ -160,7 +155,7 @@ export default function InvoicesPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold sm:text-2xl">Invoices</h1>

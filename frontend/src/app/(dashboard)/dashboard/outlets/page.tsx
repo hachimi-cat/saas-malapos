@@ -93,7 +93,7 @@ export default function OutletsPage() {
   async function load() {
     try {
       const res = await api.get<{ outlets: Outlet[] }>('/outlets');
-      setOutlets(res.data.outlets);
+      setOutlets(res.data.outlets ?? []);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to load outlets');
     } finally {
@@ -119,7 +119,7 @@ export default function OutletsPage() {
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Outlets</h1>

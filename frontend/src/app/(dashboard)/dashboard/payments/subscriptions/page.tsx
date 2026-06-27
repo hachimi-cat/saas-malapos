@@ -36,12 +36,7 @@ export default function SubscriptionsPage() {
     setLoading(true);
     subscriptionsApi
       .list({ limit: 100 })
-      .then((res) =>
-        setSubscriptions(
-          (res.data as unknown as { data?: Subscription[] })?.data ??
-            (res.data as unknown as Subscription[])
-        )
-      )
+      .then((res) => setSubscriptions(res.data ?? []))
       .catch(() => setSubscriptions([]))
       .finally(() => setLoading(false));
   }, []);
@@ -53,8 +48,15 @@ export default function SubscriptionsPage() {
       if (action === 'cancel') res = await subscriptionsApi.cancel(id);
       else if (action === 'pause') res = await subscriptionsApi.pause(id);
       else res = await subscriptionsApi.resume(id);
-      const updated = res.data as unknown as Subscription;
-      setSubscriptions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+      // pause/resume return the updated subscription; cancel is a 204 with
+      // no body, so reflect the terminal state locally instead of reading
+      // `res.data.id` off nothing (which silently failed the cancel).
+      const updated = (res?.data ?? null) as Subscription | null;
+      setSubscriptions((prev) =>
+        prev.map((s) =>
+          s.id !== id ? s : updated?.id ? updated : { ...s, status: 'canceled' },
+        ),
+      );
     } catch {
       alert(`Failed to ${action} subscription`);
     } finally {
@@ -179,7 +181,7 @@ export default function SubscriptionsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold sm:text-2xl">Subscriptions</h1>
         <p className="mt-1 text-sm text-muted-foreground">Manage customer subscription lifecycle</p>

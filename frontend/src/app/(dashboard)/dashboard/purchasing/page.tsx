@@ -114,7 +114,7 @@ export default function PurchasingPage() {
   const [tab, setTab] = useState<'orders' | 'suppliers'>('orders');
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <div className="mb-6">
         <h1 className="text-xl font-semibold">Purchasing</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -170,7 +170,7 @@ function OrdersTab() {
     (async () => {
       try {
         const o = await api.get<{ outlets: Outlet[] }>('/outlets');
-        setOutlets(o.data.outlets);
+        setOutlets(o.data.outlets ?? []);
       } catch {
         /* outlet load failure surfaces when building */
       }
@@ -378,8 +378,8 @@ function POBuilderModal({
           api.get<{ suppliers: Supplier[] }>('/suppliers'),
           api.get<{ products: Product[] }>('/products?active=true'),
         ]);
-        setSuppliers(s.data.suppliers.filter((x) => x.isActive));
-        setProducts(p.data.products.filter((x) => x.variants.length));
+        setSuppliers((s.data.suppliers ?? []).filter((x) => x.isActive));
+        setProducts((p.data.products ?? []).filter((x) => x.variants.length));
       } catch (e) {
         setErr(e instanceof ApiRequestError ? e.message : 'Failed to load form data');
       }
@@ -797,7 +797,7 @@ function SuppliersTab() {
   async function load() {
     try {
       const res = await api.get<{ suppliers: Supplier[] }>('/suppliers');
-      setSuppliers(res.data.suppliers);
+      setSuppliers(res.data.suppliers ?? []);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to load suppliers');
     } finally {

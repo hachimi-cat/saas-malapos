@@ -104,7 +104,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Reports</h1>
@@ -119,7 +119,7 @@ export default function ReportsPage() {
         </Button>
       </header>
 
-      {error && <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {error && <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 
       {/* Range + custom inputs */}
       <div className="flex flex-wrap items-center gap-2">

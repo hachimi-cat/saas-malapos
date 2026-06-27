@@ -52,7 +52,7 @@ export default function ModifiersPage() {
   async function load() {
     try {
       const res = await api.get<{ groups: ModifierGroup[] }>('/modifiers');
-      setGroups(res.data.groups);
+      setGroups(res.data.groups ?? []);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to load');
     } finally {
@@ -78,7 +78,7 @@ export default function ModifiersPage() {
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">Modifiers</h1>

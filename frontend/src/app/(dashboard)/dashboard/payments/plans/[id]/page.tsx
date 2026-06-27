@@ -39,8 +39,7 @@ export default function PlanDetailPage() {
   const load = React.useCallback(async () => {
     try {
       const res = await plansApi.get(id);
-      const body = res.data as unknown as { data?: Plan } | Plan;
-      setPlan(((body as { data?: Plan }).data ?? body) as Plan);
+      setPlan(res.data as unknown as Plan);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
@@ -141,7 +140,7 @@ export default function PlanDetailPage() {
   const intervalCount = plan.intervalCount ?? 1;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <nav className="text-xs text-muted-foreground">
         <Link href="/dashboard/payments/plans" className="inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> Plans

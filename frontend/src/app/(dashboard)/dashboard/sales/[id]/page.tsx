@@ -185,7 +185,7 @@ export default function SaleDetailPage() {
   }
   if (!sale) {
     return (
-      <div className="mx-auto max-w-5xl space-y-4">
+      <div className="space-y-4">
         <Link href="/dashboard/sales" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> Sales
         </Link>
@@ -203,7 +203,7 @@ export default function SaleDetailPage() {
   const showShipment = Boolean(modules.fulfillment) && isDelivery;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <nav className="text-xs text-muted-foreground print:hidden">
         <Link href="/dashboard/sales" className="inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> Sales

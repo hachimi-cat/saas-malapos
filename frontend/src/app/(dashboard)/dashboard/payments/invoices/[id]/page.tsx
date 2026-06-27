@@ -82,10 +82,7 @@ export default function InvoiceDetailPage() {
   React.useEffect(() => {
     invoicesApi
       .get(id)
-      .then((res) => {
-        const body = res.data as unknown as { data?: InvoiceDetail } | InvoiceDetail;
-        setInv(((body as { data?: InvoiceDetail }).data ?? body) as InvoiceDetail);
-      })
+      .then((res) => setInv(res.data as InvoiceDetail))
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
     // HTML preview via the payments passthrough. Same-origin response, so
@@ -113,7 +110,7 @@ export default function InvoiceDetailPage() {
     inv.currency === 'IDR' ? formatCurrency(n) : `${inv.currency} ${n.toFixed(2)}`;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <nav className="text-xs text-muted-foreground">
         <Link href="/dashboard/payments/invoices" className="inline-flex items-center gap-1 hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> Invoices

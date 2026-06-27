@@ -71,11 +71,12 @@ export default function ReferralsPage() {
       referralsApi.attributions({ limit: 20 }),
     ])
       .then(([cfgRes, statsRes, linksRes, attribRes]) => {
-        const cfg = (cfgRes.data as { data?: ReferralProgramConfig })?.data ?? (cfgRes.data as ReferralProgramConfig);
-        setForm({ ...DEFAULT_CONFIG, ...cfg });
-        setStats((statsRes.data as { data?: ReferralProgramStats })?.data ?? null);
-        setLinks(((linksRes.data as any)?.data?.rows ?? []) as ReferralLinkRow[]);
-        setAttributions(((attribRes.data as any)?.data?.rows ?? []) as ReferralAttributionRow[]);
+        // `res.data` is already the unwrapped envelope payload (lib/api.ts):
+        // program + stats are flat; links/attributions come back as `{ rows }`.
+        setForm({ ...DEFAULT_CONFIG, ...(cfgRes.data ?? {}) });
+        setStats(statsRes.data ?? null);
+        setLinks(linksRes.data?.rows ?? []);
+        setAttributions(attribRes.data?.rows ?? []);
       })
       .catch((e) => setError(extractError(e) ?? 'Failed to load'))
       .finally(() => setLoading(false));
@@ -87,7 +88,7 @@ export default function ReferralsPage() {
       await referralsApi.update(form);
       setSuccess('Program saved. Changes take effect on the next buyer signup or storefront visit.');
       const statsRes = await referralsApi.stats();
-      setStats((statsRes.data as { data?: ReferralProgramStats })?.data ?? null);
+      setStats(statsRes.data ?? null);
     } catch (e) {
       setError(extractError(e) ?? 'Save failed');
     } finally {
@@ -115,7 +116,7 @@ export default function ReferralsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold">Referral program</h1>
         <p className="mt-1 text-sm text-muted-foreground">

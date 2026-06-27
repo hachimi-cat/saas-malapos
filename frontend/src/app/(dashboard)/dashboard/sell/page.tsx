@@ -42,6 +42,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /*
  * The sell screen — Malapos's hero surface. Pick an outlet, search/scan the
@@ -235,9 +242,10 @@ export default function SellPage() {
           api.get<{ products: Product[] }>('/products?active=true'),
           api.get<{ settings: TransferAccount }>('/settings'),
         ]);
-        setOutlets(o.data.outlets);
-        setOutletId(o.data.outlets[0]?.id ?? '');
-        setProducts(p.data.products.filter((x) => x.isActive && x.variants.length));
+        const outletList = o.data.outlets ?? [];
+        setOutlets(outletList);
+        setOutletId(outletList[0]?.id ?? '');
+        setProducts((p.data.products ?? []).filter((x) => x.isActive && x.variants.length));
         setTransferAccount({
           transferBankName: s.data.settings.transferBankName ?? null,
           transferBankAccountNumber: s.data.settings.transferBankAccountNumber ?? null,
@@ -263,7 +271,7 @@ export default function SellPage() {
     try {
       const url = `/tables/floor?outletId=${encodeURIComponent(oid)}${f ? `&floorId=${encodeURIComponent(f)}` : ''}`;
       const res = await api.get<{ floor: FloorEntry[] }>(url);
-      setFloor(res.data.floor);
+      setFloor(res.data.floor ?? []);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to load floor');
     } finally {
@@ -281,7 +289,7 @@ export default function SellPage() {
     }
     try {
       const res = await api.get<{ floors: Floor[] }>(`/floors?outletId=${encodeURIComponent(oid)}`);
-      const list = res.data.floors;
+      const list = res.data.floors ?? [];
       setFloors(list);
       let next = '';
       setFloorId((prev) => {
@@ -358,7 +366,7 @@ export default function SellPage() {
         const res = await api.get<{ sale: { items: { variantId: string | null; productName: string; variantName: string | null; unitPrice: number; quantity: number; note: string | null }[]; customer: Customer | null; paidTotal: number } }>(
           `/sales/${entry.openBill.transactionId}`,
         );
-        const items = res.data.sale.items.filter((it) => it.variantId);
+        const items = (res.data.sale.items ?? []).filter((it) => it.variantId);
         setCart(
           items.map((it) => ({
             variantId: it.variantId as string,
@@ -816,15 +824,16 @@ export default function SellPage() {
               className="bg-card pl-9"
             />
           </div>
-          <select
-            value={outletId}
-            onChange={(e) => changeOutlet(e.target.value)}
-            className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          >
-            {outlets.map((o) => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </select>
+          <Select value={outletId} onValueChange={changeOutlet}>
+            <SelectTrigger className="w-44 bg-card">
+              <SelectValue placeholder="Outlet" />
+            </SelectTrigger>
+            <SelectContent>
+              {outlets.map((o) => (
+                <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div
@@ -1286,7 +1295,7 @@ function FloorView({
   });
   const isFiltered = q !== '' || statusFilter !== 'all';
   return (
-    <div className="mx-auto flex h-full max-w-6xl flex-col">
+    <div className="flex h-full flex-col">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Utensils className="h-6 w-6 text-primary" />
@@ -1298,17 +1307,6 @@ function FloorView({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {outlets.length > 1 && (
-            <select
-              value={outletId}
-              onChange={(e) => onChangeOutlet(e.target.value)}
-              className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            >
-              {outlets.map((o) => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-            </select>
-          )}
           <Button variant="outline" onClick={onRefresh}>
             Refresh
           </Button>
@@ -1318,21 +1316,40 @@ function FloorView({
         </div>
       </div>
 
-      {floors.length > 1 && (
-        <div className="mb-3 flex flex-wrap items-center gap-1 border-b border-border pb-2">
-          {floors.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => onChangeFloor(f.id)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                f.id === floorId
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-              }`}
-            >
-              {f.name}
-            </button>
-          ))}
+      {/* Parent context: pick the outlet first, then its floor. Both render
+          BEFORE the floor view (table board) so the hierarchy reads top-down. */}
+      {(outlets.length > 1 || floors.length > 1) && (
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border pb-3">
+          {outlets.length > 1 && (
+            <div className="flex items-center gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">Outlet</Label>
+              <Select value={outletId} onValueChange={onChangeOutlet}>
+                <SelectTrigger className="w-48 bg-card">
+                  <SelectValue placeholder="Outlet" />
+                </SelectTrigger>
+                <SelectContent>
+                  {outlets.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {floors.length > 1 && (
+            <div className="flex items-center gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">Floor</Label>
+              <Select value={floorId} onValueChange={onChangeFloor}>
+                <SelectTrigger className="w-44 bg-card">
+                  <SelectValue placeholder="Floor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {floors.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       )}
 
@@ -1568,8 +1585,10 @@ function CustomerPicker({ customer, onChange }: { customer: Customer | null; onC
     }
     const t = setTimeout(async () => {
       try {
-        const res = await api.get<{ items: Customer[] }>(`/customers?q=${encodeURIComponent(q.trim())}`);
-        setResults((res.data as { items?: Customer[] }).items ?? []);
+        // `/customers` is a list route (sendList) → the envelope `data` IS the
+        // array, not `{ items }`.
+        const res = await api.get<Customer[]>(`/customers?q=${encodeURIComponent(q.trim())}`);
+        setResults(res.data ?? []);
       } catch {
         setResults([]);
       }
@@ -2674,8 +2693,9 @@ function DeliveryCustomerPicker({
       setLoading(true);
       const q = query.trim();
       api
-        .get<{ items: CustomerLite[] }>(`/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`)
-        .then((res) => setCustomers(res.data.items ?? []))
+        // `/customers` is a list route (sendList) → `data` IS the array.
+        .get<CustomerLite[]>(`/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`)
+        .then((res) => setCustomers(res.data ?? []))
         .catch(() => setCustomers([]))
         .finally(() => setLoading(false));
     }, 250);

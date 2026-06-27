@@ -224,7 +224,7 @@ export default function DiscountCodesPage() {
   if (loading) return <div className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold sm:text-2xl">Discount codes</h1>

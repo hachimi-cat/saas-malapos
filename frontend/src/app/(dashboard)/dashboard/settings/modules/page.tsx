@@ -11,6 +11,9 @@ import {
   Megaphone,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { Card } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 
 interface ModulesState {
   payment?: boolean;
@@ -111,7 +114,7 @@ export default function ModulesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Modules</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -141,7 +144,7 @@ export default function ModulesPage() {
             // this module — they can still DISABLE an active one.
             const toggleDisabled = toggling === m.id || (!enabled && !canEnable);
             return (
-              <div key={m.id} className="rounded-lg border border-border bg-card">
+              <Card key={m.id}>
                 <div className="flex items-start justify-between gap-4 px-6 py-4">
                   <div className="flex items-start gap-4">
                     <div className="mt-1 rounded-md bg-muted p-2">
@@ -151,14 +154,20 @@ export default function ModulesPage() {
                       <div className="flex items-center gap-2">
                         <h2 className="font-semibold">{m.name}</h2>
                         {enabled && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                          <Badge
+                            variant="outline"
+                            className="gap-1 rounded-full border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-500"
+                          >
                             <CheckCircle2 className="h-3 w-3" /> Active
-                          </span>
+                          </Badge>
                         )}
                         {!enabled && !canEnable && (
-                          <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500">
+                          <Badge
+                            variant="outline"
+                            className="rounded-full border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500"
+                          >
                             Paid plan required
-                          </span>
+                          </Badge>
                         )}
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">{m.description}</p>
@@ -183,30 +192,19 @@ export default function ModulesPage() {
                       )}
                     </div>
                   </div>
-                  <button
-                    type="button"
+                  <Switch
+                    checked={enabled}
                     disabled={toggleDisabled}
-                    onClick={() => void toggle(m.id, !enabled)}
+                    onCheckedChange={(c) => void toggle(m.id, c)}
                     title={
                       !enabled && !canEnable
                         ? `Your current plan (${plan}) doesn't include this module`
                         : undefined
                     }
-                    className={
-                      'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ' +
-                      (enabled ? 'bg-primary' : 'bg-muted')
-                    }
-                    aria-pressed={enabled}
-                  >
-                    <span
-                      className={
-                        'inline-block h-5 w-5 transform rounded-full bg-background shadow transition-transform ' +
-                        (enabled ? 'translate-x-5' : 'translate-x-0.5')
-                      }
-                    />
-                  </button>
+                    className="mt-1 shrink-0"
+                  />
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>

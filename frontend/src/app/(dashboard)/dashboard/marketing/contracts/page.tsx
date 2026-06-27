@@ -59,7 +59,7 @@ export default function ContractsPage() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter]);
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <PageHeader
         icon={Handshake}
         title="Contracts"

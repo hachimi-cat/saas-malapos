@@ -250,7 +250,8 @@ export interface AbandonedCartStats {
   remindersSent: number;
   cartsRecovered: number;
   recoveryRate: number;
-  recoveredRevenue: number;
+  // Backend RecoveryStats names this `recoveredValueAtSend` (routes/marketing/abandoned-cart.ts).
+  recoveredValueAtSend: number;
   currency: string | null;
 }
 

@@ -55,7 +55,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
         successUrl: form.successUrl,
         cancelUrl: form.cancelUrl,
       });
-      onCreated(res.data as unknown as CheckoutSession);
+      onCreated(res.data);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
       setError(msg || 'Failed to create checkout session');
@@ -181,7 +181,7 @@ export default function PaymentsPage() {
   useEffect(() => {
     checkoutSessionsApi
       .list({ limit: 100 })
-      .then((res) => setSessions((res.data as unknown as { data?: CheckoutSession[] })?.data ?? (res.data as unknown as CheckoutSession[])))
+      .then((res) => setSessions(res.data ?? []))
       .catch(() => setSessions([]))
       .finally(() => setLoading(false));
   }, []);
@@ -260,7 +260,7 @@ export default function PaymentsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />}
 
       <div className="flex items-center justify-between">

@@ -50,14 +50,14 @@ export default function AudiencePage() {
     try {
       const r = await marketingFetch('/api/v1/account/marketing/contacts?limit=200', { credentials: 'include' });
       const b = await r.json();
-      setContacts(b?.data?.data ?? []);
+      setContacts(b?.data?.contacts ?? []);
     } catch (e) { setError((e as Error).message); }
   }
   async function loadLists() {
     try {
       const r = await marketingFetch('/api/v1/account/marketing/contact-lists', { credentials: 'include' });
       const b = await r.json();
-      setLists(b?.data ?? []);
+      setLists(b?.data?.lists ?? []);
     } catch (e) { setError((e as Error).message); }
   }
 
@@ -162,7 +162,7 @@ export default function AudiencePage() {
   ];
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <PageHeader
         icon={Users}
         title="Audience"

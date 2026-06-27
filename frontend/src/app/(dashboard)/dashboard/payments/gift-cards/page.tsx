@@ -78,7 +78,7 @@ export default function GiftCardsPage() {
     setError(null);
     try {
       const res = await api.get<GiftCard[]>('/gift-cards');
-      setRows(res.data);
+      setRows(res.data ?? []);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to load gift cards');
     } finally {
@@ -107,7 +107,7 @@ export default function GiftCardsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <CreditCard className="h-6 w-6 text-primary" />

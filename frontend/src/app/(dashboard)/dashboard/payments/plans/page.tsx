@@ -224,7 +224,7 @@ export default function PlansPage() {
   useEffect(() => {
     plansApi
       .list({ limit: 50 })
-      .then((res) => setPlans((res.data as unknown as { data?: Plan[] })?.data ?? (res.data as unknown as Plan[])))
+      .then((res) => setPlans(res.data ?? []))
       .catch(() => setPlans([]))
       .finally(() => setLoading(false));
   }, []);
@@ -257,7 +257,7 @@ export default function PlansPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       {(showCreate || editPlan) && (
         <PlanForm
           plan={editPlan}

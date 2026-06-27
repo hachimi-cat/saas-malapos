@@ -124,7 +124,7 @@ export default function DeliveriesPage() {
   if (moduleOff) return <FulfillmentModuleOff blurb="Digital deliveries grant buyers download access via Fulkruma. Turn on the Fulfillment module to track them." />;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold sm:text-2xl">Digital deliveries</h1>
         <p className="mt-1 text-sm text-muted-foreground">Track digital product deliveries to customers.</p>

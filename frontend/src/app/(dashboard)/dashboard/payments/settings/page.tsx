@@ -65,7 +65,7 @@ export default function PaymentSettingsPage() {
 
   if (moduleOff) {
     return (
-      <div className="mx-auto max-w-6xl">
+      <div>
         <Card className="px-8 py-16 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Wallet className="h-6 w-6 text-primary" />
@@ -86,7 +86,7 @@ export default function PaymentSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="flex items-center gap-2 text-xl font-semibold">
           <Settings className="h-5 w-5 text-primary" /> Payment settings

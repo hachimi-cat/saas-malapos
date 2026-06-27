@@ -14,6 +14,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type ProviderKey = 'managed' | 'xendit' | 'midtrans' | 'paypal' | 'manual';
 type Option = { key: ProviderKey; title: string; description: string; meta: string };
@@ -110,7 +118,7 @@ export default function ProvidersSettingsPage() {
         setAdapters(map);
         setManaged(mo ?? null);
         if (mo?.email) setManagedEmail(mo.email);
-        const first = Object.values(map).find((a) => a?.status === 'active');
+        const first = Object.values(map ?? {}).find((a) => a?.status === 'active');
         if (first) setActive(first.kind as ProviderKey);
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load adapters'))
@@ -216,7 +224,7 @@ export default function ProvidersSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-6">
       <nav className="text-xs text-muted-foreground">
         <span>Settings</span>
         <span className="mx-1.5 text-muted-foreground/50">/</span>
@@ -252,7 +260,7 @@ export default function ProvidersSettingsPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {loading
           ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-32 animate-pulse rounded-lg border border-border bg-muted/20" />
+              <Skeleton key={i} className="h-32 rounded-lg" />
             ))
           : OPTIONS.map((o) => {
               const summary = showActive(o.key);
@@ -353,24 +361,16 @@ export default function ProvidersSettingsPage() {
               />
             </div>
             <div>
-              <p className={labelCls}>Mode</p>
-              <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
-                {(['sandbox', 'live'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setPaypalMode(m)}
-                    className={
-                      'h-8 rounded-sm px-4 text-xs font-medium capitalize transition-colors ' +
-                      (paypalMode === m
-                        ? 'bg-card text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground')
-                    }
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
+              <Label htmlFor="pp-mode" className={labelCls}>Mode</Label>
+              <Select value={paypalMode} onValueChange={(v) => setPaypalMode(v as 'live' | 'sandbox')}>
+                <SelectTrigger id="pp-mode" className="h-9 w-40 capitalize">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sandbox">Sandbox</SelectItem>
+                  <SelectItem value="live">Live</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
@@ -434,20 +434,16 @@ export default function ProvidersSettingsPage() {
               />
             </div>
             <div>
-              <p className={labelCls}>Environment</p>
-              <div className="flex items-center gap-4">
-                {(['sandbox', 'production'] as const).map((m) => (
-                  <label key={m} className="inline-flex items-center gap-2 text-sm capitalize">
-                    <input
-                      type="radio"
-                      name="mt-env"
-                      checked={midtransEnv === m}
-                      onChange={() => setMidtransEnv(m)}
-                    />
-                    {m}
-                  </label>
-                ))}
-              </div>
+              <Label htmlFor="mt-env" className={labelCls}>Environment</Label>
+              <Select value={midtransEnv} onValueChange={(v) => setMidtransEnv(v as 'sandbox' | 'production')}>
+                <SelectTrigger id="mt-env" className="h-9 w-40 capitalize">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sandbox">Sandbox</SelectItem>
+                  <SelectItem value="production">Production</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>

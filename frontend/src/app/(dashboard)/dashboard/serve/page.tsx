@@ -87,7 +87,7 @@ export default function ServePage() {
   const load = useCallback(async () => {
     try {
       const res = await api.get<ReadyGroup[]>('/kds/ready');
-      setGroups(res.data);
+      setGroups(res.data ?? []);
       setError(null);
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Failed to load ready items');
@@ -199,10 +199,10 @@ export default function ServePage() {
                         <span className="font-medium text-muted-foreground">{t.number}</span>
                       </div>
                       {(t.customerName || t.note) && (
-                        <div className="mb-1.5 space-y-0.5">
+                        <div className="mb-2 mt-1 space-y-1">
                           {t.customerName && (
-                            <p className="flex items-center gap-1 text-xs font-medium text-foreground">
-                              <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+                            <p className="flex items-center gap-1.5 text-sm font-semibold leading-snug text-foreground">
+                              <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                               {t.customerName}
                             </p>
                           )}
