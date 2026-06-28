@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Gellix display face on titles (incl. admin headings, which use bare
+   h1s without the font-display class). Marketing headings get it via
+   website-ui's marketing.css; PageHeader's font-display class still wins. */
+@layer base {
+  h1, h2, h3 {
+    font-family: var(--font-display), system-ui, sans-serif;
+  }
+}
+
 /*
  * Family-default palette. This is the Forjio dark-navy theme shared by
  * linksnap/plugipay/etc. After forking, retune --primary / --ring to
