@@ -27,6 +27,7 @@ import {
   Shield,
   KeyRound,
   Webhook,
+  ScrollText,
   Puzzle,
   Receipt,
   Landmark,
@@ -150,6 +151,7 @@ const TRAILING_SECTIONS: NavSection[] = [
     items: [
       { href: '/dashboard/api-keys', label: 'API Keys', icon: KeyRound },
       { href: '/dashboard/webhooks', label: 'Webhooks', icon: Webhook },
+      { href: '/dashboard/audit-log', label: 'Audit Log', icon: ScrollText },
     ],
   },
   {

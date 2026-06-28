@@ -58,6 +58,7 @@ import webhookSubscriptionsRouter from './webhook-subscriptions.js';
 import giftCardsRouter from './gift-cards.js';
 import kdsRouter from './kds.js';
 import eventsRouter from './events.js';
+import auditLogRouter from './audit-log.js';
 import uploadsRouter from './uploads.js';
 
 /**
@@ -152,6 +153,8 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
   // middleware/auth.ts Path 1; deliveries fan out from the outbox worker).
   router.use('/api-keys', requireAuth, apiKeysRouter);
   router.use('/webhook-subscriptions', requireAuth, webhookSubscriptionsRouter);
+  // Read-only activity feed — surfaces this workspace's outbox events.
+  router.use('/audit-log', requireAuth, auditLogRouter);
   // Billing — public /tiers; per-route requireAuth inside the router for
   // the workspace plan + Plugipay checkout/cancel.
   router.use('/billing', billingRouter);
