@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Check, User, ShieldCheck } from 'lucide-react';
+import { Settings as SettingsIcon, Check, User, ShieldCheck, Cpu } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { APP_VERSION, BUILD_SHA, BUILD_DATE } from '@/lib/version';
 import {
   Card,
   CardContent,
@@ -66,6 +67,7 @@ export default function SettingsPage() {
       <BusinessSection />
       <ProfileSection />
       <SecuritySection />
+      <PortalSection />
     </div>
   );
 }
@@ -472,6 +474,32 @@ function SecuritySection() {
           {pwErr && <p className="text-xs text-destructive">{pwErr}</p>}
         </form>
       </div>
+    </SectionCard>
+  );
+}
+
+// ─── Portal: build-time version (Forjio family mechanism) ──────────────────
+function PortalSection() {
+  const buildDate = BUILD_DATE.slice(0, 10); // ISO → YYYY-MM-DD
+
+  return (
+    <SectionCard
+      icon={<Cpu className="h-5 w-5" />}
+      title="Portal"
+      subtitle="The build of the Malapos portal you're currently running."
+    >
+      <dl className="max-w-xl divide-y divide-border text-sm">
+        <div className="flex items-center justify-between py-2.5">
+          <dt className="text-muted-foreground">Version</dt>
+          <dd className="font-mono text-foreground">{APP_VERSION}</dd>
+        </div>
+        <div className="flex items-center justify-between py-2.5">
+          <dt className="text-muted-foreground">Build</dt>
+          <dd className="font-mono text-foreground">
+            {BUILD_SHA} · {buildDate}
+          </dd>
+        </div>
+      </dl>
     </SectionCard>
   );
 }
