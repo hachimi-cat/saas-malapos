@@ -86,9 +86,14 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    # The single source of truth for build artifacts. All NEXT_PUBLIC_* env
-    # vars are inlined here once and the artifact is reused by both staging
-    # and prod deploys. The frontend is a DYNAMIC Next app (BFF session
+    # The source of truth for build artifacts. Most NEXT_PUBLIC_* env vars
+    # are identical across envs, BUT the Turnstile site key differs: it is
+    # inlined at build time and must be ABSENT on staging (tailnet-locked,
+    # captcha is friction), PRESENT on prod. Since NEXT_PUBLIC_* is baked in,
+    # that means TWO frontend builds → frontend-out-staging (no site key) +
+    # frontend-out-prod (with site key); each deploy downloads its own. The
+    # backend dist is env-agnostic and shipped once.
+    # The frontend is a DYNAMIC Next app (BFF session
     # portal, admin console proxy) — ship `.next/` and run `next start` on
     # the droplet, NOT a static export. NEXT_PUBLIC_API_URL is left as the
     # default `/api/v1` (relative) so the same build works on both staging
@@ -107,14 +112,6 @@ jobs:
             frontend/package-lock.json
       - name: Build backend
         run: cd backend && npm ci && npx prisma generate && npm run build
-      - name: Build frontend
-        env:
-          NEXT_PUBLIC_API_URL: /api/v1
-          NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
-          # Cloudflare Turnstile — inlined at build so @forjio/auth-ui renders
-          # the widget on every (auth)/ + (admin)/ form. Empty => widget hidden.
-          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
-        run: cd frontend && npm ci && npm run build
       - name: Upload backend dist
         uses: actions/upload-artifact@v6
         with:
@@ -124,15 +121,50 @@ jobs:
             backend/package.json
             backend/package-lock.json
             backend/prisma/
-      - name: Upload frontend build
+      # NEXT_PUBLIC_TURNSTILE_SITE_KEY is inlined at build time, so disabling
+      # the captcha on staging requires a SEPARATE build that omits it. We
+      # build the frontend TWICE: a staging artifact WITHOUT the site key
+      # (@forjio/auth-ui renders no widget → captchaRequired=false) and a
+      # production artifact WITH it. Each deploy job downloads its own.
+      - name: Build frontend (staging)
+        env:
+          NEXT_PUBLIC_API_URL: /api/v1
+          NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
+          # Turnstile is DISABLED on staging — staging is tailnet-locked (no
+          # public bots), so the captcha widget is pure friction for E2E +
+          # authed screenshots. The production build below keeps the site key.
+          # (Backend enforcement is also withheld on staging — see deploy.)
+        run: cd frontend && npm ci && npm run build
+      - name: Upload frontend (staging)
         uses: actions/upload-artifact@v6
         with:
           # Dynamic Next app — ship `.next/` and run `next start` on the
           # droplet (the pawpado/ripllo model).
-          name: frontend-out
+          name: frontend-out-staging
           # CRITICAL: .next is a dotdir — upload-artifact skips hidden
           # files by default, which silently ships an artifact with NO
           # build (template bug found spawning suppuo).
+          include-hidden-files: true
+          path: |
+            frontend/.next/
+            frontend/public/
+            frontend/package.json
+            frontend/package-lock.json
+            frontend/next.config.*
+      - name: Clean frontend .next for prod rebuild
+        run: rm -rf frontend/.next
+      - name: Build frontend (production)
+        env:
+          NEXT_PUBLIC_API_URL: /api/v1
+          NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
+          # Cloudflare Turnstile — inlined at build so @forjio/auth-ui renders
+          # the widget on every (auth)/ + (admin)/ form. Empty => widget hidden.
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+        run: cd frontend && npm run build
+      - name: Upload frontend (production)
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-out-prod
           include-hidden-files: true
           path: |
             frontend/.next/
@@ -162,7 +194,8 @@ jobs:
           path: backend/
       - uses: actions/download-artifact@v7
         with:
-          name: frontend-out
+          # Staging-specific build — Turnstile site key NOT inlined.
+          name: frontend-out-staging
           path: frontend/
       - name: Set up deploy SSH key
         run: |
@@ -383,17 +416,17 @@ jobs:
     needs: [e2e-staging]
     if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.repository != 'hachimi-cat/forjio-service-template'
     steps:
-      # Reuses the artifact from the Build job — no re-checkout, no rebuild.
-      # The staging artifact IS the production artifact since NEXT_PUBLIC_API_URL
-      # is set to the relative `/api/v1` (works on both hosts) and the only
-      # other NEXT_PUBLIC_* value (Midtrans client key) is the same across envs.
+      # Reuses the Build job's artifacts — no re-checkout, no rebuild. Pulls
+      # the PRODUCTION frontend build (frontend-out-prod), which inlines
+      # NEXT_PUBLIC_TURNSTILE_SITE_KEY so the captcha renders in prod. The
+      # backend dist is the same artifact staging used (env-agnostic).
       - uses: actions/download-artifact@v7
         with:
           name: backend-dist
           path: backend/
       - uses: actions/download-artifact@v7
         with:
-          name: frontend-out
+          name: frontend-out-prod
           path: frontend/
       - name: Deploy via rsync
         uses: burnett01/rsync-deployments@7.0.1
