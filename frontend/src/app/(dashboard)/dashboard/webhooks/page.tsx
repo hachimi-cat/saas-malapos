@@ -141,6 +141,26 @@ export default function WebhooksPage() {
             >
               {copied ? 'Copied!' : 'Copy'}
             </Button>
+            <Button
+              size="sm"
+              className="shrink-0"
+              onClick={() => {
+                const blob = new Blob(
+                  ['WEBHOOK_SIGNING_SECRET=' + newSecret.secret + '\n'],
+                  { type: 'text/plain' },
+                );
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'webhook-signing-secret.env';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Download
+            </Button>
             <Button variant="outline" size="sm" className="shrink-0" onClick={() => setNewSecret(null)}>
               Dismiss
             </Button>
