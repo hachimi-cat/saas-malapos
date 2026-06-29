@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Check, User, ShieldCheck, Cpu } from 'lucide-react';
+import { Settings as SettingsIcon, Check, User, ShieldCheck, Cpu, UserX } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { APP_VERSION, BUILD_SHA, BUILD_DATE } from '@/lib/version';
 import {
@@ -68,6 +68,7 @@ export default function SettingsPage() {
       <ProfileSection />
       <SecuritySection />
       <PortalSection />
+      <DeleteAccountSection />
     </div>
   );
 }
@@ -500,6 +501,35 @@ function PortalSection() {
           </dd>
         </div>
       </dl>
+    </SectionCard>
+  );
+}
+
+// ─── Delete account: centralized in Huudis (Forjio identity) ───────────────
+function DeleteAccountSection() {
+  return (
+    <SectionCard
+      icon={<UserX className="h-5 w-5" />}
+      title="Delete account"
+      subtitle="Managed centrally in your Huudis identity."
+    >
+      <div className="max-w-xl space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Your account is your <span className="font-medium text-foreground">Huudis identity</span> —
+          the single sign-on behind every Forjio product, not just Malapos. Account deletion is managed
+          centrally in Huudis: it schedules a 30-day grace period and removes your access across all
+          Forjio products.
+        </p>
+        <Button asChild variant="outline">
+          <a
+            href="https://huudis.com/dashboard/account"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Manage account in Huudis →
+          </a>
+        </Button>
+      </div>
     </SectionCard>
   );
 }
