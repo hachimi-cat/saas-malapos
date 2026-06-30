@@ -130,6 +130,7 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: /api/v1
           NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           # Turnstile is DISABLED on staging — staging is tailnet-locked (no
           # public bots), so the captcha widget is pure friction for E2E +
           # authed screenshots. The production build below keeps the site key.
@@ -157,6 +158,7 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: /api/v1
           NEXT_PUBLIC_MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           # Cloudflare Turnstile — inlined at build so @forjio/auth-ui renders
           # the widget on every (auth)/ + (admin)/ form. Empty => widget hidden.
           NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}

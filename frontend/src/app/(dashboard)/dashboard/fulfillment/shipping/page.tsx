@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { LocationForm, type LocationValue } from '@/components/shipping/location-form';
 
 /*
  * Fulfillment → Shipping. malapos port of storlaunch's fulfillment/shipping
@@ -87,10 +88,6 @@ export default function ShippingSettingsPage() {
     setCouriers((curr) => (curr.includes(code) ? curr.filter((c) => c !== code) : [...curr, code]));
   }
 
-  function field<K extends keyof ShippingOrigin>(key: K, value: string) {
-    setOrigin((o) => ({ ...o, [key]: value || null }));
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -99,12 +96,14 @@ export default function ShippingSettingsPage() {
     try {
       await shippingApi.updateOrigin({
         address: origin.address ?? null,
-        city: origin.city ?? null,
         province: origin.province ?? null,
+        city: origin.city ?? null,
+        district: origin.district ?? null,
+        village: origin.village ?? null,
         postal: origin.postal ?? null,
-        note: origin.note ?? null,
         lat: origin.lat ?? null,
         lng: origin.lng ?? null,
+        note: origin.note ?? null,
         contactName: contact.contactName,
         contactPhone: contact.contactPhone,
         couriers,
@@ -156,17 +155,16 @@ export default function ShippingSettingsPage() {
             <CardTitle className="text-lg font-medium font-display">Pickup origin</CardTitle>
           </CardHeader>
           <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <TextField label="Address" value={origin.address ?? ''} onChange={(v) => field('address', v)} className="md:col-span-2" />
-            <TextField label="City" value={origin.city ?? ''} onChange={(v) => field('city', v)} />
-            <TextField label="Province" value={origin.province ?? ''} onChange={(v) => field('province', v)} />
-            <TextField label="Postal code" value={origin.postal ?? ''} onChange={(v) => field('postal', v)} />
-            <TextField label="Note" value={origin.note ?? ''} onChange={(v) => field('note', v)} />
+          <LocationForm
+            value={origin as LocationValue}
+            onChange={(loc) => setOrigin((prev) => ({ ...prev, ...loc }))}
+          />
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
             <TextField label="Contact name" required value={contact.contactName} onChange={(v) => setContact({ ...contact, contactName: v })} />
             <TextField label="Contact phone" required value={contact.contactPhone} onChange={(v) => setContact({ ...contact, contactPhone: v })} placeholder="081234567890" />
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Latitude/longitude (set on Fulkruma) are required for instant couriers like GoSend or Grab.
+            Latitude/longitude (set via the map) are required for instant couriers like GoSend or Grab.
           </p>
           </CardContent>
         </Card>
