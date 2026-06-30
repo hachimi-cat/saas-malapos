@@ -15,10 +15,10 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@forjio/auth-ui": "^0.6.0",
+    "@forjio/auth-ui": "^0.7.0",
     "@forjio/portal-ui": "^0.5.0",
     "@forjio/sdk": "^0.9.0",
-    "@forjio/website-ui": "^0.2.3",
+    "@forjio/website-ui": "^0.3.0",
     "@hookform/resolvers": "^5.4.0",
     "@radix-ui/react-accordion": "^1.2.14",
     "@radix-ui/react-alert-dialog": "^1.1.17",
