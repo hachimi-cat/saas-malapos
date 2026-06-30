@@ -440,7 +440,7 @@ function LocationFormInner({ value, onChange, className }: LocationFormProps) {
           <Map
             defaultCenter={center}
             defaultZoom={value.lat != null ? 15 : 11}
-            mapId="fulkruma-location-form"
+            mapId="malapos-location-form"
             gestureHandling="greedy"
             clickableIcons={false}
             onClick={(e) => {
