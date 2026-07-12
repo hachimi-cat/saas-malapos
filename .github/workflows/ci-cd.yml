@@ -183,7 +183,7 @@ jobs:
     steps:
       # Staging lives on the SHARED box reached only over the tailnet
       # (taila71a7b.ts.net). Join as an ephemeral CI node so rsync/SSH below
-      # can reach 100.123.65.113. Ephemeral key → the node auto-removes when
+      # can reach 100.66.19.22. Ephemeral key → the node auto-removes when
       # the job ends.
       - name: Connect to tailnet (ephemeral CI node)
         uses: tailscale/github-action@v2
@@ -206,7 +206,7 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
       # De-containerized rsync/ssh. The burnett01/appleboy actions run inside
       # Docker WITHOUT the runner host's tailnet route, so they time out
-      # reaching 100.123.65.113 (the box's tailnet IP — private, only routable
+      # reaching 100.66.19.22 (the box's tailnet IP — private, only routable
       # over the tailnet joined above). Plain rsync/ssh run on the host, so
       # they route over tailscale0. node_modules/.next/cache excluded — the
       # box installs runtime deps via `npm ci --omit=dev` per the script below.
@@ -215,13 +215,13 @@ jobs:
           rsync -avz --delete \
             --exclude node_modules --exclude .git --exclude .env --exclude .npmrc --exclude frontend/.next/cache \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
-            ./ root@100.123.65.113:/opt/saas/malapos/
+            ./ root@100.66.19.22:/opt/saas/malapos/
       # bash -se: -e aborts (and fails the job, blocking prod) if
       # `prisma migrate deploy` fails — replacing appleboy's silent
       # script-continue. -s reads the script from the heredoc on stdin.
       - name: Migrate + restart (over tailnet)
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 root@100.123.65.113 'bash -se' <<'SCRIPT'
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 root@100.66.19.22 'bash -se' <<'SCRIPT'
           cd /opt/saas/malapos/backend
           # Staging is uniformly NON-VERIFYING — strip any captcha secret so e2e never blocks.
           sed -i '/^TURNSTILE_SECRET_KEY=/d; /^TURNSTILE_ALLOWED_HOSTNAMES=/d' .env 2>/dev/null || true
@@ -268,7 +268,7 @@ jobs:
           authkey: ${{ secrets.TS_AUTHKEY }}
           hostname: malapos-e2e-ci
       - name: Route staging host over the tailnet
-        run: echo "100.123.65.113 ${{ secrets.STAGING_HOST }}" | sudo tee -a /etc/hosts
+        run: echo "100.66.19.22 ${{ secrets.STAGING_HOST }}" | sudo tee -a /etc/hosts
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -348,8 +348,8 @@ jobs:
           hostname: malapos-visual-ci
       - name: Route staging host over the tailnet
         run: |
-          echo "100.123.65.113 ${{ secrets.STAGING_HOST }}" | sudo tee -a /etc/hosts
-          echo "100.123.65.113 staging-malapos.forjio.com" | sudo tee -a /etc/hosts
+          echo "100.66.19.22 ${{ secrets.STAGING_HOST }}" | sudo tee -a /etc/hosts
+          echo "100.66.19.22 staging-malapos.forjio.com" | sudo tee -a /etc/hosts
       - uses: actions/checkout@v5
         with:
           # Need a writable checkout for the baseline-update branch.
