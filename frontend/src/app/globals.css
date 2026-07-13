@@ -63,3 +63,26 @@
      @forjio/website-ui/styles/marketing.css (imported in app/layout.tsx).
      Don't re-declare it here. */
 }
+
+/* iOS Safari zooms the whole page in when you focus a text field whose
+   font-size is under 16px, and never zooms back out.
+
+   The shadcn primitives already get this right (`text-base md:text-sm`: 16px on
+   mobile, 14px on desktop). The problem is the call sites that pass
+   `text-xs`/`text-sm` in `className` to make a control compact — that overrides
+   the primitive and re-arms the zoom. Fixing them one by one does not hold, so
+   the floor is enforced here, on mobile widths only. Desktop keeps compact type.
+
+   Radix's SelectTrigger is a <button>, not a form control, so it is unaffected.
+
+   The `:not([hidden])` is a specificity device, not a filter: a bare `input`
+   selector (0,0,1) loses to Tailwind's `.text-xs` (0,1,0). The attribute
+   selector lifts it to (0,1,1) so it wins without `!important`. */
+@media (max-width: 767px) {
+  input:not([hidden]):not([type='checkbox']):not([type='radio']),
+  textarea:not([hidden]),
+  select:not([hidden]),
+  [contenteditable='true']:not([hidden]) {
+    font-size: 16px;
+  }
+}
