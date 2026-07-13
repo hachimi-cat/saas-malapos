@@ -248,11 +248,23 @@ jobs:
     name: E2E Tests (Staging)
     runs-on: ubuntu-latest
     needs: deploy-staging
-    # E2E is informational, not a release gate. UI-assertion fixtures
-    # have been drifting from the actual UI faster than they're being
-    # repaired; gating prod on them blocked every deploy. Keep the job
-    # so failures stay visible, but don't fail the workflow on them.
-    continue-on-error: true
+    # E2E IS a release gate. `deploy-production` needs this job, and with
+    # continue-on-error the gate was decoration: the job went red, GitHub
+    # counted it as satisfied for its dependents, and prod shipped anyway on
+    # failing browser tests.
+    #
+    # It was switched off on the belief that "UI-assertion fixtures have been
+    # drifting from the actual UI faster than they're being repaired". That
+    # diagnosis was wrong. Every failure was ERR_CERT_COMMON_NAME_INVALID: the
+    # STAGING_HOST secret held an IP instead of the hostname, so the tests hit
+    # the box by address, nginx (which routes ~10 staging vhosts by Host
+    # header) 301'd to HTTPS, and no certificate can match a bare IP. The tests
+    # could not reach the site at all. Pointing the secret back at
+    # staging-<brand>.forjio.com turned all six failing suites green with no
+    # test changes (2026-07-13).
+    #
+    # A broken environment was misfiled as flaky tests and the response was to
+    # stop listening. If this job goes red, it means something is broken.
     steps:
       - uses: actions/checkout@v5
       # Staging runs on the SHARED box reached only over the tailnet
