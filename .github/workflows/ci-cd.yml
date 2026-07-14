@@ -28,6 +28,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Workflow shell sanity
+        # A comment between a \-continued env block and its command silently
+        # unsets the env: the command runs bare and nothing errors. That shipped
+        # here on 2026-07-14 and took an entire E2E suite down. Cheap to enforce.
+        run: python3 scripts/check-workflow-continuations.py
       - uses: actions/setup-node@v5
         with:
           node-version: 22
