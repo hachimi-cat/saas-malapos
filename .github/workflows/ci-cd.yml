@@ -310,6 +310,16 @@ jobs:
           # Extra settle time for server stability
           sleep 5
       - name: Run E2E
+        env:
+          # The authenticated gate (tests/dashboard.spec.ts) signs in for real
+          # as gojo, the designated E2E identity. It does NOT self-register:
+          # this staging product authenticates against PRODUCTION Huudis, so a
+          # signup here would mint a real user in the production identity DB on
+          # every push. The spec THROWS if this secret is unset; it does not
+          # skip. A gate that quietly skips on a missing secret is the inert
+          # gate we replaced.
+          GOJO_HUUDIS_EMAIL: gojo@forjio.com
+          GOJO_HUUDIS_PASSWORD: ${{ secrets.GOJO_HUUDIS_PASSWORD }}
         run: |
           cd e2e
           BACKEND_URL=http://${{ secrets.STAGING_HOST }}/api/v1 \
