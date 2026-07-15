@@ -121,6 +121,7 @@ build-production:
     - "  cd frontend && npm ci && npm run build"
     - )
 deploy-staging:
+  resource_group: staging
   stage: deploy
   image: node:22-bookworm
   needs:
@@ -174,6 +175,7 @@ deploy-staging:
       done
       SCRIPT
 e2e-staging:
+  resource_group: staging
   stage: deploy
   image: node:22-bookworm
   needs:
@@ -209,6 +211,7 @@ e2e-staging:
       PW_SKIP_WEBSERVER=1 \
       npx playwright test --reporter=list --config=playwright.ci.config.ts
 deploy-production:
+  resource_group: production
   stage: deploy
   image: node:22-bookworm
   needs:
