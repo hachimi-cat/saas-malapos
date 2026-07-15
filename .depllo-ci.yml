@@ -142,7 +142,7 @@ deploy-staging:
       [ -d backend/dist ] || { echo "FATAL: backend/dist missing"; exit 1; }
       [ -d frontend/.next ] || { echo "FATAL: frontend/.next missing"; exit 1; }
       mkdir -p /tmp/payload
-      for p in backend/dist backend/package.json backend/package-lock.json backend/prisma \
+      for p in backend/dist backend/package.json backend/package-lock.json backend/prisma copy \
                frontend/.next frontend/public frontend/package.json frontend/package-lock.json frontend/next.config.*; do
         { [ -e "$p" ] && cp -r --parents "$p" /tmp/payload/; } || echo "skip (absent): $p"
       done
@@ -150,7 +150,7 @@ deploy-staging:
       rsync -az --delete \
         --exclude node_modules --exclude .git --exclude .env --exclude .npmrc --exclude frontend/.next/cache \
         -e "ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
-        /tmp/payload/backend /tmp/payload/frontend root@$STAGING_HOST:/opt/saas/malapos/
+        /tmp/payload/backend /tmp/payload/frontend /tmp/payload/copy root@$STAGING_HOST:/opt/saas/malapos/
     - |-
       ssh -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 root@$STAGING_HOST 'bash -se' <<'SCRIPT'
       cd /opt/saas/malapos/backend
@@ -233,7 +233,7 @@ deploy-production:
       [ -d backend/dist ] || { echo "FATAL: backend/dist missing"; exit 1; }
       [ -d frontend/.next ] || { echo "FATAL: frontend/.next missing"; exit 1; }
       mkdir -p /tmp/payload
-      for p in backend/dist backend/package.json backend/package-lock.json backend/prisma \
+      for p in backend/dist backend/package.json backend/package-lock.json backend/prisma copy \
                frontend/.next frontend/public frontend/package.json frontend/package-lock.json frontend/next.config.*; do
         { [ -e "$p" ] && cp -r --parents "$p" /tmp/payload/; } || echo "skip (absent): $p"
       done
@@ -241,7 +241,7 @@ deploy-production:
       rsync -az --delete \
         --exclude node_modules --exclude .git --exclude .env --exclude .npmrc --exclude frontend/.next/cache \
         -e "ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
-        /tmp/payload/backend /tmp/payload/frontend root@$PRODUCTION_HOST:/opt/saas/malapos/
+        /tmp/payload/backend /tmp/payload/frontend /tmp/payload/copy root@$PRODUCTION_HOST:/opt/saas/malapos/
     - |-
       ssh -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 root@$PRODUCTION_HOST 'bash -se' <<SCRIPT
       cd /opt/saas/malapos/backend
