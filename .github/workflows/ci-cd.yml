@@ -1,10 +1,8 @@
 name: CI/CD
 
+# CI/CD moved to Depllo (.depllo-ci.yml) 2026-07-15 — push/PR triggers
+# disabled; manual-dispatch fallback only.
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
   workflow_dispatch:
     inputs:
       update_baselines:

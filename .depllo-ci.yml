@@ -1,0 +1,267 @@
+# Depllo CI/CD for saas-malapos — full cutover (CI + staging/prod deploys on
+# Depllo; GHA ci-cd.yml is a manual-dispatch fallback). Generated from the
+# proven suppuo Phase B shape; deploys ride PUBLIC hostnames with the
+# depllo-deploy key as a file-type project variable.
+stages:
+  - test
+  - build
+  - deploy
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "main" ||
+        $CI_COMMIT_BRANCH == "master")
+    - if: $CI_PIPELINE_SOURCE == "pull_request"
+    - if: $CI_PIPELINE_SOURCE == "manual"
+lint:
+  stage: test
+  image: node:22-bookworm
+  script:
+    - "# -- Workflow shell sanity"
+    - (
+    - "  python3 scripts/check-workflow-continuations.py"
+    - )
+    - "# -- Backend type check"
+    - (
+    - "  cd backend && npm ci && npm run type-check"
+    - )
+    - "# -- Frontend lint"
+    - (
+    - "  cd frontend && npm ci && npm run lint"
+    - )
+test:
+  stage: test
+  image: node:22-bookworm
+  services:
+    - name: postgres:16
+      alias: postgres
+      variables:
+        POSTGRES_PASSWORD: test
+        POSTGRES_DB: malapos_test
+    - name: redis:7
+      alias: redis
+  script:
+    - "# wait for the postgres service to accept connections"
+    - for i in $(seq 1 30); do (echo > /dev/tcp/postgres/5432) >/dev/null 2>&1
+      && break; sleep 1; done
+    - "# -- Backend tests"
+    - (
+    - "  cd backend && npm ci"
+    - |2-
+        DATABASE_URL=postgresql://postgres:test@postgres:5432/malapos_test \
+        npx prisma migrate deploy
+    - |2-
+        DATABASE_URL=postgresql://postgres:test@postgres:5432/malapos_test \
+        REDIS_URL=redis://redis:6379 \
+        JWT_SECRET=test-secret JWT_REFRESH_SECRET=test-refresh-secret \
+        npm test
+    - )
+    - "# -- Frontend tests"
+    - (
+    - "  cd frontend && npm ci && npm test"
+    - )
+build-staging:
+  stage: build
+  image: node:22-bookworm
+  needs:
+    - lint
+    - test
+  timeout: 30m
+  artifacts:
+    paths:
+      - backend/dist/
+      - backend/package.json
+      - backend/package-lock.json
+      - backend/prisma/
+      - frontend/.next/
+      - frontend/public/
+      - frontend/package.json
+      - frontend/package-lock.json
+      - frontend/next.config.*
+  script:
+    - "# -- Build backend"
+    - (
+    - "  cd backend && npm ci && npx prisma generate && npm run build"
+    - )
+    - "# -- Build frontend (staging)"
+    - export NEXT_PUBLIC_API_URL="/api/v1"
+    - export NEXT_PUBLIC_MIDTRANS_CLIENT_KEY="$MIDTRANS_CLIENT_KEY"
+    - export NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$GOOGLE_MAPS_API_KEY"
+    - (
+    - "  cd frontend && npm ci && npm run build"
+    - )
+build-production:
+  stage: build
+  image: node:22-bookworm
+  needs:
+    - lint
+    - test
+  timeout: 30m
+  artifacts:
+    paths:
+      - backend/dist/
+      - backend/package.json
+      - backend/package-lock.json
+      - backend/prisma/
+      - frontend/.next/
+      - frontend/public/
+      - frontend/package.json
+      - frontend/package-lock.json
+      - frontend/next.config.*
+  script:
+    - "# -- Build backend"
+    - (
+    - "  cd backend && npm ci && npx prisma generate && npm run build"
+    - )
+    - "# -- Build frontend (production)"
+    - export NEXT_PUBLIC_API_URL="/api/v1"
+    - export NEXT_PUBLIC_MIDTRANS_CLIENT_KEY="$MIDTRANS_CLIENT_KEY"
+    - export NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$GOOGLE_MAPS_API_KEY"
+    - export NEXT_PUBLIC_TURNSTILE_SITE_KEY="$TURNSTILE_SITE_KEY"
+    - (
+    - "  cd frontend && npm ci && npm run build"
+    - )
+deploy-staging:
+  stage: deploy
+  image: node:22-bookworm
+  needs:
+    - build-staging
+  dependencies:
+    - build-staging
+  timeout: 30m
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE != "pull_request"
+  script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends
+      rsync openssh-client >/dev/null
+    - |-
+      # Assemble the exact GHA deploy payload (artifact contents only —
+      # NOT the full clone) so rsync --delete ships dist + manifests, not src.
+      # Critical paths are asserted; optional ones (public/, next.config.*)
+      # are skipped when absent rather than failing the deploy.
+      [ -d backend/dist ] || { echo "FATAL: backend/dist missing"; exit 1; }
+      [ -d frontend/.next ] || { echo "FATAL: frontend/.next missing"; exit 1; }
+      mkdir -p /tmp/payload
+      for p in backend/dist backend/package.json backend/package-lock.json backend/prisma \
+               frontend/.next frontend/public frontend/package.json frontend/package-lock.json frontend/next.config.*; do
+        { [ -e "$p" ] && cp -r --parents "$p" /tmp/payload/; } || echo "skip (absent): $p"
+      done
+    - |-
+      rsync -az --delete \
+        --exclude node_modules --exclude .git --exclude .env --exclude .npmrc --exclude frontend/.next/cache \
+        -e "ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
+        /tmp/payload/backend /tmp/payload/frontend root@$STAGING_HOST:/opt/saas/malapos/
+    - |-
+      ssh -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 root@$STAGING_HOST 'bash -se' <<'SCRIPT'
+      cd /opt/saas/malapos/backend
+      # Staging is uniformly NON-VERIFYING — strip any captcha secret so e2e never blocks.
+      sed -i '/^TURNSTILE_SECRET_KEY=/d; /^TURNSTILE_ALLOWED_HOSTNAMES=/d' .env 2>/dev/null || true
+      npm ci --omit=dev
+      npx prisma migrate deploy
+      pm2 restart malapos || pm2 start dist/index.js --name malapos -i 1
+      cd /opt/saas/malapos/frontend
+      npm ci --omit=dev
+      pm2 restart malapos-frontend || pm2 start npm --name malapos-frontend -- start
+      pm2 save
+      echo "Waiting for backend health..."
+      for i in $(seq 1 30); do
+        curl -sf http://localhost:4191/api/v1/health >/dev/null 2>&1 && { echo "backend healthy after ${i}s"; break; }
+        sleep 1
+      done
+      echo "Waiting for frontend..."
+      for i in $(seq 1 30); do
+        curl -sf http://localhost:3190/ >/dev/null 2>&1 && { echo "frontend healthy after ${i}s"; break; }
+        sleep 1
+      done
+      SCRIPT
+e2e-staging:
+  stage: deploy
+  image: node:22-bookworm
+  needs:
+    - deploy-staging
+  dependencies: []
+  timeout: 45m
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE != "pull_request"
+  script:
+    - |-
+      echo "Waiting for staging (backend + frontend)..."
+      for i in $(seq 1 30); do
+        curl -sf "http://$STAGING_HOST/api/v1/health" >/dev/null 2>&1 && { echo "backend healthy"; break; }
+        sleep 3
+      done
+      for i in $(seq 1 20); do
+        STATUS=$(curl -so /dev/null -w '%{http_code}' "http://$STAGING_HOST/" 2>/dev/null || echo 000)
+        [ "$STATUS" = "200" ] && { echo "frontend serving"; break; }
+        sleep 3
+      done
+      sleep 5
+    - (
+    - "  cd e2e && npm ci && npx playwright install chromium --with-deps"
+    - )
+    - |-
+      # Signs in for real as gojo (the designated E2E identity) against
+      # staging; GOJO_HUUDIS_PASSWORD arrives as a masked project variable.
+      cd e2e
+      GOJO_HUUDIS_EMAIL=gojo@forjio.com \
+      BACKEND_URL="http://$STAGING_HOST/api/v1" \
+      FRONTEND_URL="http://$STAGING_HOST" \
+      E2E_BYPASS_SECRET="$E2E_BYPASS_SECRET" \
+      PW_SKIP_WEBSERVER=1 \
+      npx playwright test --reporter=list --config=playwright.ci.config.ts
+deploy-production:
+  stage: deploy
+  image: node:22-bookworm
+  needs:
+    - e2e-staging
+    - build-production
+  dependencies:
+    - build-production
+  timeout: 30m
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE != "pull_request"
+  script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends
+      rsync openssh-client >/dev/null
+    - |-
+      # Assemble the exact GHA deploy payload (artifact contents only —
+      # NOT the full clone) so rsync --delete ships dist + manifests, not src.
+      # Critical paths are asserted; optional ones (public/, next.config.*)
+      # are skipped when absent rather than failing the deploy.
+      [ -d backend/dist ] || { echo "FATAL: backend/dist missing"; exit 1; }
+      [ -d frontend/.next ] || { echo "FATAL: frontend/.next missing"; exit 1; }
+      mkdir -p /tmp/payload
+      for p in backend/dist backend/package.json backend/package-lock.json backend/prisma \
+               frontend/.next frontend/public frontend/package.json frontend/package-lock.json frontend/next.config.*; do
+        { [ -e "$p" ] && cp -r --parents "$p" /tmp/payload/; } || echo "skip (absent): $p"
+      done
+    - |-
+      rsync -az --delete \
+        --exclude node_modules --exclude .git --exclude .env --exclude .npmrc --exclude frontend/.next/cache \
+        -e "ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
+        /tmp/payload/backend /tmp/payload/frontend root@$PRODUCTION_HOST:/opt/saas/malapos/
+    - |-
+      ssh -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 root@$PRODUCTION_HOST 'bash -se' <<SCRIPT
+      cd /opt/saas/malapos/backend
+      sed -i '/^TURNSTILE_SECRET_KEY=/d' .env 2>/dev/null || true
+      echo 'TURNSTILE_SECRET_KEY=$TURNSTILE_SECRET_KEY' >> .env
+      sed -i '/^TURNSTILE_ALLOWED_HOSTNAMES=/d' .env 2>/dev/null || true
+      echo 'TURNSTILE_ALLOWED_HOSTNAMES=$TURNSTILE_ALLOWED_HOSTNAMES' >> .env
+      npm ci --omit=dev
+      npx prisma generate
+      npx prisma migrate deploy
+      pm2 restart malapos || pm2 start dist/index.js --name malapos -i 1
+      cd /opt/saas/malapos/frontend
+      npm ci --omit=dev
+      pm2 restart malapos-frontend || pm2 start npm --name malapos-frontend -- start
+      pm2 save
+      echo "Waiting for backend health..."
+      for i in \$(seq 1 30); do
+        curl -sf http://localhost:4191/api/v1/health >/dev/null 2>&1 && { echo "backend healthy after \${i}s"; break; }
+        sleep 1
+      done
+      echo "Waiting for frontend..."
+      for i in \$(seq 1 30); do
+        curl -sf http://localhost:3190/ >/dev/null 2>&1 && { echo "frontend healthy after \${i}s"; break; }
+        sleep 1
+      done
+      SCRIPT
