@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@forjio/auth-ui": "^0.7.0",
-    "@forjio/portal-ui": "^0.5.4",
+    "@forjio/portal-ui": "^0.5.5",
     "@forjio/sdk": "^0.9.0",
     "@forjio/website-ui": "^0.3.0",
     "@hookform/resolvers": "^5.4.0",
