@@ -1,5 +1,7 @@
 # Malapos
 
+[![pipeline status](https://depllo.forjio.com/api/v1/public/badges/93ae2f262c5dcffe78cc5f6b433ab6da/pipeline.svg)](https://depllo.forjio.com/dashboard/projects/proj_01kxjmg5ks7zw6bt18p5wse5s6)
+
 Malapos is a Forjio family product. Served at
 [malapos.com](https://malapos.com) and mirrored at
 [malapos.forjio.com](https://malapos.forjio.com).
