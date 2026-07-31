@@ -951,3 +951,36 @@ model WebhookSubscription {
   @@index([accountId, active])
   @@map("webhook_subscriptions")
 }
+
+/// Operator feature flag — mandatory admin-portal standard.
+/// See forjio/documentation/2. Technical/13-Admin-Portal-Standard.md.
+/// `key` is the PK on purpose: app code reads flags by key, so a rename
+/// is a migration rather than an edit.
+model FeatureFlag {
+  key         String   @id
+  label       String
+  description String?
+  enabled     Boolean  @default(false)
+  /// 0-100 rollout. NULL = all-or-nothing, distinct from 0 ("on, nobody yet").
+  rollout     Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+
+  @@map("feature_flags")
+}
+
+/// Append-only audit of every flag write. Separate from the flag row because
+/// updatedBy/updatedAt only answer "who last touched it" — during an incident
+/// the question is "what changed, when, and what was it before".
+model FeatureFlagAudit {
+  id     String   @id
+  key    String
+  actor  String?
+  at     DateTime @default(now())
+  before Json
+  after  Json
+
+  @@index([key, at])
+  @@map("feature_flag_audits")
+}

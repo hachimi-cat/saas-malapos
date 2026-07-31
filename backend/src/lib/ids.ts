@@ -9,6 +9,7 @@ import { ulid } from 'ulid';
  */
 export type IdPrefix =
   | 'evt' // outbox event
+  | 'ffa' // feature-flag audit row (admin-portal standard)
   | 'req' // request id (prefer the request-id middleware)
   | 'idem' // idempotency fallback
   // ── Malapos POS domain ──

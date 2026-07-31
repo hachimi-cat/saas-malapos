@@ -7,6 +7,9 @@ import huudisProxyRouter from './huudis-proxy.js';
 import { adminGuard } from '../middleware/admin-guard.js';
 import { requireAuth } from '../middleware/auth.js';
 import adminCustomersRouter from './admin-customers.js';
+import adminMetricsRouter from './admin-metrics.js';
+import adminSystemHealthRouter from './admin-system-health.js';
+import adminFeatureFlagsRouter from './admin-feature-flags.js';
 import adminCrmRouter from './admin-crm.js';
 import outletsRouter from './outlets.js';
 import categoriesRouter from './categories.js';
@@ -125,6 +128,13 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
    *  contract for the central admin portal (malapos semantics: merchant
    *  workspaces + their POS sales). */
   router.use('/admin/crm', adminGuard, adminCrmRouter);
+
+  /** The three endpoints behind the MANDATORY admin-portal standard.
+   *  Every Forjio product serves these — see
+   *  forjio/documentation/2. Technical/13-Admin-Portal-Standard.md. */
+  router.use('/admin/metrics', adminGuard, adminMetricsRouter);
+  router.use('/admin/system-health', adminGuard, adminSystemHealthRouter);
+  router.use('/admin/feature-flags', adminGuard, adminFeatureFlagsRouter);
 
   // ── Malapos POS domain (all behind the Huudis session / Bearer auth) ──
   router.use('/outlets', requireAuth, outletsRouter);
