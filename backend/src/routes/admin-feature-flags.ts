@@ -1,3 +1,4 @@
+import { registerFeatureFlags } from '../lib/feature-flag-registry.js';
 import { Router } from 'express';
 import { sendOk, sendErr } from '../lib/http.js';
 import {
@@ -24,6 +25,12 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   try {
+    // Registration is idempotent and lives here rather than at boot: the
+    // eleven products' index.ts files differ too much to patch one hook
+    // into reliably, and the only path that needs the rows to exist is
+    // the one asking for them. `registerFeatureFlags` is exported so a
+    // product that wants it at boot can call it there too.
+    await registerFeatureFlags();
     return sendOk(res, req, await listFeatureFlags());
   } catch (e) {
     return sendErr(res, req, 500, 'FEATURE_FLAGS_ERROR', (e as Error).message);
@@ -55,6 +62,30 @@ router.patch('/:key', async (req, res) => {
       );
     }
     patch.rollout = r as number | null;
+  }
+  if ('allowlist' in body) {
+    const a = body.allowlist;
+    if (!Array.isArray(a) || a.some((v) => typeof v !== 'string' || !v.trim())) {
+      return sendErr(
+        res,
+        req,
+        400,
+        'INVALID_ALLOWLIST',
+        '`allowlist` must be an array of non-empty strings.',
+      );
+    }
+    // Trim and de-duplicate case-insensitively here rather than trusting
+    // the client: two entries differing only in case would both evaluate
+    // true and read as a duplicate the operator cannot remove.
+    const seen = new Set<string>();
+    patch.allowlist = (a as string[])
+      .map((v) => v.trim())
+      .filter((v) => {
+        const k = v.toLowerCase();
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
   }
   if ('label' in body) {
     if (typeof body.label !== 'string' || !body.label.trim()) {

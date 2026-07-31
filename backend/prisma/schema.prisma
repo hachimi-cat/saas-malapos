@@ -963,6 +963,9 @@ model FeatureFlag {
   enabled     Boolean  @default(false)
   /// 0-100 rollout. NULL = all-or-nothing, distinct from 0 ("on, nobody yet").
   rollout     Int?
+  /// Subjects who get the feature REGARDLESS of `enabled`/`rollout` — the
+  /// pilot mechanism. Huudis user ids, or emails for operator convenience.
+  allowlist   String[] @default([])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   updatedBy   String?

@@ -1,0 +1,55 @@
+import { ensureFeatureFlag, isEnabled } from './feature-flags.js';
+
+/*
+ * This product's declared feature flags.
+ *
+ * The standard is explicit that a flag which exists in the database but
+ * that nothing reads is worse than useless — it looks like a working
+ * control and does nothing. So every key here is read by a helper below
+ * it, and the helper is exported for the code that will call it.
+ *
+ * Registration runs once at boot (see registerFeatureFlags in app.ts). It
+ * is idempotent and never overwrites an operator's toggle: `enabled`,
+ * `rollout` and `allowlist` are seeded on CREATE only, so a redeploy
+ * cannot re-enable something turned off during an incident, nor put back
+ * somebody deliberately removed from a pilot.
+ */
+
+/** bang (adhya@forjio.com) and gojo — the two accounts piloting the
+ *  catentio embedded layer ahead of any customer seeing it. Huudis user
+ *  ids rather than emails: an email can change, `usr_…` cannot. */
+const PILOT_SUBJECTS = [
+  'usr_01KPHFKMCERET4RYTBPHKVK4ET', // adhya@forjio.com
+  'usr_01KQXET0CV2A0ND610289DYEHA', // gojo@forjio.com
+];
+
+export const CATENTIO_PILOT_FLAG = 'catentio.pilot_integration';
+
+/**
+ * Declare every flag this product owns. Idempotent; safe to call on every
+ * boot.
+ */
+export async function registerFeatureFlags(): Promise<void> {
+  await ensureFeatureFlag({
+    key: CATENTIO_PILOT_FLAG,
+    label: 'Catentio pilot integration',
+    description:
+      "Embeds catentio's agentic sheet and chat/search bubbles in this product. OFF for everyone; the allowlisted accounts get it anyway, which is how the pilot runs without shipping it to customers.",
+    defaultEnabled: false,
+    defaultAllowlist: PILOT_SUBJECTS,
+  });
+}
+
+/**
+ * Is the catentio pilot on for this user?
+ *
+ * NOT YET CALLED ANYWHERE, and deliberately so: the embedded catentio
+ * layer this gates is not built in this product yet. The flag is staged
+ * ahead of it — off, with the two pilot accounts allowlisted — so that
+ * when the integration lands it is one import and one `if`, and nobody
+ * has to remember to add the gate afterwards. Delete this helper if the
+ * pilot is abandoned; do not leave it here reading a flag nobody flips.
+ */
+export function catentioPilotEnabled(huudisUserId: string | null | undefined): Promise<boolean> {
+  return isEnabled(CATENTIO_PILOT_FLAG, huudisUserId ?? null);
+}

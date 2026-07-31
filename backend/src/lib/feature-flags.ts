@@ -26,6 +26,8 @@ export interface FeatureFlagRow {
   description: string | null;
   enabled: boolean;
   rollout: number | null;
+  /** Subjects who get the feature regardless of `enabled`/`rollout`. */
+  allowlist: string[];
   updatedAt: string;
   updatedBy: string | null;
 }
@@ -33,6 +35,7 @@ export interface FeatureFlagRow {
 export interface FeatureFlagPatch {
   enabled?: boolean;
   rollout?: number | null;
+  allowlist?: string[];
   label?: string;
   description?: string | null;
 }
@@ -50,6 +53,7 @@ function toRow(f: {
   description: string | null;
   enabled: boolean;
   rollout: number | null;
+  allowlist?: string[];
   updatedAt: Date;
   updatedBy: string | null;
 }): FeatureFlagRow {
@@ -59,9 +63,19 @@ function toRow(f: {
     description: f.description,
     enabled: f.enabled,
     rollout: f.rollout,
+    allowlist: f.allowlist ?? [],
     updatedAt: f.updatedAt.toISOString(),
     updatedBy: f.updatedBy,
   };
+}
+
+
+/** Case-insensitive membership. Entries are Huudis user ids, but an
+ *  operator typing into the admin box will reach for an email, so both
+ *  are accepted and neither is case-sensitive. */
+function matchesAllowlist(flag: FeatureFlagRow, subjectId: string): boolean {
+  const needle = subjectId.toLowerCase();
+  return (flag.allowlist ?? []).some((e) => e.toLowerCase() === needle);
 }
 
 async function loadAll(): Promise<Map<string, FeatureFlagRow>> {
@@ -106,8 +120,24 @@ export async function isEnabled(
   key: string,
   subjectId?: string | null,
 ): Promise<boolean> {
-  const flag = (await cached()).get(key);
-  if (!flag || !flag.enabled) return false;
+  let flag: FeatureFlagRow | undefined;
+  try {
+    flag = (await cached()).get(key);
+  } catch {
+    // NOTHING here throws. This runs on live request paths, and a flag
+    // subsystem that can 500 the feature it guards converts a question
+    // nobody asked into an outage. "Off" is how the product behaves when
+    // no operator has intervened, so off is the safe answer to an
+    // unreadable store, a missing table, or a typo'd key alike.
+    return false;
+  }
+  if (!flag) return false;
+  // The allowlist is checked BEFORE `enabled`, because the whole point is
+  // a feature that is off for the world and on for the pilot. An
+  // allowlist that only applied once the flag was already on would do
+  // nothing at all.
+  if (subjectId && matchesAllowlist(flag, subjectId)) return true;
+  if (!flag.enabled) return false;
   if (flag.rollout == null) return true;
   if (flag.rollout <= 0) return false;
   if (flag.rollout >= 100) return true;
@@ -122,7 +152,9 @@ export async function isEnabled(
  *  Returns `false` when the cache is cold rather than blocking. */
 export function isEnabledCached(key: string, subjectId?: string | null): boolean {
   const flag = cache?.flags.get(key);
-  if (!flag || !flag.enabled) return false;
+  if (!flag) return false;
+  if (subjectId && matchesAllowlist(flag, subjectId)) return true;
+  if (!flag.enabled) return false;
   if (flag.rollout == null) return true;
   if (flag.rollout <= 0) return false;
   if (flag.rollout >= 100) return true;
@@ -185,6 +217,9 @@ export async function ensureFeatureFlag(def: {
   label: string;
   description?: string | null;
   defaultEnabled?: boolean;
+  /** Seeded on CREATE only, like `enabled` — a redeploy must never put
+   *  back somebody an operator deliberately removed from a pilot. */
+  defaultAllowlist?: string[];
 }): Promise<void> {
   await prisma.featureFlag.upsert({
     where: { key: def.key },
@@ -193,6 +228,7 @@ export async function ensureFeatureFlag(def: {
       label: def.label,
       description: def.description ?? null,
       enabled: def.defaultEnabled ?? false,
+      allowlist: def.defaultAllowlist ?? [],
     },
     update: { label: def.label, description: def.description ?? null },
   });
