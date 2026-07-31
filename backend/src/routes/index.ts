@@ -8,6 +8,7 @@ import { adminGuard } from '../middleware/admin-guard.js';
 import { requireAuth } from '../middleware/auth.js';
 import adminCustomersRouter from './admin-customers.js';
 import adminMetricsRouter from './admin-metrics.js';
+import adminTransactionsRouter from './admin-transactions.js';
 import adminSystemHealthRouter from './admin-system-health.js';
 import adminFeatureFlagsRouter from './admin-feature-flags.js';
 import adminCrmRouter from './admin-crm.js';
@@ -133,6 +134,7 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
    *  Every Forjio product serves these — see
    *  forjio/documentation/2. Technical/13-Admin-Portal-Standard.md. */
   router.use('/admin/metrics', adminGuard, adminMetricsRouter);
+  router.use('/admin/transactions', adminGuard, adminTransactionsRouter);
   router.use('/admin/system-health', adminGuard, adminSystemHealthRouter);
   router.use('/admin/feature-flags', adminGuard, adminFeatureFlagsRouter);
 

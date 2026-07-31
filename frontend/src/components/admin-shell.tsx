@@ -8,6 +8,7 @@ import {
   LineChart,
   Menu,
   Users,
+  Receipt,
 } from 'lucide-react';
 import { Sidebar, type SessionUser, type NavSection } from '@forjio/portal-ui';
 import { LogoMark } from '@/components/brand/logo';
@@ -44,7 +45,10 @@ const SECTIONS: NavSection[] = [
   },
   {
     label: 'Customers',
-    items: [{ href: '/admin/customers', label: 'Customers', icon: Users }],
+    items: [
+      { href: '/admin/customers', label: 'Customers', icon: Users },
+      { href: '/admin/transactions', label: 'Transactions', icon: Receipt },
+    ],
   },
   // The MANDATORY admin-portal standard — every Forjio product ships
   // these. See forjio/documentation/2. Technical/13-Admin-Portal-Standard.md.
