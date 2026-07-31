@@ -118,6 +118,34 @@ router.post(
   }),
 );
 
+/*
+ * Bulk-assign a category to many products at once. Categorizing an existing
+ * catalog one product-editor dialog at a time is the slow path; the products
+ * table multi-selects rows and posts them here. `categoryId: null` clears.
+ */
+router.post(
+  '/bulk-category',
+  asyncHandler(async (req, res) => {
+    const accountId = req.auth!.accountId as string;
+    const { productIds, categoryId } = z
+      .object({
+        productIds: z.array(z.string().trim().min(1)).min(1).max(500),
+        categoryId: z.string().trim().min(1).nullable(),
+      })
+      .parse(req.body);
+    if (categoryId) {
+      const category = await prisma.category.findFirst({ where: { id: categoryId, accountId } });
+      if (!category) throw new ApiError(404, 'NOT_FOUND', 'Category not found');
+    }
+    // Scoped by accountId, so ids from another tenant simply match nothing.
+    const { count } = await prisma.product.updateMany({
+      where: { accountId, id: { in: productIds } },
+      data: { categoryId },
+    });
+    sendOk(res, req, { updated: count, categoryId });
+  }),
+);
+
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {

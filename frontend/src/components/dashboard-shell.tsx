@@ -58,6 +58,7 @@ import {
   Utensils,
   Hand,
   SlidersHorizontal,
+  Tag,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -131,6 +132,7 @@ const STATIC_SECTIONS: NavSection[] = [
     label: 'Catalog',
     items: [
       { href: '/dashboard/products', label: 'Products', icon: Package },
+      { href: '/dashboard/categories', label: 'Categories', icon: Tag },
       { href: '/dashboard/modifiers', label: 'Modifiers', icon: SlidersHorizontal },
       { href: '/dashboard/inventory', label: 'Inventory', icon: Boxes },
     ],

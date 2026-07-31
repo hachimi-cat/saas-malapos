@@ -88,6 +88,12 @@ export default function ProductsPage() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
   const [creating, setCreating] = useState(false);
+  // Bulk categorization: row selection + the category the bar will apply.
+  // Categorizing an existing catalog one editor dialog at a time is the slow
+  // path — this is how a merchant gets the sell screen grouped in one pass.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkCategoryId, setBulkCategoryId] = useState('');
+  const [applying, setApplying] = useState(false);
 
   async function load() {
     try {
@@ -129,6 +135,48 @@ export default function ProductsPage() {
       await load();
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Delete failed');
+    }
+  }
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  // The header checkbox acts on what's currently VISIBLE, so filtering to a
+  // category then selecting all is the natural way to re-file a whole group.
+  function toggleAllVisible(checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      for (const p of filtered) {
+        if (checked) next.add(p.id);
+        else next.delete(p.id);
+      }
+      return next;
+    });
+  }
+
+  async function applyBulkCategory() {
+    if (!selected.size || !bulkCategoryId) return;
+    setApplying(true);
+    setError(null);
+    try {
+      await api.post('/products/bulk-category', {
+        productIds: [...selected],
+        // 'none' clears the category; a real id assigns it.
+        categoryId: bulkCategoryId === 'none' ? null : bulkCategoryId,
+      });
+      setSelected(new Set());
+      setBulkCategoryId('');
+      await load();
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Could not update products');
+    } finally {
+      setApplying(false);
     }
   }
 
@@ -182,10 +230,48 @@ export default function ProductsPage() {
         </Select>
       </div>
 
+      {selected.size > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+          <span className="text-sm font-medium">
+            {selected.size === 1 ? '1 product selected' : `${selected.size} products selected`}
+          </span>
+          <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
+            <SelectTrigger className="ml-auto w-auto min-w-[12rem] bg-background">
+              <SelectValue placeholder="Move to category…" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+              <SelectItem value="none">Remove category</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={applyBulkCategory} disabled={!bulkCategoryId || applying}>
+            {applying && <Loader2 className="h-4 w-4 animate-spin" />} Apply
+          </Button>
+          <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={applying}>
+            Clear
+          </Button>
+        </div>
+      )}
+
       <Card className="mt-4 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={
+                    filtered.length > 0 && filtered.every((p) => selected.has(p.id))
+                      ? true
+                      : filtered.some((p) => selected.has(p.id))
+                        ? 'indeterminate'
+                        : false
+                  }
+                  onCheckedChange={(v) => toggleAllVisible(v === true)}
+                  aria-label="Select all products"
+                />
+              </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Kind</TableHead>
@@ -196,7 +282,14 @@ export default function ProductsPage() {
           </TableHeader>
           <TableBody>
             {filtered.map((p) => (
-              <TableRow key={p.id}>
+              <TableRow key={p.id} data-state={selected.has(p.id) ? 'selected' : undefined}>
+                <TableCell>
+                  <Checkbox
+                    checked={selected.has(p.id)}
+                    onCheckedChange={(v) => toggleRow(p.id, v === true)}
+                    aria-label={`Select ${p.name}`}
+                  />
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <ProductThumb name={p.name} imageUrl={p.imageUrl} className="h-9 w-9 shrink-0 rounded-md text-xs" />
@@ -266,7 +359,7 @@ export default function ProductsPage() {
             ))}
             {!filtered.length && (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="px-4 py-12 text-center text-muted-foreground">
                   {products.length ? 'No products match your filters.' : 'No products yet. Add your first one.'}
                 </TableCell>
               </TableRow>
