@@ -10,7 +10,8 @@
  */
 
 import { CustomersPanel } from '@forjio/admin-ui';
+import { MALAPOS_ADMIN_ENDPOINTS } from '@/lib/admin-endpoints';
 
 export default function Page() {
-  return <CustomersPanel />;
+  return <CustomersPanel endpoint={MALAPOS_ADMIN_ENDPOINTS.customers} />;
 }

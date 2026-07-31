@@ -12,6 +12,7 @@
  */
 
 import { AdminOverviewPanel } from '@forjio/admin-ui';
+import { MALAPOS_ADMIN_ENDPOINTS } from '@/lib/admin-endpoints';
 
 const brand = process.env.NEXT_PUBLIC_BRAND_NAME ?? 'Malapos';
 
@@ -19,6 +20,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="mx-auto max-w-6xl">
       <AdminOverviewPanel
+        endpoints={MALAPOS_ADMIN_ENDPOINTS}
         brand={brand}
         quickLinks={[
           {
