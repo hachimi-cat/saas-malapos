@@ -22,7 +22,12 @@ const router = Router();
 function familyProbe(key: string, label: string, base: string | undefined, configured: boolean) {
   return async () => {
     if (!configured || !base) return null;
-    const out = await httpCheck(`${base.replace(/\/$/, '')}/health`)();
+    // `/api/v1/health`, NOT `/health` — every Forjio service mounts its
+    // liveness probe under the versioned API prefix. The bare path 404s,
+    // and a 404 is a REACHABLE non-2xx, so httpCheck reported 'degraded'
+    // rather than failing loudly: a permanent amber row for a sibling that
+    // was healthy the whole time. Verified against plugipay and ripllo.
+    const out = await httpCheck(`${base.replace(/\/$/, '')}/api/v1/health`)();
     return { key, label, status: out.status ?? ('ok' as const), detail: out.detail ?? null };
   };
 }
