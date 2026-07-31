@@ -107,12 +107,15 @@ router.get(
 // ── "Ready to serve" expo board (server-facing) ─────────────────────────────
 
 /**
- * GET /ready — every item currently READY, grouped by table, oldest-first.
+ * GET /ready — every ACTIVE ticket's outstanding items, grouped by table,
+ * oldest-first. Named /ready for its purpose (the expo/serve station), not
+ * because it filters to READY items — it deliberately returns cooking ones
+ * too, each tagged with its own kdsState so the board can dim them.
  *
  * This is the WAITER's surface for the dine-in serve step: the kitchen has
  * cooked items to READY and the server now picks them up and delivers them to
  * the table (READY→SERVED). Dine-in items group under their table's `label`;
- * READY items on a table-less ticket (takeaway/counter) fall back to one group
+ * items on a table-less ticket (takeaway/counter) fall back to one group
  * per ticket keyed by its receipt number. Account- (and optionally outlet-)
  * scoped.
  *
@@ -129,12 +132,18 @@ router.get(
       where: {
         accountId,
         ...(outletId ? { outletId } : {}),
-        items: { some: { kdsState: 'READY' } },
+        // EVERY active ticket, not just those carrying a READY item. The old
+        // `items: { some: { kdsState: 'READY' } }` filter made a half-served
+        // order VANISH from the expo board the moment its ready items were
+        // served — the runner lost sight of the exact order someone was
+        // waiting on, until the kitchen happened to plate the next dish.
+        // Transaction.kdsState is synced to the least-advanced active item,
+        // so ACTIVE here == "not fully served".
+        kdsState: { in: ACTIVE },
       },
       include: {
-        // All active items (not just READY) so the expo board shows what's
-        // still cooking alongside what's ready to run — the ticket only
-        // surfaces here once it has at least one READY item (outer filter).
+        // All active items so the expo board shows what's still cooking
+        // alongside what's ready to run.
         items: {
           where: { kdsState: { in: ACTIVE } },
           select: {
@@ -167,9 +176,9 @@ router.get(
     type ReadyTicket = {
       transactionId: string;
       number: string;
-      /** When the order was opened — drives the "waiting Xm" badge. (Simplest
-       *  reliable proxy for when the kitchen plated it; tickets only surface
-       *  here once they carry a READY item.) */
+      /** When the order was opened — drives the "waiting Xm" badge. Measures
+       *  how long the guest has been waiting, which is what the expo station
+       *  actually needs to triage, cooking tickets included. */
       readyAt: string;
       customerName: string | null;
       note: string | null;

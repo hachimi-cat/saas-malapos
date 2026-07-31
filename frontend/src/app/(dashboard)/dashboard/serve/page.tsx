@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Utensils, Loader2, CheckCircle2, Hand, Clock, User, StickyNote, ShoppingBag, Truck } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useRealtime } from '@/hooks/use-realtime';
@@ -9,15 +9,21 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 /*
- * "Ready to serve" — the SERVER's expo board for the dine-in serve step. The
- * kitchen cooks items to READY; this board shows everything that's ready,
- * grouped by table, so the waiter can pick it up and deliver it. Tap an item's
- * "Serve" to mark that one READY→SERVED (reuses POST /kds/items/:id/advance),
- * or "Serve all" to clear a whole table in one call (POST
- * /kds/tables/:tableId/serve). When a table has nothing ready left it drops
- * off the board; a fully-served ticket also leaves the kitchen board (its
- * order state advances server-side via syncOrderState). Polls every few
- * seconds. F&B-only; harmless elsewhere (the board just stays empty).
+ * "Serve display" — the SERVER's expo board. It shows EVERY order still on the
+ * pass, grouped by table: plated items are actionable, still-cooking ones sit
+ * dimmed beneath them with a Preparing/Queued chip. Tap an item's "Serve" to
+ * mark that one READY→SERVED (reuses POST /kds/items/:id/advance), or
+ * "Serve all" to clear a table's plated items in one call (POST
+ * /kds/tables/:tableId/serve — READY only, never the cooking ones).
+ *
+ * It used to list only orders carrying a READY item, which meant serving a
+ * half-cooked order made the whole card VANISH — the runner lost the exact
+ * order a guest was waiting on until the kitchen plated its next dish. Now a
+ * card leaves the board only when the order is fully served. The All / Ready /
+ * Cooking lens narrows it when the pass gets busy.
+ *
+ * Polls every few seconds (SSE drives the instant updates). F&B-only; harmless
+ * elsewhere (the board just stays empty).
  */
 
 type KdsState = 'NEW' | 'PREPARING' | 'READY' | 'SERVED';
@@ -77,12 +83,21 @@ const ORDER_TYPE_LABEL: Record<string, string> = {
   DELIVERY: 'Delivery',
 };
 
+/** Which slice of the pass the board is showing. */
+type Lens = 'all' | 'ready' | 'cooking';
+
+const countReady = (g: ReadyGroup) =>
+  g.tickets.reduce((n, t) => n + t.items.filter((it) => it.kdsState === 'READY').length, 0);
+const countCooking = (g: ReadyGroup) =>
+  g.tickets.reduce((n, t) => n + t.items.filter((it) => it.kdsState !== 'READY').length, 0);
+
 export default function ServePage() {
   const [groups, setGroups] = useState<ReadyGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Single in-flight key (item id or table id) so only the tapped control spins.
   const [busy, setBusy] = useState<string | null>(null);
+  const [lens, setLens] = useState<Lens>('all');
   const initial = useRef(true);
 
   const load = useCallback(async () => {
@@ -155,10 +170,35 @@ export default function ServePage() {
   const dispatchOrder = (txnId: string) =>
     act(`dispatch:${txnId}`, `/delivery/sales/${txnId}/dispatch`, 'Failed to dispatch the delivery');
 
+  // Lens tallies come from the UNFILTERED board so the chips keep showing what
+  // else is on the pass while a lens is applied. A half-served order counts in
+  // BOTH ready and cooking — it genuinely is both.
+  const totals = useMemo(() => {
+    let readyGroups = 0;
+    let cookingGroups = 0;
+    for (const g of groups) {
+      if (countReady(g) > 0) readyGroups += 1;
+      if (countCooking(g) > 0) cookingGroups += 1;
+    }
+    return { all: groups.length, readyGroups, cookingGroups };
+  }, [groups]);
+
+  const visible = useMemo(() => {
+    const pass = (g: ReadyGroup) =>
+      lens === 'all' ? true : lens === 'ready' ? countReady(g) > 0 : countCooking(g) > 0;
+    // Ready-first: during a rush whatever can actually be run must stay at the
+    // top. sort() is stable, so within each bucket the backend's oldest-first
+    // order (= longest wait first) survives.
+    return groups
+      .filter(pass)
+      .slice()
+      .sort((a, b) => (countReady(b) > 0 ? 1 : 0) - (countReady(a) > 0 ? 1 : 0));
+  }, [groups, lens]);
+
   // The backend tags counter (takeaway/delivery) tickets with a null tableId.
   // Split them off the dine-in tables so each gets its own lane on the board.
-  const tableGroups = groups.filter((g) => g.tableId !== null);
-  const counterGroups = groups.filter((g) => g.tableId === null);
+  const tableGroups = visible.filter((g) => g.tableId !== null);
+  const counterGroups = visible.filter((g) => g.tableId === null);
 
   const renderCard = (g: ReadyGroup, kind: 'table' | 'counter') => {
     const groupKey = kind === 'table' ? `table:${g.tableId}` : `group:${g.tickets[0]?.transactionId}`;
@@ -297,11 +337,14 @@ export default function ServePage() {
               ? serveTable(g.tableId!)
               : serveMany(groupKey, g.tickets.flatMap((t) => t.items.filter((it) => it.kdsState === 'READY').map((it) => it.id)))
           }
-          disabled={groupBusy}
+          // Nothing plated → nothing to serve. The endpoint 409s on an empty
+          // set, so this would only ever surface an error toast.
+          disabled={groupBusy || readyCount === 0}
           className="w-full"
+          title={readyCount === 0 ? 'Nothing plated yet — the kitchen is still cooking this order' : undefined}
         >
           {groupBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-          Serve all
+          {readyCount === 0 ? 'Waiting on kitchen' : 'Serve all'}
         </Button>
       </Card>
     );
@@ -312,10 +355,41 @@ export default function ServePage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight font-display">Serve display</h1>
         <p className="text-sm text-muted-foreground">
-          Dishes the kitchen has plated, grouped by table. Tap Serve to deliver one, or Serve all to
-          clear a table. Refreshes automatically.
+          Every order still on the pass, grouped by table — plated dishes first, still-cooking ones
+          dimmed below. Tap Serve to deliver one, or Serve all to clear a table&apos;s plated dishes.
+          Refreshes automatically.
         </p>
       </div>
+
+      {!loading && groups.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          {(
+            [
+              ['all', 'All orders', totals.all],
+              ['ready', 'Ready to run', totals.readyGroups],
+              ['cooking', 'Still cooking', totals.cookingGroups],
+            ] as const
+          ).map(([key, label, count]) => (
+            <Button
+              key={key}
+              type="button"
+              size="sm"
+              variant={lens === key ? 'default' : 'outline'}
+              onClick={() => setLens(key)}
+              className="gap-1.5"
+            >
+              {label}
+              <span
+                className={`rounded-full px-1.5 text-xs font-semibold tabular-nums ${
+                  lens === key ? 'bg-primary-foreground/20' : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {count}
+              </span>
+            </Button>
+          ))}
+        </div>
+      )}
 
       {error && (
         <div className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
@@ -326,8 +400,23 @@ export default function ServePage() {
       ) : !groups.length ? (
         <div className="mt-10 flex flex-1 flex-col items-center justify-center text-center text-muted-foreground">
           <CheckCircle2 className="h-10 w-10 text-primary/60" />
-          <p className="mt-3 font-medium">Nothing ready to serve.</p>
-          <p className="text-sm">Plated dishes from the kitchen appear here automatically.</p>
+          <p className="mt-3 font-medium">Nothing on the pass.</p>
+          <p className="text-sm">Open orders from the kitchen appear here automatically.</p>
+        </div>
+      ) : !visible.length ? (
+        // The board isn't empty — the lens is just hiding everything on it.
+        <div className="mt-10 flex flex-1 flex-col items-center justify-center text-center text-muted-foreground">
+          <Utensils className="h-10 w-10 text-muted-foreground/50" />
+          <p className="mt-3 font-medium">
+            {lens === 'ready' ? 'Nothing plated yet.' : 'Nothing still cooking.'}
+          </p>
+          <p className="text-sm">
+            {totals.all === 1 ? '1 order is' : `${totals.all} orders are`} on the pass — switch to
+            All orders to see {totals.all === 1 ? 'it' : 'them'}.
+          </p>
+          <Button variant="outline" size="sm" className="mt-4" onClick={() => setLens('all')}>
+            Show all orders
+          </Button>
         </div>
       ) : (
         <div className="mt-6 flex-1 space-y-8">
