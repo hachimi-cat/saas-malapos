@@ -113,22 +113,45 @@ async function diskUsage(): Promise<{ usedBytes: number; totalBytes: number } | 
  * traffic against a half-migrated schema is the failure this catches.
  */
 async function migrationCheck(): Promise<{ status?: CheckStatus; detail?: string | null }> {
+  // Oldest-first and UNBOUNDED, both deliberately. Oldest-first so the last
+  // row seen for a migration name is its most recent attempt; unbounded
+  // because a `LIMIT 20` means a genuinely broken migration stops being
+  // reported the moment twenty newer ones land on top of it. The table
+  // holds one row per migration attempt — tens of rows, not a scan worth
+  // optimising away.
   const rows = await prisma.$queryRawUnsafe<
     { migration_name: string; finished_at: Date | null; rolled_back_at: Date | null }[]
   >(
-    'SELECT migration_name, finished_at, rolled_back_at FROM _prisma_migrations ORDER BY started_at DESC LIMIT 20',
+    'SELECT migration_name, finished_at, rolled_back_at FROM _prisma_migrations ORDER BY started_at ASC',
   );
-  const failed = rows.filter((r) => r.rolled_back_at != null);
-  const pending = rows.filter((r) => r.finished_at == null && r.rolled_back_at == null);
+
+  // Judge only the LATEST attempt per migration. Prisma appends a NEW row
+  // when a rolled-back migration is reapplied and leaves the failed one in
+  // place forever, so treating every row as current turns "a migration
+  // broke once and was fixed in May" into a permanent red status page —
+  // which is exactly how an operator learns to stop believing it. Verified
+  // on linksnap and storlaunch, both of which reported 'down' while
+  // serving traffic perfectly well against a correct schema.
+  const latest = new Map<string, { finished_at: Date | null; rolled_back_at: Date | null }>();
+  for (const r of rows) latest.set(r.migration_name, r);
+  const entries = [...latest.entries()];
+
+  const failed = entries.filter(([, r]) => r.rolled_back_at != null);
+  const pending = entries.filter(([, r]) => r.finished_at == null && r.rolled_back_at == null);
   const first = failed[0];
   if (first) {
-    return { status: 'down', detail: `${failed.length} rolled back: ${first.migration_name}` };
+    return { status: 'down', detail: `${failed.length} rolled back: ${first[0]}` };
   }
   const stuck = pending[0];
   if (stuck) {
-    return { status: 'degraded', detail: `${pending.length} unfinished: ${stuck.migration_name}` };
+    return { status: 'degraded', detail: `${pending.length} unfinished: ${stuck[0]}` };
   }
-  return { detail: rows[0] ? `latest: ${rows[0].migration_name}` : 'no migrations recorded' };
+  const newest = rows[rows.length - 1];
+  return {
+    detail: newest
+      ? `${latest.size} applied · latest ${newest.migration_name}`
+      : 'no migrations recorded',
+  };
 }
 
 /**
