@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Check, Plus, Trash2, Loader2 } from 'lucide-react';
+import { AlertTriangle, Check, Plus, Trash2, Upload, Loader2 } from 'lucide-react';
 import {
   plugipaySettingsApi,
   type AdapterConfigMap,
@@ -14,16 +14,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProviderIcon } from '@/components/ui/provider-icon';
 
 type ProviderKey = 'managed' | 'xendit' | 'midtrans' | 'paypal' | 'manual';
+type FormMode = 'sandbox' | 'live';
+const toApiMode = (mode: FormMode): 'live' | 'test' => mode === 'live' ? 'live' : 'test';
 type Option = { key: ProviderKey; title: string; description: string; meta: string };
 
 const OPTIONS: Option[] = [
@@ -75,6 +72,8 @@ export default function ProvidersSettingsPage() {
   // Default selection is the first visible option; 'managed' is hidden
   // (see OPTIONS comment) so we pick 'xendit'.
   const [active, setActive] = React.useState<ProviderKey>('xendit');
+  const [formMode, setFormMode] = React.useState<FormMode>('live');
+  const apiMode = toApiMode(formMode);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -84,46 +83,71 @@ export default function ProvidersSettingsPage() {
   const [xenditCallback, setXenditCallback] = React.useState('');
   const [paypalClientId, setPaypalClientId] = React.useState('');
   const [paypalSecret, setPaypalSecret] = React.useState('');
-  const [paypalMode, setPaypalMode] = React.useState<'live' | 'sandbox'>('sandbox');
   const [midtransServerKey, setMidtransServerKey] = React.useState('');
   const [midtransClientKey, setMidtransClientKey] = React.useState('');
   const [midtransMerchantId, setMidtransMerchantId] = React.useState('');
-  const [midtransEnv, setMidtransEnv] = React.useState<'sandbox' | 'production'>('sandbox');
   const [manualBankAccounts, setManualBankAccounts] = React.useState<ManualBankAccount[]>([]);
   const [manualStaticQrUrl, setManualStaticQrUrl] = React.useState('');
   const [manualInstructions, setManualInstructions] = React.useState('');
+  const [manualQrUploading, setManualQrUploading] = React.useState(false);
 
   const [managed, setManaged] = React.useState<ManagedOnboardingDTO | null>(null);
   const [managedEmail, setManagedEmail] = React.useState('');
   const [managedBusy, setManagedBusy] = React.useState(false);
 
+  const resetFields = React.useCallback(() => {
+    setXenditSecret('');
+    setXenditCallback('');
+    setPaypalClientId('');
+    setPaypalSecret('');
+    setMidtransServerKey('');
+    setMidtransClientKey('');
+    setMidtransMerchantId('');
+    setManualBankAccounts([]);
+    setManualStaticQrUrl('');
+    setManualInstructions('');
+  }, []);
+
   React.useEffect(() => {
-    if (!adapters?.manual) return;
-    const pc = adapters.manual.publicConfig as {
+    if (!adapters) return;
+    const manual = adapters.manual?.publicConfig as {
       bankAccounts?: ManualBankAccount[];
       staticQrImageUrl?: string | null;
       instructions?: string | null;
     } | null;
-    if (Array.isArray(pc?.bankAccounts)) setManualBankAccounts(pc!.bankAccounts);
-    if (pc?.staticQrImageUrl) setManualStaticQrUrl(pc.staticQrImageUrl);
-    if (pc?.instructions) setManualInstructions(pc.instructions);
+    if (Array.isArray(manual?.bankAccounts)) setManualBankAccounts(manual.bankAccounts);
+    if (manual?.staticQrImageUrl) setManualStaticQrUrl(manual.staticQrImageUrl);
+    if (manual?.instructions) setManualInstructions(manual.instructions);
+    const xendit = adapters.xendit?.publicConfig as { callbackToken?: string } | null;
+    if (xendit?.callbackToken) setXenditCallback(xendit.callbackToken);
+    const paypal = adapters.paypal?.publicConfig as { clientId?: string } | null;
+    if (paypal?.clientId) setPaypalClientId(paypal.clientId);
+    const midtrans = adapters.midtrans?.publicConfig as { clientKey?: string; merchantId?: string } | null;
+    if (midtrans?.clientKey) setMidtransClientKey(midtrans.clientKey);
+    if (midtrans?.merchantId) setMidtransMerchantId(midtrans.merchantId);
   }, [adapters]);
 
   React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
     Promise.all([
-      plugipaySettingsApi.getAdapters(),
+      plugipaySettingsApi.getAdapters(apiMode),
       plugipaySettingsApi.getManagedOnboarding().catch(() => null),
     ])
       .then(([map, mo]) => {
+        if (cancelled) return;
+        resetFields();
         setAdapters(map);
         setManaged(mo ?? null);
         if (mo?.email) setManagedEmail(mo.email);
-        const first = Object.values(map ?? {}).find((a) => a?.status === 'active');
+        const first = Object.values(map ?? {}).find((a) => a?.status === 'active' && a.kind !== 'managed');
         if (first) setActive(first.kind as ProviderKey);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load adapters'))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load adapters'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [apiMode, resetFields]);
 
   async function refreshManaged() {
     try {
@@ -141,7 +165,7 @@ export default function ProvidersSettingsPage() {
       const dto = await plugipaySettingsApi.startManagedOnboarding(managedEmail.trim());
       setManaged(dto);
       setInfo('Xendit onboarding invitation sent. Check your email to complete verification.');
-      setAdapters(await plugipaySettingsApi.getAdapters());
+      setAdapters(await plugipaySettingsApi.getAdapters(apiMode));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to start onboarding');
     } finally {
@@ -154,7 +178,7 @@ export default function ProvidersSettingsPage() {
       setManagedBusy(true);
       const dto = await plugipaySettingsApi.simulateManagedStatus(patch);
       setManaged(dto);
-      setAdapters(await plugipaySettingsApi.getAdapters());
+      setAdapters(await plugipaySettingsApi.getAdapters(apiMode));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Simulation failed');
     } finally {
@@ -171,6 +195,7 @@ export default function ProvidersSettingsPage() {
     setInfo(null);
     setSaving(true);
     try {
+      const envLabel = formMode === 'live' ? 'live' : 'sandbox';
       if (active === 'managed') {
         setSaving(false);
         return;
@@ -179,28 +204,27 @@ export default function ProvidersSettingsPage() {
         await plugipaySettingsApi.putXendit({
           secretKey: xenditSecret,
           callbackToken: xenditCallback || undefined,
-        });
-        setInfo('Xendit adapter saved');
+        }, apiMode);
+        setInfo(`Xendit ${envLabel} adapter saved`);
       } else if (active === 'paypal') {
         if (!paypalClientId || !paypalSecret) throw new Error('PayPal credentials required');
         await plugipaySettingsApi.putPaypal({
           clientId: paypalClientId,
           secret: paypalSecret,
-          mode: paypalMode,
-        });
-        setInfo('PayPal adapter saved');
+          mode: formMode === 'live' ? 'live' : 'sandbox',
+        }, apiMode);
+        setInfo(`PayPal ${envLabel} adapter saved`);
       } else if (active === 'midtrans') {
         if (!midtransServerKey || !midtransClientKey || !midtransMerchantId) {
           throw new Error('Server Key, Client Key, and Merchant ID are all required');
         }
-        const env = midtransServerKey.startsWith('SB-') ? 'sandbox' : midtransEnv;
         await plugipaySettingsApi.putMidtrans({
           serverKey: midtransServerKey,
           clientKey: midtransClientKey,
           merchantId: midtransMerchantId,
-          env,
-        });
-        setInfo('Midtrans adapter saved');
+          env: formMode === 'live' ? 'production' : 'sandbox',
+        }, apiMode);
+        setInfo(`Midtrans ${envLabel} adapter saved`);
       } else if (active === 'manual') {
         await plugipaySettingsApi.putManual({
           bankAccounts: manualBankAccounts.filter(
@@ -208,10 +232,10 @@ export default function ProvidersSettingsPage() {
           ),
           staticQrImageUrl: manualStaticQrUrl.trim() || null,
           instructions: manualInstructions.trim() || null,
-        });
-        setInfo('Offline & manual adapter saved');
+        }, apiMode);
+        setInfo(`Offline & manual ${envLabel} adapter saved`);
       }
-      const next = await plugipaySettingsApi.getAdapters();
+      const next = await plugipaySettingsApi.getAdapters(apiMode);
       setAdapters(next);
       setXenditSecret('');
       setPaypalSecret('');
@@ -223,6 +247,13 @@ export default function ProvidersSettingsPage() {
     }
   }
 
+  const midtransPrefixWarning =
+    midtransServerKey.startsWith('SB-') && formMode === 'live'
+      ? 'This looks like a sandbox key (SB-…) but the Live tab is selected.'
+      : midtransServerKey.startsWith('Mid-server-') && formMode === 'sandbox'
+        ? 'This looks like a production key but the Sandbox tab is selected.'
+        : null;
+
   return (
     <div className="space-y-6">
       <nav className="text-xs text-muted-foreground">
@@ -231,19 +262,13 @@ export default function ProvidersSettingsPage() {
         <span className="text-foreground">Providers</span>
       </nav>
 
-      <div className="flex items-end justify-between gap-4 flex-wrap">
+      <div>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight font-display">Payment providers</h1>
           <p className="mt-1 max-w-[62ch] text-sm text-muted-foreground">
-            Pick how you want to process payments. You can switch later — existing subscriptions re-route automatically.
+            Pick how you want to process payments. Each provider keeps separate Sandbox and Live credentials — switch the tab inside a provider to edit each set.
           </p>
         </div>
-        {active !== 'managed' && (
-          <Button type="button" onClick={save} disabled={saving}>
-            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Save changes
-          </Button>
-        )}
       </div>
 
       {error && (
@@ -280,12 +305,17 @@ export default function ProvidersSettingsPage() {
                 >
                   {status === 'active' && (
                     <Badge className="absolute right-3 top-3 gap-1 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide">
-                      <Check className="h-3 w-3" strokeWidth={2.5} /> Active
+                      <Check className="h-3 w-3" strokeWidth={2.5} /> Active · {formMode === 'live' ? 'Live' : 'Sandbox'}
                     </Badge>
                   )}
-                  <h3 className="text-sm font-semibold tracking-tight font-display">{o.title}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{o.description}</p>
-                  <p className="mt-3 font-mono text-xs text-muted-foreground">{o.meta}</p>
+                  <div className="flex items-start gap-3">
+                    <ProviderIcon provider={o.key} />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold tracking-tight font-display">{o.title}</h3>
+                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{o.description}</p>
+                      <p className="mt-3 font-mono text-xs text-muted-foreground">{o.meta}</p>
+                    </div>
+                  </div>
                 </button>
               );
             })}
@@ -305,8 +335,9 @@ export default function ProvidersSettingsPage() {
 
       {active === 'xendit' && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
             <CardTitle className="text-base">Bring your own Xendit</CardTitle>
+            <ModeTabs value={formMode} onChange={setFormMode} />
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -314,11 +345,13 @@ export default function ProvidersSettingsPage() {
               <Input
                 id="xendit-secret"
                 type="password"
-                placeholder="xnd_development_..."
+                placeholder={showActive('xendit')?.secretKeyLast4
+                  ? `Saved · ends in ${showActive('xendit')!.secretKeyLast4}. Enter a new key to rotate.`
+                  : formMode === 'live' ? 'xnd_production_...' : 'xnd_development_...'}
                 value={xenditSecret}
                 onChange={(e) => setXenditSecret(e.target.value)}
               />
-              <p className={helpCls}>Find this under Settings → API keys in your Xendit dashboard.</p>
+              <p className={helpCls}>Find this under Settings → API keys in your Xendit dashboard. Use your {formMode === 'live' ? 'live' : 'test'} key for this tab.</p>
             </div>
             <div>
               <Label htmlFor="xendit-callback" className={labelCls}>Callback token (optional)</Label>
@@ -333,14 +366,16 @@ export default function ProvidersSettingsPage() {
                 Currently saved: …{showActive('xendit')?.secretKeyLast4}
               </Badge>
             )}
+            <SaveBar saving={saving} onSave={save} mode={formMode} />
           </CardContent>
         </Card>
       )}
 
       {active === 'paypal' && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
             <CardTitle className="text-base">Bring your own PayPal</CardTitle>
+            <ModeTabs value={formMode} onChange={setFormMode} />
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -356,36 +391,30 @@ export default function ProvidersSettingsPage() {
               <Input
                 id="pp-secret"
                 type="password"
+                placeholder={showActive('paypal')?.secretKeyLast4
+                  ? `Saved · ends in ${showActive('paypal')!.secretKeyLast4}. Enter a new secret to rotate.`
+                  : 'PayPal REST API secret'}
                 value={paypalSecret}
                 onChange={(e) => setPaypalSecret(e.target.value)}
               />
             </div>
-            <div>
-              <Label htmlFor="pp-mode" className={labelCls}>Mode</Label>
-              <Select value={paypalMode} onValueChange={(v) => setPaypalMode(v as 'live' | 'sandbox')}>
-                <SelectTrigger id="pp-mode" className="h-9 w-40 capitalize">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sandbox">Sandbox</SelectItem>
-                  <SelectItem value="live">Live</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <p className={helpCls}>Use the credentials from your {formMode === 'live' ? 'Live' : 'Sandbox'} REST app in the PayPal Developer dashboard.</p>
+            <SaveBar saving={saving} onSave={save} mode={formMode} />
           </CardContent>
         </Card>
       )}
 
       {active === 'midtrans' && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
             <CardTitle className="text-base">Midtrans credentials</CardTitle>
+            <ModeTabs value={formMode} onChange={setFormMode} />
           </CardHeader>
           <CardContent>
           {showActive('midtrans')?.status === 'active' && (
             <div className="mb-5 grid grid-cols-2 gap-5 sm:grid-cols-4">
               <Kv label="Status" value="Active" />
-              <Kv label="Environment" value={(showActive('midtrans')?.publicConfig as { env?: string } | null)?.env ?? '—'} />
+              <Kv label="Environment" value={formMode === 'live' ? 'production' : 'sandbox'} />
               <Kv label="Merchant ID" value={(showActive('midtrans')?.publicConfig as { merchantId?: string } | null)?.merchantId ?? '—'} mono />
               <Kv label="Server key" value={showActive('midtrans')?.secretKeyLast4 ? `… ${showActive('midtrans')!.secretKeyLast4}` : '—'} mono />
             </div>
@@ -399,17 +428,19 @@ export default function ProvidersSettingsPage() {
                 id="mt-server"
                 type="password"
                 placeholder={
-                  showActive('midtrans')?.status === 'active' ? 'Enter a new key to rotate' : 'SB-Mid-server-… or Mid-server-…'
+                  showActive('midtrans')?.status === 'active'
+                    ? 'Enter a new key to rotate'
+                    : formMode === 'live' ? 'Mid-server-…' : 'SB-Mid-server-…'
                 }
                 value={midtransServerKey}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setMidtransServerKey(v);
-                  if (v.startsWith('SB-')) setMidtransEnv('sandbox');
-                  else if (v.startsWith('Mid-server-')) setMidtransEnv('production');
-                }}
+                onChange={(e) => setMidtransServerKey(e.target.value)}
               />
               <p className={helpCls}>Settings → Access Keys → Server Key in the Midtrans dashboard.</p>
+              {midtransPrefixWarning && (
+                <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-amber-600">
+                  <AlertTriangle className="h-3.5 w-3.5" /> {midtransPrefixWarning}
+                </p>
+              )}
             </div>
             <div>
               <Label htmlFor="mt-client" className={labelCls}>
@@ -417,7 +448,7 @@ export default function ProvidersSettingsPage() {
               </Label>
               <Input
                 id="mt-client"
-                placeholder="SB-Mid-client-… or Mid-client-…"
+                placeholder={formMode === 'live' ? 'Mid-client-…' : 'SB-Mid-client-…'}
                 value={midtransClientKey}
                 onChange={(e) => setMidtransClientKey(e.target.value)}
               />
@@ -433,18 +464,7 @@ export default function ProvidersSettingsPage() {
                 onChange={(e) => setMidtransMerchantId(e.target.value)}
               />
             </div>
-            <div>
-              <Label htmlFor="mt-env" className={labelCls}>Environment</Label>
-              <Select value={midtransEnv} onValueChange={(v) => setMidtransEnv(v as 'sandbox' | 'production')}>
-                <SelectTrigger id="mt-env" className="h-9 w-40 capitalize">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sandbox">Sandbox</SelectItem>
-                  <SelectItem value="production">Production</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <SaveBar saving={saving} onSave={save} mode={formMode} />
           </div>
         </CardContent>
         </Card>
@@ -452,8 +472,9 @@ export default function ProvidersSettingsPage() {
 
       {active === 'manual' && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
             <CardTitle className="text-base">Offline & manual payments</CardTitle>
+            <ModeTabs value={formMode} onChange={setFormMode} />
           </CardHeader>
           <CardContent>
           <p className="mb-5 max-w-[68ch] text-sm text-muted-foreground">
@@ -527,20 +548,42 @@ export default function ProvidersSettingsPage() {
             </div>
 
             <div>
-              <Label htmlFor="manual-qr" className={labelCls}>Static QRIS image URL</Label>
-              <div className="flex items-start gap-3">
-                {manualStaticQrUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={manualStaticQrUrl} alt="" className="h-16 w-16 rounded border border-border object-cover" />
-                )}
-                <Input
-                  id="manual-qr"
-                  placeholder="https://cdn.example.com/qris.png"
-                  value={manualStaticQrUrl}
-                  onChange={(e) => setManualStaticQrUrl(e.target.value)}
-                />
-              </div>
-              <p className={helpCls}>Optional. Use this when you have a printed QRIS from your bank and want to reuse it.</p>
+              <Label className={labelCls}>Static QRIS image</Label>
+              {manualStaticQrUrl ? (
+                <div className="flex items-start gap-3 rounded-md border border-border p-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={manualStaticQrUrl} alt="" className="h-20 w-20 rounded border border-border object-cover" />
+                  <div className="min-w-0 flex-1 text-xs">
+                    <p className="break-all font-mono text-muted-foreground">{manualStaticQrUrl}</p>
+                    <Button type="button" variant="link" onClick={() => setManualStaticQrUrl('')} className="h-auto p-0 text-destructive">Remove</Button>
+                  </div>
+                </div>
+              ) : (
+                <label className={'flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-4 py-5 text-center text-xs text-muted-foreground hover:bg-accent/40 ' + (manualQrUploading ? 'opacity-60' : '')}>
+                  {manualQrUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+                  {manualQrUploading ? 'Uploading…' : 'Drop a static QRIS image or click to upload'}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setManualQrUploading(true);
+                      try {
+                        const { url } = await plugipaySettingsApi.uploadImage(file);
+                        setManualStaticQrUrl(url);
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Upload failed');
+                      } finally {
+                        setManualQrUploading(false);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                </label>
+              )}
+              <p className={helpCls}>Optional. PNG, JPG, or WEBP up to 5 MB. Upload the QRIS, then click Save.</p>
             </div>
 
             <div>
@@ -553,10 +596,33 @@ export default function ProvidersSettingsPage() {
               />
               <p className={helpCls}>Shown above the bank details on the hosted page. Keep it short.</p>
             </div>
+            <SaveBar saving={saving} onSave={save} mode={formMode} />
           </div>
         </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+function ModeTabs({ value, onChange }: { value: FormMode; onChange: (mode: FormMode) => void }) {
+  return (
+    <Tabs value={value} onValueChange={(next) => onChange(next as FormMode)}>
+      <TabsList className="h-8">
+        <TabsTrigger value="sandbox" className="gap-1.5 text-xs"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" />Sandbox</TabsTrigger>
+        <TabsTrigger value="live" className="gap-1.5 text-xs"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Live</TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
+}
+
+function SaveBar({ saving, onSave, mode }: { saving: boolean; onSave: () => void; mode: FormMode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+      <p className="text-xs text-muted-foreground">Saving to <span className="font-medium text-foreground">{mode === 'live' ? 'Live' : 'Sandbox'}</span> credentials.</p>
+      <Button type="button" onClick={onSave} disabled={saving}>
+        {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save changes
+      </Button>
     </div>
   );
 }

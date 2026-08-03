@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, ExternalLink, RefreshCw, CheckCircle2, Loader2 } from 'lucide-react';
 import { checkoutSessionsApi, CheckoutSession } from '@/lib/payments-api';
-import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { formatCurrency, formatDate, formatPaymentMethod, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -126,34 +126,46 @@ export default function PaymentDetailPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Session</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <Kv label="ID" value={session.id} mono />
-          {session.mode && <Kv label="Mode" value={session.mode} />}
-          <Kv label="Customer" value={session.customerId ?? '—'} mono />
-          <Kv label="Payment ID" value={session.paymentId ?? '—'} mono />
-          <Kv label="Created" value={formatDate(session.createdAt)} />
-          {session.expiresAt && <Kv label="Expires" value={formatDate(session.expiresAt)} />}
-          {session.completedAt && (
-            <Kv label="Completed" value={new Date(session.completedAt).toLocaleString()} />
-          )}
-          {session.hostedUrl && (
-            <div className="pt-2 text-xs">
-              <a
-                href={session.hostedUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-primary hover:underline"
-              >
-                Hosted checkout <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle className="text-base">Customer</CardTitle></CardHeader>
+          <CardContent>
+            {session.customer ? (
+              <div className="space-y-2 text-sm">
+                <Kv label="Name" value={session.customer.name ?? '—'} />
+                <Kv label="Email" value={session.customer.email ?? '—'} />
+                <Kv label="Phone" value={session.customer.phone ?? '—'} />
+                <Kv label="External ID" value={session.customer.externalId ?? '—'} mono />
+                <Kv label="Customer ID" value={session.customer.id} mono />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No customer is attached to this checkout session.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Session</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Kv label="ID" value={session.id} mono />
+            <Kv label="Workspace" value={session.workspaceName ?? 'Workspace'} />
+            {session.mode && <Kv label="Mode" value={session.mode} />}
+            <Kv label="Payment method" value={formatPaymentMethod(session.paymentMethod)} />
+            <Kv label="Provider / adapter" value={session.adapter ?? '—'} />
+            <Kv label="Payment ID" value={session.paymentId ?? '—'} mono />
+            <Kv label="Created" value={formatDate(session.createdAt)} />
+            {session.expiresAt && <Kv label="Expires" value={formatDate(session.expiresAt)} />}
+            {session.completedAt && <Kv label="Completed" value={new Date(session.completedAt).toLocaleString()} />}
+            {session.hostedUrl && (
+              <div className="pt-2 text-xs">
+                <a href={session.hostedUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                  Hosted checkout <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -38,3 +38,21 @@ export function formatDate(date: string | Date): string {
     day: 'numeric',
   }).format(new Date(date));
 }
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  qris: 'QRIS',
+  va: 'Virtual account',
+  ewallet: 'E-wallet',
+  card: 'Card',
+  retail: 'Retail outlet',
+  paypal: 'PayPal',
+  bank_transfer_manual: 'Bank transfer',
+  static_qris: 'Static QRIS',
+  cash: 'Cash',
+  edc_card: 'EDC card',
+};
+
+export function formatPaymentMethod(method: string | null | undefined): string {
+  if (!method) return '—';
+  return PAYMENT_METHOD_LABELS[method] ?? method.replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
+}

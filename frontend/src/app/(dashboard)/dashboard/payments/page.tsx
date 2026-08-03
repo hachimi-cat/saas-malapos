@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { checkoutSessionsApi, CheckoutSession } from '@/lib/payments-api';
-import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { formatCurrency, formatDate, formatPaymentMethod, cn } from '@/lib/utils';
 import { Plus, ExternalLink, Loader2, Copy, Check } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
@@ -197,12 +197,29 @@ export default function PaymentsPage() {
       header: 'ID',
       sortable: true,
       sortValue: (r) => r.id,
-      searchValue: (r) => `${r.id} ${r.description ?? ''}`,
+      searchValue: (r) => `${r.id} ${r.description ?? ''} ${r.customer?.name ?? ''} ${r.customer?.email ?? ''} ${r.workspaceName ?? ''}`,
       cell: (r) => (
         <Link href={`/dashboard/payments/${r.id}`} className="font-mono text-primary hover:underline">
           {r.id}
         </Link>
       ),
+    },
+    {
+      key: 'customer',
+      header: 'Customer',
+      cell: (r) => (
+        <div>
+          <div className="font-medium">{r.customer?.name ?? r.customer?.email ?? 'No customer attached'}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {r.customer?.name && r.customer.email ? r.customer.email : r.customerId ?? 'Guest checkout'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'workspaceName',
+      header: 'Workspace',
+      cell: (r) => <span>{r.workspaceName ?? 'Workspace'}</span>,
     },
     {
       key: 'amount',
@@ -233,6 +250,18 @@ export default function PaymentsPage() {
           {r.status}
         </Badge>
       ),
+    },
+    {
+      key: 'paymentMethod',
+      header: 'Payment method',
+      sortable: true,
+      sortValue: (r) => r.paymentMethod ?? '',
+      cell: (r) => <span>{formatPaymentMethod(r.paymentMethod)}</span>,
+    },
+    {
+      key: 'adapter',
+      header: 'Provider',
+      cell: (r) => <span className="capitalize text-muted-foreground">{r.adapter ?? '—'}</span>,
     },
     {
       key: 'createdAt',

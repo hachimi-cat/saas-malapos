@@ -4,6 +4,7 @@ import { sendOk } from '../../lib/http.js';
 import { h as asyncHandler } from '../../lib/async-handler.js';
 import { requireMerchantClient, handlePlugipayError } from '../../services/plugipay-proxy.js';
 import { streamFromPlugipay } from '../../services/plugipay-raw-proxy.js';
+import { requestJsonFromPlugipay } from '../../services/plugipay-json-proxy.js';
 
 /*
  * /api/v1/payments/plugipay-settings/<rest> → Plugipay /api/v1/<rest>,
@@ -48,12 +49,21 @@ router.all(
       const idem =
         typeof req.headers['idempotency-key'] === 'string' ? req.headers['idempotency-key'] : undefined;
 
-      const data = await client.request<unknown>({
-        method,
-        path: upstream,
-        body: bodyAllowed ? (req.body ?? {}) : undefined,
-        idempotencyKey: idem,
-      });
+      const requestedMode = req.headers['x-plugipay-mode'];
+      const mode = requestedMode === 'test' || requestedMode === 'live' ? requestedMode : null;
+      const data = mode
+        ? await requestJsonFromPlugipay<unknown>(req.auth!.accountId as string, upstream, {
+            method,
+            body: bodyAllowed ? (req.body ?? {}) : undefined,
+            idempotencyKey: idem,
+            mode,
+          })
+        : await client.request<unknown>({
+            method,
+            path: upstream,
+            body: bodyAllowed ? (req.body ?? {}) : undefined,
+            idempotencyKey: idem,
+          });
       return sendOk(res, req, data);
     } catch (err) {
       return handlePlugipayError(res, req, err, next);

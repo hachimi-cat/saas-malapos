@@ -18,11 +18,13 @@ import { api, apiRequest, type RequestOptions } from './api';
 
 export interface CheckoutSession {
   id: string;
+  workspaceName?: string | null;
   amount: number;
   currency: string;
   description: string | null;
   customerId: string | null;
   customerEmail: string | null;
+  customer?: CheckoutSessionCustomer | null;
   status: 'open' | 'pending' | 'completed' | 'expired' | 'pending_review' | 'canceled' | 'refunded';
   checkoutUrl: string;
   successUrl: string;
@@ -37,6 +39,14 @@ export interface CheckoutSession {
   hostedUrl?: string | null;
   mode?: string;
   paymentId?: string | null;
+}
+
+export interface CheckoutSessionCustomer {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  externalId: string | null;
 }
 
 export interface PlanPrice {

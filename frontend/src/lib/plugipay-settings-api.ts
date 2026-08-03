@@ -79,6 +79,10 @@ export interface ManualBankAccount {
   accountHolder: string;
 }
 
+export type ProviderMode = 'live' | 'test';
+
+const modeOptions = (mode: ProviderMode) => ({ headers: { 'X-Plugipay-Mode': mode } });
+
 export type TemplateKind = 'invoice' | 'receipt' | 'checkout';
 
 export interface TemplateDTO {
@@ -94,19 +98,39 @@ export interface TemplateDTO {
 
 export const plugipaySettingsApi = {
   // Adapters / Providers
-  getAdapters: () => api.get<AdapterConfigMap>(`${PREFIX}/adapters`).then((r) => r.data),
+  getAdapters: (mode: ProviderMode = 'live') =>
+    api.get<AdapterConfigMap>(`${PREFIX}/adapters`, modeOptions(mode)).then((r) => r.data),
 
-  putXendit: (body: { secretKey: string; callbackToken?: string }) =>
-    api.put<AdapterSummary>(`${PREFIX}/adapters/xendit`, body).then((r) => r.data),
+  putXendit: (body: { secretKey: string; callbackToken?: string }, mode: ProviderMode = 'live') =>
+    api.put<AdapterSummary>(`${PREFIX}/adapters/xendit`, body, modeOptions(mode)).then((r) => r.data),
 
-  putPaypal: (body: { clientId: string; secret: string; mode: 'live' | 'sandbox' }) =>
-    api.put<AdapterSummary>(`${PREFIX}/adapters/paypal`, body).then((r) => r.data),
+  putPaypal: (body: { clientId: string; secret: string; mode: 'live' | 'sandbox' }, mode: ProviderMode = 'live') =>
+    api.put<AdapterSummary>(`${PREFIX}/adapters/paypal`, body, modeOptions(mode)).then((r) => r.data),
 
-  putMidtrans: (body: { serverKey: string; clientKey: string; merchantId: string; env: 'sandbox' | 'production' }) =>
-    api.put<AdapterSummary>(`${PREFIX}/adapters/midtrans`, body).then((r) => r.data),
+  putMidtrans: (body: { serverKey: string; clientKey: string; merchantId: string; env: 'sandbox' | 'production' }, mode: ProviderMode = 'live') =>
+    api.put<AdapterSummary>(`${PREFIX}/adapters/midtrans`, body, modeOptions(mode)).then((r) => r.data),
 
-  putManual: (body: { bankAccounts?: ManualBankAccount[]; staticQrImageUrl?: string | null; instructions?: string | null }) =>
-    api.put<AdapterSummary>(`${PREFIX}/adapters/manual`, body).then((r) => r.data),
+  putManual: (body: { bankAccounts?: ManualBankAccount[]; staticQrImageUrl?: string | null; instructions?: string | null }, mode: ProviderMode = 'live') =>
+    api.put<AdapterSummary>(`${PREFIX}/adapters/manual`, body, modeOptions(mode)).then((r) => r.data),
+
+  uploadImage: async (file: File) => {
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      throw new Error('Pick a PNG, JPG, or WEBP image.');
+    }
+    if (file.size > 5 * 1024 * 1024) throw new Error('Image too large — max 5 MB.');
+    const ext = file.name.includes('.') ? file.name.split('.').pop() : undefined;
+    const { data } = await api.post<{ url: string; publicUrl: string; contentType: string }>(
+      '/uploads/sign',
+      { contentType: file.type, ext },
+    );
+    const uploaded = await fetch(data.url, {
+      method: 'PUT',
+      headers: { 'Content-Type': data.contentType, 'x-amz-acl': 'public-read' },
+      body: file,
+    });
+    if (!uploaded.ok) throw new Error(`Upload failed (${uploaded.status})`);
+    return { url: data.publicUrl, fileName: file.name, fileSize: file.size };
+  },
 
   // Managed (Plugipay-operated) provisioning
   getManagedOnboarding: () =>
