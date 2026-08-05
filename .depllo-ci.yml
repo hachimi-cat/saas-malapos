@@ -6,6 +6,12 @@ stages:
   - test
   - build
   - deploy
+# Fallback for any job without its own `timeout:` (today: lint/test-class
+# jobs; heavier jobs all declare one). The engine default is 1h — too
+# loose to be useful: a wedged npm ci held a runner slot for 32 minutes
+# on 2026-08-05 and would have sat there for the full hour.
+default:
+  timeout: 20m
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "push" && ($CI_COMMIT_BRANCH == "main" ||
