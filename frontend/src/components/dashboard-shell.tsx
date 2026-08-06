@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   LifeBuoy,
-  Menu,
   ScanLine,
   Package,
   Boxes,
@@ -62,6 +61,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import {
+  MobileHeader,
   Sidebar,
   readActiveWorkspaceId,
   type PortalWorkspace,
@@ -452,13 +452,19 @@ export function DashboardShell({
         onClose={() => setOpen(false)}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile top bar — the Sidebar drawer has no open trigger of
-            its own, so the host renders one. Hidden on lg+. */}
-        <div className="flex h-14 items-center border-b border-border bg-card px-4 lg:hidden">
-          <button onClick={() => setOpen(true)} aria-label="Open menu" className="text-foreground">
-            <Menu className="h-5 w-5" />
-          </button>
-        </div>
+        {/* Mobile island header (phones) — the workspace-selector pill
+            + round burger that opens the Sidebar drawer. Hidden on lg+. */}
+        <MobileHeader
+          brandSlug={BRAND_SLUG}
+          brandName={BRAND}
+          brandColor={BRAND_COLOR}
+          brandColorSoft={BRAND_COLOR_SOFT}
+          brandIcon={<LogoMark size={20} />}
+          workspacePersist="cookie"
+          workspaces={workspaces}
+          activeWorkspaceId={activeId}
+          onMenuOpen={() => setOpen(true)}
+        />
         <main className="min-w-0 flex-1 p-4 md:p-6">
           {/* Single source of the page content width — every dashboard page
               is centered at the same max-width here, so pages must NOT set
