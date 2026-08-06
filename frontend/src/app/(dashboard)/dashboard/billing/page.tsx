@@ -14,6 +14,7 @@
  * the browser back here with ?status=success|canceled.
  */
 
+import { CreditsSection } from '@/components/catentio/credits-section';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Check } from 'lucide-react';
@@ -325,6 +326,11 @@ function BillingContent() {
             ))}
         </div>
       </section>
+
+      {/* Agent credits — renders only when the catentio pilot flag is on
+          for this user, so the page is unchanged for everyone else. The
+          sidebar chip links here (#credits). */}
+      <CreditsSection />
 
       <p className="text-xs text-muted-foreground">
         Payments are processed by Plugipay (QRIS, virtual account, e-wallet, card). Your outlets,

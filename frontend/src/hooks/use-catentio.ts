@@ -1,0 +1,209 @@
+'use client';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { api, ApiRequestError } from '@/lib/api';
+
+/**
+ * The catentio assistant BFF (backend/src/routes/catentio.ts — the
+ * shared @forjio/catentio-embed router). The browser never talks to
+ * catentio — every call lands on our backend, which owns the key, the
+ * flag gate and the delegation token. Ported from linksnap's
+ * hooks/use-catentio.ts (the reference integration) minus the agentic
+ * sheet's plan transport, which malapos doesn't mount yet.
+ */
+
+/** Fired (window-level) when an assistant chat turn completes — the
+ *  agent writes records directly now, so whatever list page is open
+ *  underneath must refetch or it lies about what just happened. */
+export const ASSISTANT_ACTIVITY_EVENT = 'malapos:assistant-activity';
+
+export function useAssistantActivity(
+  onActivity: () => void | (() => void),
+): void {
+  const ref = useRef(onActivity);
+  ref.current = onActivity;
+  useEffect(() => {
+    // A handler may return a cleanup (e.g. it scheduled a follow-up
+    // timer). Run the previous one before firing again, and on unmount,
+    // so nothing lands after the component is gone.
+    let cleanup: (() => void) | void;
+    const handler = () => {
+      if (typeof cleanup === 'function') cleanup();
+      cleanup = ref.current();
+    };
+    window.addEventListener(ASSISTANT_ACTIVITY_EVENT, handler);
+    return () => {
+      window.removeEventListener(ASSISTANT_ACTIVITY_EVENT, handler);
+      if (typeof cleanup === 'function') cleanup();
+    };
+  }, []);
+}
+
+/** Is the assistant on for this account? Decides whether the entry
+ *  points mount at all; the backend re-checks on every call anyway. */
+export function useCatentioStatus(): { enabled: boolean; loading: boolean } {
+  const [enabled, setEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<{ enabled?: boolean }>('/catentio/status')
+      .then(({ data }) => {
+        if (!cancelled) setEnabled(Boolean(data?.enabled));
+      })
+      .catch(() => {
+        if (!cancelled) setEnabled(false);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { enabled, loading };
+}
+
+/** The workspace's assistant preference: does it apply changes itself
+ *  (true) or propose them for review (false)? The BFF is the authority
+ *  — it scopes the delegation token to match — so this is only for
+ *  rendering the toggle. */
+export function useAssistantSettings(enabled: boolean): {
+  autoApply: boolean;
+  loading: boolean;
+  saving: boolean;
+  error: string | null;
+  setAutoApply: (next: boolean) => Promise<void>;
+} {
+  const [autoApply, setAutoApplyState] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    api
+      .get<{ autoApply?: boolean }>('/catentio/settings')
+      .then(({ data }) => {
+        if (cancelled) return;
+        setAutoApplyState(data?.autoApply !== false);
+      })
+      .catch(() => {
+        /* keep the default; the toggle just shows the safe value */
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+
+  const setAutoApply = useCallback(
+    async (next: boolean) => {
+      setSaving(true);
+      setError(null);
+      const prev = autoApply;
+      setAutoApplyState(next); // optimistic
+      try {
+        await api.patch('/catentio/settings', { autoApply: next });
+      } catch (err) {
+        setAutoApplyState(prev); // roll back — the server refused
+        setError(
+          err instanceof ApiRequestError
+            ? err.message
+            : 'Could not save the assistant setting',
+        );
+        throw err;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [autoApply],
+  );
+
+  return { autoApply, loading, saving, error, setAutoApply };
+}
+
+export interface CreditsLedgerRow {
+  at: string | null;
+  kind: string;
+  credits: number;
+  balance_after_credits: number;
+  product: string | null;
+  surface: string | null;
+  run_id: string | null;
+}
+
+export interface CatentioCredits {
+  balance: {
+    subject: string;
+    balance_usd_micros: number;
+    credits: number;
+    monthly_grant_credits?: number;
+    /** Agent spend since the UTC month start, aggregated server-side. */
+    used_this_period_credits?: number;
+    period_start?: string;
+  };
+  ledger: CreditsLedgerRow[];
+}
+
+/** The user's Forjio-wide agent-credit balance + recent ledger. Only
+ *  fetched when the assistant flag is on (`enabled`); refresh() is for
+ *  after a run lands, so the sidebar chip moves. */
+export function useCatentioCredits(enabled: boolean): {
+  credits: CatentioCredits | null;
+  loading: boolean;
+  refresh: () => void;
+} {
+  const [credits, setCredits] = useState<CatentioCredits | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [nonce, setNonce] = useState(0);
+
+  useEffect(() => {
+    if (!enabled) {
+      setCredits(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    api
+      .get<CatentioCredits>('/catentio/credits')
+      .then(({ data }) => {
+        if (!cancelled) setCredits(data);
+      })
+      .catch(() => {
+        if (!cancelled) setCredits(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, nonce]);
+
+  return { credits, loading, refresh: () => setNonce((n) => n + 1) };
+}
+
+export type CreditsPack = '500' | '1200' | '2600';
+
+/** Start a credit-pack top-up. Resolves with the hosted-checkout URL to
+ *  send the browser to, or noop:true when billing runs in internal mode
+ *  (staging) and there is nothing to pay. */
+export async function startCreditsTopup(
+  pack: CreditsPack,
+): Promise<{ checkoutUrl: string | null; noop: boolean; credits: number }> {
+  const { data } = await api.post<{
+    checkoutUrl: string | null;
+    noop: boolean;
+    credits: number;
+  }>('/catentio/credits/topup', { pack });
+  return data;
+}

@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@forjio/admin-ui": "^0.4.0",
+    "@forjio/agent-ui": "^0.12.1",
     "@forjio/auth-ui": "^0.7.0",
     "@forjio/portal-ui": "^0.8.1",
     "@forjio/sdk": "^0.9.0",

@@ -64,6 +64,7 @@ import kdsRouter from './kds.js';
 import eventsRouter from './events.js';
 import auditLogRouter from './audit-log.js';
 import uploadsRouter from './uploads.js';
+import catentioRouter from './catentio.js';
 
 /**
  * Route factory. Ported from saas-plugipay.
@@ -140,6 +141,10 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
 
   // ── Malapos POS domain (all behind the Huudis session / Bearer auth) ──
   router.use('/outlets', requireAuth, outletsRouter);
+  // The embedded catentio assistant's BFF. Carries its own auth inside
+  // the package router; delegated agent runs are refused here by name
+  // (middleware/auth.ts) so a run cannot drive its own BFF recursively.
+  router.use('/catentio', catentioRouter);
   router.use('/categories', requireAuth, categoriesRouter);
   router.use('/products', requireAuth, productsRouter);
   router.use('/modifiers', requireAuth, modifiersRouter);

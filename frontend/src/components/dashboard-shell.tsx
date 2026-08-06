@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -78,6 +78,12 @@ import {
   isMarketingGatedPath,
 } from '@/hooks/use-modules';
 import { useBusinessType } from '@/hooks/use-business-type';
+import {
+  useAssistantActivity,
+  useCatentioCredits,
+  useCatentioStatus,
+} from '@/hooks/use-catentio';
+import { CatentioDockedChat } from '@/components/catentio/docked-chat';
 
 /*
  * Dashboard shell — the authenticated portal chrome. `@forjio/portal-ui`
@@ -309,6 +315,51 @@ export function DashboardShell({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+
+  // Embedded catentio assistant — flag-gated per user; flag off =
+  // sidebar + column unchanged. The chip math is linksnap's
+  // (credits-meter-must-read-plan-limit-not-ledger): fill = consumed
+  // share of the LARGER of the monthly grant and everything the wallet
+  // actually had this period, so a seeded/topped-up wallet never reads
+  // "94% used" beside a four-figure balance.
+  const { enabled: assistantEnabled } = useCatentioStatus();
+  const { credits, refresh: refreshCredits } = useCatentioCredits(assistantEnabled);
+  // A run that just finished has already been billed — the chip must
+  // show it without a reload. Refresh immediately AND once more shortly
+  // after, in case our read beat the meter's write.
+  useAssistantActivity(() => {
+    refreshCredits();
+    const timer = setTimeout(refreshCredits, 2500);
+    return () => clearTimeout(timer);
+  });
+  const chipCredits = useMemo(() => {
+    if (!credits) return null;
+    const balance = credits.balance.credits;
+    const period = new Date().toISOString().slice(0, 7);
+    const used =
+      credits.balance.used_this_period_credits ??
+      credits.ledger
+        .filter(
+          (r) =>
+            r.kind === 'embedded_agent_usage' &&
+            r.credits < 0 &&
+            (r.at ?? '').slice(0, 7) === period,
+        )
+        .reduce((a, r) => a + -r.credits, 0);
+    const grant = credits.balance.monthly_grant_credits ?? 0;
+    const limit = Math.max(grant, Math.max(balance, 0) + used);
+    const now = new Date();
+    const reset = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const date = reset.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const time = reset.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return {
+      credits: balance,
+      grantCredits: limit,
+      usedFraction: limit > 0 ? Math.min(1, used / limit) : 0,
+      caption: `Resets ${date}, ${time}`,
+      href: '/dashboard/billing#credits',
+    };
+  }, [credits]);
   const router = useRouter();
   const pathname = usePathname();
   const { modules, loading: modulesLoading } = useModules();
@@ -434,7 +485,12 @@ export function DashboardShell({
       (isMarketingGatedPath(pathname) && modules.marketing !== true));
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    // h-dvh + overflow-hidden, NOT minHeight 100vh: the docked assistant
+    // anchors to the content column, so the column has to be exactly
+    // viewport height or the dock lands below the fold on any page taller
+    // than the screen. Scrolling moves into <main>. linksnap is the
+    // reference; storlaunch measured the bug (top 730 in a 720 viewport).
+    <div className="flex h-dvh overflow-hidden">
       <Sidebar
         brandSlug={BRAND_SLUG}
         brandName={BRAND}
@@ -445,13 +501,14 @@ export function DashboardShell({
         workspaces={workspaces}
         activeWorkspaceId={activeId}
         sections={sections}
+        credits={chipCredits}
         dropdownLinks={DROPDOWN_LINKS}
         user={user}
         onLogout={logout}
         open={open}
         onClose={() => setOpen(false)}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Mobile island header (phones) — the workspace-selector pill
             + round burger that opens the Sidebar drawer. Hidden on lg+. */}
         <MobileHeader

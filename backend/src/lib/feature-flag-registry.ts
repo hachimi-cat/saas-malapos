@@ -50,6 +50,14 @@ export async function registerFeatureFlags(): Promise<void> {
  * has to remember to add the gate afterwards. Delete this helper if the
  * pilot is abandoned; do not leave it here reading a flag nobody flips.
  */
-export function catentioPilotEnabled(huudisUserId: string | null | undefined): Promise<boolean> {
-  return isEnabled(CATENTIO_PILOT_FLAG, huudisUserId ?? null);
+export async function catentioPilotEnabled(
+  huudisUserId: string | null | undefined,
+  email?: string | null,
+): Promise<boolean> {
+  if (await isEnabled(CATENTIO_PILOT_FLAG, huudisUserId ?? null)) return true;
+  // The email is tried as a second allowlist subject (linksnap lesson,
+  // 2026-08-05): `usr_…` ids are per-Huudis-instance — staging mints
+  // different ids for the same person, so an id-only check quietly
+  // excludes the pilot accounts everywhere but prod.
+  return !!email && isEnabled(CATENTIO_PILOT_FLAG, email);
 }

@@ -987,3 +987,18 @@ model FeatureFlagAudit {
   @@index([key, at])
   @@map("feature_flag_audits")
 }
+
+/// Per-workspace settings for the embedded catentio assistant. Absent
+/// row = auto-apply ON, matching every other product in the family
+/// (review mode is the opt-in, not the default).
+model AssistantSettings {
+  accountId String   @id
+  /// May the assistant apply changes itself (true) or does it propose
+  /// them as review cards (false)? Mirrored into the delegation
+  /// token's write scope on every chat dispatch.
+  autoApply Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("assistant_settings")
+}

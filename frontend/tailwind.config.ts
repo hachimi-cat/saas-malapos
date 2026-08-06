@@ -18,6 +18,9 @@ const config: Config = {
     // admin-ui ships the four mandatory admin-portal pages. Without this
     // glob their cards, health rows and flag table render unstyled.
     './node_modules/@forjio/admin-ui/dist/**/*.{js,cjs}',
+    // agent-ui ships the docked chat (the embedded catentio layer).
+    // Without this glob the composer and message list render unstyled.
+    './node_modules/@forjio/agent-ui/dist/**/*.{js,cjs}',
   ],
   theme: {
   	extend: {

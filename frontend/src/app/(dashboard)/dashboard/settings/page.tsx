@@ -1,5 +1,6 @@
 'use client';
 
+import { AssistantSection } from '@/components/catentio/assistant-section';
 import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Check, User, ShieldCheck, Cpu, UserX } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
@@ -65,6 +66,10 @@ export default function SettingsPage() {
 
       <BusinessSection />
       <ProfileSection />
+
+      {/* Assistant — renders only when the catentio pilot flag is on for
+          this user, so the page is unchanged for everyone else. */}
+      <AssistantSection />
       <SecuritySection />
       <PortalSection />
       <DeleteAccountSection />

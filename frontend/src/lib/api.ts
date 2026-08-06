@@ -48,6 +48,12 @@ const BASE_URL = (
 
 const API_PREFIX = '/api/v1';
 
+/** Absolute URL for a path — used by callers that bypass apiRequest
+ *  (the assistant's multipart upload). */
+export function apiUrl(path: string): string {
+  return `${BASE_URL}${API_PREFIX}${path}`;
+}
+
 export type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
   body?: unknown;
