@@ -522,7 +522,17 @@ export function DashboardShell({
           activeWorkspaceId={activeId}
           onMenuOpen={() => setOpen(true)}
         />
-        <main className="min-w-0 flex-1 p-4 md:p-6">
+        {/* `overflow-y-auto` is load-bearing, not decoration: the column
+            above is `overflow-hidden` so the dock can anchor to the
+            viewport-height column instead of the page. Without a scroller
+            here, anything taller than the viewport is CLIPPED rather than
+            scrolled. The pb reserve keeps the last row clear of the
+            resting dock. */}
+        <main
+          className={`min-w-0 flex-1 overflow-y-auto p-4 md:p-6 ${
+            assistantEnabled ? 'pb-52 md:pb-52' : ''
+          }`}
+        >
           {/* Single source of the page content width — every dashboard page
               is centered at the same max-width here, so pages must NOT set
               their own `mx-auto max-w-*` root container (would double-constrain
@@ -535,6 +545,12 @@ export function DashboardShell({
             <div className="mx-auto w-full max-w-6xl">{children}</div>
           )}
         </main>
+        {/* Embedded catentio agent — the docked chat. Inside the content
+            column so it centers on the CONTENT (sidebar excluded).
+            Renders nothing unless the pilot flag says so (the backend
+            re-checks anyway). This was imported but never mounted, which
+            is why the assistant was invisible on malapos. */}
+        <CatentioDockedChat />
       </div>
     </div>
   );
