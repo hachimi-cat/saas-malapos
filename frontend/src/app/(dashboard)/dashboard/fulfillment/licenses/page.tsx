@@ -7,6 +7,7 @@ import { ApiRequestError } from '@/lib/api';
 import { formatDate, cn } from '@/lib/utils';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -282,15 +283,15 @@ export default function LicensesPage() {
     <div className="space-y-6">
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">License Keys</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Issue and manage license keys for your products.</p>
-        </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4" /> Issue key
-        </Button>
-      </div>
+      <PageHeader
+        title="License Keys"
+        description="Issue and manage license keys for your products."
+        action={
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="h-4 w-4" /> Issue key
+          </Button>
+        }
+      />
 
       {loading ? (
         <Card className="flex h-48 items-center justify-center">

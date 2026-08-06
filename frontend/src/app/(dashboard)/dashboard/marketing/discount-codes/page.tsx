@@ -7,6 +7,7 @@ import { ProductMultiSelect } from '@/components/ui/product-multi-select';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { Loader2, Plus, Ticket, Pencil, Trash2, CheckCircle2, Clock, Eye, EyeOff } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -256,18 +257,20 @@ export default function DiscountCodesPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Discount codes</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+      <PageHeader
+        title="Discount codes"
+        description={
+          <>
             Promo codes for buyers. Redemptions post to the ledger as a promotion-cost debit, so
             P&amp;L shows discount expense separately.
-          </p>
-        </div>
-        <Button onClick={() => setEditing('new')} className="shrink-0">
-          <Plus className="h-3.5 w-3.5" /> New code
-        </Button>
-      </header>
+          </>
+        }
+        action={
+          <Button onClick={() => setEditing('new')} className="shrink-0">
+            <Plus className="h-3.5 w-3.5" /> New code
+          </Button>
+        }
+      />
 
       {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 

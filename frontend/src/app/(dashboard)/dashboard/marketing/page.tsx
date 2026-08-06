@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -149,27 +150,25 @@ export default function MarketingPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Marketing</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Discount codes for your customers. Powered by Ripllo.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link href="/dashboard/marketing/loyalty">
-              <Gift className="h-4 w-4" /> Loyalty
-            </Link>
-          </Button>
-          <Button variant="outline" onClick={() => void load()}>
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </Button>
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4" /> New code
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Marketing"
+        description="Discount codes for your customers. Powered by Ripllo."
+        action={
+          <>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/marketing/loyalty">
+                <Gift className="h-4 w-4" /> Loyalty
+              </Link>
+            </Button>
+            <Button variant="outline" onClick={() => void load()}>
+              <RefreshCw className="h-4 w-4" /> Refresh
+            </Button>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" /> New code
+            </Button>
+          </>
+        }
+      />
 
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Package, AlertTriangle, Plus, Minus, Check, X, CalendarClock } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -155,24 +156,22 @@ export default function InventoryPage() {
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Inventory</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            On-hand stock, reorder points and expiry tracking per outlet.
-          </p>
-        </div>
-        <Select value={outletId} onValueChange={setOutletId}>
-          <SelectTrigger className="w-auto min-w-[12rem]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {outlets.map((o) => (
-              <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <PageHeader
+        title="Inventory"
+        description="On-hand stock, reorder points and expiry tracking per outlet."
+        action={
+          <Select value={outletId} onValueChange={setOutletId}>
+            <SelectTrigger className="w-auto min-w-[12rem]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {outlets.map((o) => (
+                <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       <div className="mb-3 flex items-center justify-between">
         <Label className="flex cursor-pointer select-none items-center gap-2 text-sm font-normal">

@@ -11,6 +11,7 @@ import {
   Megaphone,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -115,14 +116,10 @@ export default function ModulesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Modules</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Turn Forjio partner modules on or off. Each module connects Malapos to another Forjio
-          product, has its own usage pricing, and is billed through your Malapos subscription
-          invoice.
-        </p>
-      </div>
+      <PageHeader
+        title="Modules"
+        description="Turn Forjio partner modules on or off. Each module connects Malapos to another Forjio product, has its own usage pricing, and is billed through your Malapos subscription invoice."
+      />
 
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">

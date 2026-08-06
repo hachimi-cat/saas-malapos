@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Plus, X, Pencil, Trash2, SlidersHorizontal } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { PageHeader } from '@/components/dashboard/page-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -89,18 +90,20 @@ export default function ModifiersPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Modifiers</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+      <PageHeader
+        title="Modifiers"
+        description={
+          <>
             Build customization groups (e.g. sugar level, extra shot), then attach them to
             products from the product form&apos;s Customization section.
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" /> New group
-        </Button>
-      </div>
+          </>
+        }
+        action={
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" /> New group
+          </Button>
+        }
+      />
 
       <div className="mt-5 space-y-4">
         {groups.map((g) => (

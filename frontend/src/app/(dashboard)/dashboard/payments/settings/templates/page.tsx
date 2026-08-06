@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -163,14 +164,16 @@ export default function TemplatesPage() {
         <span className="text-foreground">Templates</span>
       </nav>
 
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Templates</h1>
-        <p className="mt-1 max-w-[62ch] text-sm text-muted-foreground">
-          Checkout pages, receipts, and invoices — build multiple templates per kind and switch the default
-          anytime. A mistake in the live template? Keep an old one around and flip the default back in one
-          click.
-        </p>
-      </div>
+      <PageHeader
+        title="Templates"
+        description={
+          <span className="block max-w-[62ch]">
+            Checkout pages, receipts, and invoices — build multiple templates per kind and switch the default
+            anytime. A mistake in the live template? Keep an old one around and flip the default back in one
+            click.
+          </span>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
         <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />

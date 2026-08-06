@@ -6,6 +6,7 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import Link from 'next/link';
 import { Loader2, Download, ExternalLink } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -156,17 +157,15 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Invoices</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            All billing invoices with PDF download
-          </p>
-        </div>
-        <Button type="button" variant="outline" onClick={exportCsv}>
-          <Download className="h-3.5 w-3.5" /> Export CSV
-        </Button>
-      </div>
+      <PageHeader
+        title="Invoices"
+        description="All billing invoices with PDF download"
+        action={
+          <Button type="button" variant="outline" onClick={exportCsv}>
+            <Download className="h-3.5 w-3.5" /> Export CSV
+          </Button>
+        }
+      />
 
       {loading ? (
         <Card className="flex h-48 items-center justify-center">

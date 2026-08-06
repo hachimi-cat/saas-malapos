@@ -7,6 +7,7 @@ import { ApiRequestError } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -125,10 +126,10 @@ export default function DeliveriesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Digital deliveries</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Track digital product deliveries to customers.</p>
-      </div>
+      <PageHeader
+        title="Digital deliveries"
+        description="Track digital product deliveries to customers."
+      />
 
       {loading ? (
         <Card className="flex h-48 items-center justify-center">

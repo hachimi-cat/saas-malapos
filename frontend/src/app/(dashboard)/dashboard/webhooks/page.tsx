@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiRequestError } from '@/lib/api';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -103,15 +104,11 @@ export default function WebhooksPage() {
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Webhooks</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Get an HTTPS POST whenever something happens to your sales or subscription.
-          </p>
-        </div>
-        <Button onClick={() => setShowAdd(true)}>Add endpoint</Button>
-      </header>
+      <PageHeader
+        title="Webhooks"
+        description="Get an HTTPS POST whenever something happens to your sales or subscription."
+        action={<Button onClick={() => setShowAdd(true)}>Add endpoint</Button>}
+      />
 
       {error && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">

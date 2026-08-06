@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Megaphone, Loader2, Gift, ExternalLink, Search } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,12 +106,10 @@ export default function LoyaltyPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Loyalty program</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Points-based rewards for your customers. Powered by Ripllo.
-        </p>
-      </div>
+      <PageHeader
+        title="Loyalty program"
+        description="Points-based rewards for your customers. Powered by Ripllo."
+      />
 
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">

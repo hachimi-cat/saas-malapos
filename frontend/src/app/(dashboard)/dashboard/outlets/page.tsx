@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Store } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { PageHeader } from '@/components/dashboard/page-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -130,17 +131,15 @@ export default function OutletsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Outlets</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your stores and their tax, timezone, and receipt settings.
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" /> Add outlet
-        </Button>
-      </div>
+      <PageHeader
+        title="Outlets"
+        description="Your stores and their tax, timezone, and receipt settings."
+        action={
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" /> Add outlet
+          </Button>
+        }
+      />
 
       {outlets.length === 0 ? (
         <Card className="p-12 text-center">

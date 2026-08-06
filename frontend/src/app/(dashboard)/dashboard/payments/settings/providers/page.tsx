@@ -9,6 +9,7 @@ import {
   type ManagedOnboardingDTO,
   type ManualBankAccount,
 } from '@/lib/plugipay-settings-api';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -262,14 +263,14 @@ export default function ProvidersSettingsPage() {
         <span className="text-foreground">Providers</span>
       </nav>
 
-      <div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Payment providers</h1>
-          <p className="mt-1 max-w-[62ch] text-sm text-muted-foreground">
+      <PageHeader
+        title="Payment providers"
+        description={
+          <span className="block max-w-[62ch]">
             Pick how you want to process payments. Each provider keeps separate Sandbox and Live credentials — switch the tab inside a provider to edit each set.
-          </p>
-        </div>
-      </div>
+          </span>
+        }
+      />
 
       {error && (
         <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-mono text-destructive">

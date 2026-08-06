@@ -5,6 +5,7 @@ import { abandonedCartApi, discountCodesApi, type AbandonedCartConfig, type Aban
 import { Loader2, Save, MailX, CheckCircle2, Clock, ShoppingBag } from 'lucide-react';
 import { DataTable, type Column } from '@/components/data-table';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -105,13 +106,15 @@ export default function AbandonedCartPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Abandoned cart recovery</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Opt-in reminder emails for buyers who add items and don&apos;t check out. Cron sweeps
-          every 15 minutes. Reminders are sent at most once per cart per 72h, never to opted-out buyers.
-        </p>
-      </header>
+      <PageHeader
+        title="Abandoned cart recovery"
+        description={
+          <>
+            Opt-in reminder emails for buyers who add items and don&apos;t check out. Cron sweeps
+            every 15 minutes. Reminders are sent at most once per cart per 72h, never to opted-out buyers.
+          </>
+        }
+      />
 
       {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
       {success && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400">{success}</div>}

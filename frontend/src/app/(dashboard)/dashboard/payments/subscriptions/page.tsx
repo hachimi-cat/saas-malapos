@@ -7,6 +7,7 @@ import { formatDate, cn } from '@/lib/utils';
 import { Loader2, PauseCircle, PlayCircle, XCircle } from 'lucide-react';
 import { BillingTabs } from '@/components/payment/BillingTabs';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -217,10 +218,10 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Subscriptions</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Manage customer subscription lifecycle</p>
-      </div>
+      <PageHeader
+        title="Subscriptions"
+        description="Manage customer subscription lifecycle"
+      />
 
       <BillingTabs />
 

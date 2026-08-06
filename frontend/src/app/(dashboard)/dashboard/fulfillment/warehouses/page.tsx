@@ -5,6 +5,7 @@ import { Loader2, Plus, Pencil, Trash2, CheckCircle2, AlertCircle, Building2 } f
 import { warehousesApi, type Warehouse } from '@/lib/fulfillment-api';
 import { ApiRequestError } from '@/lib/api';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -60,17 +61,15 @@ export default function WarehousesPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Warehouses</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Where you store + ship from. Each variant tracks stock per warehouse.
-          </p>
-        </div>
-        <Button onClick={() => setEditing('new')}>
-          <Plus className="h-4 w-4" /> Add warehouse
-        </Button>
-      </header>
+      <PageHeader
+        title="Warehouses"
+        description="Where you store + ship from. Each variant tracks stock per warehouse."
+        action={
+          <Button onClick={() => setEditing('new')}>
+            <Plus className="h-4 w-4" /> Add warehouse
+          </Button>
+        }
+      />
 
       {error && (
         <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">

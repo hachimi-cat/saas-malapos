@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { PageHeader } from '@/components/dashboard/page-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -128,18 +129,15 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Categories</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Group your products so the sell screen finds them faster. This order is the order
-            cashiers see on the sell screen.
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" /> Add category
-        </Button>
-      </div>
+      <PageHeader
+        title="Categories"
+        description="Group your products so the sell screen finds them faster. This order is the order cashiers see on the sell screen."
+        action={
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" /> Add category
+          </Button>
+        }
+      />
 
       <Card className="mt-4 overflow-hidden">
         <Table>

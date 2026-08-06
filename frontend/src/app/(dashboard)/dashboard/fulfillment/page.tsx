@@ -14,6 +14,7 @@ import {
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -136,27 +137,25 @@ export default function DeliveryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Fulfillment</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Dispatch sales for delivery and track couriers in real time. Powered by Fulkruma.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link href="/dashboard/fulfillment/settings">
-              <Settings className="h-4 w-4" /> Settings
-            </Link>
-          </Button>
-          <Button type="button" variant="outline" onClick={() => void load()}>
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </Button>
-          <Button type="button" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4" /> New delivery
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Fulfillment"
+        description="Dispatch sales for delivery and track couriers in real time. Powered by Fulkruma."
+        action={
+          <>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/fulfillment/settings">
+                <Settings className="h-4 w-4" /> Settings
+              </Link>
+            </Button>
+            <Button type="button" variant="outline" onClick={() => void load()}>
+              <RefreshCw className="h-4 w-4" /> Refresh
+            </Button>
+            <Button type="button" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" /> New delivery
+            </Button>
+          </>
+        }
+      />
 
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">

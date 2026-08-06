@@ -5,6 +5,7 @@ import { Loader2, Save, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
 import { shippingApi, type ShippingOrigin } from '@/lib/fulfillment-api';
 import { ApiRequestError } from '@/lib/api';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -127,13 +128,10 @@ export default function ShippingSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Shipping</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configure your pickup origin and the couriers enabled for this workspace. Powered by
-          Fulkruma → Biteship.
-        </p>
-      </header>
+      <PageHeader
+        title="Shipping"
+        description="Configure your pickup origin and the couriers enabled for this workspace. Powered by Fulkruma → Biteship."
+      />
 
       {error && (
         <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">

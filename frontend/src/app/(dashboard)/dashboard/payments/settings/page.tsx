@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Wallet, Loader2, ExternalLink, QrCode, CheckCircle2, Settings } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -87,12 +88,10 @@ export default function PaymentSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Payment settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Configure how Malapos collects and settles money through Plugipay.
-        </p>
-      </div>
+      <PageHeader
+        title="Payment settings"
+        description="Configure how Malapos collects and settles money through Plugipay."
+      />
 
       {error && (
         <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>

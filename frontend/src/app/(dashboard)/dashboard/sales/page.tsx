@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Receipt, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -182,10 +183,10 @@ export default function SalesPage() {
 
   return (
     <div>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Sales</h1>
-        <p className="text-sm text-muted-foreground">Every transaction across your outlets. Click a row for the full receipt.</p>
-      </div>
+      <PageHeader
+        title="Sales"
+        description="Every transaction across your outlets. Click a row for the full receipt."
+      />
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
         <Select

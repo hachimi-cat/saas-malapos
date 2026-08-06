@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Truck, Loader2, MapPin, RefreshCw, Settings } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -92,17 +93,15 @@ export default function DeliverySettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Delivery settings</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your pickup origin and the couriers available to your workspace. Powered by Fulkruma.
-          </p>
-        </div>
-        <Button type="button" variant="outline" onClick={() => void load()}>
-          <RefreshCw className="h-4 w-4" /> Refresh
-        </Button>
-      </div>
+      <PageHeader
+        title="Delivery settings"
+        description="Your pickup origin and the couriers available to your workspace. Powered by Fulkruma."
+        action={
+          <Button type="button" variant="outline" onClick={() => void load()}>
+            <RefreshCw className="h-4 w-4" /> Refresh
+          </Button>
+        }
+      />
 
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">

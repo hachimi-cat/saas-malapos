@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -138,17 +139,15 @@ export default function CustomersPage() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Customers</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your customer roster and loyalty points.
-          </p>
-        </div>
-        <Button onClick={() => setAdding(true)}>
-          <Plus className="h-4 w-4" /> Add customer
-        </Button>
-      </div>
+      <PageHeader
+        title="Customers"
+        description="Your customer roster and loyalty points."
+        action={
+          <Button onClick={() => setAdding(true)}>
+            <Plus className="h-4 w-4" /> Add customer
+          </Button>
+        }
+      />
 
       <div className="relative mt-5 w-full max-w-sm">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

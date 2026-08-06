@@ -6,6 +6,7 @@ import { checkoutSessionsApi, CheckoutSession } from '@/lib/payments-api';
 import { formatCurrency, formatDate, formatPaymentMethod, cn } from '@/lib/utils';
 import { Plus, ExternalLink, Loader2, Copy, Check } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -292,15 +293,15 @@ export default function PaymentsPage() {
     <div className="space-y-6">
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={handleCreated} />}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Checkout Sessions</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Manage and create hosted payment sessions</p>
-        </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4" /> New Session
-        </Button>
-      </div>
+      <PageHeader
+        title="Checkout Sessions"
+        description="Manage and create hosted payment sessions"
+        action={
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="h-4 w-4" /> New Session
+          </Button>
+        }
+      />
 
       {loading ? (
         <Card className="flex h-48 items-center justify-center">

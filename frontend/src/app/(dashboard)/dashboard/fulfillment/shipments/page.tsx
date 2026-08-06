@@ -8,6 +8,7 @@ import { api, ApiRequestError } from '@/lib/api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -216,20 +217,20 @@ export default function ShipmentsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Shipments</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Physical orders via Fulkruma → Biteship.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" onClick={() => void reload()}>
-            <RotateCcw className="h-3.5 w-3.5" /> Refresh
-          </Button>
-          <Button type="button" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> New shipment
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        title="Shipments"
+        description="Physical orders via Fulkruma → Biteship."
+        action={
+          <>
+            <Button type="button" variant="outline" onClick={() => void reload()}>
+              <RotateCcw className="h-3.5 w-3.5" /> Refresh
+            </Button>
+            <Button type="button" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-3.5 w-3.5" /> New shipment
+            </Button>
+          </>
+        }
+      />
 
       {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 

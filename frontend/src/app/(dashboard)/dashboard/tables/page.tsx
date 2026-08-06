@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useBusinessType } from '@/hooks/use-business-type';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -306,31 +307,29 @@ export default function TablesPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Tables</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your dine-in floor. Seat orders on a table from the sell screen.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {outlets.length > 1 && (
-            <Select value={outletId} onValueChange={setOutletId}>
-              <SelectTrigger className="w-auto min-w-[10rem]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {outlets.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" /> Add table
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Tables"
+        description="Your dine-in floor. Seat orders on a table from the sell screen."
+        action={
+          <>
+            {outlets.length > 1 && (
+              <Select value={outletId} onValueChange={setOutletId}>
+                <SelectTrigger className="w-auto min-w-[10rem]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {outlets.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="h-4 w-4" /> Add table
+            </Button>
+          </>
+        }
+      />
 
       <FloorSwitcher
         floors={floors}

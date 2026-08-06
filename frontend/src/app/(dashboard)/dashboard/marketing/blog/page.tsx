@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { blogApi, type BlogPost, type BlogPostStatus } from '@/lib/marketing-api';
 import { Loader2, Plus, Search, ExternalLink, FileText } from 'lucide-react';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -46,20 +47,22 @@ export default function BlogListPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Blog</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+      <PageHeader
+        title="Blog"
+        description={
+          <>
             Publish posts to <code className="rounded bg-muted px-1 font-mono text-xs">/s/&lt;your-slug&gt;/blog</code>.
             Markdown body, tags, cover images, SEO fields. Each post auto-indexed in your sitemap + RSS feed.
-          </p>
-        </div>
-        <Button asChild className="shrink-0">
-          <Link href="/dashboard/marketing/blog/new">
-            <Plus className="h-4 w-4" /> New post
-          </Link>
-        </Button>
-      </header>
+          </>
+        }
+        action={
+          <Button asChild className="shrink-0">
+            <Link href="/dashboard/marketing/blog/new">
+              <Plus className="h-4 w-4" /> New post
+            </Link>
+          </Button>
+        }
+      />
 
       {error && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>

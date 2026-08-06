@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Check, User, ShieldCheck, Cpu, UserX } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { APP_VERSION, BUILD_SHA, BUILD_DATE } from '@/lib/version';
+import { PageHeader } from '@/components/dashboard/page-header';
 import {
   Card,
   CardContent,
@@ -57,12 +58,10 @@ const TYPE_OPTIONS: { value: BusinessType; label: string; hint: string }[] = [
 export default function SettingsPage() {
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Your business profile, and your Forjio account.
-        </p>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Your business profile, and your Forjio account."
+      />
 
       <BusinessSection />
       <ProfileSection />

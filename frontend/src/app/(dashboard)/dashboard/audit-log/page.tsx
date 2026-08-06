@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiRequestError } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -123,26 +124,24 @@ export default function AuditLogPage() {
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Audit Log</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Every event your workspace has emitted — sales, voids, billing — newest first.
-          </p>
-        </div>
-        <Select value={type} onValueChange={setType}>
-          <SelectTrigger className="w-56">
-            <SelectValue placeholder="All events" />
-          </SelectTrigger>
-          <SelectContent>
-            {TYPE_FILTERS.map((t) => (
-              <SelectItem key={t.value} value={t.value}>
-                {t.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </header>
+      <PageHeader
+        title="Audit Log"
+        description="Every event your workspace has emitted — sales, voids, billing — newest first."
+        action={
+          <Select value={type} onValueChange={setType}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue placeholder="All events" />
+            </SelectTrigger>
+            <SelectContent>
+              {TYPE_FILTERS.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       {error && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">

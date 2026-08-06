@@ -14,6 +14,7 @@ import {
 import { ApiRequestError } from '@/lib/api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -167,18 +168,20 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Inventory</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+      <PageHeader
+        title="Inventory"
+        description={
+          <>
             Fulkruma warehouse stock per product variant. Separate from your POS stock under{' '}
             <a href="/dashboard/inventory" className="text-primary hover:underline">Catalog → Inventory</a>.
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => void load()}>
-          <RotateCcw className="h-3.5 w-3.5" /> Refresh
-        </Button>
-      </header>
+          </>
+        }
+        action={
+          <Button variant="outline" onClick={() => void load()}>
+            <RotateCcw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+        }
+      />
 
       {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ledgerApi, type LedgerEntry, type LedgerCategory } from '@/lib/payments-api';
 import { Loader2, ArrowDownRight, ArrowUpRight, Download } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
@@ -164,20 +165,15 @@ export default function LedgerPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Ledger</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Signed money log. Every sale, refund, fee, shipping charge, and manual
-            adjustment lands here with a running balance.
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+      <PageHeader
+        title="Ledger"
+        description="Signed money log. Every sale, refund, fee, shipping charge, and manual adjustment lands here with a running balance."
+        action={
           <Button type="button" variant="outline" onClick={exportCsv} className="whitespace-nowrap">
             <Download className="h-3.5 w-3.5" /> Export CSV
           </Button>
-        </div>
-      </header>
+        }
+      />
 
       {error && <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 

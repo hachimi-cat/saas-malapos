@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { TrendingUp, Package, AlertTriangle, BarChart3 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -144,37 +145,37 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Reports</h1>
-          <p className="text-sm text-muted-foreground">Sales performance, payment mix, and stock health.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={outletId || 'all'}
-            onValueChange={(v) => setOutletId(v === 'all' ? '' : v)}
-          >
-            <SelectTrigger className="w-auto min-w-[10rem]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All outlets</SelectItem>
-              {outlets.map((o) => (
-                <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
-            <TabsList>
-              {RANGES.map((r) => (
-                <TabsTrigger key={r.key} value={r.key}>
-                  {r.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-      </div>
+      <PageHeader
+        title="Reports"
+        description="Sales performance, payment mix, and stock health."
+        action={
+          <>
+            <Select
+              value={outletId || 'all'}
+              onValueChange={(v) => setOutletId(v === 'all' ? '' : v)}
+            >
+              <SelectTrigger className="w-auto min-w-[10rem]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All outlets</SelectItem>
+                {outlets.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
+              <TabsList>
+                {RANGES.map((r) => (
+                  <TabsTrigger key={r.key} value={r.key}>
+                    {r.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </>
+        }
+      />
 
       {error && (
         <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">

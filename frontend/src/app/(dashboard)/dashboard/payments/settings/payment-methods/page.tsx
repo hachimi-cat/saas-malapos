@@ -8,6 +8,7 @@ import {
   type CheckoutSettings,
   type PaymentMethodDef,
 } from '@/lib/plugipay-settings-api';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -145,19 +146,21 @@ export default function PaymentMethodsSettingsPage() {
         <span className="text-foreground">Payment methods</span>
       </nav>
 
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Payment methods</h1>
-          <p className="mt-1 max-w-[62ch] text-sm text-muted-foreground">
+      <PageHeader
+        title="Payment methods"
+        description={
+          <span className="block max-w-[62ch]">
             Enable methods, reorder them, and choose which provider handles each one. Only methods
             your connected providers can actually process appear at checkout.
-          </p>
-        </div>
-        <Button type="button" onClick={save} disabled={saving}>
-          {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          Save changes
-        </Button>
-      </div>
+          </span>
+        }
+        action={
+          <Button type="button" onClick={save} disabled={saving}>
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Save changes
+          </Button>
+        }
+      />
 
       {error && (
         <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs font-mono text-destructive">

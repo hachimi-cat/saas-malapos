@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { reportsApi, type PnlReport, type CashFlowReport } from '@/lib/payments-api';
 import { Loader2, Download, TrendingUp, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -105,19 +106,17 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Reports</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            P&L and cash-flow reports derived from the ledger. Export raw entries as CSV for your accountant.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={downloadCsv} disabled={downloading || loading}
-          className="shrink-0 gap-1.5 whitespace-nowrap">
-          {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-          Export CSV
-        </Button>
-      </header>
+      <PageHeader
+        title="Reports"
+        description="P&L and cash-flow reports derived from the ledger. Export raw entries as CSV for your accountant."
+        action={
+          <Button variant="outline" size="sm" onClick={downloadCsv} disabled={downloading || loading}
+            className="shrink-0 gap-1.5 whitespace-nowrap">
+            {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            Export CSV
+          </Button>
+        }
+      />
 
       {error && <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 

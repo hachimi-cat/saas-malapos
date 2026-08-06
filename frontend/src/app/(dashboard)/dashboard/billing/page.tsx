@@ -19,6 +19,7 @@ import { useSearchParams } from 'next/navigation';
 import { Check } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -130,12 +131,10 @@ function BillingContent() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Billing</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          One flat price per workspace, billed in IDR through Plugipay.
-        </p>
-      </header>
+      <PageHeader
+        title="Billing"
+        description="One flat price per workspace, billed in IDR through Plugipay."
+      />
 
       {earlyAccess && (
         <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 text-sm text-foreground">

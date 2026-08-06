@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { plansApi, Plan } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { PageHeader } from '@/components/dashboard/page-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -276,15 +277,15 @@ export default function PlansPage() {
         />
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Subscription Plans</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Create and manage your billing plans</p>
-        </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4" /> New Plan
-        </Button>
-      </div>
+      <PageHeader
+        title="Subscription Plans"
+        description="Create and manage your billing plans"
+        action={
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="h-4 w-4" /> New Plan
+          </Button>
+        }
+      />
 
       {loading ? (
         <Card className="flex h-48 items-center justify-center">

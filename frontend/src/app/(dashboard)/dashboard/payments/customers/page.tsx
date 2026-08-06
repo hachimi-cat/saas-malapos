@@ -7,6 +7,7 @@ import { customersApi, type Customer } from '@/lib/payments-api';
 import { formatDate } from '@/lib/utils';
 import { BillingTabs } from '@/components/payment/BillingTabs';
 import { DataTable, type Column } from '@/components/data-table';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Card } from '@/components/ui/card';
 
 // Payment customers (Plugipay billing identities). malapos has no
@@ -63,13 +64,15 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Customers</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Everyone you&apos;ve billed — online checkouts, subscriptions, and invoices.
-          Open a customer to see their subscriptions and invoice history.
-        </p>
-      </div>
+      <PageHeader
+        title="Customers"
+        description={
+          <>
+            Everyone you&apos;ve billed — online checkouts, subscriptions, and invoices.
+            Open a customer to see their subscriptions and invoice history.
+          </>
+        }
+      />
 
       <BillingTabs />
 

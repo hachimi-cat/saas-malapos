@@ -6,6 +6,7 @@ import { receiptsApi, Receipt } from '@/lib/payments-api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Loader2, CheckCircle2, Mail } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -108,12 +109,10 @@ export default function ReceiptsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Receipts</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Immutable payment receipts issued when a checkout completes or an invoice is paid.
-        </p>
-      </div>
+      <PageHeader
+        title="Receipts"
+        description="Immutable payment receipts issued when a checkout completes or an invoice is paid."
+      />
 
       {loading ? (
         <Card className="flex h-48 items-center justify-center">

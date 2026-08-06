@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { payoutsApi, type Payout, type PayoutStatus, type PayoutBankAccount } from '@/lib/payments-api';
 import { Loader2, Plus, Landmark, AlertCircle, CheckCircle2, Ban, Truck, Hourglass } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { PageHeader } from '@/components/dashboard/page-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -193,21 +194,18 @@ export default function PayoutsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Payouts</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Withdraw funds to your bank. Platform manually wires funds in manual mode — Xendit
-            disbursement auto-transfers once XenPlatform is approved.
-          </p>
-        </div>
-        <Button onClick={() => setShowRequest(true)}
-          disabled={!bank?.configured || (balance?.available ?? 0) <= 0}
-          className="shrink-0"
-          title={!bank?.configured ? 'Set a bank account first' : (balance?.available ?? 0) <= 0 ? 'No available balance' : ''}>
-          <Plus className="h-3.5 w-3.5" /> Request payout
-        </Button>
-      </header>
+      <PageHeader
+        title="Payouts"
+        description="Withdraw funds to your bank. Platform manually wires funds in manual mode — Xendit disbursement auto-transfers once XenPlatform is approved."
+        action={
+          <Button onClick={() => setShowRequest(true)}
+            disabled={!bank?.configured || (balance?.available ?? 0) <= 0}
+            className="shrink-0"
+            title={!bank?.configured ? 'Set a bank account first' : (balance?.available ?? 0) <= 0 ? 'No available balance' : ''}>
+            <Plus className="h-3.5 w-3.5" /> Request payout
+          </Button>
+        }
+      />
 
       {error && <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
 

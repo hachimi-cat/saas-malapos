@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { PageHeader } from '@/components/dashboard/page-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -126,12 +127,10 @@ export default function PurchasingPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Purchasing</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Restock from suppliers — raise purchase orders and receive stock into your outlets.
-        </p>
-      </div>
+      <PageHeader
+        title="Purchasing"
+        description="Restock from suppliers — raise purchase orders and receive stock into your outlets."
+      />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as 'orders' | 'suppliers')}>
         <TabsList className="mb-6">

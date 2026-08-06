@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ScanLine, Receipt, Boxes, Package, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -65,17 +66,17 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Today&apos;s sales at a glance.</p>
-        </div>
-        <Button asChild>
-          <Link href="/dashboard/sell">
-            <ScanLine /> Open sell screen
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Today&apos;s sales at a glance."
+        action={
+          <Button asChild>
+            <Link href="/dashboard/sell">
+              <ScanLine /> Open sell screen
+            </Link>
+          </Button>
+        }
+      />
 
       {hasOutlet === false && (
         <Card className="border-primary/30 bg-primary/5">

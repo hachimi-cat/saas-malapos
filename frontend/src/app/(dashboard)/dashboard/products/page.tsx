@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { Search, Plus, X, Pencil, Trash2, Tag, Upload, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { PageHeader } from '@/components/dashboard/page-header';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -192,17 +193,15 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight font-display">Products</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Manage your catalog — items, services, variants and categories.
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" /> Add product
-        </Button>
-      </div>
+      <PageHeader
+        title="Products"
+        description="Manage your catalog — items, services, variants and categories."
+        action={
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" /> Add product
+          </Button>
+        }
+      />
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <div className="relative w-full max-w-sm">

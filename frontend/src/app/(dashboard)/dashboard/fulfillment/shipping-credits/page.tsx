@@ -16,6 +16,7 @@ import { shippingCreditsApi, type ShippingCreditBalance, type ShippingCreditTran
 import { ApiRequestError } from '@/lib/api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
+import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -97,14 +98,10 @@ export default function ShippingCreditsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight font-display">Shipping Credits</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Prepaid balance used to dispatch couriers via Biteship. Top up here so booking a
-          pickup actually allocates a driver. Each shipment debits this balance based on the
-          courier rate at booking time.
-        </p>
-      </div>
+      <PageHeader
+        title="Shipping Credits"
+        description="Prepaid balance used to dispatch couriers via Biteship. Top up here so booking a pickup actually allocates a driver. Each shipment debits this balance based on the courier rate at booking time."
+      />
 
       <div className="grid gap-4 md:grid-cols-[2fr_3fr]">
         <Card className={cn('p-6', balanceLow && 'border-amber-500/40')}>
