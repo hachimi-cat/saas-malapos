@@ -16,7 +16,7 @@ export function PageHeader({
         {description && <div className="mt-1 text-sm text-muted-foreground">{description}</div>}
       </div>
       {action && (
-        <div className="flex flex-col items-stretch gap-2 max-sm:[&>*]:justify-center sm:flex-row sm:items-center sm:shrink-0">
+        <div className="flex flex-col items-stretch gap-2 max-sm:[&>*]:justify-center max-sm:[&>a>*]:w-full sm:flex-row sm:items-center sm:shrink-0">
           {action}
         </div>
       )}

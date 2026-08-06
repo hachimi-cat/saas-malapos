@@ -204,7 +204,7 @@ export default function AudiencePage() {
         title="Audience"
         description="Your contacts, tags, and lists. The base layer for email + SMS + WA campaigns."
         action={
-          <div className="flex items-center gap-2">
+          <>
             {tab === 'contacts' && (
               <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
                 <Upload size={14} /> Import CSV
@@ -213,7 +213,7 @@ export default function AudiencePage() {
             <Button size="sm" onClick={() => setShowAdd(tab === 'contacts' ? 'contact' : 'list')}>
               <Plus size={14} /> {tab === 'contacts' ? 'Add contact' : 'New list'}
             </Button>
-          </div>
+          </>
         }
       />
 

@@ -167,7 +167,7 @@ export default function FunnelDetailPage() {
         title={funnel.name}
         description={funnel.description ?? `Trigger: ${funnel.triggerKind.replace(/_/g, ' ')}. Edit the step sequence below.`}
         action={
-          <div className="flex items-center gap-2">
+          <>
             <Button asChild variant="outline">
               <Link href={`/dashboard/marketing/funnels/${id}/analytics`}><BarChart3 className="h-4 w-4" /> Analytics</Link>
             </Button>
@@ -179,7 +179,7 @@ export default function FunnelDetailPage() {
             <Button onClick={saveSteps} disabled={saving}>
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-4 w-4" />} Save steps
             </Button>
-          </div>
+          </>
         }
       />
 
