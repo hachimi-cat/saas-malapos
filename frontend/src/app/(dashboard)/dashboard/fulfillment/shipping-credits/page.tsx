@@ -164,7 +164,7 @@ export default function ShippingCreditsPage() {
               onChange={(e) => setAmount(Math.max(10_000, Number(e.target.value) || 0))}
               className="max-w-xs font-mono tabular-nums"
             />
-            <p className="mt-1 text-[10px] text-muted-foreground">Min Rp 10,000 · Max Rp 10,000,000 per top-up.</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">Min Rp 10.000 · Max Rp 10.000.000 per top-up.</p>
           </div>
           {error && (
             <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
