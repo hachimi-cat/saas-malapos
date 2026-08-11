@@ -45,6 +45,23 @@ malapos outlets list      # store locations in your workspace
 malapos products list     # products (with variants) in your workspace
 ```
 
+`malapos products list` takes filters:
+
+```bash
+malapos products list --category <id> --active true --q kopi
+```
+
+### Global flags
+
+Every subcommand accepts:
+
+| Flag | What it does |
+|---|---|
+| `--json` | Machine-readable JSON output |
+| `--profile <name>` | Pick a credential profile in `~/.malapos/credentials` |
+| `--base-url <url>` | Override the API base URL |
+| `--no-color` | Disable ANSI colors |
+
 ### Configuration
 
 The CLI talks to `https://malapos.com` by default. Override it with the
@@ -54,12 +71,18 @@ The CLI talks to `https://malapos.com` by default. Override it with the
 MALAPOS_BASE_URL=https://staging-malapos.forjio.com malapos outlets list
 ```
 
+Two more environment variables tune the device-flow login:
+`MALAPOS_HUUDIS_ISSUER` (default `https://huudis.com`) and
+`MALAPOS_CLI_CLIENT_ID` (default `malapos-cli`).
+
 ## Programmatic access (REST)
 
 For anything beyond the CLI's listers, call the REST API directly with
 a Huudis Bearer token. The full surface — sales, inventory, purchase
 orders, customers, reports, and more — is documented in the
-[API reference](/docs/api-reference).
+[API reference](/docs/api-reference). An `sk_live_…` API key (created
+under **API keys** in the dashboard) works for the same calls — send
+it as `Authorization: Bearer sk_live_…` in place of the token.
 
 ```bash
 curl https://malapos.com/api/v1/outlets \

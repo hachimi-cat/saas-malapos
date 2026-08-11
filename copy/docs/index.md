@@ -28,7 +28,9 @@ You pick a **business type** when you set up (`RETAIL`, `FNB`,
 - **Sell screen** — cart, barcode/search lookup, line and order
   discounts, per-outlet tax (PPN / PB1), and split payments. Cash
   payments calculate change automatically. Payment methods: **cash,
-  QRIS, card, and other** (bank transfer / voucher, recorded as a note).
+  QRIS, virtual account (VA), card, bank transfer, gift card, and
+  other** — bank transfer shows the customer the store account details
+  saved in Settings.
 - **Multi-outlet** — each outlet (store location) has its own stock,
   shifts, tax rate, and sequential receipt numbers. Stock can be
   transferred between outlets.
@@ -62,10 +64,29 @@ You pick a **business type** when you set up (`RETAIL`, `FNB`,
   deduct from stock when it sells.
 - **Gift cards & refunds** — gift cards and store credit work as a
   tender at the till; sales support full and partial refunds.
+- **Split bills** — an open (parked) bill accepts partial payments one
+  tender at a time and completes automatically once they cover the
+  total.
 - **Add-on modules** — opt-in partner integrations toggled from
   Settings: **Payments** (live dynamic QRIS via Plugipay), **Marketing**
   (discount codes, loyalty & campaigns via Ripllo), and **Fulfillment**
-  (book couriers for delivery via Fulkruma).
+  (book couriers for delivery via Fulkruma). All three modules require
+  a paid plan — the Free tier can enable none of them.
+- **Deferred delivery dispatch** — a delivery order carries its
+  destination, courier, and parcel details on the sale until you
+  dispatch it, so the shipment can be booked later from the sale
+  detail or the serve board.
+- **AI assistant** — a flag-gated assistant embedded in the dashboard.
+  It writes the things you configure (catalog, floor plan, suppliers,
+  customers, marketing, warehouses) directly, and works out anything
+  that moves money or stock — refunds, purchase orders, gift cards,
+  stock adjustments, discount codes — as a review card you approve
+  before it applies. It can read your sales and stock to answer
+  questions, but can never write the books itself.
+- **Audit log** — a read-only activity feed of the workspace's domain
+  events, the same stream that drives webhook delivery.
+- **Multi-workspace** — belong to several workspaces (merchant
+  accounts) and switch between them from the dashboard.
 - **Developer** — `sk_live_…` API keys and webhooks for `malapos.*`
   events. See the [API reference](/docs/api-reference).
 

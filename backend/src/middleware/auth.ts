@@ -14,39 +14,122 @@ import { MALAPOS_DELEGATION_PREFIX } from '../lib/catentio-profile.js';
 
 /**
  * Allowlist-first: an embedded agent run may reach these prefixes and
- * NOTHING else, whatever the method. These are exactly the resources in
- * the product profile. A POS's transaction log is its books: /sales, /shifts, /inventory and the gift-card ledger stay closed so an agent can never write a sale.
+ * NOTHING else. Being here grants READ (gather) — writes additionally
+ * need DELEGATION_WRITABLE_PATHS below. `approvalRequired` resources
+ * (money and stock movers) sit here and NOT on the writable list: the
+ * agent must be able to find the sale to refund or the level that is
+ * low, but the Apply always runs under the merchant's own session.
+ * Denying reads was the flaw in the first cut of the proposal model —
+ * an agent told to propose a refund but forbidden from reading any sale
+ * has been given a job it cannot start.
  */
-const DELEGATION_ALLOWED_PATHS = ['/api/v1/categories', '/api/v1/products'];
+const DELEGATION_ALLOWED_PATHS = [
+  // Local POS resources
+  '/api/v1/categories',
+  '/api/v1/products',
+  '/api/v1/modifiers',
+  '/api/v1/outlets',
+  '/api/v1/tables',
+  '/api/v1/floors',
+  '/api/v1/suppliers',
+  '/api/v1/customers',
+  '/api/v1/settings',
+  '/api/v1/webhook-subscriptions',
+  // Read-only gather surfaces: the books. Off the writable list, so a
+  // delegated run can answer "what sold today / what is low" but can
+  // never record, void or adjust anything.
+  '/api/v1/reports',
+  '/api/v1/inventory',
+  '/api/v1/sales',
+  '/api/v1/shifts',
+  '/api/v1/gift-cards',
+  '/api/v1/purchase-orders',
+  // Marketing module (Ripllo)
+  '/api/v1/marketing',
+  '/api/v1/account/marketing',
+  '/api/v1/account/blog/posts',
+  '/api/v1/account/feeds',
+  '/api/v1/account/pixels',
+  '/api/v1/account/abandoned-cart',
+  '/api/v1/account/referrals',
+  // Payments module (Plugipay)
+  '/api/v1/payments/plans',
+  '/api/v1/payments/checkout-sessions',
+  '/api/v1/payments/subscriptions',
+  '/api/v1/payments/customers',
+  '/api/v1/payments/invoices',
+  '/api/v1/payments/receipts',
+  '/api/v1/payments/payouts',
+  // Fulfillment module (Fulkruma)
+  '/api/v1/delivery',
+  '/api/v1/fulfillment',
+];
 
 /**
  * Denied BEFORE the allowlist is consulted, so a future allowlist entry
  * can never re-open one of them — the same deny-beats-allow ordering
  * that makes the runtime's native-tool deny work. The package's floor
  * is INHERITED rather than copied, so a later addition there lands here
- * for free.
+ * for free. /payments/plugipay-settings holds the payment-provider
+ * configuration passthrough (the plugipay /adapters equivalent) and is
+ * the single most important entry.
  */
 const DELEGATION_DENIED_PATHS = [
   ...EMBED_DENIED_PATHS,
-  '/api/v1/sales',
-  '/api/v1/shifts',
-  '/api/v1/inventory',
-  '/api/v1/purchase-orders',
-  '/api/v1/suppliers',
-  '/api/v1/gift-cards',
-  '/api/v1/customers',
-  '/api/v1/reports',
-  '/api/v1/settings',
-  '/api/v1/outlets',
-  '/api/v1/tables',
-  '/api/v1/floors',
+  '/api/v1/payments/plugipay-settings',
+  '/api/v1/payments/ledger',
+  '/api/v1/payments/reports',
+  '/api/v1/payments/qris',
+  '/api/v1/account/marketing-media',
   '/api/v1/kds',
   '/api/v1/events',
   '/api/v1/uploads',
   '/api/v1/audit-log',
-  '/api/v1/webhook-subscriptions',
+  '/api/v1/modules',
   '/api/v1/admin',
   '/api/v1/huudis',
+];
+
+/**
+ * Non-GET is allowed ONLY under these prefixes — the direct-write
+ * resources: things the merchant CONFIGURES. Money in motion, stock
+ * movements and anything deciding what someone pays (refunds, gift
+ * cards, adjustments, PO receiving, plans/prices, checkout sessions,
+ * subscriptions, payouts, shipments, discount codes, loyalty/referral
+ * rates) is deliberately absent: those are `approvalRequired` resources
+ * whose Apply runs under the merchant's own session. Enforced here
+ * rather than left to the token's write bit, so even an auto-apply
+ * workspace cannot have its agent write a sale or move stock.
+ *
+ * /api/v1/settings is writable but the transfer bank details it carries
+ * are NOT — where the merchant's money lands is stripped from delegated
+ * writes in routes/settings.ts, the same way plugipay strips payment-
+ * method routing from its delegated checkout-settings path.
+ *
+ * /api/v1/delivery/rates is a POST but computes a courier quote — the
+ * gather step of a shipment proposal — and mutates nothing.
+ */
+const DELEGATION_WRITABLE_PATHS = [
+  '/api/v1/categories',
+  '/api/v1/products',
+  '/api/v1/modifiers',
+  '/api/v1/outlets',
+  '/api/v1/tables',
+  '/api/v1/floors',
+  '/api/v1/suppliers',
+  '/api/v1/customers',
+  '/api/v1/settings',
+  '/api/v1/webhook-subscriptions',
+  '/api/v1/account/blog/posts',
+  '/api/v1/account/feeds',
+  '/api/v1/account/pixels',
+  '/api/v1/account/abandoned-cart',
+  '/api/v1/account/marketing/marketing-campaigns',
+  '/api/v1/account/marketing/funnels',
+  '/api/v1/delivery/origin',
+  '/api/v1/delivery/rates',
+  '/api/v1/fulfillment/warehouses',
+  '/api/v1/payments/customers',
 ];
 
 declare module 'express-serve-static-core' {
@@ -149,6 +232,25 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       DELEGATION_ALLOWED_PATHS.some((pth) => fullPath === pth || fullPath.startsWith(`${pth}/`));
     if (!allowed) {
       return sendErr(res, req, 403, 'FORBIDDEN', 'This resource is not available to delegated agents');
+    }
+    // Reads and writes are separate grants: a path on the allowlist but
+    // off the writable list is exactly read-only, whatever the token's
+    // write bit says. This is the auth half of `approvalRequired` — the
+    // agent gathers here, proposes on a card, and the merchant's own
+    // session applies.
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      const writable = DELEGATION_WRITABLE_PATHS.some(
+        (pth) => fullPath === pth || fullPath.startsWith(`${pth}/`),
+      );
+      if (!writable) {
+        return sendErr(
+          res,
+          req,
+          403,
+          'FORBIDDEN',
+          'This assistant proposes changes here for your approval — it cannot write directly',
+        );
+      }
     }
     let delegationSecret: string;
     try {

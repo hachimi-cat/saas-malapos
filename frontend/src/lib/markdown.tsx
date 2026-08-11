@@ -34,8 +34,9 @@ export type DocMeta = {
   href: string;
 };
 
-// Placeholder doc set. Replace these with the real pages of your
-// product — keep the `''` (index) entry first.
+// Live doc set. Any new .md under copy/docs needs a DOC_NAV entry here
+// or it 404s (docs page sets `dynamicParams = false`) — keep the `''`
+// (index) entry first.
 export const DOC_NAV: DocMeta[] = [
   { slug: '', title: 'Introduction', group: 'Getting started', href: '/docs' },
   { slug: 'getting-started', title: 'Getting started', group: 'Getting started', href: '/docs/getting-started' },

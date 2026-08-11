@@ -23,11 +23,13 @@ import {
  * with no auth). Everything else is behind requireAuth (accountId =
  * the workspace from the BFF session / Bearer claims).
  *
- * EARLY ACCESS: Malapos is in early access — `EARLY_ACCESS` is true and
- * no plan is charged. /checkout still works end-to-end (so paid launch
- * is a flag flip), but the dashboard disables the upgrade buttons while
- * early access is on. The webhook (routes/webhooks-plugipay.ts) writes
- * the BillingSubscription row when a checkout completes.
+ * PAID LAUNCH (2026-06-18): paid tiers are live — `EARLY_ACCESS`
+ * (lib/billing.ts) is false, plans are charged via Plugipay /checkout
+ * and limits are enforced (entitlements.ts). The flag remains as a
+ * kill-switch: flipping it back to true reverts to free-for-all and the
+ * dashboard disables the upgrade buttons while it's on. The webhook
+ * (routes/webhooks-plugipay.ts) writes the BillingSubscription row when
+ * a checkout completes.
  */
 
 const router = Router();

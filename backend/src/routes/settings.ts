@@ -46,6 +46,17 @@ router.put(
   asyncHandler(async (req, res) => {
     const accountId = req.auth!.accountId as string;
     const body = updateBody.parse(req.body);
+    // A delegated (embedded-assistant) write may update the business
+    // profile but never where the merchant's money lands: the transfer
+    // bank details are stripped, the same way plugipay strips payment-
+    // method routing from its delegated checkout-settings path. Checked
+    // on the header because delegation is the only auth path that
+    // carries it.
+    if (req.headers.authorization?.startsWith('Delegation ')) {
+      delete (body as Record<string, unknown>).transferBankName;
+      delete (body as Record<string, unknown>).transferBankAccountNumber;
+      delete (body as Record<string, unknown>).transferBankAccountHolder;
+    }
     const settings = await prisma.posSettings.upsert({
       where: { accountId },
       update: body,

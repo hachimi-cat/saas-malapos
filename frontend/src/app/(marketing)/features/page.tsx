@@ -95,7 +95,7 @@ const features = [
       'Payments — live dynamic QRIS at the till (Plugipay)',
       'Marketing — discount codes, loyalty & campaigns (Ripllo)',
       'Fulfillment — book couriers for delivery orders (Fulkruma)',
-      'Help center & live chat support (Suppuo)',
+      'Help center & live chat are built in (Suppuo) — no toggle needed',
     ],
   },
   {
@@ -106,7 +106,7 @@ const features = [
       'REST API with sk_live_… bearer keys',
       'Webhooks for malapos.* events (sale completed, voided, …)',
       'Signed deliveries you can verify',
-      'CLI for login + day-to-day ops',
+      'CLI for login + read-only listing (outlets, products) today',
     ],
   },
 ];

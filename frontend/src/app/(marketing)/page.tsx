@@ -371,8 +371,10 @@ export default function HomePage() {
                 ))}
               </ul>
               <p className="mt-6 text-[13px] leading-relaxed text-muted-foreground max-w-[52ch]">
-                A developer API, integrations, and data export are on the roadmap — they&apos;re
-                not live yet, and we won&apos;t pretend otherwise.
+                The developer API is live — sk_live_ API keys, webhook subscriptions, and a
+                REST API, documented at /docs/api-reference. Payment invoices and the ledger
+                export to CSV; a general data export isn&apos;t built yet, and we won&apos;t
+                pretend otherwise.
               </p>
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <Button asChild size="lg">

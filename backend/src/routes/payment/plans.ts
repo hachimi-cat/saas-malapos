@@ -106,6 +106,32 @@ router.get(
   }),
 );
 
+// Archive/unarchive an individual price. PATCH on the price, not the plan.
+// No SDK method for this, so proxy raw to Plugipay's /prices/:id.
+// Registered BEFORE `PATCH /:id`: Express matches in order, so with the
+// generic route first a PATCH to /plans/prices/<x> bound `id='prices'`
+// and never reached this handler.
+router.patch(
+  '/prices/:priceId',
+  asyncHandler(async (req, res, next) => {
+    try {
+      const client = await requireMerchantClient(req.auth!.accountId as string);
+      const price = await client.request<unknown>({
+        method: 'PATCH' as FetchArgs['method'],
+        path: `/api/v1/prices/${req.params.priceId}`,
+        body: req.body ?? {},
+        idempotencyKey:
+          typeof req.headers['idempotency-key'] === 'string'
+            ? req.headers['idempotency-key']
+            : idemKey(),
+      });
+      return sendOk(res, req, price);
+    } catch (err) {
+      return handlePlugipayError(res, req, err, next);
+    }
+  }),
+);
+
 router.patch(
   '/:id',
   asyncHandler(async (req, res, next) => {
@@ -144,29 +170,6 @@ router.post(
         taxMode: body.taxMode,
       });
       return sendCreated(res, req, price);
-    } catch (err) {
-      return handlePlugipayError(res, req, err, next);
-    }
-  }),
-);
-
-// Archive/unarchive an individual price. PATCH on the price, not the plan.
-// No SDK method for this, so proxy raw to Plugipay's /prices/:id.
-router.patch(
-  '/prices/:priceId',
-  asyncHandler(async (req, res, next) => {
-    try {
-      const client = await requireMerchantClient(req.auth!.accountId as string);
-      const price = await client.request<unknown>({
-        method: 'PATCH' as FetchArgs['method'],
-        path: `/api/v1/prices/${req.params.priceId}`,
-        body: req.body ?? {},
-        idempotencyKey:
-          typeof req.headers['idempotency-key'] === 'string'
-            ? req.headers['idempotency-key']
-            : idemKey(),
-      });
-      return sendOk(res, req, price);
     } catch (err) {
       return handlePlugipayError(res, req, err, next);
     }

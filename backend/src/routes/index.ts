@@ -6,6 +6,7 @@ import authRouter from './auth.js';
 import huudisProxyRouter from './huudis-proxy.js';
 import { adminGuard } from '../middleware/admin-guard.js';
 import { requireAuth } from '../middleware/auth.js';
+import { idempotency } from '../middleware/idempotency.js';
 import adminCustomersRouter from './admin-customers.js';
 import adminMetricsRouter from './admin-metrics.js';
 import adminTransactionsRouter from './admin-transactions.js';
@@ -140,36 +141,43 @@ export default function routes(_opts: RoutesOptions = {}): ExpressRouter {
   router.use('/admin/feature-flags', adminGuard, adminFeatureFlagsRouter);
 
   // ── Malapos POS domain (all behind the Huudis session / Bearer auth) ──
-  router.use('/outlets', requireAuth, outletsRouter);
+  // `idem` honours the Idempotency-Key header on locally-served
+  // mutations (replay within TTL, 409 on body mismatch) — the contract
+  // the docs advertise and the frontend already sends. Module-proxied
+  // surfaces are deliberately bare: the partner product applies its own
+  // idempotency, and caching a proxy response here would mask upstream
+  // state.
+  const idem = idempotency({ required: false });
+  router.use('/outlets', requireAuth, idem, outletsRouter);
   // The embedded catentio assistant's BFF. Carries its own auth inside
   // the package router; delegated agent runs are refused here by name
   // (middleware/auth.ts) so a run cannot drive its own BFF recursively.
   router.use('/catentio', catentioRouter);
-  router.use('/categories', requireAuth, categoriesRouter);
-  router.use('/products', requireAuth, productsRouter);
-  router.use('/modifiers', requireAuth, modifiersRouter);
-  router.use('/sales', requireAuth, salesRouter);
-  router.use('/tables', requireAuth, tablesRouter);
-  router.use('/floors', requireAuth, floorsRouter);
-  router.use('/inventory', requireAuth, inventoryRouter);
-  router.use('/shifts', requireAuth, shiftsRouter);
-  router.use('/suppliers', requireAuth, suppliersRouter);
-  router.use('/purchase-orders', requireAuth, purchaseOrdersRouter);
-  router.use('/customers', requireAuth, customersRouter);
-  router.use('/gift-cards', requireAuth, giftCardsRouter);
-  router.use('/kds', requireAuth, kdsRouter);
+  router.use('/categories', requireAuth, idem, categoriesRouter);
+  router.use('/products', requireAuth, idem, productsRouter);
+  router.use('/modifiers', requireAuth, idem, modifiersRouter);
+  router.use('/sales', requireAuth, idem, salesRouter);
+  router.use('/tables', requireAuth, idem, tablesRouter);
+  router.use('/floors', requireAuth, idem, floorsRouter);
+  router.use('/inventory', requireAuth, idem, inventoryRouter);
+  router.use('/shifts', requireAuth, idem, shiftsRouter);
+  router.use('/suppliers', requireAuth, idem, suppliersRouter);
+  router.use('/purchase-orders', requireAuth, idem, purchaseOrdersRouter);
+  router.use('/customers', requireAuth, idem, customersRouter);
+  router.use('/gift-cards', requireAuth, idem, giftCardsRouter);
+  router.use('/kds', requireAuth, idem, kdsRouter);
   // Realtime SSE stream powering the live F&B boards (KDS / floor / serve).
   // Account-scoped; emits a `change` event whenever a mutation touches a board.
   router.use('/events', requireAuth, eventsRouter);
   // Presigned direct-to-Spaces image uploads (product images).
   router.use('/uploads', requireAuth, uploadsRouter);
   router.use('/reports', requireAuth, reportsRouter);
-  router.use('/settings', requireAuth, settingsRouter);
+  router.use('/settings', requireAuth, idem, settingsRouter);
   // Developer surface — programmatic API keys + outbound webhook
   // subscriptions (the keys themselves authenticate API callers via
   // middleware/auth.ts Path 1; deliveries fan out from the outbox worker).
   router.use('/api-keys', requireAuth, apiKeysRouter);
-  router.use('/webhook-subscriptions', requireAuth, webhookSubscriptionsRouter);
+  router.use('/webhook-subscriptions', requireAuth, idem, webhookSubscriptionsRouter);
   // Read-only activity feed — surfaces this workspace's outbox events.
   router.use('/audit-log', requireAuth, auditLogRouter);
   // Billing — public /tiers; per-route requireAuth inside the router for
