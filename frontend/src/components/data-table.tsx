@@ -10,6 +10,7 @@ import {
   ChevronsUpDown,
   Search,
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -77,6 +78,7 @@ export function DataTable<T>({
   rowHref,
   empty,
   renderExpanded,
+  renderBulkBar,
 }: {
   rows: T[];
   columns: Column<T>[];
@@ -88,6 +90,16 @@ export function DataTable<T>({
   rowHref?: (row: T) => string | null;
   empty?: React.ReactNode;
   renderExpanded?: (row: T) => React.ReactNode | null;
+  /**
+   * Opt-in row selection. When present, every row gets a checkbox (the
+   * header one selects the whole FILTERED set) and this renders the
+   * bulk bar below the table while the selection is non-empty —
+   * typically `<BulkBar count={selected.length} … onClear={clear} />`
+   * (components/dashboard/bulk-bar.tsx). Selection is counted against
+   * the filtered rows, so rows that are filtered out or deleted drop
+   * out of the count on their own.
+   */
+  renderBulkBar?: (selectedRows: T[], clear: () => void) => React.ReactNode;
 }) {
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
@@ -95,6 +107,11 @@ export function DataTable<T>({
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(defaultPageSize);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  // Selection lives as a Set of rowKeys, but everything shown (count,
+  // bar, select-all state) is computed against the FILTERED rows — a
+  // key whose row was filtered out or deleted simply stops counting.
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const selectable = renderBulkBar != null;
 
   const filterOptions = useMemo(() => {
     if (!filters) return {} as Record<string, { value: string; label: string }[]>;
@@ -145,6 +162,38 @@ export function DataTable<T>({
     const dir = sort.dir === 'asc' ? 1 : -1;
     return [...filtered].sort((a, b) => dir * compare(accessor(a), accessor(b)));
   }, [filtered, sort, columns]);
+
+  const selectedRows = useMemo(
+    () => (selectable ? filtered.filter((r) => selectedKeys.has(rowKey(r))) : []),
+    [selectable, filtered, selectedKeys, rowKey],
+  );
+  const allFilteredSelected =
+    selectable && filtered.length > 0 && selectedRows.length === filtered.length;
+
+  const clearSelection = () => setSelectedKeys(new Set());
+
+  const toggleRow = (key: string) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // Select-all works over the FILTERED set: ticking it with a filter on
+  // selects what the merchant is looking at, not rows they cannot see.
+  const toggleAll = () => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        for (const r of filtered) next.delete(rowKey(r));
+      } else {
+        for (const r of filtered) next.add(rowKey(r));
+      }
+      return next;
+    });
+  };
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const safePage = Math.min(page, totalPages - 1);
@@ -241,6 +290,22 @@ export function DataTable<T>({
         <Table className="text-sm">
           <TableHeader>
             <TableRow className="border-b border-border bg-secondary/40 hover:bg-secondary/40">
+              {selectable && (
+                <TableHead className="w-8 px-2 py-2 align-middle">
+                  <Checkbox
+                    checked={
+                      allFilteredSelected
+                        ? true
+                        : selectedRows.length > 0
+                          ? 'indeterminate'
+                          : false
+                    }
+                    onCheckedChange={toggleAll}
+                    disabled={filtered.length === 0}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+              )}
               {renderExpanded && (
                 <TableHead className="w-8 px-2 py-2" aria-hidden />
               )}
@@ -287,7 +352,7 @@ export function DataTable<T>({
             {pageRows.length === 0 ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell
-                  colSpan={columns.length + (renderExpanded ? 1 : 0)}
+                  colSpan={columns.length + (renderExpanded ? 1 : 0) + (selectable ? 1 : 0)}
                   className="px-4 py-8 text-center text-sm text-muted-foreground"
                 >
                   {empty ?? (rows.length === 0 ? 'No data.' : 'No rows match.')}
@@ -331,6 +396,18 @@ export function DataTable<T>({
                           : undefined
                       }
                     >
+                      {selectable && (
+                        <TableCell
+                          className="w-8 px-2 py-2 align-middle"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Checkbox
+                            checked={selectedKeys.has(key)}
+                            onCheckedChange={() => toggleRow(key)}
+                            aria-label="Select row"
+                          />
+                        </TableCell>
+                      )}
                       {renderExpanded && (
                         <TableCell className="w-8 px-2 py-2 align-middle">
                           {isExpandable ? (
@@ -347,7 +424,7 @@ export function DataTable<T>({
                     {isExpanded && (
                       <TableRow className="border-b border-border bg-muted/20 last:border-b-0 hover:bg-muted/20">
                         <TableCell
-                          colSpan={columns.length + 1}
+                          colSpan={columns.length + 1 + (selectable ? 1 : 0)}
                           className="px-4 py-3"
                         >
                           {expandedContent}
@@ -391,6 +468,18 @@ export function DataTable<T>({
                 }
               >
                 <div className="flex items-center gap-2 p-3">
+                  {selectable && (
+                    <div
+                      className="self-start pt-0.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={selectedKeys.has(key)}
+                        onCheckedChange={() => toggleRow(key)}
+                        aria-label="Select row"
+                      />
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <dl className="space-y-1.5">
                       {columns.map((c) => {
@@ -488,6 +577,8 @@ export function DataTable<T>({
           </div>
         </div>
       )}
+
+      {selectable && selectedRows.length > 0 && renderBulkBar!(selectedRows, clearSelection)}
     </div>
   );
 }

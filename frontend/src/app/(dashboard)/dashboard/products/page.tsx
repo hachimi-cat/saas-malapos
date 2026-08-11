@@ -3,8 +3,16 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { Search, Plus, X, Pencil, Trash2, Tag, Upload, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { uploadImageToSpaces } from '@/lib/upload-with-preview';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -95,6 +103,11 @@ export default function ProductsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkCategoryId, setBulkCategoryId] = useState('');
   const [applying, setApplying] = useState(false);
+  // Batch edit (agentic sheet) + batch delete, over the same selection.
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
     try {
@@ -136,6 +149,32 @@ export default function ProductsPage() {
       await load();
     } catch (e) {
       setError(e instanceof ApiRequestError ? e.message : 'Delete failed');
+    }
+  }
+
+  // Selected rows as bulk targets: `id` for the write, `name` for a
+  // named failure line, and the descriptor fields so the edit sheet's
+  // manual form pre-fills.
+  const bulkTargets = useMemo(
+    () => products.filter((p) => selected.has(p.id)),
+    [products, selected],
+  );
+
+  async function onBulkDelete() {
+    setBulkError(null);
+    setBulkDeleting(true);
+    try {
+      await deleteMany(
+        bulkTargets.map((p) => ({ id: p.id, label: p.name })),
+        (id) => api.delete(`/products/${id}`),
+      );
+      setSelected(new Set());
+      await load();
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : 'Some products could not be deleted');
+      await load();
+    } finally {
+      setBulkDeleting(false);
     }
   }
 
@@ -197,9 +236,23 @@ export default function ProductsPage() {
         title="Products"
         description="Manage your catalog — items, services, variants and categories."
         action={
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" /> Add product
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="products" onApplied={load} />
+            <AgenticEntry
+              resource="products"
+              mode="create"
+              onApplied={load}
+              fallback={
+                <Button onClick={() => setCreating(true)}>
+                  <Plus className="h-4 w-4" /> Add product
+                </Button>
+              }
+            >
+              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                <Plus className="h-4 w-4" /> Add product
+              </span>
+            </AgenticEntry>
+          </div>
         }
       />
 
@@ -248,10 +301,62 @@ export default function ProductsPage() {
           <Button onClick={applyBulkCategory} disabled={!bulkCategoryId || applying}>
             {applying && <Loader2 className="h-4 w-4 animate-spin" />} Apply
           </Button>
-          <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={applying}>
+          <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+          {assistantEnabled && (
+            <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={applying || bulkDeleting}>
+              <Pencil className="h-4 w-4" /> Edit
+            </Button>
+          )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                disabled={applying || bulkDeleting}
+              >
+                {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Delete {selected.size} {selected.size === 1 ? 'product' : 'products'}?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This cannot be undone. A product with sales history is kept and named.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={onBulkDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={applying || bulkDeleting}>
             Clear
           </Button>
+          {bulkError && (
+            <p className="w-full text-xs text-destructive">{bulkError}</p>
+          )}
         </div>
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="products"
+          targets={bulkTargets}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
       )}
 
       <Card className="mt-4 overflow-hidden">
@@ -406,11 +511,10 @@ type VariantDraft = {
 };
 
 /**
- * Product-image upload. Asks the backend for a presigned public-read PUT
- * URL (`POST /uploads/sign`), uploads the file straight to DO Spaces, then
- * stores the resulting public URL in `imageUrl`. The PUT MUST send exactly
- * the headers the presign signed — `Content-Type` + `x-amz-acl: public-read`
- * — or Spaces returns 403. A small "or paste URL" field stays as a fallback.
+ * Product-image upload. The presigned-PUT flow itself lives in
+ * `lib/upload-with-preview.ts` (`uploadImageToSpaces`) so the agentic
+ * sheet's image fields go through the exact same path — this component
+ * only owns the busy/error state and the "or paste URL" fallback.
  */
 function ImageField({
   value,
@@ -423,33 +527,10 @@ function ImageField({
   const [uploadErr, setUploadErr] = useState<string | null>(null);
 
   async function upload(file: File) {
-    if (!file.type.startsWith('image/')) {
-      setUploadErr('Pick an image file (JPG / PNG / WebP).');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadErr('Image too large — max 5MB.');
-      return;
-    }
     setUploadErr(null);
     setUploading(true);
     try {
-      const ext = file.name.includes('.') ? file.name.split('.').pop() : undefined;
-      const { data } = await api.post<{
-        key: string;
-        url: string;
-        publicUrl: string;
-        contentType: string;
-      }>('/uploads/sign', { contentType: file.type, ext });
-      // Direct-to-Spaces PUT. Use the signed content-type and the
-      // public-read ACL header the presign signed — both, exactly.
-      const put = await fetch(data.url, {
-        method: 'PUT',
-        headers: { 'Content-Type': data.contentType, 'x-amz-acl': 'public-read' },
-        body: file,
-      });
-      if (!put.ok) throw new Error(`Upload failed (${put.status})`);
-      onChange(data.publicUrl);
+      onChange(await uploadImageToSpaces(file));
     } catch (e) {
       setUploadErr(e instanceof ApiRequestError ? e.message : (e as Error).message || 'Upload failed');
     } finally {

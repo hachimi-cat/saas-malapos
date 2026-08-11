@@ -8,9 +8,76 @@ import { api, ApiRequestError } from '@/lib/api';
  * shared @forjio/catentio-embed router). The browser never talks to
  * catentio — every call lands on our backend, which owns the key, the
  * flag gate and the delegation token. Ported from linksnap's
- * hooks/use-catentio.ts (the reference integration) minus the agentic
- * sheet's plan transport, which malapos doesn't mount yet.
+ * hooks/use-catentio.ts (the reference integration); the agentic-sheet
+ * plan transport follows storlaunch's.
  */
+
+/** The resources the agentic sheet can plan against — every merchant
+ *  create/edit surface in the portal. MUST stay in step with
+ *  `MALAPOS_PROFILE.resources` (backend/src/lib/catentio-profile.ts):
+ *  the BFF looks the resource up there and 422s on anything it doesn't
+ *  know, so a key added here without a profile entry is a dead sheet. */
+export const ASSISTANT_RESOURCES = [
+  // core POS
+  'categories',
+  'products',
+  'modifiers',
+  'outlets',
+  'tables',
+  'floors',
+  'suppliers',
+  'customers',
+  'settings',
+  'webhook-subscriptions',
+  // books-with-approval — records that move money or stock; the shop's
+  // books, so every agent write goes through the review/approval path
+  'purchase-orders',
+  'po-receipts',
+  'refunds',
+  'sale-voids',
+  'gift-cards',
+  'inventory-adjustments',
+  'inventory-transfers',
+  'stock-batches',
+  'discount-codes',
+  'loyalty-program',
+  'referrals-program',
+  // marketing module (Ripllo)
+  'blog-posts',
+  'feeds',
+  'pixels',
+  'abandoned-cart',
+  'marketing-campaigns',
+  'funnels',
+  // payments module (Plugipay)
+  'payment-customers',
+  'plans',
+  'prices',
+  'checkout-sessions',
+  'subscriptions',
+  'payouts',
+  // fulfillment module (Fulkruma)
+  'warehouses',
+  'delivery-origin',
+  'shipments',
+  'licenses',
+  'fulfillment-adjustments',
+] as const;
+
+export type AssistantResource = (typeof ASSISTANT_RESOURCES)[number];
+export type AssistantMode = 'create' | 'edit';
+
+export interface AssistantPlanResponse {
+  requestId: string;
+  runId: string;
+  /** The agent's prose (plan block stripped). */
+  message: string;
+  /** Sanitized plan fields, or null when the agent declined. */
+  plan: Record<string, unknown> | null;
+  /** Fields the agent proposed outside the schema — dropped server-side,
+   *  surfaced here so the review artifact can say so. */
+  droppedFields: string[];
+}
 
 /** Fired (window-level) when an assistant chat turn completes — the
  *  agent writes records directly now, so whatever list page is open
@@ -205,5 +272,30 @@ export async function startCreditsTopup(
     noop: boolean;
     credits: number;
   }>('/catentio/credits/topup', { pack });
+  return data;
+}
+
+/** Ask the assistant for a field plan for one create/edit. The BFF
+ *  builds the real agent prompt server-side from these structured
+ *  pieces and sanitizes the returned plan against the profile registry,
+ *  so callers send data, never prose. */
+export async function requestAssistantPlan(body: {
+  resource: AssistantResource;
+  mode: AssistantMode;
+  prompt: string;
+  draft?: Record<string, unknown>;
+  initial?: Record<string, unknown>;
+  history?: { prompt: string; plan: Record<string, unknown> | null }[];
+}): Promise<AssistantPlanResponse> {
+  // Planning takes as long as the agent takes; the backend bounds the
+  // run well inside this, so the abort must outlive it (fetch has no
+  // default timeout — the signal is the only bound).
+  const { data } = await api.post<AssistantPlanResponse>('/catentio/plan', body, {
+    signal: AbortSignal.timeout(260_000),
+  });
+  // The sheet spends credits like the chat does; tell the chip.
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(ASSISTANT_ACTIVITY_EVENT));
+  }
   return data;
 }
