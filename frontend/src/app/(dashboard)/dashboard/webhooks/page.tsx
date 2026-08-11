@@ -6,9 +6,17 @@
  * carry `Malapos-Signature: t=<unix>,v1=<hmac-sha256(secret, t+"."+body)>`.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pencil, Trash2, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { PageHeader } from '@/components/dashboard/page-header';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -43,13 +51,15 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 
-interface Subscription {
+// A type alias (not an interface) so rows structurally satisfy the
+// bulk-edit slot's Record<string, unknown> targets.
+type Subscription = {
   id: string;
   url: string;
   events: string[];
   active: boolean;
   createdAt: string;
-}
+};
 
 const EVENT_CATALOG: { type: string; description: string }[] = [
   { type: 'malapos.sale.completed.v1', description: 'A sale was finalized and paid at the point of sale.' },
@@ -65,6 +75,12 @@ export default function WebhooksPage() {
   // Secret of the most recently created endpoint — shown once, inline.
   const [newSecret, setNewSecret] = useState<{ id: string; secret: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  // Batch edit (agentic sheet) + batch delete, over the row selection.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   const load = useCallback(async () => {
     setError(null);
@@ -102,13 +118,138 @@ export default function WebhooksPage() {
     }
   }
 
+  // Selected rows as bulk targets: `id` for the write, `url` for a
+  // named failure line, and the descriptor fields so the edit sheet's
+  // manual form pre-fills.
+  const bulkTargets = useMemo(
+    () => (subs ?? []).filter((s) => selected.has(s.id)),
+    [subs, selected],
+  );
+
+  async function onBulkDelete() {
+    setBulkError(null);
+    setBulkDeleting(true);
+    try {
+      await deleteMany(
+        bulkTargets.map((s) => ({ id: s.id, label: s.url })),
+        (id) => api.delete(`/webhook-subscriptions/${id}`),
+      );
+      if (newSecret && selected.has(newSecret.id)) setNewSecret(null);
+      setSelected(new Set());
+      await load();
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : 'Some endpoints could not be removed');
+      await load();
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      for (const sub of subs ?? []) {
+        if (checked) next.add(sub.id);
+        else next.delete(sub.id);
+      }
+      return next;
+    });
+  }
+
   return (
     <div className="space-y-8">
       <PageHeader
         title="Webhooks"
         description="Get an HTTPS POST whenever something happens to your sales or subscription."
-        action={<Button onClick={() => setShowAdd(true)}>Add endpoint</Button>}
+        action={
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="webhook-subscriptions" onApplied={load} />
+            <AgenticEntry
+              resource="webhook-subscriptions"
+              mode="create"
+              onApplied={load}
+              fallback={<Button onClick={() => setShowAdd(true)}>Add endpoint</Button>}
+            >
+              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                Add endpoint
+              </span>
+            </AgenticEntry>
+          </div>
+        }
       />
+
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+          <span className="text-sm font-medium">
+            {selected.size === 1 ? '1 endpoint selected' : `${selected.size} endpoints selected`}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {assistantEnabled && (
+              <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={bulkDeleting}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  disabled={bulkDeleting}
+                >
+                  {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Remove {selected.size} {selected.size === 1 ? 'endpoint' : 'endpoints'}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Deliveries to each endpoint stop immediately. This can&apos;t be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={onBulkDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Remove
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkDeleting}>
+              Clear
+            </Button>
+          </div>
+          {bulkError && (
+            <p className="w-full text-xs text-destructive">{bulkError}</p>
+          )}
+        </div>
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="webhook-subscriptions"
+          targets={bulkTargets}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
+      )}
 
       {error && (
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">
@@ -180,6 +321,19 @@ export default function WebhooksPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={
+                      subs.length > 0 && subs.every((s) => selected.has(s.id))
+                        ? true
+                        : subs.some((s) => selected.has(s.id))
+                          ? 'indeterminate'
+                          : false
+                    }
+                    onCheckedChange={(v) => toggleAll(v === true)}
+                    aria-label="Select all endpoints"
+                  />
+                </TableHead>
                 <TableHead>Endpoint</TableHead>
                 <TableHead className="w-36">Status</TableHead>
                 <TableHead className="w-24 text-right">Actions</TableHead>
@@ -187,7 +341,14 @@ export default function WebhooksPage() {
             </TableHeader>
             <TableBody>
               {subs.map((s) => (
-                <TableRow key={s.id}>
+                <TableRow key={s.id} data-state={selected.has(s.id) ? 'selected' : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(s.id)}
+                      onCheckedChange={(v) => toggleRow(s.id, v === true)}
+                      aria-label={`Select ${s.url}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     <p className="truncate font-mono text-sm">{s.url}</p>
                     <p className="mt-1 flex flex-wrap gap-1">

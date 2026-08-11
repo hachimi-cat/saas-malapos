@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { feedsApi, type MerchantFeedConfig } from '@/lib/marketing-api';
-import { Loader2, Save, Copy, Check, ExternalLink, Rss, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Loader2, Save, Copy, Check, ExternalLink, Rss, AlertTriangle, ChevronRight, Sparkles } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
+import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,17 +33,23 @@ export default function FeedsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
+  // The agentic sheet over this settings "form that IS the page".
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
-  useEffect(() => {
-    feedsApi
-      .get()
-      .then((res) => {
-        // `res.data` is already the unwrapped envelope payload (lib/api.ts).
-        if (res.data) setForm(res.data);
-      })
-      .catch((e) => setError(extractError(e) ?? 'Failed to load'))
-      .finally(() => setLoading(false));
-  }, []);
+  async function load() {
+    try {
+      const res = await feedsApi.get();
+      // `res.data` is already the unwrapped envelope payload (lib/api.ts).
+      if (res.data) setForm(res.data);
+    } catch (e) {
+      setError(extractError(e) ?? 'Failed to load');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save() {
     setSaving(true); setError(''); setSuccess('');
@@ -78,6 +86,22 @@ export default function FeedsPage() {
       <PageHeader
         title="Product feeds"
         description="Auto-generated Google Shopping / Meta Catalog / TikTok Catalog feeds. Submit one URL per platform and your products show up in image-rich Shopping ads, Advantage+ Catalog campaigns, and TikTok Shop ads. Feeds refresh on every request; ad networks poll daily."
+        action={
+          assistantEnabled ? (
+            <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
+              <Sparkles className="h-4 w-4" /> Ask assistant
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <AgenticSheetSlot
+        resource="feeds"
+        mode="edit"
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        initial={form as unknown as Record<string, unknown>}
+        onApplied={() => { void load(); }}
       />
 
       {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}

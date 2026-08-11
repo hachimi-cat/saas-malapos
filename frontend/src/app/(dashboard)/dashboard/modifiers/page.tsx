@@ -1,10 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Plus, X, Pencil, Trash2, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, X, Pencil, Trash2, SlidersHorizontal, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +67,12 @@ export default function ModifiersPage() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<ModifierGroup | null>(null);
   const [creating, setCreating] = useState(false);
+  // Batch edit (agentic sheet) + batch delete, over the card selection.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
     try {
@@ -86,6 +99,41 @@ export default function ModifiersPage() {
     }
   }
 
+  // Selected cards as bulk targets: `id` for the write, `name` for a
+  // named failure line, and the descriptor fields so the edit sheet's
+  // manual form pre-fills.
+  const bulkTargets = useMemo(
+    () => groups.filter((g) => selected.has(g.id)),
+    [groups, selected],
+  );
+
+  async function onBulkDelete() {
+    setBulkError(null);
+    setBulkDeleting(true);
+    try {
+      await deleteMany(
+        bulkTargets.map((g) => ({ id: g.id, label: g.name })),
+        (id) => api.delete(`/modifiers/${id}`),
+      );
+      setSelected(new Set());
+      await load();
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : 'Some groups could not be deleted');
+      await load();
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  function toggleGroup(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
   return (
@@ -99,17 +147,97 @@ export default function ModifiersPage() {
           </>
         }
         action={
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" /> New group
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="modifiers" onApplied={load} />
+            <AgenticEntry
+              resource="modifiers"
+              mode="create"
+              onApplied={load}
+              fallback={
+                <Button onClick={() => setCreating(true)}>
+                  <Plus className="h-4 w-4" /> New group
+                </Button>
+              }
+            >
+              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                <Plus className="h-4 w-4" /> New group
+              </span>
+            </AgenticEntry>
+          </div>
         }
       />
+
+      {selected.size > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+          <span className="text-sm font-medium">
+            {selected.size === 1 ? '1 group selected' : `${selected.size} groups selected`}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {assistantEnabled && (
+              <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={bulkDeleting}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  disabled={bulkDeleting}
+                >
+                  {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Delete {selected.size} {selected.size === 1 ? 'group' : 'groups'}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Each group is deleted with its options. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={onBulkDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkDeleting}>
+              Clear
+            </Button>
+          </div>
+          {bulkError && (
+            <p className="w-full text-xs text-destructive">{bulkError}</p>
+          )}
+        </div>
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="modifiers"
+          targets={bulkTargets}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
+      )}
 
       <div className="mt-5 space-y-4">
         {groups.map((g) => (
           <GroupCard
             key={g.id}
             group={g}
+            selected={selected.has(g.id)}
+            onSelect={(checked) => toggleGroup(g.id, checked)}
             onEdit={() => setEditing(g)}
             onDelete={() => onDeleteGroup(g)}
             onChanged={load}
@@ -150,12 +278,16 @@ export default function ModifiersPage() {
 
 function GroupCard({
   group,
+  selected,
+  onSelect,
   onEdit,
   onDelete,
   onChanged,
   onError,
 }: {
   group: ModifierGroup;
+  selected: boolean;
+  onSelect: (checked: boolean) => void;
   onEdit: () => void;
   onDelete: () => void;
   onChanged: () => Promise<void>;
@@ -212,9 +344,16 @@ function GroupCard({
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="min-w-0">
-          <div className="font-medium">{group.name}</div>
-          <div className="text-xs text-muted-foreground">{selectLabel}</div>
+        <div className="flex min-w-0 items-center gap-3">
+          <Checkbox
+            checked={selected}
+            onCheckedChange={(v) => onSelect(v === true)}
+            aria-label={`Select ${group.name}`}
+          />
+          <div className="min-w-0">
+            <div className="font-medium">{group.name}</div>
+            <div className="text-xs text-muted-foreground">{selectLabel}</div>
+          </div>
         </div>
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" onClick={onEdit} title="Edit group">

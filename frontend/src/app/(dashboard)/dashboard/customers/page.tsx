@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
   Plus,
@@ -11,10 +11,30 @@ import {
   Receipt,
   Gift,
   ArrowDownUp,
+  Loader2,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -95,6 +115,12 @@ export default function CustomersPage() {
   const [adding, setAdding] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Batch edit (agentic sheet) + batch delete, over the row selection.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   // Debounced search → re-fetch first page.
   useEffect(() => {
@@ -137,15 +163,78 @@ export default function CustomersPage() {
     setTimeout(() => setToast(null), 2500);
   }
 
+  // Selected rows as bulk targets: `id` for the write, `name` for a
+  // named failure line, and the descriptor fields so the edit sheet's
+  // manual form pre-fills.
+  const bulkTargets = useMemo(
+    () => customers.filter((c) => selected.has(c.id)),
+    [customers, selected],
+  );
+
+  async function onBulkDelete() {
+    setBulkError(null);
+    setBulkDeleting(true);
+    try {
+      // A customer with sales history answers 409 ("Customer has sales
+      // history") — deleteMany names it with the server's own message.
+      await deleteMany(
+        bulkTargets.map((c) => ({ id: c.id, label: c.name })),
+        (id) => api.delete(`/customers/${id}`),
+      );
+      setSelected(new Set());
+      refresh();
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : 'Some customers could not be deleted');
+      refresh();
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  // The header checkbox acts on the currently LOADED page of the roster.
+  function toggleAllVisible(checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      for (const c of customers) {
+        if (checked) next.add(c.id);
+        else next.delete(c.id);
+      }
+      return next;
+    });
+  }
+
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title="Customers"
         description="Your customer roster and loyalty points."
         action={
-          <Button onClick={() => setAdding(true)}>
-            <Plus className="h-4 w-4" /> Add customer
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="customers" onApplied={refresh} />
+            <AgenticEntry
+              resource="customers"
+              mode="create"
+              onApplied={refresh}
+              fallback={
+                <Button onClick={() => setAdding(true)}>
+                  <Plus className="h-4 w-4" /> Add customer
+                </Button>
+              }
+            >
+              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                <Plus className="h-4 w-4" /> Add customer
+              </span>
+            </AgenticEntry>
+          </div>
         }
       />
 
@@ -159,6 +248,70 @@ export default function CustomersPage() {
           className="pl-9"
         />
       </div>
+
+      {selected.size > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+          <span className="text-sm font-medium">
+            {selected.size === 1 ? '1 customer selected' : `${selected.size} customers selected`}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {assistantEnabled && (
+              <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={bulkDeleting}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  disabled={bulkDeleting}
+                >
+                  {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Delete {selected.size} {selected.size === 1 ? 'customer' : 'customers'}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This cannot be undone. A customer with sales history is kept and named.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={onBulkDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkDeleting}>
+              Clear
+            </Button>
+          </div>
+          {bulkError && (
+            <p className="w-full text-xs text-destructive">{bulkError}</p>
+          )}
+        </div>
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="customers"
+          targets={bulkTargets}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            refresh();
+          }}
+        />
+      )}
 
       <Card className="mt-4 overflow-hidden">
         {loading ? (
@@ -177,6 +330,19 @@ export default function CustomersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={
+                        customers.length > 0 && customers.every((c) => selected.has(c.id))
+                          ? true
+                          : customers.some((c) => selected.has(c.id))
+                            ? 'indeterminate'
+                            : false
+                      }
+                      onCheckedChange={(v) => toggleAllVisible(v === true)}
+                      aria-label="Select all customers"
+                    />
+                  </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead className="text-right">Points</TableHead>
@@ -190,7 +356,16 @@ export default function CustomersPage() {
                     key={c.id}
                     onClick={() => setSelectedId(c.id)}
                     className="cursor-pointer"
+                    data-state={selected.has(c.id) ? 'selected' : undefined}
                   >
+                    {/* Row click opens the drawer — keep the checkbox out of it. */}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selected.has(c.id)}
+                        onCheckedChange={(v) => toggleRow(c.id, v === true)}
+                        aria-label={`Select ${c.name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <p className="font-medium">{c.name}</p>
                       {c.email && <p className="text-xs text-muted-foreground">{c.email}</p>}

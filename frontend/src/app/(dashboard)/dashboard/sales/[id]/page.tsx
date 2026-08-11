@@ -22,9 +22,11 @@ import {
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
+import { cn } from '@/lib/utils';
 import { useModules } from '@/hooks/use-modules';
 import { deliveryApi, shipmentsApi, type Shipment } from '@/lib/fulfillment-api';
-import { Button } from '@/components/ui/button';
+import { AgenticEntry } from '@/components/catentio/agentic-entry';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -259,14 +261,38 @@ export default function SaleDetailPage() {
             <Printer className="h-4 w-4" /> Print receipt
           </Button>
           {canRefund && !refunding && (
-            <Button type="button" variant="outline" onClick={() => setRefunding(true)}>
+            <AgenticEntry
+              resource="refunds"
+              mode="create"
+              // The sheet plans the refund against the sale the USER is
+              // looking at — never one a plan names.
+              initial={{ saleId: sale.id }}
+              onApplied={() => void load()}
+              className={buttonVariants({ variant: 'outline' })}
+              fallback={
+                <Button type="button" variant="outline" onClick={() => setRefunding(true)}>
+                  <RotateCcw className="h-4 w-4" /> Refund
+                </Button>
+              }
+            >
               <RotateCcw className="h-4 w-4" /> Refund
-            </Button>
+            </AgenticEntry>
           )}
           {sale.status === 'COMPLETED' && !confirmingVoid && (
-            <Button type="button" variant="outline" onClick={() => setConfirmingVoid(true)} className={dangerOutline}>
+            <AgenticEntry
+              resource="sale-voids"
+              mode="create"
+              initial={{ saleId: sale.id }}
+              onApplied={() => void load()}
+              className={cn(buttonVariants({ variant: 'outline' }), dangerOutline)}
+              fallback={
+                <Button type="button" variant="outline" onClick={() => setConfirmingVoid(true)} className={dangerOutline}>
+                  <Ban className="h-4 w-4" /> Void sale
+                </Button>
+              }
+            >
               <Ban className="h-4 w-4" /> Void sale
-            </Button>
+            </AgenticEntry>
           )}
         </div>
       </div>

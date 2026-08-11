@@ -6,6 +6,8 @@ import { payoutsApi, type Payout, type PayoutStatus, type PayoutBankAccount } fr
 import { Loader2, Plus, Landmark, AlertCircle, CheckCircle2, Ban, Truck, Hourglass } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { PageAssistant, AgenticEntry } from '@/components/catentio/agentic-entry';
+import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -198,12 +200,29 @@ export default function PayoutsPage() {
         title="Payouts"
         description="Withdraw funds to your bank. Platform manually wires funds in manual mode — Xendit disbursement auto-transfers once XenPlatform is approved."
         action={
-          <Button onClick={() => setShowRequest(true)}
-            disabled={!bank?.configured || (balance?.available ?? 0) <= 0}
-            className="shrink-0"
-            title={!bank?.configured ? 'Set a bank account first' : (balance?.available ?? 0) <= 0 ? 'No available balance' : ''}>
-            <Plus className="h-3.5 w-3.5" /> Request payout
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="payouts" onApplied={reload} />
+            <AgenticEntry
+              resource="payouts"
+              mode="create"
+              onApplied={reload}
+              // Same gate as the manual button — no bank / no balance
+              // means the server refuses the create anyway.
+              disabled={!bank?.configured || (balance?.available ?? 0) <= 0}
+              title={!bank?.configured ? 'Set a bank account first' : (balance?.available ?? 0) <= 0 ? 'No available balance' : ''}
+              className={cn(buttonVariants(), 'shrink-0')}
+              fallback={
+                <Button onClick={() => setShowRequest(true)}
+                  disabled={!bank?.configured || (balance?.available ?? 0) <= 0}
+                  className="shrink-0"
+                  title={!bank?.configured ? 'Set a bank account first' : (balance?.available ?? 0) <= 0 ? 'No available balance' : ''}>
+                  <Plus className="h-3.5 w-3.5" /> Request payout
+                </Button>
+              }
+            >
+              <Plus className="h-3.5 w-3.5" /> Request payout
+            </AgenticEntry>
+          </div>
         }
       />
 

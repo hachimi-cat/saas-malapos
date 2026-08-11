@@ -10,10 +10,19 @@ import {
   Send,
   Ban,
   ClipboardList,
+  Loader2,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -124,12 +133,24 @@ function StatusBadge({ status }: { status: POStatus }) {
 
 export default function PurchasingPage() {
   const [tab, setTab] = useState<'orders' | 'suppliers'>('orders');
+  // Bumped when the page-level assistant applies a change — either tab's
+  // list may be stale, so both refetch on it.
+  const [reloadKey, setReloadKey] = useState(0);
 
   return (
     <div>
       <PageHeader
         title="Purchasing"
         description="Restock from suppliers — raise purchase orders and receive stock into your outlets."
+        action={
+          <PageAssistant
+            options={[
+              { resource: 'purchase-orders', label: 'Purchase order' },
+              { resource: 'suppliers', label: 'Supplier' },
+            ]}
+            onApplied={() => setReloadKey((k) => k + 1)}
+          />
+        }
       />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as 'orders' | 'suppliers')}>
@@ -138,10 +159,10 @@ export default function PurchasingPage() {
           <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
         </TabsList>
         <TabsContent value="orders">
-          <OrdersTab />
+          <OrdersTab reloadKey={reloadKey} />
         </TabsContent>
         <TabsContent value="suppliers">
-          <SuppliersTab />
+          <SuppliersTab reloadKey={reloadKey} />
         </TabsContent>
       </Tabs>
     </div>
@@ -152,7 +173,7 @@ export default function PurchasingPage() {
 /* Purchase Orders tab                                                */
 /* ------------------------------------------------------------------ */
 
-function OrdersTab() {
+function OrdersTab({ reloadKey }: { reloadKey: number }) {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -188,6 +209,12 @@ function OrdersTab() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Page-level assistant applied something — refetch under the current filter.
+  useEffect(() => {
+    if (reloadKey > 0) loadOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   function changeFilter(next: POStatus | 'ALL') {
     setFilter(next);
@@ -225,9 +252,20 @@ function OrdersTab() {
             </Button>
           ))}
         </div>
-        <Button onClick={() => setBuilding(true)}>
-          <Plus className="h-4 w-4" /> New PO
-        </Button>
+        <AgenticEntry
+          resource="purchase-orders"
+          mode="create"
+          onApplied={() => loadOrders()}
+          fallback={
+            <Button onClick={() => setBuilding(true)}>
+              <Plus className="h-4 w-4" /> New PO
+            </Button>
+          }
+        >
+          <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+            <Plus className="h-4 w-4" /> New PO
+          </span>
+        </AgenticEntry>
       </div>
 
       {loading ? (
@@ -813,12 +851,18 @@ function toSupplierForm(s: Supplier): SupplierForm {
   };
 }
 
-function SuppliersTab() {
+function SuppliersTab({ reloadKey }: { reloadKey: number }) {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [creating, setCreating] = useState(false);
+  // Batch edit (agentic sheet) + batch delete, over the row selection.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
     try {
@@ -833,7 +877,14 @@ function SuppliersTab() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Page-level assistant applied something — refetch.
+  useEffect(() => {
+    if (reloadKey > 0) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   async function remove(s: Supplier) {
     setError(null);
@@ -845,15 +896,136 @@ function SuppliersTab() {
     }
   }
 
+  // Selected rows as bulk targets: `id` for the write, `name` for a
+  // named failure line, and the descriptor fields so the edit sheet's
+  // manual form pre-fills.
+  const bulkTargets = useMemo(
+    () => suppliers.filter((s) => selected.has(s.id)),
+    [suppliers, selected],
+  );
+
+  async function onBulkDelete() {
+    setBulkError(null);
+    setBulkDeleting(true);
+    try {
+      await deleteMany(
+        bulkTargets.map((s) => ({ id: s.id, label: s.name })),
+        (id) => api.delete(`/suppliers/${id}`),
+      );
+      setSelected(new Set());
+      await load();
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : 'Some suppliers could not be deleted');
+      await load();
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      for (const sup of suppliers) {
+        if (checked) next.add(sup.id);
+        else next.delete(sup.id);
+      }
+      return next;
+    });
+  }
+
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-end">
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" /> Add supplier
-        </Button>
+        <AgenticEntry
+          resource="suppliers"
+          mode="create"
+          onApplied={load}
+          fallback={
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="h-4 w-4" /> Add supplier
+            </Button>
+          }
+        >
+          <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+            <Plus className="h-4 w-4" /> Add supplier
+          </span>
+        </AgenticEntry>
       </div>
+
+      {selected.size > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+          <span className="text-sm font-medium">
+            {selected.size === 1 ? '1 supplier selected' : `${selected.size} suppliers selected`}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {assistantEnabled && (
+              <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={bulkDeleting}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  disabled={bulkDeleting}
+                >
+                  {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Delete {selected.size} {selected.size === 1 ? 'supplier' : 'suppliers'}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This cannot be undone. A supplier with purchase orders is deactivated instead of deleted.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={onBulkDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkDeleting}>
+              Clear
+            </Button>
+          </div>
+          {bulkError && (
+            <p className="w-full text-xs text-destructive">{bulkError}</p>
+          )}
+        </div>
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="suppliers"
+          targets={bulkTargets}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
+      )}
 
       {suppliers.length === 0 ? (
         <Card className="p-12 text-center">
@@ -871,6 +1043,19 @@ function SuppliersTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={
+                      suppliers.length > 0 && suppliers.every((s) => selected.has(s.id))
+                        ? true
+                        : suppliers.some((s) => selected.has(s.id))
+                          ? 'indeterminate'
+                          : false
+                    }
+                    onCheckedChange={(v) => toggleAll(v === true)}
+                    aria-label="Select all suppliers"
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Phone</TableHead>
@@ -880,7 +1065,14 @@ function SuppliersTab() {
             </TableHeader>
             <TableBody>
               {suppliers.map((s) => (
-                <TableRow key={s.id}>
+                <TableRow key={s.id} data-state={selected.has(s.id) ? 'selected' : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(s.id)}
+                      onCheckedChange={(v) => toggleRow(s.id, v === true)}
+                      aria-label={`Select ${s.name}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell className="text-muted-foreground">{s.contact || '—'}</TableCell>
                   <TableCell className="text-muted-foreground">{s.phone || '—'}</TableCell>

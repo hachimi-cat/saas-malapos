@@ -16,9 +16,12 @@ import {
   MousePointerClick,
   TrendingUp,
   DollarSign,
+  Sparkles,
 } from 'lucide-react';
 import { DataTable, type Column } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -63,25 +66,32 @@ export default function ReferralsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  // The agentic sheet over this settings "form that IS the page".
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
-  useEffect(() => {
-    Promise.all([
-      referralsApi.get(),
-      referralsApi.stats(),
-      referralsApi.links({ limit: 20 }),
-      referralsApi.attributions({ limit: 20 }),
-    ])
-      .then(([cfgRes, statsRes, linksRes, attribRes]) => {
-        // `res.data` is already the unwrapped envelope payload (lib/api.ts):
-        // program + stats are flat; links/attributions come back as `{ rows }`.
-        setForm({ ...DEFAULT_CONFIG, ...(cfgRes.data ?? {}) });
-        setStats(statsRes.data ?? null);
-        setLinks(linksRes.data?.rows ?? []);
-        setAttributions(attribRes.data?.rows ?? []);
-      })
-      .catch((e) => setError(extractError(e) ?? 'Failed to load'))
-      .finally(() => setLoading(false));
-  }, []);
+  async function load() {
+    try {
+      const [cfgRes, statsRes, linksRes, attribRes] = await Promise.all([
+        referralsApi.get(),
+        referralsApi.stats(),
+        referralsApi.links({ limit: 20 }),
+        referralsApi.attributions({ limit: 20 }),
+      ]);
+      // `res.data` is already the unwrapped envelope payload (lib/api.ts):
+      // program + stats are flat; links/attributions come back as `{ rows }`.
+      setForm({ ...DEFAULT_CONFIG, ...(cfgRes.data ?? {}) });
+      setStats(statsRes.data ?? null);
+      setLinks(linksRes.data?.rows ?? []);
+      setAttributions(attribRes.data?.rows ?? []);
+    } catch (e) {
+      setError(extractError(e) ?? 'Failed to load');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save() {
     setSaving(true); setError(''); setSuccess('');
@@ -121,6 +131,22 @@ export default function ReferralsPage() {
       <PageHeader
         title="Referral program"
         description="Reward your buyers for bringing friends. When a new buyer completes their first paid checkout via a referrer's link, both sides get an auto-issued discount code. Refunds within the reward window claw back unused codes automatically."
+        action={
+          assistantEnabled ? (
+            <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
+              <Sparkles className="h-4 w-4" /> Ask assistant
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <AgenticSheetSlot
+        resource="referrals-program"
+        mode="edit"
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        initial={form as unknown as Record<string, unknown>}
+        onApplied={() => { void load(); }}
       />
 
       {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}

@@ -5,6 +5,7 @@ import { Package, AlertTriangle, Plus, Minus, Check, X, CalendarClock } from 'lu
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { PageAssistant, AgenticEntry } from '@/components/catentio/agentic-entry';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -160,16 +161,29 @@ export default function InventoryPage() {
         title="Inventory"
         description="On-hand stock, reorder points and expiry tracking per outlet."
         action={
-          <Select value={outletId} onValueChange={setOutletId}>
-            <SelectTrigger className="w-auto min-w-[12rem]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {outlets.map((o) => (
-                <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            {/* The stock movements themselves (adjustment / transfer /
+                batch) are create-only, approval-required resources — the
+                page lists stock LEVELS, so one sparkle covers all three. */}
+            <PageAssistant
+              options={[
+                { resource: 'inventory-adjustments', label: 'Stock adjustment' },
+                { resource: 'inventory-transfers', label: 'Stock transfer' },
+                { resource: 'stock-batches', label: 'Stock batch' },
+              ]}
+              onApplied={refresh}
+            />
+            <Select value={outletId} onValueChange={setOutletId}>
+              <SelectTrigger className="w-auto min-w-[12rem]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {outlets.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         }
       />
 
@@ -217,9 +231,20 @@ export default function InventoryPage() {
                   <ReorderEditor value={l.reorderPoint} onSave={(v) => saveReorder(l, v)} />
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="outline" size="sm" onClick={() => setAdjusting(l)}>
-                    Adjust
-                  </Button>
+                  <AgenticEntry
+                    resource="inventory-adjustments"
+                    mode="create"
+                    onApplied={refresh}
+                    fallback={
+                      <Button variant="outline" size="sm" onClick={() => setAdjusting(l)}>
+                        Adjust
+                      </Button>
+                    }
+                  >
+                    <span className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
+                      Adjust
+                    </span>
+                  </AgenticEntry>
                 </TableCell>
               </TableRow>
             ))}

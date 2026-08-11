@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { PageHeader } from '@/components/dashboard/page-header';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +27,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -63,6 +71,12 @@ export default function CategoriesPage() {
   // Set while a reorder round-trip is in flight so the arrows can't be
   // double-fired into a conflicting order.
   const [reordering, setReordering] = useState(false);
+  // Batch edit (agentic sheet) + batch delete, over the row selection.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
     try {
@@ -125,6 +139,52 @@ export default function CategoriesPage() {
     }
   }
 
+  // Selected rows as bulk targets: `id` for the write, `name` for a
+  // named failure line, and the descriptor fields so the edit sheet's
+  // manual form pre-fills.
+  const bulkTargets = useMemo(
+    () => categories.filter((c) => selected.has(c.id)),
+    [categories, selected],
+  );
+
+  async function onBulkDelete() {
+    setBulkError(null);
+    setBulkDeleting(true);
+    try {
+      await deleteMany(
+        bulkTargets.map((c) => ({ id: c.id, label: c.name })),
+        (id) => api.delete(`/categories/${id}`),
+      );
+      setSelected(new Set());
+      await load();
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : 'Some categories could not be deleted');
+      await load();
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      for (const c of categories) {
+        if (checked) next.add(c.id);
+        else next.delete(c.id);
+      }
+      return next;
+    });
+  }
+
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
   return (
@@ -133,16 +193,107 @@ export default function CategoriesPage() {
         title="Categories"
         description="Group your products so the sell screen finds them faster. This order is the order cashiers see on the sell screen."
         action={
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" /> Add category
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="categories" onApplied={load} />
+            <AgenticEntry
+              resource="categories"
+              mode="create"
+              onApplied={load}
+              fallback={
+                <Button onClick={() => setCreating(true)}>
+                  <Plus className="h-4 w-4" /> Add category
+                </Button>
+              }
+            >
+              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                <Plus className="h-4 w-4" /> Add category
+              </span>
+            </AgenticEntry>
+          </div>
         }
       />
+
+      {selected.size > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+          <span className="text-sm font-medium">
+            {selected.size === 1 ? '1 category selected' : `${selected.size} categories selected`}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {assistantEnabled && (
+              <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={bulkDeleting}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  disabled={bulkDeleting}
+                >
+                  {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Delete {selected.size} {selected.size === 1 ? 'category' : 'categories'}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This cannot be undone. Products in a deleted category are kept but become uncategorized.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={onBulkDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkDeleting}>
+              Clear
+            </Button>
+          </div>
+          {bulkError && (
+            <p className="w-full text-xs text-destructive">{bulkError}</p>
+          )}
+        </div>
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="categories"
+          targets={bulkTargets}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
+      )}
 
       <Card className="mt-4 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={
+                    categories.length > 0 && categories.every((c) => selected.has(c.id))
+                      ? true
+                      : categories.some((c) => selected.has(c.id))
+                        ? 'indeterminate'
+                        : false
+                  }
+                  onCheckedChange={(v) => toggleAll(v === true)}
+                  aria-label="Select all categories"
+                />
+              </TableHead>
               <TableHead className="w-24">Order</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Products</TableHead>
@@ -152,7 +303,14 @@ export default function CategoriesPage() {
           </TableHeader>
           <TableBody>
             {categories.map((c, i) => (
-              <TableRow key={c.id}>
+              <TableRow key={c.id} data-state={selected.has(c.id) ? 'selected' : undefined}>
+                <TableCell>
+                  <Checkbox
+                    checked={selected.has(c.id)}
+                    onCheckedChange={(v) => toggleRow(c.id, v === true)}
+                    aria-label={`Select ${c.name}`}
+                  />
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-0.5">
                     <Button
@@ -232,7 +390,7 @@ export default function CategoriesPage() {
             ))}
             {!categories.length && (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                   No categories yet. Add one, then assign products to it from the Products page.
                 </TableCell>
               </TableRow>

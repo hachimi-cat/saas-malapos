@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Megaphone, Loader2, Gift, ExternalLink, Search } from 'lucide-react';
+import { Megaphone, Loader2, Gift, ExternalLink, Search, Sparkles } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +53,9 @@ export default function LoyaltyPage() {
   const [loading, setLoading] = useState(true);
   const [moduleOff, setModuleOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The agentic sheet over this settings "form that IS the page".
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
     setLoading(true);
@@ -109,6 +114,22 @@ export default function LoyaltyPage() {
       <PageHeader
         title="Loyalty program"
         description="Points-based rewards for your customers. Powered by Ripllo."
+        action={
+          assistantEnabled ? (
+            <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
+              <Sparkles className="h-4 w-4" /> Ask assistant
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <AgenticSheetSlot
+        resource="loyalty-program"
+        mode="edit"
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        initial={program ?? undefined}
+        onApplied={() => { void load(); }}
       />
 
       {error && (

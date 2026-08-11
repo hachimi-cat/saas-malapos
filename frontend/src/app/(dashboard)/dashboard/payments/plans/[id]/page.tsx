@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Loader2, Archive, CheckCircle2, Plus } from 'lucide-react';
 import { plansApi, Plan } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { AgenticEntry } from '@/components/catentio/agentic-entry';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -225,14 +226,27 @@ export default function PlanDetailPage() {
         <Card className="rounded-lg border border-border bg-card">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base font-semibold font-display">Prices</CardTitle>
-            <Button
-              type="button"
-              variant="link"
-              onClick={() => setShowAddPrice((s) => !s)}
-              className="h-auto gap-1 p-0 text-xs"
+            {/* The agentic sheet gets the parent plan via `initial`, so
+                the price it plans lands on the plan the USER opened. */}
+            <AgenticEntry
+              resource="prices"
+              mode="create"
+              initial={{ planId: id }}
+              onApplied={load}
+              className={cn(buttonVariants({ variant: 'link' }), 'h-auto gap-1 p-0 text-xs')}
+              fallback={
+                <Button
+                  type="button"
+                  variant="link"
+                  onClick={() => setShowAddPrice((s) => !s)}
+                  className="h-auto gap-1 p-0 text-xs"
+                >
+                  <Plus className="h-3 w-3" /> Add price
+                </Button>
+              }
             >
               <Plus className="h-3 w-3" /> Add price
-            </Button>
+            </AgenticEntry>
           </CardHeader>
           <CardContent>
 

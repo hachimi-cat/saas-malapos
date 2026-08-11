@@ -1,8 +1,10 @@
 'use client';
 
 import { AssistantSection } from '@/components/catentio/assistant-section';
+import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Check, User, ShieldCheck, Cpu, UserX } from 'lucide-react';
+import { Settings as SettingsIcon, Check, User, ShieldCheck, Cpu, UserX, Sparkles } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { APP_VERSION, BUILD_SHA, BUILD_DATE } from '@/lib/version';
 import { PageHeader } from '@/components/dashboard/page-header';
@@ -57,14 +59,44 @@ const TYPE_OPTIONS: { value: BusinessType; label: string; hint: string }[] = [
 ];
 
 export default function SettingsPage() {
+  // The page IS the form (edit-only singleton — nothing to create), so
+  // the assistant entry is a header sparkle toggling the edit sheet with
+  // the loaded settings as `initial`. BusinessSection reports what it
+  // loaded (onLoaded) and refetches when the sheet applies (reloadKey).
+  const { enabled: assistantEnabled } = useCatentioStatus();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [currentSettings, setCurrentSettings] = useState<SettingsRecord | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
   return (
     <div className="space-y-8">
       <PageHeader
         title="Settings"
         description="Your business profile, and your Forjio account."
+        action={
+          assistantEnabled ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!currentSettings}
+              onClick={() => setSheetOpen(true)}
+            >
+              <Sparkles /> Ask assistant
+            </Button>
+          ) : undefined
+        }
       />
 
-      <BusinessSection />
+      <AgenticSheetSlot
+        resource="settings"
+        mode="edit"
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        initial={currentSettings ?? undefined}
+        onApplied={() => setReloadKey((k) => k + 1)}
+      />
+
+      <BusinessSection reloadKey={reloadKey} onLoaded={setCurrentSettings} />
       <ProfileSection />
 
       {/* Assistant — renders only when the catentio pilot flag is on for
@@ -119,7 +151,15 @@ function StatusRow({ saved, error }: { saved: boolean; error: string | null }) {
 }
 
 // ─── Business profile (PosSettings, /api/v1/settings) ──────────────────────
-function BusinessSection() {
+function BusinessSection({
+  reloadKey,
+  onLoaded,
+}: {
+  /** Bumped when the agentic sheet applied a change — refetch. */
+  reloadKey: number;
+  /** Reports the loaded record up, for the sheet's `initial`. */
+  onLoaded: (s: SettingsRecord) => void;
+}) {
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState<BusinessType>('GENERAL');
   const [currency, setCurrency] = useState('IDR');
@@ -142,13 +182,15 @@ function BusinessSection() {
         setTransferBankName(s.transferBankName ?? '');
         setTransferBankAccountNumber(s.transferBankAccountNumber ?? '');
         setTransferBankAccountHolder(s.transferBankAccountHolder ?? '');
+        onLoaded(s);
       } catch (e) {
         setError(e instanceof ApiRequestError ? e.message : 'Failed to load settings');
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -170,6 +212,7 @@ function BusinessSection() {
       setTransferBankName(s.transferBankName ?? '');
       setTransferBankAccountNumber(s.transferBankAccountNumber ?? '');
       setTransferBankAccountHolder(s.transferBankAccountHolder ?? '');
+      onLoaded(s);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {

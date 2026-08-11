@@ -8,6 +8,14 @@ import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { Loader2, Plus, Ticket, Pencil, Trash2, CheckCircle2, Clock, Eye, EyeOff } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -80,6 +88,9 @@ export default function DiscountCodesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<DiscountCode | 'new' | null>(null);
+  // Batch edit (agentic sheet) over the DataTable's selection.
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   // Auto-open create modal when arriving with ?campaign=<id>
   useEffect(() => {
@@ -95,6 +106,18 @@ export default function DiscountCodesPage() {
     } catch (e: unknown) {
       setError((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Failed to load');
     } finally { setLoading(false); }
+  }, []);
+
+  // Quiet refetch for the assistant paths: no loading flip, so the
+  // DataTable (and the bulk bar's partial-failure message on it) stays
+  // mounted while the rows underneath update.
+  const refresh = useCallback(async () => {
+    try {
+      const res = await discountCodesApi.list({ limit: 100 });
+      setCodes(res.data ?? []);
+    } catch {
+      /* keep the rows we have — the next full reload reports */
+    }
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
@@ -266,9 +289,23 @@ export default function DiscountCodesPage() {
           </>
         }
         action={
-          <Button onClick={() => setEditing('new')} className="shrink-0">
-            <Plus className="h-3.5 w-3.5" /> New code
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="discount-codes" onApplied={refresh} />
+            <AgenticEntry
+              resource="discount-codes"
+              mode="create"
+              onApplied={refresh}
+              fallback={
+                <Button onClick={() => setEditing('new')} className="shrink-0">
+                  <Plus className="h-3.5 w-3.5" /> New code
+                </Button>
+              }
+            >
+              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                <Plus className="h-3.5 w-3.5" /> New code
+              </span>
+            </AgenticEntry>
+          </div>
         }
       />
 
@@ -288,6 +325,40 @@ export default function DiscountCodesPage() {
           searchPlaceholder="Search code, description…"
           defaultSort={{ key: 'code', dir: 'asc' }}
           empty="No discount codes match."
+          renderBulkBar={(selectedRows, clear) => (
+            <>
+              <BulkBar
+                count={selectedRows.length}
+                noun="discount code"
+                onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
+                onDelete={async () => {
+                  try {
+                    await deleteMany(
+                      selectedRows.map((c) => ({ id: c.id, label: c.code })),
+                      (id) => discountCodesApi.archive(id),
+                    );
+                  } finally {
+                    // Reload either way so the list is honest; a partial
+                    // run's thrown message stays on the bar.
+                    await refresh();
+                  }
+                }}
+                onClear={clear}
+              />
+              {bulkEditing && (
+                <BulkEditSlot
+                  resource="discount-codes"
+                  targets={selectedRows as unknown as Record<string, unknown>[]}
+                  onClose={() => setBulkEditing(false)}
+                  onApplied={async () => {
+                    setBulkEditing(false);
+                    clear();
+                    await refresh();
+                  }}
+                />
+              )}
+            </>
+          )}
         />
       )}
 

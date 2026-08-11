@@ -1,11 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { plansApi, Plan } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -232,14 +240,55 @@ export default function PlansPage() {
   const [editPlan, setEditPlan] = useState<Plan | undefined>();
   const [showCreate, setShowCreate] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Bulk selection over the cards + the agentic bulk-edit sheet.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
+
+  async function load() {
+    try {
+      const res = await plansApi.list({ limit: 50 });
+      setPlans(res.data ?? []);
+    } catch {
+      setPlans([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    plansApi
-      .list({ limit: 50 })
-      .then((res) => setPlans(res.data ?? []))
-      .catch(() => setPlans([]))
-      .finally(() => setLoading(false));
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Selection counted against the live list, so a card that a reload
+  // dropped stops counting on its own.
+  const bulkTargets = useMemo(
+    () => plans.filter((p) => selected.has(p.id)),
+    [plans, selected],
+  );
+
+  function toggleCard(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function onBulkDelete() {
+    try {
+      await deleteMany(
+        bulkTargets.map((p) => ({ id: p.id, label: p.name })),
+        (id) => plansApi.delete(id),
+      );
+    } finally {
+      // Reload either way so the cards on screen are honest; a partial
+      // failure re-throws and the bar shows which plans survived.
+      await load();
+    }
+  }
 
   function handleSaved(plan: Plan) {
     setPlans((prev) => {
@@ -281,9 +330,22 @@ export default function PlansPage() {
         title="Subscription Plans"
         description="Create and manage your billing plans"
         action={
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" /> New Plan
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="plans" onApplied={load} />
+            <AgenticEntry
+              resource="plans"
+              mode="create"
+              onApplied={load}
+              className={buttonVariants()}
+              fallback={
+                <Button onClick={() => setShowCreate(true)}>
+                  <Plus className="h-4 w-4" /> New Plan
+                </Button>
+              }
+            >
+              <Plus className="h-4 w-4" /> New Plan
+            </AgenticEntry>
+          </div>
         }
       />
 
@@ -314,11 +376,19 @@ export default function PlansPage() {
               )}
             >
               <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold font-display">{plan.name}</h3>
-                  {plan.description && (
-                    <p className="mt-1 text-xs text-muted-foreground">{plan.description}</p>
-                  )}
+                <div className="flex items-start gap-2.5">
+                  <Checkbox
+                    checked={selected.has(plan.id)}
+                    onCheckedChange={(v) => toggleCard(plan.id, v === true)}
+                    aria-label={`Select ${plan.name}`}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <h3 className="font-semibold font-display">{plan.name}</h3>
+                    {plan.description && (
+                      <p className="mt-1 text-xs text-muted-foreground">{plan.description}</p>
+                    )}
+                  </div>
                 </div>
                 <Badge
                   variant="outline"
@@ -394,6 +464,31 @@ export default function PlansPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {bulkTargets.length > 0 && (
+        <BulkBar
+          count={bulkTargets.length}
+          noun="plan"
+          onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
+          onDelete={onBulkDelete}
+          onClear={() => setSelected(new Set())}
+        />
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="plans"
+          // Plan is an interface (no implicit index signature) — spread
+          // into fresh objects to satisfy Record<string, unknown>[].
+          targets={bulkTargets.map((p) => ({ ...p }))}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
       )}
     </div>
   );

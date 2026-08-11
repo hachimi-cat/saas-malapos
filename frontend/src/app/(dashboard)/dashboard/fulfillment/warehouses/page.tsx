@@ -1,14 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Plus, Pencil, Trash2, CheckCircle2, AlertCircle, Building2 } from 'lucide-react';
 import { warehousesApi, type Warehouse } from '@/lib/fulfillment-api';
 import { ApiRequestError } from '@/lib/api';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { Button } from '@/components/ui/button';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -27,6 +36,10 @@ export default function WarehousesPage() {
   const [moduleOff, setModuleOff] = useState(false);
   const [editing, setEditing] = useState<Warehouse | 'new' | null>(null);
   const [error, setError] = useState('');
+  // Bulk selection over the cards + the agentic bulk-edit sheet.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function refresh() {
     const res = await warehousesApi.list();
@@ -41,6 +54,33 @@ export default function WarehousesPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const bulkTargets = useMemo(
+    () => list.filter((w) => selected.has(w.id)),
+    [list, selected],
+  );
+
+  function toggleCard(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function onBulkDelete() {
+    try {
+      await deleteMany(
+        bulkTargets.map((w) => ({ id: w.id, label: w.name })),
+        (id) => warehousesApi.delete(id),
+      );
+    } finally {
+      // Reload either way so the cards on screen are honest; a partial
+      // failure re-throws and the bar names the warehouses that stayed.
+      await refresh();
+    }
+  }
 
   async function handleDelete(w: Warehouse) {
     try {
@@ -65,9 +105,22 @@ export default function WarehousesPage() {
         title="Warehouses"
         description="Where you store + ship from. Each variant tracks stock per warehouse."
         action={
-          <Button onClick={() => setEditing('new')}>
-            <Plus className="h-4 w-4" /> Add warehouse
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="warehouses" onApplied={refresh} />
+            <AgenticEntry
+              resource="warehouses"
+              mode="create"
+              onApplied={refresh}
+              className={buttonVariants()}
+              fallback={
+                <Button onClick={() => setEditing('new')}>
+                  <Plus className="h-4 w-4" /> Add warehouse
+                </Button>
+              }
+            >
+              <Plus className="h-4 w-4" /> Add warehouse
+            </AgenticEntry>
+          </div>
         }
       />
 
@@ -87,7 +140,14 @@ export default function WarehousesPage() {
           {list.map((w) => (
             <Card key={w.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="flex items-start gap-2.5">
+                  <Checkbox
+                    checked={selected.has(w.id)}
+                    onCheckedChange={(v) => toggleCard(w.id, v === true)}
+                    aria-label={`Select ${w.name}`}
+                    className="mt-0.5"
+                  />
+                  <div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{w.name}</span>
                     {w.isDefault && (
@@ -96,6 +156,7 @@ export default function WarehousesPage() {
                   </div>
                   {w.address && <div className="mt-0.5 text-xs text-muted-foreground">{w.address}{w.city ? `, ${w.city}` : ''}{w.postal ? ` ${w.postal}` : ''}</div>}
                   {w.phone && <div className="text-xs text-muted-foreground">{w.phone}</div>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   {!w.isDefault && (
@@ -133,6 +194,31 @@ export default function WarehousesPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {bulkTargets.length > 0 && (
+        <BulkBar
+          count={bulkTargets.length}
+          noun="warehouse"
+          onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
+          onDelete={onBulkDelete}
+          onClear={() => setSelected(new Set())}
+        />
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="warehouses"
+          // Warehouse is an interface (no implicit index signature) —
+          // spread into fresh objects for Record<string, unknown>[].
+          targets={bulkTargets.map((w) => ({ ...w }))}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            await refresh();
+          }}
+        />
       )}
 
       {editing && (

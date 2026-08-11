@@ -1,12 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { blogApi, type BlogPost, type BlogPostStatus } from '@/lib/marketing-api';
 import { Loader2, Plus, Search, ExternalLink, FileText } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,6 +31,11 @@ export default function BlogListPage() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Card-list selection (this list had none): a checkbox per card, the
+  // bulk bar below while the selection is non-empty.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
     setLoading(true);
@@ -45,6 +59,22 @@ export default function BlogListPage() {
                            p.slug.toLowerCase().includes(query.toLowerCase()))
     : posts;
 
+  // Counted against the CURRENT posts, so a post that was deleted (or
+  // dropped by a status-filter reload) leaves the selection on its own.
+  const bulkTargets = useMemo(
+    () => posts.filter((p) => selected.has(p.id)),
+    [posts, selected],
+  );
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -56,11 +86,25 @@ export default function BlogListPage() {
           </>
         }
         action={
-          <Button asChild className="shrink-0">
-            <Link href="/dashboard/marketing/blog/new">
-              <Plus className="h-4 w-4" /> New post
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="blog-posts" onApplied={load} />
+            <AgenticEntry
+              resource="blog-posts"
+              mode="create"
+              onApplied={load}
+              fallback={
+                <Button asChild className="shrink-0">
+                  <Link href="/dashboard/marketing/blog/new">
+                    <Plus className="h-4 w-4" /> New post
+                  </Link>
+                </Button>
+              }
+            >
+              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                <Plus className="h-4 w-4" /> New post
+              </span>
+            </AgenticEntry>
+          </div>
         }
       />
 
@@ -101,10 +145,19 @@ export default function BlogListPage() {
       ) : (
         <ul className="space-y-2">
           {filtered.map((p) => (
-            <li key={p.id}>
+            <li
+              key={p.id}
+              className="flex items-start gap-3 rounded-lg border border-border bg-card p-4 hover:border-primary/50"
+            >
+              <Checkbox
+                checked={selected.has(p.id)}
+                onCheckedChange={(v) => toggleRow(p.id, v === true)}
+                aria-label={`Select ${p.title}`}
+                className="mt-0.5 shrink-0"
+              />
               <Link
                 href={`/dashboard/marketing/blog/${p.id}`}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 hover:border-primary/50"
+                className="flex min-w-0 flex-1 items-center justify-between gap-3"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -128,6 +181,40 @@ export default function BlogListPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {bulkTargets.length > 0 && (
+        <BulkBar
+          count={bulkTargets.length}
+          noun="post"
+          onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
+          onDelete={async () => {
+            try {
+              await deleteMany(
+                bulkTargets.map((p) => ({ id: p.id, label: p.title })),
+                (id) => blogApi.delete(id),
+              );
+            } finally {
+              // Reload either way so the list is honest; a partial
+              // run's thrown message stays on the bar.
+              await load();
+            }
+          }}
+          onClear={() => setSelected(new Set())}
+        />
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="blog-posts"
+          targets={bulkTargets as unknown as Record<string, unknown>[]}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
       )}
 
       <Card className="bg-card/50 p-4 text-xs text-muted-foreground shadow-none">

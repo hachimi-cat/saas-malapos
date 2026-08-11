@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Truck, Loader2, MapPin, RefreshCw, Settings } from 'lucide-react';
+import { Truck, Loader2, MapPin, RefreshCw, Settings, Sparkles } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -45,6 +47,11 @@ export default function DeliverySettingsPage() {
   const [loading, setLoading] = useState(true);
   const [moduleOff, setModuleOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The origin is an edit-only singleton — the sparkle button opens the
+  // agentic sheet directly over the loaded record (same pattern as the
+  // malapos settings page's singleton edit).
+  const [assistOpen, setAssistOpen] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
     setLoading(true);
@@ -97,10 +104,29 @@ export default function DeliverySettingsPage() {
         title="Delivery settings"
         description="Your pickup origin and the couriers available to your workspace. Powered by Fulkruma."
         action={
-          <Button type="button" variant="outline" onClick={() => void load()}>
-            <RefreshCw className="h-4 w-4" /> Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            {assistantEnabled && (
+              <Button type="button" variant="outline" onClick={() => setAssistOpen(true)}>
+                <Sparkles className="h-4 w-4" /> Ask assistant
+              </Button>
+            )}
+            <Button type="button" variant="outline" onClick={() => void load()}>
+              <RefreshCw className="h-4 w-4" /> Refresh
+            </Button>
+          </div>
         }
+      />
+
+      <AgenticSheetSlot
+        resource="delivery-origin"
+        mode="edit"
+        open={assistOpen}
+        onClose={() => setAssistOpen(false)}
+        initial={origin ?? undefined}
+        onApplied={async () => {
+          setAssistOpen(false);
+          await load();
+        }}
       />
 
       {error && (

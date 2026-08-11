@@ -8,6 +8,7 @@ import { Loader2, PauseCircle, PlayCircle, XCircle } from 'lucide-react';
 import { BillingTabs } from '@/components/payment/BillingTabs';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { PageAssistant } from '@/components/catentio/agentic-entry';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,13 +46,21 @@ export default function SubscriptionsPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
+  async function load() {
     setLoading(true);
-    subscriptionsApi
-      .list({ limit: 100 })
-      .then((res) => setSubscriptions(res.data ?? []))
-      .catch(() => setSubscriptions([]))
-      .finally(() => setLoading(false));
+    try {
+      const res = await subscriptionsApi.list({ limit: 100 });
+      setSubscriptions(res.data ?? []);
+    } catch {
+      setSubscriptions([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleAction(id: string, action: 'cancel' | 'pause' | 'resume') {
@@ -221,6 +230,10 @@ export default function SubscriptionsPage() {
       <PageHeader
         title="Subscriptions"
         description="Manage customer subscription lifecycle"
+        // No hand-built create form on this page — the sparkle is the
+        // create entry (renders only when the assistant is enabled).
+        // Pause/resume/cancel stay per-row below.
+        action={<PageAssistant resource="subscriptions" onApplied={load} />}
       />
 
       <BillingTabs />

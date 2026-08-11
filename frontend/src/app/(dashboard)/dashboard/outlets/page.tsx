@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Store } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Pencil, Trash2, Store, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { PageHeader } from '@/components/dashboard/page-header';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,6 +108,12 @@ export default function OutletsPage() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Outlet | null>(null);
   const [creating, setCreating] = useState(false);
+  // Batch edit (agentic sheet) + batch delete, over the row selection.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
     try {
@@ -127,6 +140,52 @@ export default function OutletsPage() {
     }
   }
 
+  // Selected rows as bulk targets: `id` for the write, `name` for a
+  // named failure line, and the descriptor fields so the edit sheet's
+  // manual form pre-fills.
+  const bulkTargets = useMemo(
+    () => outlets.filter((o) => selected.has(o.id)),
+    [outlets, selected],
+  );
+
+  async function onBulkDelete() {
+    setBulkError(null);
+    setBulkDeleting(true);
+    try {
+      await deleteMany(
+        bulkTargets.map((o) => ({ id: o.id, label: o.name })),
+        (id) => api.delete(`/outlets/${id}`),
+      );
+      setSelected(new Set());
+      await load();
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : 'Some outlets could not be deleted');
+      await load();
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      for (const o of outlets) {
+        if (checked) next.add(o.id);
+        else next.delete(o.id);
+      }
+      return next;
+    });
+  }
+
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
   return (
@@ -135,11 +194,89 @@ export default function OutletsPage() {
         title="Outlets"
         description="Your stores and their tax, timezone, and receipt settings."
         action={
-          <Button onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" /> Add outlet
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="outlets" onApplied={load} />
+            <AgenticEntry
+              resource="outlets"
+              mode="create"
+              onApplied={load}
+              fallback={
+                <Button onClick={() => setCreating(true)}>
+                  <Plus className="h-4 w-4" /> Add outlet
+                </Button>
+              }
+            >
+              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                <Plus className="h-4 w-4" /> Add outlet
+              </span>
+            </AgenticEntry>
+          </div>
         }
       />
+
+      {selected.size > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+          <span className="text-sm font-medium">
+            {selected.size === 1 ? '1 outlet selected' : `${selected.size} outlets selected`}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {assistantEnabled && (
+              <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={bulkDeleting}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  disabled={bulkDeleting}
+                >
+                  {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Delete {selected.size} {selected.size === 1 ? 'outlet' : 'outlets'}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This cannot be undone. An outlet with sales history is deactivated instead of deleted.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={onBulkDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkDeleting}>
+              Clear
+            </Button>
+          </div>
+          {bulkError && (
+            <p className="w-full text-xs text-destructive">{bulkError}</p>
+          )}
+        </div>
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="outlets"
+          targets={bulkTargets}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
+      )}
 
       {outlets.length === 0 ? (
         <Card className="p-12 text-center">
@@ -157,6 +294,19 @@ export default function OutletsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={
+                      outlets.length > 0 && outlets.every((o) => selected.has(o.id))
+                        ? true
+                        : outlets.some((o) => selected.has(o.id))
+                          ? 'indeterminate'
+                          : false
+                    }
+                    onCheckedChange={(v) => toggleAll(v === true)}
+                    aria-label="Select all outlets"
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Address</TableHead>
                 <TableHead>Phone</TableHead>
@@ -167,7 +317,14 @@ export default function OutletsPage() {
             </TableHeader>
             <TableBody>
               {outlets.map((o) => (
-                <TableRow key={o.id}>
+                <TableRow key={o.id} data-state={selected.has(o.id) ? 'selected' : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(o.id)}
+                      onCheckedChange={(v) => toggleRow(o.id, v === true)}
+                      aria-label={`Select ${o.name}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{o.name}</TableCell>
                   <TableCell className="max-w-xs truncate text-muted-foreground">{o.address || '—'}</TableCell>
                   <TableCell className="text-muted-foreground">{o.phone || '—'}</TableCell>

@@ -8,7 +8,8 @@ import { formatDate, cn } from '@/lib/utils';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { Button } from '@/components/ui/button';
+import { PageAssistant, AgenticEntry } from '@/components/catentio/agentic-entry';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -146,14 +147,20 @@ export default function LicensesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
 
+  async function load() {
+    try {
+      const res = await licensesApi.list();
+      setLicenses(res.data ?? []);
+    } catch (e) {
+      if (e instanceof ApiRequestError && e.status === 409) setModuleOff(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    licensesApi
-      .list()
-      .then((res) => setLicenses(res.data ?? []))
-      .catch((e) => {
-        if (e instanceof ApiRequestError && e.status === 409) setModuleOff(true);
-      })
-      .finally(() => setLoading(false));
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleCreated(key: License) {
@@ -287,9 +294,22 @@ export default function LicensesPage() {
         title="License Keys"
         description="Issue and manage license keys for your products."
         action={
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" /> Issue key
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="licenses" onApplied={load} />
+            <AgenticEntry
+              resource="licenses"
+              mode="create"
+              onApplied={load}
+              className={buttonVariants()}
+              fallback={
+                <Button onClick={() => setShowCreate(true)}>
+                  <Plus className="h-4 w-4" /> Issue key
+                </Button>
+              }
+            >
+              <Plus className="h-4 w-4" /> Issue key
+            </AgenticEntry>
+          </div>
         }
       />
 

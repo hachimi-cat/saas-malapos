@@ -1,14 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Megaphone, Loader2, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
 import { marketingFetch } from '@/lib/marketing-api';
 import { cn } from '@/lib/utils';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,6 +61,11 @@ export default function FunnelsPage() {
   const [rows, setRows] = useState<Funnel[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+  // Card-list selection (this list had none): a checkbox per card, the
+  // bulk bar below while the selection is non-empty.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
     try {
@@ -64,12 +78,61 @@ export default function FunnelsPage() {
   }
   useEffect(() => { load(); }, []);
 
+  // Counted against the CURRENT rows, so a funnel that was deleted (or
+  // vanished on reload) drops out of the selection on its own.
+  const bulkTargets = useMemo(
+    () => (rows ?? []).filter((f) => selected.has(f.id)),
+    [rows, selected],
+  );
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  // deleteMany's deleteOne: marketingFetch does not throw on a non-2xx,
+  // so surface the proxy's envelope message as the thrown Error.
+  async function deleteFunnel(id: string) {
+    const r = await marketingFetch(`/api/v1/account/marketing/funnels/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!r.ok) {
+      let message = `delete failed (${r.status})`;
+      try {
+        const b = await r.json();
+        message = b?.error?.message ?? message;
+      } catch {
+        /* non-JSON error body */
+      }
+      throw new Error(message);
+    }
+  }
+
   return (
     <div>
       <PageHeader
         title="Funnels"
         description="Trigger-driven multi-step automations. Welcome series, abandoned-cart recovery, win-back, post-purchase nurture."
-        action={<Button onClick={() => setShowNew(true)}><Plus className="h-4 w-4" /> New funnel</Button>}
+        action={
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="funnels" onApplied={load} />
+            <AgenticEntry
+              resource="funnels"
+              mode="create"
+              onApplied={load}
+              fallback={<Button onClick={() => setShowNew(true)}><Plus className="h-4 w-4" /> New funnel</Button>}
+            >
+              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                <Plus className="h-4 w-4" /> New funnel
+              </span>
+            </AgenticEntry>
+          </div>
+        }
       />
 
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
@@ -82,8 +145,15 @@ export default function FunnelsPage() {
         <Card className="overflow-hidden">
           <ul>
             {rows.map((f) => (
-              <li key={f.id}>
-                <Link href={`/dashboard/marketing/funnels/${f.id}`} className="flex items-center gap-3 border-b border-border px-5 py-3.5 last:border-b-0 hover:bg-secondary/50">
+              <li key={f.id} className="flex items-center border-b border-border last:border-b-0">
+                <span className="flex shrink-0 items-center pl-5">
+                  <Checkbox
+                    checked={selected.has(f.id)}
+                    onCheckedChange={(v) => toggleRow(f.id, v === true)}
+                    aria-label={`Select ${f.name}`}
+                  />
+                </span>
+                <Link href={`/dashboard/marketing/funnels/${f.id}`} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 hover:bg-secondary/50">
                   <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground"><Megaphone size={16} /></span>
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{f.name}</p>
@@ -101,6 +171,40 @@ export default function FunnelsPage() {
             ))}
           </ul>
         </Card>
+      )}
+
+      {bulkTargets.length > 0 && (
+        <BulkBar
+          count={bulkTargets.length}
+          noun="funnel"
+          onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
+          onDelete={async () => {
+            try {
+              await deleteMany(
+                bulkTargets.map((f) => ({ id: f.id, label: f.name })),
+                deleteFunnel,
+              );
+            } finally {
+              // Reload either way so the list is honest; a partial
+              // run's thrown message stays on the bar.
+              await load();
+            }
+          }}
+          onClear={() => setSelected(new Set())}
+        />
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="funnels"
+          targets={bulkTargets as unknown as Record<string, unknown>[]}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
       )}
 
       {showNew && <NewFunnelModal onClose={() => setShowNew(false)} onCreated={async (id) => { setShowNew(false); window.location.href = `/dashboard/marketing/funnels/${id}`; }} />}

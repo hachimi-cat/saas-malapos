@@ -9,7 +9,8 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { Button } from '@/components/ui/button';
+import { PageAssistant, AgenticEntry } from '@/components/catentio/agentic-entry';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -225,9 +226,20 @@ export default function ShipmentsPage() {
             <Button type="button" variant="outline" onClick={() => void reload()}>
               <RotateCcw className="h-3.5 w-3.5" /> Refresh
             </Button>
-            <Button type="button" onClick={() => setCreateOpen(true)}>
+            <PageAssistant resource="shipments" onApplied={() => void reload()} />
+            <AgenticEntry
+              resource="shipments"
+              mode="create"
+              onApplied={() => void reload()}
+              className={buttonVariants()}
+              fallback={
+                <Button type="button" onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-3.5 w-3.5" /> New shipment
+                </Button>
+              }
+            >
               <Plus className="h-3.5 w-3.5" /> New shipment
-            </Button>
+            </AgenticEntry>
           </>
         }
       />

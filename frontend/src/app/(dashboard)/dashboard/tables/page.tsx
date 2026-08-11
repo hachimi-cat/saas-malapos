@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   Pencil,
@@ -17,10 +17,19 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useBusinessType } from '@/hooks/use-business-type';
 import { PageHeader } from '@/components/dashboard/page-header';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +66,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -121,6 +131,13 @@ export default function TablesPage() {
   const [floorDialog, setFloorDialog] = useState<{ mode: 'add' | 'rename'; floor?: Floor } | null>(null);
   const [deletingFloor, setDeletingFloor] = useState<Floor | null>(null);
   const [deletingTable, setDeletingTable] = useState<Table | null>(null);
+  // Batch edit (agentic sheet) + batch delete, over the List view's rows.
+  // The Layout canvas is not a selection surface.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   useEffect(() => {
     (async () => {
@@ -188,6 +205,12 @@ export default function TablesPage() {
     if (outletId) load(outletId, floorId);
     else setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outletId, floorId]);
+
+  // A selection only makes sense within one floor's list — drop it when
+  // the outlet or floor changes.
+  useEffect(() => {
+    setSelected(new Set());
   }, [outletId, floorId]);
 
   // ── Floor CRUD ─────────────────────────────────────────────────────────
@@ -278,6 +301,58 @@ export default function TablesPage() {
     }
   }
 
+  // The assistant may have touched tables OR floors — refresh both.
+  async function reloadAfterAssistant() {
+    const fid = await loadFloors(outletId);
+    await load(outletId, fid);
+  }
+
+  // Selected rows as bulk targets: `id` for the write, `label` for a
+  // named failure line, and the descriptor fields so the edit sheet's
+  // manual form pre-fills.
+  const bulkTargets = useMemo(
+    () => tables.filter((t) => selected.has(t.id)),
+    [tables, selected],
+  );
+
+  async function onBulkDelete() {
+    setBulkError(null);
+    setBulkDeleting(true);
+    try {
+      await deleteMany(
+        bulkTargets.map((t) => ({ id: t.id, label: t.label })),
+        (id) => api.delete(`/tables/${id}`),
+      );
+      setSelected(new Set());
+      await load(outletId, floorId);
+    } catch (e) {
+      setBulkError(e instanceof Error ? e.message : 'Some tables could not be deleted');
+      await load(outletId, floorId);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelected((s) => {
+      const next = new Set(s);
+      for (const t of tables) {
+        if (checked) next.add(t.id);
+        else next.delete(t.id);
+      }
+      return next;
+    });
+  }
+
   if (btLoading || loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
   if (!isFnb) {
@@ -324,9 +399,27 @@ export default function TablesPage() {
                 </SelectContent>
               </Select>
             )}
-            <Button onClick={() => setCreating(true)}>
-              <Plus className="h-4 w-4" /> Add table
-            </Button>
+            <PageAssistant
+              options={[
+                { resource: 'tables', label: 'Table' },
+                { resource: 'floors', label: 'Floor' },
+              ]}
+              onApplied={reloadAfterAssistant}
+            />
+            <AgenticEntry
+              resource="tables"
+              mode="create"
+              onApplied={reloadAfterAssistant}
+              fallback={
+                <Button onClick={() => setCreating(true)}>
+                  <Plus className="h-4 w-4" /> Add table
+                </Button>
+              }
+            >
+              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                <Plus className="h-4 w-4" /> Add table
+              </span>
+            </AgenticEntry>
           </>
         }
       />
@@ -339,6 +432,7 @@ export default function TablesPage() {
         onRename={renameFloor}
         onDelete={deleteFloor}
         onMove={moveFloor}
+        onAgenticApplied={reloadAfterAssistant}
       />
 
       {floorId && (
@@ -352,6 +446,70 @@ export default function TablesPage() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
+      )}
+
+      {floorId && view === 'list' && selected.size > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+          <span className="text-sm font-medium">
+            {selected.size === 1 ? '1 table selected' : `${selected.size} tables selected`}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {assistantEnabled && (
+              <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={bulkDeleting}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
+            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  disabled={bulkDeleting}
+                >
+                  {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Delete {selected.size} {selected.size === 1 ? 'table' : 'tables'}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This cannot be undone. A table with sales history is deactivated instead of deleted.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={onBulkDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkDeleting}>
+              Clear
+            </Button>
+          </div>
+          {bulkError && (
+            <p className="w-full text-xs text-destructive">{bulkError}</p>
+          )}
+        </div>
+      )}
+
+      {bulkEditing && (
+        <BulkEditSlot
+          resource="tables"
+          targets={bulkTargets}
+          onClose={() => setBulkEditing(false)}
+          onApplied={async () => {
+            setBulkEditing(false);
+            setSelected(new Set());
+            await load(outletId, floorId);
+          }}
+        />
       )}
 
       {!floorId ? (
@@ -389,6 +547,19 @@ export default function TablesPage() {
           <UiTable>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={
+                      tables.length > 0 && tables.every((t) => selected.has(t.id))
+                        ? true
+                        : tables.some((t) => selected.has(t.id))
+                          ? 'indeterminate'
+                          : false
+                    }
+                    onCheckedChange={(v) => toggleAll(v === true)}
+                    aria-label="Select all tables"
+                  />
+                </TableHead>
                 <TableHead>Label</TableHead>
                 <TableHead>Zone</TableHead>
                 <TableHead>Seats</TableHead>
@@ -399,7 +570,14 @@ export default function TablesPage() {
             </TableHeader>
             <TableBody>
               {tables.map((t) => (
-                <TableRow key={t.id}>
+                <TableRow key={t.id} data-state={selected.has(t.id) ? 'selected' : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(t.id)}
+                      onCheckedChange={(v) => toggleRow(t.id, v === true)}
+                      aria-label={`Select ${t.label}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{t.label}</TableCell>
                   <TableCell className="text-muted-foreground">{t.zone || '—'}</TableCell>
                   <TableCell className="text-muted-foreground">{t.seats != null ? t.seats : '—'}</TableCell>
@@ -1087,6 +1265,7 @@ function FloorSwitcher({
   onRename,
   onDelete,
   onMove,
+  onAgenticApplied,
 }: {
   floors: Floor[];
   floorId: string;
@@ -1095,6 +1274,7 @@ function FloorSwitcher({
   onRename: (f: Floor) => void;
   onDelete: (f: Floor) => void;
   onMove: (dir: -1 | 1) => void;
+  onAgenticApplied: () => void;
 }) {
   const idx = floors.findIndex((f) => f.id === floorId);
   const active = floors[idx] ?? null;
@@ -1111,15 +1291,27 @@ function FloorSwitcher({
             {f.name}
           </Button>
         ))}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onAdd}
+        <AgenticEntry
+          resource="floors"
+          mode="create"
+          onApplied={onAgenticApplied}
           title="Add floor"
-          className="border-dashed text-muted-foreground"
+          fallback={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onAdd}
+              title="Add floor"
+              className="border-dashed text-muted-foreground"
+            >
+              <Plus className="h-4 w-4" /> Floor
+            </Button>
+          }
         >
-          <Plus className="h-4 w-4" /> Floor
-        </Button>
+          <span className="inline-flex h-8 items-center gap-1 rounded-md border border-dashed border-input bg-background px-3 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
+            <Plus className="h-4 w-4" /> Floor
+          </span>
+        </AgenticEntry>
       </div>
 
       {active && (

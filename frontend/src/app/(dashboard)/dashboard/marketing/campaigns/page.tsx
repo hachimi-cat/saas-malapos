@@ -22,9 +22,17 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Loader2, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
 import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import {
+  PageAssistant,
+  AgenticEntry,
+  BulkEditSlot,
+} from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { deleteMany } from '@/lib/bulk';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -91,6 +99,9 @@ export default function MarketingCampaignsHubPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [working, setWorking] = useState(false);
+  // Batch edit (agentic sheet) over the DataTable's selection.
+  const [bulkEditing, setBulkEditing] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -155,6 +166,26 @@ export default function MarketingCampaignsHubPage() {
     }
   }
 
+  // deleteMany's deleteOne: marketingFetch does not throw on a non-2xx,
+  // so surface the proxy's envelope message as the thrown Error — that
+  // sentence is what the bulk bar names per failed campaign.
+  async function deleteCampaign(id: string) {
+    const r = await marketingFetch(
+      `/api/v1/account/marketing/marketing-campaigns/${id}`,
+      { method: 'DELETE', credentials: 'include' },
+    );
+    if (!r.ok) {
+      let message = `delete failed (${r.status})`;
+      try {
+        const b = await r.json();
+        message = b?.error?.message ?? message;
+      } catch {
+        /* non-JSON error body */
+      }
+      throw new Error(message);
+    }
+  }
+
   function totalChildren(c: Campaign): number {
     if (!c._count) return 0;
     return (
@@ -173,7 +204,21 @@ export default function MarketingCampaignsHubPage() {
       <PageHeader
         title="Campaigns"
         description="Group creator briefs, discounts, broadcasts and more under one push. Each child still works standalone."
-        action={<Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New campaign</Button>}
+        action={
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="marketing-campaigns" onApplied={load} />
+            <AgenticEntry
+              resource="marketing-campaigns"
+              mode="create"
+              onApplied={load}
+              fallback={<Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New campaign</Button>}
+            >
+              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
+                <Plus className="h-4 w-4" /> New campaign
+              </span>
+            </AgenticEntry>
+          </div>
+        }
       />
 
       {error && <ErrorBox>{error}</ErrorBox>}
@@ -241,6 +286,40 @@ export default function MarketingCampaignsHubPage() {
               options: Object.entries(GOAL_LABELS).map(([value, label]) => ({ value, label })),
             },
           ] as FilterDef<Campaign>[]}
+          renderBulkBar={(selectedRows, clear) => (
+            <>
+              <BulkBar
+                count={selectedRows.length}
+                noun="campaign"
+                onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
+                onDelete={async () => {
+                  try {
+                    await deleteMany(
+                      selectedRows.map((c) => ({ id: c.id, label: c.name })),
+                      deleteCampaign,
+                    );
+                  } finally {
+                    // Reload either way so the list is honest; a partial
+                    // run's thrown message stays on the bar.
+                    await load();
+                  }
+                }}
+                onClear={clear}
+              />
+              {bulkEditing && (
+                <BulkEditSlot
+                  resource="marketing-campaigns"
+                  targets={selectedRows as unknown as Record<string, unknown>[]}
+                  onClose={() => setBulkEditing(false)}
+                  onApplied={async () => {
+                    setBulkEditing(false);
+                    clear();
+                    await load();
+                  }}
+                />
+              )}
+            </>
+          )}
         />
       )}
 

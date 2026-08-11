@@ -7,7 +7,8 @@ import { formatCurrency, formatDate, formatPaymentMethod, cn } from '@/lib/utils
 import { Plus, ExternalLink, Loader2, Copy, Check } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { Button } from '@/components/ui/button';
+import { PageAssistant, AgenticEntry } from '@/components/catentio/agentic-entry';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -179,12 +180,22 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
 
+  // One reload path, so the agentic sheet's onApplied refetches the same
+  // way the initial mount does.
+  async function load() {
+    try {
+      const res = await checkoutSessionsApi.list({ limit: 100 });
+      setSessions(res.data ?? []);
+    } catch {
+      setSessions([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    checkoutSessionsApi
-      .list({ limit: 100 })
-      .then((res) => setSessions(res.data ?? []))
-      .catch(() => setSessions([]))
-      .finally(() => setLoading(false));
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleCreated(session: CheckoutSession) {
@@ -297,9 +308,22 @@ export default function PaymentsPage() {
         title="Checkout Sessions"
         description="Manage and create hosted payment sessions"
         action={
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" /> New Session
-          </Button>
+          <div className="flex items-center gap-2">
+            <PageAssistant resource="checkout-sessions" onApplied={load} />
+            <AgenticEntry
+              resource="checkout-sessions"
+              mode="create"
+              onApplied={load}
+              className={buttonVariants()}
+              fallback={
+                <Button onClick={() => setShowCreate(true)}>
+                  <Plus className="h-4 w-4" /> New Session
+                </Button>
+              }
+            >
+              <Plus className="h-4 w-4" /> New Session
+            </AgenticEntry>
+          </div>
         }
       />
 

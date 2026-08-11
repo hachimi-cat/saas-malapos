@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { pixelsApi, type MerchantPixelsConfig } from '@/lib/marketing-api';
-import { Loader2, Save, BarChart3, Eye, EyeOff, CheckCircle2, Activity, Target } from 'lucide-react';
+import { Loader2, Save, BarChart3, Eye, EyeOff, CheckCircle2, Activity, Target, Sparkles } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,27 +35,33 @@ export default function PixelsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showCapiToken, setShowCapiToken] = useState(false);
+  // The agentic sheet over this settings "form that IS the page".
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
-  useEffect(() => {
-    pixelsApi
-      .get()
-      .then((res) => {
-        // `res.data` is already the unwrapped envelope payload (lib/api.ts).
-        const data = res.data;
-        setForm({
-          metaPixelId: data.metaPixelId ?? null,
-          metaCapiAccessToken: data.metaCapiAccessToken ?? null,
-          metaTestEventCode: data.metaTestEventCode ?? null,
-          googleAnalyticsId: data.googleAnalyticsId ?? null,
-          googleAdsConversionId: data.googleAdsConversionId ?? null,
-          googleAdsPurchaseLabel: data.googleAdsPurchaseLabel ?? null,
-          tiktokPixelId: data.tiktokPixelId ?? null,
-          enabled: data.enabled ?? true,
-        });
-      })
-      .catch((e) => setError(extractError(e) ?? 'Failed to load pixel config'))
-      .finally(() => setLoading(false));
-  }, []);
+  async function load() {
+    try {
+      const res = await pixelsApi.get();
+      // `res.data` is already the unwrapped envelope payload (lib/api.ts).
+      const data = res.data;
+      setForm({
+        metaPixelId: data.metaPixelId ?? null,
+        metaCapiAccessToken: data.metaCapiAccessToken ?? null,
+        metaTestEventCode: data.metaTestEventCode ?? null,
+        googleAnalyticsId: data.googleAnalyticsId ?? null,
+        googleAdsConversionId: data.googleAdsConversionId ?? null,
+        googleAdsPurchaseLabel: data.googleAdsPurchaseLabel ?? null,
+        tiktokPixelId: data.tiktokPixelId ?? null,
+        enabled: data.enabled ?? true,
+      });
+    } catch (e) {
+      setError(extractError(e) ?? 'Failed to load pixel config');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save() {
     setSaving(true); setError(''); setSuccess('');
@@ -78,6 +86,22 @@ export default function PixelsPage() {
       <PageHeader
         title="Pixels & Conversion Tracking"
         description="Per-merchant tracking pixels for Meta, Google, and TikTok ads. Configure the IDs you use and the storefront injects the scripts + emits standard ecommerce events (PageView, ViewContent, AddToCart, InitiateCheckout, Purchase)."
+        action={
+          assistantEnabled ? (
+            <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
+              <Sparkles className="h-4 w-4" /> Ask assistant
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <AgenticSheetSlot
+        resource="pixels"
+        mode="edit"
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        initial={form as unknown as Record<string, unknown>}
+        onApplied={() => { void load(); }}
       />
 
       {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}

@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { abandonedCartApi, discountCodesApi, type AbandonedCartConfig, type AbandonedCartReminder, type AbandonedCartStats, type DiscountCode } from '@/lib/marketing-api';
-import { Loader2, Save, MailX, CheckCircle2, Clock, ShoppingBag } from 'lucide-react';
+import { Loader2, Save, MailX, CheckCircle2, Clock, ShoppingBag, Sparkles } from 'lucide-react';
 import { DataTable, type Column } from '@/components/data-table';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -42,37 +44,44 @@ export default function AbandonedCartPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  // The agentic sheet over this settings "form that IS the page".
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
-  useEffect(() => {
-    Promise.all([
-      abandonedCartApi.config.get(),
-      abandonedCartApi.reminders({ limit: 50 }),
-      abandonedCartApi.stats({ windowDays: 30 }),
-      discountCodesApi.list({ active: true, limit: 100 }),
-    ])
-      .then(([configRes, remindersRes, statsRes, codesRes]) => {
-        // `res.data` is already the unwrapped envelope payload (lib/api.ts).
-        // Config + stats are flat objects; reminders comes back as `{ items }`;
-        // codes is the sendList array.
-        const configData = configRes.data;
-        const remindersData = (remindersRes.data as unknown as { items?: AbandonedCartReminder[] })?.items ?? [];
-        const statsData = statsRes.data ?? null;
-        const codesData = codesRes.data ?? [];
-        setForm({
-          enabled: configData.enabled ?? false,
-          delayHours: configData.delayHours ?? 4,
-          emailSubject: configData.emailSubject ?? 'You left something in your cart',
-          emailPreview: configData.emailPreview ?? 'Come back to finish your order',
-          discountCodeId: configData.discountCodeId ?? null,
-          marketingCampaignId: configData.marketingCampaignId ?? null,
-        });
-        setReminders(Array.isArray(remindersData) ? remindersData : []);
-        setStats(statsData);
-        setDiscountCodes(Array.isArray(codesData) ? codesData : []);
-      })
-      .catch((e) => setError(extractError(e) ?? 'Failed to load'))
-      .finally(() => setLoading(false));
-  }, []);
+  async function load() {
+    try {
+      const [configRes, remindersRes, statsRes, codesRes] = await Promise.all([
+        abandonedCartApi.config.get(),
+        abandonedCartApi.reminders({ limit: 50 }),
+        abandonedCartApi.stats({ windowDays: 30 }),
+        discountCodesApi.list({ active: true, limit: 100 }),
+      ]);
+      // `res.data` is already the unwrapped envelope payload (lib/api.ts).
+      // Config + stats are flat objects; reminders comes back as `{ items }`;
+      // codes is the sendList array.
+      const configData = configRes.data;
+      const remindersData = (remindersRes.data as unknown as { items?: AbandonedCartReminder[] })?.items ?? [];
+      const statsData = statsRes.data ?? null;
+      const codesData = codesRes.data ?? [];
+      setForm({
+        enabled: configData.enabled ?? false,
+        delayHours: configData.delayHours ?? 4,
+        emailSubject: configData.emailSubject ?? 'You left something in your cart',
+        emailPreview: configData.emailPreview ?? 'Come back to finish your order',
+        discountCodeId: configData.discountCodeId ?? null,
+        marketingCampaignId: configData.marketingCampaignId ?? null,
+      });
+      setReminders(Array.isArray(remindersData) ? remindersData : []);
+      setStats(statsData);
+      setDiscountCodes(Array.isArray(codesData) ? codesData : []);
+    } catch (e) {
+      setError(extractError(e) ?? 'Failed to load');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save() {
     setSaving(true); setError(''); setSuccess('');
@@ -114,6 +123,22 @@ export default function AbandonedCartPage() {
             every 15 minutes. Reminders are sent at most once per cart per 72h, never to opted-out buyers.
           </>
         }
+        action={
+          assistantEnabled ? (
+            <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
+              <Sparkles className="h-4 w-4" /> Ask assistant
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <AgenticSheetSlot
+        resource="abandoned-cart"
+        mode="edit"
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        initial={form as unknown as Record<string, unknown>}
+        onApplied={() => { void load(); }}
       />
 
       {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
