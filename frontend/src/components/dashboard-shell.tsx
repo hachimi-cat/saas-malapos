@@ -357,7 +357,7 @@ export function DashboardShell({
       grantCredits: limit,
       usedFraction: limit > 0 ? Math.min(1, used / limit) : 0,
       caption: `Resets ${date}, ${time}`,
-      href: '/dashboard/billing#credits',
+      href: '/dashboard/billing/credits',
     };
   }, [credits]);
   const router = useRouter();

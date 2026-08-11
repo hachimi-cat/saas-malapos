@@ -51,6 +51,13 @@ const embed = createCatentioRouter<MalaposLimits>({
   product: 'malapos',
   profile: MALAPOS_PROFILE,
   knownApiBases: ['https://malapos.forjio.com', 'https://staging-malapos.forjio.com'],
+  // The embed's topup default is '/billing#credits' — storlaunch's and
+  // linksnap's billing URL, not ours. Malapos's dashboard sits under
+  // /dashboard, so without these two lines a completed top-up checkout
+  // sent the buyer back to a 404 (and with BASE_URL unset, to a
+  // relative URL Plugipay can't even redirect to).
+  baseUrl: process.env.MALAPOS_PUBLIC_URL ?? 'https://malapos.com',
+  topupReturnPath: '/dashboard/billing/credits',
   authenticate: requireAuth,
   getUser: resolveUser,
   flagEnabled: (u) => catentioPilotEnabled(u.sub, u.email),

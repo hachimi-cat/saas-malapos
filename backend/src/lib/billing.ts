@@ -33,6 +33,20 @@ export interface TierDef {
   name: string;
   /** Whole rupiah per month. 0 = free. Free during early access. */
   priceIdr: number;
+  /** US cents per month for international buyers (PayPal rail). Clean
+   *  USD amounts at ~Rp 14-16k/USD — hedges against IDR/USD drift.
+   *  These were first hand-typed on the /pricing + home pages; the
+   *  backend copy is now the source of truth and the pages mirror it. */
+  priceUsdCents: number;
+  /** Monthly assistant-credit grant bundled with the tier. The grant is
+   *  applied by catentio's control plane (PLAN_MONTHLY_GRANT_CREDITS,
+   *  keyed through grantPlan() in routes/catentio.ts: free→FREE 50,
+   *  starter/growth→PRO 500, business→BUSINESS 1200). Malapos cannot
+   *  mint credits — this number exists so the cards and the pricing
+   *  page can STATE the grant a buyer receives. KEEP IN STEP WITH THE
+   *  CP: if either side moves alone, the cards advertise a grant nobody
+   *  receives. */
+  agentCredits: number;
   blurb: string;
   /** Outlets (store locations) — maps to the Outlet model + /outlets. */
   outletLimit: number; // Infinity-safe: use a big sentinel for "unlimited"
@@ -68,6 +82,8 @@ export const TIER_DEFS: readonly TierDef[] = [
     id: 'free',
     name: 'Free',
     priceIdr: 0,
+    priceUsdCents: 0,
+    agentCredits: 50,
     outletLimit: 1,
     memberLimit: 2,
     productLimit: 50,
@@ -81,6 +97,7 @@ export const TIER_DEFS: readonly TierDef[] = [
     blurb: 'For a single counter getting started.',
     features: [
       '1 outlet',
+      '50 assistant credits/mo',
       'Up to 50 products',
       'Sell screen — cash, QRIS, card & transfer',
       'Counter, dine-in, takeaway & delivery',
@@ -97,6 +114,8 @@ export const TIER_DEFS: readonly TierDef[] = [
     id: 'starter',
     name: 'Starter',
     priceIdr: 99_000,
+    priceUsdCents: 700, // $7
+    agentCredits: 500,
     outletLimit: 1,
     memberLimit: 5,
     productLimit: UNLIMITED,
@@ -110,6 +129,7 @@ export const TIER_DEFS: readonly TierDef[] = [
     blurb: 'For one busy store that needs stock + customers.',
     features: [
       'Everything in Free',
+      '500 assistant credits/mo',
       'Unlimited products',
       'Inventory tracking + low-stock alerts',
       'Cashier shifts + cash reconciliation',
@@ -123,6 +143,8 @@ export const TIER_DEFS: readonly TierDef[] = [
     id: 'growth',
     name: 'Growth',
     priceIdr: 199_000,
+    priceUsdCents: 1_400, // $14
+    agentCredits: 500,
     outletLimit: 5,
     memberLimit: 15,
     productLimit: UNLIMITED,
@@ -136,6 +158,7 @@ export const TIER_DEFS: readonly TierDef[] = [
     blurb: 'For multi-outlet retail, F&B & pharmacy.',
     features: [
       'Everything in Starter',
+      '500 assistant credits/mo',
       'Up to 5 outlets + stock transfers',
       'Suppliers + purchase orders',
       'Batch & expiry tracking (pharmacy)',
@@ -146,6 +169,8 @@ export const TIER_DEFS: readonly TierDef[] = [
     id: 'business',
     name: 'Business',
     priceIdr: 449_000,
+    priceUsdCents: 3_000, // $30
+    agentCredits: 1_200,
     outletLimit: UNLIMITED,
     memberLimit: 50,
     productLimit: UNLIMITED,
@@ -159,6 +184,7 @@ export const TIER_DEFS: readonly TierDef[] = [
     blurb: 'For chains running many outlets.',
     features: [
       'Everything in Growth',
+      '1,200 assistant credits/mo',
       'Unlimited outlets',
       '50 cashier seats',
       'Priority support',
@@ -185,6 +211,30 @@ export function isBillingTier(v: unknown): v is BillingTier {
 /** Paid tiers need a Plugipay checkout; free never does. */
 export function isPaidTier(tier: BillingTier): boolean {
   return tierDef(tier).priceIdr > 0;
+}
+
+export type BillingCurrency = 'IDR' | 'USD';
+
+/**
+ * The currency a checkout bills in (storlaunch's geo-route, transcribed).
+ * An explicit choice from the caller wins — it is the account-wide
+ * preference the buyer set, and the invoice must match what the pricing
+ * page showed them. With no explicit choice, CF-IPCountry decides:
+ * ID → IDR rails (QRIS/VA/e-wallet/card), anywhere else → USD via
+ * PayPal (PayPal cannot settle IDR — it must never appear on an IDR
+ * session). 'XX'/'T1' are Cloudflare's unknown/Tor markers, and an
+ * absent header means no Cloudflare at all (staging) — all default IDR,
+ * the home market.
+ */
+export function resolveBillingCurrency(
+  explicit: unknown,
+  cfCountry: unknown,
+): BillingCurrency {
+  const want = String(explicit ?? '').trim().toUpperCase();
+  if (want === 'USD') return 'USD';
+  if (want === 'IDR') return 'IDR';
+  const cc = String(cfCountry ?? '').trim().toUpperCase();
+  return cc && cc !== 'ID' && cc !== 'XX' && cc !== 'T1' ? 'USD' : 'IDR';
 }
 
 // ─────────────────────────────────────────────────────────────

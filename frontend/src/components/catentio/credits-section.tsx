@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { useCurrency } from '@/lib/currency';
 import {
   startCreditsTopup,
   useCatentioCredits,
   useCatentioStatus,
+  type CreditsCurrency,
   type CreditsLedgerRow,
   type CreditsPack,
 } from '@/hooks/use-catentio';
@@ -40,16 +42,22 @@ export function CreditsSection() {
   const { enabled } = useCatentioStatus();
   const { credits, loading, refresh } = useCatentioCredits(enabled);
   const [buying, setBuying] = useState<CreditsPack | null>(null);
+  // The account-wide currency preference — read-only here; the page
+  // header's toggle is the one control that sets it.
+  const { currency } = useCurrency();
 
   if (!enabled || (!credits && !loading)) return null;
 
   const balance = credits?.balance.credits ?? 0;
+  // What the plan includes each month, straight from the CP's grant
+  // table — the one figure a merchant needs to decide whether to top up.
+  const grant = credits?.balance.monthly_grant_credits ?? 0;
   const ledger = credits?.ledger ?? [];
 
   const buy = async (pack: CreditsPack) => {
     setBuying(pack);
     try {
-      const out = await startCreditsTopup(pack);
+      const out = await startCreditsTopup(pack, currency as CreditsCurrency);
       if (out.checkoutUrl) {
         window.location.assign(out.checkoutUrl);
         return;
@@ -68,8 +76,10 @@ export function CreditsSection() {
   };
 
   return (
+    // No heading and no currency control of its own: this section owns
+    // the whole /dashboard/billing/credits page, whose PageHeader already
+    // carries the title and the currency toggle (the storlaunch shape).
     <section id="credits">
-      <h2 className="mb-3 text-lg font-semibold">Agent Credits</h2>
       <div className="rounded-xl border border-border bg-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -84,25 +94,33 @@ export function CreditsSection() {
               operation.
             </p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-2">
-              {PACKS.map((pack) => (
-                <Button
-                  key={pack}
-                  variant="outline"
-                  size="sm"
-                  disabled={buying !== null}
-                  onClick={() => buy(pack)}
-                >
-                  {buying === pack ? 'Opening checkout…' : `+${Number(pack).toLocaleString()}`}
-                </Button>
-              ))}
-            </div>
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Sparkles className="h-3.5 w-3.5" />
-              Monthly grant included with your plan — the exact pack price shows at checkout.
-            </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {PACKS.map((pack) => (
+              <Button
+                key={pack}
+                variant="outline"
+                size="sm"
+                disabled={buying !== null}
+                onClick={() => buy(pack)}
+              >
+                {buying === pack ? 'Opening checkout…' : `+${Number(pack).toLocaleString()}`}
+              </Button>
+            ))}
           </div>
+        </div>
+
+        <div className="mt-4 space-y-1">
+          <p className="text-xs text-muted-foreground">
+            {currency === 'USD'
+              ? 'PayPal — credits land as soon as the payment clears.'
+              : 'QRIS, virtual account, e-wallet or card — credits land as soon as the payment clears.'}
+          </p>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Sparkles className="h-3.5 w-3.5" />
+            {grant > 0
+              ? `${grant.toLocaleString()} credits included each month on your plan — the exact pack price shows at checkout.`
+              : 'Monthly grant included with your plan — the exact pack price shows at checkout.'}
+          </p>
         </div>
 
         {ledger.length > 0 && (

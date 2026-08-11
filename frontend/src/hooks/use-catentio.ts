@@ -260,18 +260,22 @@ export function useCatentioCredits(enabled: boolean): {
 }
 
 export type CreditsPack = '500' | '1200' | '2600';
+export type CreditsCurrency = 'IDR' | 'USD';
 
 /** Start a credit-pack top-up. Resolves with the hosted-checkout URL to
  *  send the browser to, or noop:true when billing runs in internal mode
- *  (staging) and there is nothing to pay. */
+ *  (staging) and there is nothing to pay. `currency` is the buyer's
+ *  saved preference — IDR rides the local rails, USD settles through
+ *  PayPal. */
 export async function startCreditsTopup(
   pack: CreditsPack,
+  currency: CreditsCurrency = 'IDR',
 ): Promise<{ checkoutUrl: string | null; noop: boolean; credits: number }> {
   const { data } = await api.post<{
     checkoutUrl: string | null;
     noop: boolean;
     credits: number;
-  }>('/catentio/credits/topup', { pack });
+  }>('/catentio/credits/topup', { pack, currency });
   return data;
 }
 

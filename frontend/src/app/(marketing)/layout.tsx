@@ -1,6 +1,8 @@
 import Script from 'next/script';
 import { MarketingShell, MarketingNav, MarketingFooter } from '@forjio/website-ui';
 import { LogoMark } from '@/components/brand/logo';
+import { CurrencyToggle } from '@/components/currency-toggle';
+import { CurrencyRow } from '@/components/marketing/currency-row';
 
 /*
  * Marketing route-group layout — the shared Forjio family chrome
@@ -66,6 +68,18 @@ export default function MarketingLayout({
       <MarketingNav
         brandIcon={<LogoMark size={24} className="text-primary" />}
         brandName={brand}
+        localeSlot={<CurrencyToggle />}
+        // The phone bar mirrors CurrencyRow, the footer row — same label,
+        // same 12px type (website-ui 0.8.0). Malapos has no language
+        // switcher, so this row is currency alone; the footer's trailing
+        // sentence about rails is left off, since a thin bar above the
+        // header is not where a merchant reads prose.
+        localeBar={
+          <>
+            <span className="uppercase tracking-wider">Currency</span>
+            <CurrencyToggle />
+          </>
+        }
       />
       <main className="flex-1">{children}</main>
       <MarketingFooter
@@ -75,6 +89,7 @@ export default function MarketingLayout({
         copyrightSuffix="part of the Forjio family."
         columns={FOOTER_COLUMNS}
       />
+      <CurrencyRow />
       {/* Suppuo helpdesk widget — live-chat bubble + help form. Self-inits
           from the data attr; recolors to the workspace brand accent. */}
       <Script

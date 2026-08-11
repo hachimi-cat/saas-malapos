@@ -11,6 +11,7 @@ import {
   EARLY_ACCESS,
   effectiveTier,
   isPaidTier,
+  resolveBillingCurrency,
   tierDef,
   type BillingTier,
 } from '../lib/billing.js';
@@ -72,17 +73,23 @@ router.get(
 
 const checkoutBody = z.object({
   tier: z.enum(['free', 'starter', 'growth', 'business']),
+  currency: z.enum(['IDR', 'USD']).optional(),
 });
 
-/** POST /checkout {tier} — create a Plugipay hosted checkout session
- *  for a paid tier; the browser redirects to data.hostedUrl. The
+/** POST /checkout {tier, currency?} — create a Plugipay hosted checkout
+ *  session for a paid tier; the browser redirects to data.hostedUrl.
+ *  `currency` is the buyer's saved preference (the billing page passes
+ *  it so the charge matches the price they were shown); absent, the
+ *  CF-IPCountry geo-route decides. IDR rides the local rails, USD
+ *  settles through PayPal only — PayPal cannot settle IDR. The
  *  subscription itself is only written when the
- *  plugipay.checkout_session.completed.v1 webhook lands. */
+ *  plugipay.checkout_session.completed.v1 webhook lands (the metadata
+ *  carries {accountId, tier} and is currency-agnostic). */
 router.post(
   '/checkout',
   requireAuth,
   asyncHandler(async (req, res) => {
-    const { tier } = checkoutBody.parse(req.body);
+    const { tier, currency: bodyCurrency } = checkoutBody.parse(req.body);
     if (!isPaidTier(tier)) {
       return sendErr(res, req, 400, 'VALIDATION_ERROR', 'free needs no checkout', {
         param: 'tier',
@@ -94,18 +101,29 @@ router.post(
 
     const accountId = req.auth!.accountId as string;
     const def = tierDef(tier);
+    const currency = resolveBillingCurrency(bodyCurrency, req.headers['cf-ipcountry']);
+    // Guard on the amount actually charged: a tier with no USD price
+    // must refuse rather than create a $0 session.
+    if (currency === 'USD' && def.priceUsdCents <= 0) {
+      return sendErr(res, req, 503, 'USD_PRICE_MISSING', `No USD price for ${def.name}`);
+    }
+    const amount = currency === 'USD' ? def.priceUsdCents : def.priceIdr;
+    const label =
+      currency === 'USD'
+        ? `Malapos ${def.name} — $${(def.priceUsdCents / 100).toFixed(2)}/mo`
+        : `Malapos ${def.name} — Rp ${def.priceIdr.toLocaleString('id-ID')}/mo`;
     const client = getPlugipayClient();
     const session = await client.checkoutSessions.create({
-      amount: def.priceIdr,
-      currency: 'IDR',
-      methods: ['qris', 'va', 'ewallet', 'card'],
+      amount,
+      currency,
+      methods: currency === 'USD' ? ['paypal'] : ['qris', 'va', 'ewallet', 'card'],
       successUrl: `${PUBLIC_URL()}/dashboard/billing?status=success`,
       cancelUrl: `${PUBLIC_URL()}/dashboard/billing?status=canceled`,
       lineItems: [
         {
-          name: `Malapos ${def.name} — Rp ${def.priceIdr.toLocaleString('id-ID')}/mo`,
+          name: label,
           quantity: 1,
-          unitAmount: def.priceIdr,
+          unitAmount: amount,
         },
       ],
       metadata: { accountId, tier },

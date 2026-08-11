@@ -14,12 +14,13 @@
  * the browser back here with ?status=success|canceled.
  */
 
-import { CreditsSection } from '@/components/catentio/credits-section';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Check } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
-import { rupiah } from '@/lib/money';
+import { rupiah, usd } from '@/lib/money';
+import { useCurrency } from '@/lib/currency';
+import { CurrencyToggle } from '@/components/currency-toggle';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,6 +55,8 @@ interface TierDef {
   id: string;
   name: string;
   priceIdr: number;
+  priceUsdCents: number;
+  agentCredits: number;
   blurb: string;
   outletLimit: number;
   memberLimit: number;
@@ -88,6 +91,13 @@ function BillingContent() {
   const [data, setData] = useState<BillingData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyTier, setBusyTier] = useState<string | null>(null);
+  // The plan cards below price in the chosen currency, and it is what
+  // checkout is charged in — so the control belongs on this page, not
+  // hidden away. Agent Credits has its own page with the same control,
+  // reading the same preference.
+  const { currency } = useCurrency();
+  const tierPrice = (tier: TierDef) =>
+    currency === 'USD' ? usd(tier.priceUsdCents) : rupiah(tier.priceIdr);
 
   useEffect(() => {
     api
@@ -102,9 +112,12 @@ function BillingContent() {
     setError(null);
     setBusyTier(tier);
     try {
+      // Send the saved preference so the charge matches the price the
+      // cards showed — never let the backend geo-route override what the
+      // buyer is looking at.
       const { data } = await api.post<{ checkoutSessionId: string; hostedUrl: string }>(
         '/billing/checkout',
-        { tier },
+        { tier, currency },
       );
       window.location.href = data.hostedUrl;
     } catch (err) {
@@ -134,7 +147,13 @@ function BillingContent() {
     <div className="space-y-8">
       <PageHeader
         title="Billing"
-        description="One flat price per workspace, billed in IDR through Plugipay."
+        description="One flat price per workspace — billed in rupiah or US dollars through Plugipay."
+        action={
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">Currency</span>
+            <CurrencyToggle />
+          </div>
+        }
       />
 
       {earlyAccess && (
@@ -196,7 +215,7 @@ function BillingContent() {
               {earlyAccess
                 ? 'Free during early access'
                 : currentDef && currentDef.priceIdr > 0
-                  ? `${rupiah(currentDef.priceIdr)}/mo`
+                  ? `${tierPrice(currentDef)}/mo`
                   : 'Free'}
             </span>
             {!earlyAccess && sub?.currentPeriodEnd && (
@@ -240,7 +259,7 @@ function BillingContent() {
                 <p className="mt-1 text-xs leading-snug text-muted-foreground">{tier.blurb}</p>
                 <p className="mt-4">
                   <span className="text-2xl font-bold tabular-nums tracking-tight">
-                    {rupiah(tier.priceIdr)}
+                    {tier.priceIdr > 0 ? tierPrice(tier) : currency === 'USD' ? '$0' : rupiah(0)}
                   </span>
                   {tier.priceIdr > 0 && (
                     <span className="ml-1 text-sm text-muted-foreground">/mo</span>
@@ -327,14 +346,12 @@ function BillingContent() {
         </div>
       </section>
 
-      {/* Agent credits — renders only when the catentio pilot flag is on
-          for this user, so the page is unchanged for everyone else. The
-          sidebar chip links here (#credits). */}
-      <CreditsSection />
-
+      {/* Agent credits live on their own page (/dashboard/billing/credits,
+          the storlaunch shape) — the sidebar chip links there. */}
       <p className="text-xs text-muted-foreground">
-        Payments are processed by Plugipay (QRIS, virtual account, e-wallet, card). Your outlets,
-        catalog and sales stay yours on every tier, paid or not.
+        Payments are processed by Plugipay — QRIS, virtual account, e-wallet and card in rupiah;
+        PayPal in US dollars. Your outlets, catalog and sales stay yours on every tier, paid or
+        not.
       </p>
     </div>
   );

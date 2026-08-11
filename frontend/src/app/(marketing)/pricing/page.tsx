@@ -1,22 +1,27 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Check, Minus } from 'lucide-react';
-import { Price } from '@forjio/website-ui';
+import { ProductPrice } from '@/components/marketing/product-price';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 /*
  * Pricing mirrors backend/src/lib/billing.ts (TIER_DEFS) — the single
- * source of truth for plan limits + bullets. Four flat per-workspace
- * monthly IDR tiers: Free / Starter / Growth / Business. Free is Rp0
- * with no card; the paid tiers add outlets, products, and features.
+ * source of truth for plan limits + bullets, now including priceUsdCents
+ * and the per-tier assistant-credit grant. Four flat per-workspace
+ * monthly tiers: Free / Starter / Growth / Business. Free is Rp0 with no
+ * card; the paid tiers add outlets, products, and features.
+ *
+ * Prices render via <ProductPrice> in whichever currency the reader
+ * chose (navbar or footer toggle) — IDR rides QRIS/VA/e-wallet/card,
+ * USD settles through PayPal.
  */
 
 export const metadata: Metadata = {
   title: 'Pricing',
   description:
-    'One flat price per store, in rupiah. Start free, then Starter, Growth, and Business plans for Indonesian retail, F&B, and pharmacy.',
+    'One flat price per store, in rupiah or US dollars. Start free, then Starter, Growth, and Business plans for Indonesian retail, F&B, and pharmacy.',
 };
 
 const tiers = [
@@ -28,6 +33,7 @@ const tiers = [
 
 const comparisonRows = [
   { feature: 'Outlets (store locations)', free: '1', starter: '1', growth: '5', business: 'Unlimited' },
+  { feature: 'AI assistant credits / month', free: '50', starter: '500', growth: '500', business: '1,200' },
   { feature: 'Products', free: 'Up to 50', starter: 'Unlimited', growth: 'Unlimited', business: 'Unlimited' },
   { feature: 'Cashier seats', free: '2', starter: '5', growth: '15', business: '50' },
   { feature: 'Sell screen — cash, QRIS, card & transfer', free: true, starter: true, growth: true, business: true },
@@ -60,8 +66,8 @@ export default function PricingPage() {
       <div className="text-center">
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">One price per store</h1>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-          Flat monthly pricing per workspace, in rupiah — not per cashier. Pick the plan that
-          fits your shop and add cashier seats within it.
+          Flat monthly pricing per workspace — not per cashier. Pay in rupiah or US dollars.
+          Every plan includes the AI assistant, with monthly credits that scale by tier.
         </p>
       </div>
 
@@ -89,7 +95,7 @@ export default function PricingPage() {
             <h2 className="text-xl font-bold">{tier.name}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{tier.description}</p>
             <p className="mt-6 text-4xl font-bold">
-              <Price idr={tier.idr} usdCents={tier.usdCents} />
+              <ProductPrice idr={tier.idr} usdCents={tier.usdCents} />
               {tier.idr > 0 && (
                 <span className="text-base font-normal text-muted-foreground">/mo</span>
               )}

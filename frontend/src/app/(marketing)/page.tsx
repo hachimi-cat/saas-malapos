@@ -19,7 +19,8 @@ import {
   X as XIcon,
   Zap,
 } from 'lucide-react';
-import { HeroBadge, SectionEyebrow, Price } from '@forjio/website-ui';
+import { HeroBadge, SectionEyebrow } from '@forjio/website-ui';
+import { ProductPrice } from '@/components/marketing/product-price';
 import { LogoMark } from '@/components/brand/logo';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -82,8 +83,8 @@ export default function HomePage() {
 
             <p className="mt-5 text-[15px] md:text-base leading-relaxed text-muted-foreground max-w-[60ch] mx-auto">
               Ring up sales, track every item of stock, and run multiple outlets from one
-              screen. Built for Indonesian retail, F&amp;B, and pharmacy. Priced in rupiah.
-              Part of the Forjio family.
+              screen. Built for Indonesian retail, F&amp;B, and pharmacy. Priced in rupiah
+              or US dollars. Part of the Forjio family.
             </p>
 
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
@@ -200,10 +201,11 @@ export default function HomePage() {
           <div className="text-center max-w-3xl mx-auto">
             <SectionEyebrow>Pricing</SectionEyebrow>
             <h2 className="text-[28px] md:text-[36px] leading-[1.1] font-semibold tracking-[-0.02em]">
-              One flat price per store. In rupiah.
+              One flat price per store.
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground max-w-[62ch] mx-auto">
-              Pay per workspace, not per cashier — a flat monthly price in rupiah. Start free,
+              Pay per workspace, not per cashier — a flat monthly price in rupiah or US
+              dollars. Every plan includes the AI assistant with monthly credits. Start free,
               then upgrade to Starter, Growth, or Business as your shop grows.
             </p>
           </div>
@@ -217,7 +219,7 @@ export default function HomePage() {
                 usdCents: 0,
                 priceUnit: 'forever',
                 who: 'For a single counter getting started.',
-                features: ['1 outlet', 'Up to 50 products', 'Cash, QRIS, card & transfer', 'Dine-in, takeaway & delivery', 'Printed & shareable receipts', '2 cashier seats'],
+                features: ['1 outlet', '50 assistant credits/mo', 'Up to 50 products', 'Cash, QRIS, card & transfer', 'Dine-in, takeaway & delivery', 'Printed & shareable receipts', '2 cashier seats'],
                 cta: { label: 'Start free', href: '/signup' },
               },
               {
@@ -227,7 +229,7 @@ export default function HomePage() {
                 priceUnit: '/ month',
                 who: 'For one busy store that needs stock + customers.',
                 featured: true,
-                features: ['Everything in Free', 'Unlimited products', 'Inventory + low-stock alerts', 'Cashier shifts + cash reconciliation', 'Customers + loyalty points', 'Hide Malapos branding', '5 cashier seats'],
+                features: ['Everything in Free', '500 assistant credits/mo', 'Unlimited products', 'Inventory + low-stock alerts', 'Cashier shifts + cash reconciliation', 'Customers + loyalty points', 'Hide Malapos branding', '5 cashier seats'],
                 cta: { label: 'Start free', href: '/signup' },
               },
               {
@@ -245,7 +247,7 @@ export default function HomePage() {
                 usdCents: 3_000,
                 priceUnit: '/ month',
                 who: 'For chains running many outlets.',
-                features: ['Everything in Growth', 'Unlimited outlets', '50 cashier seats', 'Priority support'],
+                features: ['Everything in Growth', '1,200 assistant credits/mo', 'Unlimited outlets', '50 cashier seats', 'Priority support'],
                 cta: { label: 'Start free', href: '/signup' },
               },
             ].map((tier) => (
@@ -266,7 +268,7 @@ export default function HomePage() {
                 </p>
                 <div className="mt-4 flex items-baseline gap-1.5">
                   <span className="text-[28px] font-bold tabular-nums tracking-tight">
-                    <Price idr={tier.idr} usdCents={tier.usdCents} />
+                    <ProductPrice idr={tier.idr} usdCents={tier.usdCents} />
                   </span>
                   <span className="text-xs text-muted-foreground">{tier.priceUnit}</span>
                 </div>
@@ -326,7 +328,7 @@ export default function HomePage() {
                   { cap: 'Multi-outlet + stock transfers', s: true, a: false, b: false },
                   { cap: 'Batch & expiry tracking (pharmacy)', s: true, a: false, b: false },
                   { cap: 'Customers + loyalty points', s: true, a: false, b: false },
-                  { cap: 'Priced in IDR, per workspace', s: true, a: false, b: false },
+                  { cap: 'Priced in IDR or USD, per workspace', s: true, a: false, b: false },
                 ].map((row) => (
                   <tr key={row.cap} className="border-b border-border last:border-b-0">
                     <td className="px-4 py-3 text-foreground/90">{row.cap}</td>
