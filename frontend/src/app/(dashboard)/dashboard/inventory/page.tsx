@@ -234,6 +234,17 @@ export default function InventoryPage() {
                   <AgenticEntry
                     resource="inventory-adjustments"
                     mode="create"
+                    // The sheet targets the row the merchant clicked:
+                    // outletId/variantId are the profile's own field
+                    // names (they prefill the form and travel to the
+                    // agent as the current record); quantity is the
+                    // on-hand count so a "set it to N" ask can be
+                    // planned as the right delta without a lookup.
+                    initial={{
+                      outletId: l.outletId,
+                      variantId: l.variantId,
+                      quantity: l.quantity,
+                    }}
                     onApplied={refresh}
                     fallback={
                       <Button variant="outline" size="sm" onClick={() => setAdjusting(l)}>

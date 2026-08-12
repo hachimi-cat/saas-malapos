@@ -34,7 +34,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -335,14 +335,32 @@ function OrdersTab({ reloadKey }: { reloadKey: number }) {
                         </Button>
                       )}
                       {(po.status === 'ORDERED' || po.status === 'PARTIAL') && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setReceiving(po)}
+                        <AgenticEntry
+                          resource="po-receipts"
+                          mode="create"
+                          // The sheet receives against the PO row the
+                          // merchant clicked — `purchaseOrderId` is the
+                          // descriptor's own field name, so it prefills
+                          // the select and the apply targets THIS order
+                          // (the refunds mount on sales/[id] is the
+                          // reference for verb-shaped resources).
+                          initial={{ purchaseOrderId: po.id }}
+                          onApplied={() => loadOrders()}
+                          className={buttonVariants({ variant: 'outline', size: 'sm' })}
                           title="Receive stock"
+                          fallback={
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setReceiving(po)}
+                              title="Receive stock"
+                            >
+                              <PackageCheck className="h-3.5 w-3.5" /> Receive
+                            </Button>
+                          }
                         >
                           <PackageCheck className="h-3.5 w-3.5" /> Receive
-                        </Button>
+                        </AgenticEntry>
                       )}
                       {(po.status === 'DRAFT' || po.status === 'ORDERED') && (
                         <AlertDialog>
