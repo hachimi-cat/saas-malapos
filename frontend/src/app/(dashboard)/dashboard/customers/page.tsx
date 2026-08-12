@@ -140,8 +140,11 @@ export default function CustomersPage() {
       if (q.trim()) params.set('q', q.trim());
       if (fromCursor) params.set('cursor', fromCursor);
       const qs = params.toString();
-      const res = await api.get<{ items: Customer[] }>(`/customers${qs ? `?${qs}` : ''}`);
-      const items = res.data.items ?? [];
+      // sendList puts the rows straight in `data` (a flat array); this
+      // used to read `.items` off it and got undefined every time — the
+      // list rendered "No customers yet" no matter what the API said.
+      const res = await api.get<Customer[]>(`/customers${qs ? `?${qs}` : ''}`);
+      const items = Array.isArray(res.data) ? res.data : [];
       setCustomers((prev) => (append ? [...prev, ...items] : items));
       setCursor(res.meta.cursor ?? null);
       setHasMore(Boolean(res.meta.hasMore));
