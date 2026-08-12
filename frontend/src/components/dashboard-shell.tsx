@@ -58,6 +58,7 @@ import {
   Hand,
   SlidersHorizontal,
   Tag,
+  Clock,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -132,6 +133,7 @@ const STATIC_SECTIONS: NavSection[] = [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/dashboard/sell', label: 'Sell', icon: ScanLine },
       { href: '/dashboard/sales', label: 'Sales', icon: BarChart3 },
+      { href: '/dashboard/shifts', label: 'Shifts', icon: Clock },
     ],
   },
   {
