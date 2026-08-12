@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { blogApi, type BlogPost, type BlogPostStatus } from '@/lib/marketing-api';
-import { Loader2, Plus, Search, ExternalLink, FileText } from 'lucide-react';
+import { Loader2, Plus, Search, ExternalLink, FileText, Globe, Undo2, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { BulkBar } from '@/components/dashboard/bulk-bar';
 import {
@@ -13,6 +13,17 @@ import {
 } from '@/components/catentio/agentic-entry';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -35,6 +46,9 @@ export default function BlogListPage() {
   // bulk bar below while the selection is non-empty.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
+  // Row-action in-flight guard: the post id being published/unpublished/
+  // deleted, so its buttons disable while the call runs.
+  const [working, setWorking] = useState<string | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
@@ -73,6 +87,36 @@ export default function BlogListPage() {
       else next.delete(id);
       return next;
     });
+  }
+
+  // Row publish/unpublish — status-gated (the button only renders for the
+  // status it applies to), then reload so the badge + filter are honest.
+  async function togglePublish(p: BlogPost) {
+    setWorking(p.id);
+    setError('');
+    try {
+      if (p.status === 'published') await blogApi.unpublish(p.id);
+      else await blogApi.publish(p.id);
+      await load();
+    } catch (e) {
+      setError(extractError(e) ?? `Failed to ${p.status === 'published' ? 'unpublish' : 'publish'} post`);
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  // Row delete — the AlertDialog is the confirm; reload either way.
+  async function deletePost(p: BlogPost) {
+    setWorking(p.id);
+    setError('');
+    try {
+      await blogApi.delete(p.id);
+      await load();
+    } catch (e) {
+      setError(extractError(e) ?? 'Failed to delete post');
+    } finally {
+      setWorking(null);
+    }
   }
 
   // Bulk-delete executor — the bar's confirm AND the page assistant's
@@ -199,6 +243,59 @@ export default function BlogListPage() {
                   {p.publishedAt ? new Date(p.publishedAt).toLocaleDateString() : '—'}
                 </div>
               </Link>
+              <div className="flex shrink-0 items-center gap-1">
+                {p.status === 'published' ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={working === p.id}
+                    onClick={() => togglePublish(p)}
+                    title="Unpublish — back to draft, removed from the storefront"
+                  >
+                    <Undo2 className="h-3.5 w-3.5" /> Unpublish
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={working === p.id}
+                    onClick={() => togglePublish(p)}
+                    title="Publish to the storefront"
+                  >
+                    <Globe className="h-3.5 w-3.5" /> Publish
+                  </Button>
+                )}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={working === p.id}
+                      title="Delete post"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete &ldquo;{p.title}&rdquo;?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        The post and its storefront page are removed. This cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep post</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => deletePost(p)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete post
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </li>
           ))}
         </ul>

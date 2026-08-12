@@ -20,7 +20,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { BulkBar } from '@/components/dashboard/bulk-bar';
 import { ErrorBox } from '@/components/dashboard/ui';
@@ -51,6 +51,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 type Goal = 'awareness' | 'conversion' | 'retention' | 'launch' | 'other';
 type Status = 'draft' | 'live' | 'paused' | 'completed' | 'archived';
@@ -104,6 +115,8 @@ export default function MarketingCampaignsHubPage() {
   // The DataTable's ticked rows, mirrored up so the page assistant's
   // action picker and the bulk bar share one delete executor.
   const [selection, setSelection] = useState<Campaign[]>([]);
+  // Row-delete in-flight guard.
+  const [deleting, setDeleting] = useState<string | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
   const [form, setForm] = useState({
     name: '',
@@ -186,6 +199,21 @@ export default function MarketingCampaignsHubPage() {
         /* non-JSON error body */
       }
       throw new Error(message);
+    }
+  }
+
+  // Row delete — the AlertDialog is the confirm; reload either way so
+  // the list is honest, surfacing the server's refusal on the page.
+  async function onRowDelete(c: Campaign) {
+    setDeleting(c.id);
+    setError(null);
+    try {
+      await deleteCampaign(c.id);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setDeleting(null);
+      await load();
     }
   }
 
@@ -292,9 +320,42 @@ export default function MarketingCampaignsHubPage() {
               header: '',
               align: 'right',
               cell: (c) => (
-                <Link href={`/dashboard/marketing/campaigns/${c.id}`} className="text-primary hover:underline text-xs">
-                  Open
-                </Link>
+                <div className="flex items-center justify-end gap-1">
+                  <Link href={`/dashboard/marketing/campaigns/${c.id}`} className="text-primary hover:underline text-xs">
+                    Open
+                  </Link>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={deleting === c.id}
+                        title="Delete campaign"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete &ldquo;{c.name}&rdquo;?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          The campaign umbrella is removed — its linked briefs, codes and
+                          posts stay, they just lose the grouping. This cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Keep campaign</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => onRowDelete(c)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete campaign
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               ),
             },
           ] as Column<Campaign>[]}

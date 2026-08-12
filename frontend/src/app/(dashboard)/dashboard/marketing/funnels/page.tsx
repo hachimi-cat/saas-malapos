@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Megaphone, Loader2, Plus } from 'lucide-react';
+import { Megaphone, Loader2, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { BulkBar } from '@/components/dashboard/bulk-bar';
 import { marketingFetch } from '@/lib/marketing-api';
@@ -35,6 +35,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface Funnel {
   id: string;
@@ -65,6 +76,8 @@ export default function FunnelsPage() {
   // bulk bar below while the selection is non-empty.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
+  // Row-delete in-flight guard.
+  const [working, setWorking] = useState<string | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
@@ -110,6 +123,21 @@ export default function FunnelsPage() {
         /* non-JSON error body */
       }
       throw new Error(message);
+    }
+  }
+
+  // Row delete — the AlertDialog is the confirm; reload either way so
+  // the list is honest, surfacing the server's refusal on the page.
+  async function onRowDelete(f: Funnel) {
+    setWorking(f.id);
+    setError(null);
+    try {
+      await deleteFunnel(f.id);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setWorking(null);
+      await load();
     }
   }
 
@@ -188,6 +216,38 @@ export default function FunnelsPage() {
                     'bg-sky-500/10 text-sky-400'
                   )}>{f.status}</Badge>
                 </Link>
+                <span className="flex shrink-0 items-center pr-3">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={working === f.id}
+                        title="Delete funnel"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete &ldquo;{f.name}&rdquo;?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          The funnel, its steps and its enrollments are removed. This cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Keep funnel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => onRowDelete(f)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete funnel
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </span>
               </li>
             ))}
           </ul>
