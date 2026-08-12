@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Package, AlertTriangle, Plus, Minus, Check, X, CalendarClock } from 'lucide-react';
+import { Package, AlertTriangle, Plus, Minus, Check, X, CalendarClock, ArrowLeftRight, PackagePlus, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
@@ -78,6 +78,10 @@ export default function InventoryPage() {
   const [levelsLoading, setLevelsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adjusting, setAdjusting] = useState<Level | null>(null);
+  // Manual movement dialogs — the assistant-off path for the transfer and
+  // batch resources (the sparkle covers the agentic path for both).
+  const [transferring, setTransferring] = useState(false);
+  const [batching, setBatching] = useState(false);
 
   // Bootstrap: outlets first, then default to the first one.
   useEffect(() => {
@@ -173,6 +177,21 @@ export default function InventoryPage() {
               ]}
               onApplied={refresh}
             />
+            <Button
+              variant="outline"
+              onClick={() => setTransferring(true)}
+              disabled={outlets.length < 2}
+              title={outlets.length < 2 ? 'Transfers need a second outlet' : 'Move stock between outlets'}
+            >
+              <ArrowLeftRight className="h-4 w-4" /> Transfer
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setBatching(true)}
+              title="Receive a dated lot (pharmacy batch)"
+            >
+              <PackagePlus className="h-4 w-4" /> Add batch
+            </Button>
             <Select value={outletId} onValueChange={setOutletId}>
               <SelectTrigger className="w-auto min-w-[12rem]">
                 <SelectValue />
@@ -305,6 +324,30 @@ export default function InventoryPage() {
         </div>
       )}
 
+      {transferring && (
+        <TransferModal
+          fromOutlet={outlets.find((o) => o.id === outletId) ?? outlets[0]}
+          outlets={outlets}
+          levels={levels}
+          onClose={() => setTransferring(false)}
+          onDone={async () => {
+            setTransferring(false);
+            await refresh();
+          }}
+        />
+      )}
+
+      {batching && (
+        <BatchModal
+          outlet={outlets.find((o) => o.id === outletId) ?? outlets[0]}
+          onClose={() => setBatching(false)}
+          onDone={async () => {
+            setBatching(false);
+            await refresh();
+          }}
+        />
+      )}
+
       {adjusting && (
         <AdjustModal
           level={adjusting}
@@ -411,6 +454,315 @@ function ReorderEditor({ value, onSave }: { value: number; onSave: (v: number) =
         <X className="h-4 w-4" />
       </Button>
     </div>
+  );
+}
+
+// Manual stock transfer — the assistant-off path for POST /inventory/transfer.
+// Source is the outlet the page is viewing (its levels are already loaded and
+// carry the on-hand counts); destination is any other outlet.
+function TransferModal({
+  fromOutlet,
+  outlets,
+  levels,
+  onClose,
+  onDone,
+}: {
+  fromOutlet: Outlet;
+  outlets: Outlet[];
+  levels: Level[];
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const others = outlets.filter((o) => o.id !== fromOutlet.id);
+  const [toOutletId, setToOutletId] = useState(others[0]?.id ?? '');
+  const [variantId, setVariantId] = useState('');
+  const [qty, setQty] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const level = levels.find((l) => l.variantId === variantId) ?? null;
+
+  function label(l: Level): string {
+    const name =
+      l.variant.name !== 'Default' ? `${l.variant.product.name} · ${l.variant.name}` : l.variant.product.name;
+    return `${name} — ${l.quantity} on hand`;
+  }
+
+  async function submit() {
+    setErr(null);
+    if (!variantId) {
+      setErr('Pick a product to move.');
+      return;
+    }
+    if (!toOutletId) {
+      setErr('Pick a destination outlet.');
+      return;
+    }
+    if (qty < 1) {
+      setErr('Quantity must be at least 1.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.post('/inventory/transfer', {
+        fromOutletId: fromOutlet.id,
+        toOutletId,
+        variantId,
+        qty: Math.round(qty),
+      });
+      await onDone();
+    } catch (e) {
+      setErr(e instanceof ApiRequestError ? e.message : 'Transfer failed');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Transfer stock</DialogTitle>
+        </DialogHeader>
+        <p className="-mt-1 text-sm text-muted-foreground">
+          From <span className="font-medium text-foreground">{fromOutlet.name}</span>
+        </p>
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="tf-variant">Product</Label>
+            <Select value={variantId || undefined} onValueChange={setVariantId}>
+              <SelectTrigger id="tf-variant">
+                <SelectValue placeholder="Pick product…" />
+              </SelectTrigger>
+              <SelectContent>
+                {levels.map((l) => (
+                  <SelectItem key={l.variantId} value={l.variantId}>
+                    {label(l)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="tf-to">To outlet</Label>
+            <Select value={toOutletId || undefined} onValueChange={setToOutletId}>
+              <SelectTrigger id="tf-to">
+                <SelectValue placeholder="Destination…" />
+              </SelectTrigger>
+              <SelectContent>
+                {others.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="tf-qty">Quantity</Label>
+            <Input
+              id="tf-qty"
+              type="number"
+              min={1}
+              value={qty}
+              onChange={(e) => setQty(Math.max(0, Number(e.target.value) || 0))}
+            />
+            {level && qty > level.quantity && (
+              <p className="text-xs text-amber-600">
+                More than the {level.quantity} on hand — the source outlet will go negative.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {err && <p className="text-sm text-destructive">{err}</p>}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button disabled={busy || !variantId || !toOutletId || qty < 1} onClick={submit}>
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {busy ? 'Moving…' : `Transfer ${qty > 0 ? qty : ''}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type BatchProduct = {
+  id: string;
+  name: string;
+  variants: { id: string; name: string }[];
+};
+
+// Manual batch receipt — the assistant-off path for POST /inventory/batches.
+// Receives a dated lot into the page's outlet (+ PURCHASE movement), so the
+// variant picker is the full active catalog, not just tracked levels.
+function BatchModal({
+  outlet,
+  onClose,
+  onDone,
+}: {
+  outlet: Outlet;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const [products, setProducts] = useState<BatchProduct[]>([]);
+  const [productId, setProductId] = useState('');
+  const [variantId, setVariantId] = useState('');
+  const [batchNo, setBatchNo] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [qty, setQty] = useState(1);
+  const [cost, setCost] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get<{ products: BatchProduct[] }>('/products?active=true');
+        setProducts((res.data.products ?? []).filter((p) => p.variants.length));
+      } catch (e) {
+        setErr(e instanceof ApiRequestError ? e.message : 'Failed to load products');
+      }
+    })();
+  }, []);
+
+  const product = products.find((p) => p.id === productId);
+
+  function onProduct(id: string) {
+    const prod = products.find((p) => p.id === id);
+    setProductId(id);
+    setVariantId(prod?.variants[0]?.id ?? '');
+  }
+
+  async function submit() {
+    setErr(null);
+    if (!variantId) {
+      setErr('Pick a product.');
+      return;
+    }
+    if (qty < 1) {
+      setErr('Quantity must be at least 1.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.post('/inventory/batches', {
+        outletId: outlet.id,
+        variantId,
+        batchNo: batchNo.trim() || undefined,
+        expiryDate: expiryDate || undefined,
+        qty: Math.round(qty),
+        cost: cost > 0 ? Math.round(cost) : undefined,
+      });
+      await onDone();
+    } catch (e) {
+      setErr(e instanceof ApiRequestError ? e.message : 'Failed to add batch');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add stock batch</DialogTitle>
+        </DialogHeader>
+        <p className="-mt-1 text-sm text-muted-foreground">
+          Receive a dated lot into <span className="font-medium text-foreground">{outlet.name}</span>
+        </p>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="bt-product">Product</Label>
+              <Select value={productId || undefined} onValueChange={onProduct}>
+                <SelectTrigger id="bt-product">
+                  <SelectValue placeholder="Pick product…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bt-variant">Variant</Label>
+              <Select
+                value={variantId || undefined}
+                onValueChange={setVariantId}
+                disabled={!product}
+              >
+                <SelectTrigger id="bt-variant">
+                  <SelectValue placeholder="Variant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {product?.variants.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="bt-batchno">Batch no. (optional)</Label>
+              <Input
+                id="bt-batchno"
+                value={batchNo}
+                onChange={(e) => setBatchNo(e.target.value)}
+                placeholder="e.g. LOT-2409"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bt-expiry">Expiry (optional)</Label>
+              <Input
+                id="bt-expiry"
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="bt-qty">Quantity</Label>
+              <Input
+                id="bt-qty"
+                type="number"
+                min={1}
+                value={qty}
+                onChange={(e) => setQty(Math.max(0, Number(e.target.value) || 0))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bt-cost">Unit cost (optional)</Label>
+              <Input
+                id="bt-cost"
+                type="number"
+                min={0}
+                value={cost}
+                onChange={(e) => setCost(Math.max(0, Number(e.target.value) || 0))}
+              />
+            </div>
+          </div>
+        </div>
+
+        {err && <p className="text-sm text-destructive">{err}</p>}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button disabled={busy || !variantId || qty < 1} onClick={submit}>
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {busy ? 'Saving…' : 'Add batch'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
