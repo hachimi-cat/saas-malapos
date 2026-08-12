@@ -51,6 +51,8 @@ const STATUS_OPTIONS = (Object.keys(STATUS_LABEL) as PayoutStatus[]).map((s) => 
   label: STATUS_LABEL[s],
 }));
 
+type TransitionKind = 'in-transit' | 'paid' | 'failed';
+
 function StatusIcon({ status }: { status: PayoutStatus }) {
   const map = {
     pending: Hourglass,
@@ -105,6 +107,12 @@ export default function PayoutsPage() {
       alert((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Cancel failed');
     }
   }
+
+  // Status transitions (mirrors the Plugipay payout machine):
+  //   pending → in_transit (mark-in-transit), pending|in_transit → paid,
+  //   anything unpaid → failed. Money verbs — each opens an explicit
+  //   confirm dialog naming the payout and amount before the POST.
+  const [transition, setTransition] = useState<{ kind: TransitionKind; payout: Payout } | null>(null);
 
   const columns: Column<Payout>[] = [
     {
@@ -163,28 +171,58 @@ export default function PayoutsPage() {
       key: 'actions',
       header: '',
       align: 'right',
-      cell: (r) =>
-        r.status === 'pending' ? (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="link" className="h-auto p-0 text-xs text-destructive">
-                Cancel
+      cell: (r) => (
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          {r.status === 'pending' && (
+            <Button
+              variant="link"
+              className="h-auto p-0 text-xs text-sky-500"
+              onClick={() => setTransition({ kind: 'in-transit', payout: r })}
+            >
+              Mark in transit
+            </Button>
+          )}
+          {(r.status === 'pending' || r.status === 'in_transit') && (
+            <>
+              <Button
+                variant="link"
+                className="h-auto p-0 text-xs text-emerald-500"
+                onClick={() => setTransition({ kind: 'paid', payout: r })}
+              >
+                Mark paid
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Cancel this payout request?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  The pending payout request will be withdrawn and its locked funds returned to your available balance.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Keep request</AlertDialogCancel>
-                <AlertDialogAction onClick={() => cancel(r.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Cancel payout</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        ) : null,
+              <Button
+                variant="link"
+                className="h-auto p-0 text-xs text-destructive"
+                onClick={() => setTransition({ kind: 'failed', payout: r })}
+              >
+                Mark failed
+              </Button>
+            </>
+          )}
+          {r.status === 'pending' && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="link" className="h-auto p-0 text-xs text-destructive">
+                  Cancel
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancel this payout request?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    The pending payout request will be withdrawn and its locked funds returned to your available balance.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep request</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => cancel(r.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Cancel payout</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -301,7 +339,121 @@ export default function PayoutsPage() {
           onDone={async () => { setShowBankModal(false); await reload(); }}
         />
       )}
+      {transition && (
+        <TransitionModal
+          kind={transition.kind}
+          payout={transition.payout}
+          amountLabel={fmt(transition.payout.amount, transition.payout.currency)}
+          onClose={() => setTransition(null)}
+          onDone={async () => { setTransition(null); await reload(); }}
+        />
+      )}
     </div>
+  );
+}
+
+const TRANSITION_COPY: Record<TransitionKind, { title: string; body: string; cta: string }> = {
+  'in-transit': {
+    title: 'Mark payout in transit?',
+    body: 'Confirms the platform has wired the disbursement to the bank. The payout leaves "pending" — it can still be marked paid or failed.',
+    cta: 'Mark in transit',
+  },
+  paid: {
+    title: 'Mark payout paid?',
+    body: 'Confirms the bank settled the transfer. This posts the ledger debit and is final — a paid payout cannot be reopened.',
+    cta: 'Mark paid',
+  },
+  failed: {
+    title: 'Mark payout failed?',
+    body: 'Records the transfer as failed and releases the locked funds back to the available balance.',
+    cta: 'Mark failed',
+  },
+};
+
+function TransitionModal({ kind, payout, amountLabel, onClose, onDone }: {
+  kind: TransitionKind;
+  payout: Payout;
+  amountLabel: string;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const [reference, setReference] = useState(payout.reference ?? '');
+  const [failureReason, setFailureReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const copy = TRANSITION_COPY[kind];
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (kind === 'failed' && !failureReason.trim()) {
+      setError('A failure reason is required.');
+      return;
+    }
+    setBusy(true); setError('');
+    try {
+      if (kind === 'in-transit') await payoutsApi.markInTransit(payout.id, reference.trim() || null);
+      else if (kind === 'paid') await payoutsApi.markPaid(payout.id, reference.trim() || null);
+      else await payoutsApi.markFailed(payout.id, failureReason.trim());
+      await onDone();
+    } catch (e: unknown) {
+      setError((e as { message?: string })?.message ?? 'Transition failed');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{copy.title}</DialogTitle>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">{amountLabel}</span>
+            {' '}to {payout.bankName} ··· {payout.bankAccountNumber.slice(-4)} · {payout.bankAccountHolder}
+          </p>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">{copy.body}</p>
+        {error && <div className="rounded-md border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">{error}</div>}
+        <form onSubmit={submit} className="space-y-3">
+          {kind === 'failed' ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="tr-reason">Failure reason</Label>
+              <Input
+                id="tr-reason"
+                autoFocus
+                value={failureReason}
+                onChange={(e) => setFailureReason(e.target.value)}
+                placeholder="e.g. Bank rejected — account closed"
+              />
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label htmlFor="tr-reference">Bank reference (optional)</Label>
+              <Input
+                id="tr-reference"
+                autoFocus
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="e.g. transfer receipt number"
+                className="font-mono"
+              />
+            </div>
+          )}
+          <DialogFooter className="flex-row gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1" disabled={busy}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={busy || (kind === 'failed' && !failureReason.trim())}
+              className={`flex-1 ${kind === 'failed' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}`}
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {copy.cta}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
