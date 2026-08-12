@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Loader2, Ban, Copy, Check } from 'lucide-react';
+import { Plus, Loader2, Ban, Copy, Check, Search } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah, parseRupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
@@ -74,6 +74,7 @@ export default function GiftCardsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [issuing, setIssuing] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   async function load() {
@@ -117,6 +118,9 @@ export default function GiftCardsPage() {
         action={
           <div className="flex items-center gap-2">
             <PageAssistant resource="gift-cards" onApplied={load} />
+            <Button variant="outline" onClick={() => setChecking(true)} title="Look up a card by its code">
+              <Search className="h-4 w-4" /> Check card
+            </Button>
             <AgenticEntry
               resource="gift-cards"
               mode="create"
@@ -199,7 +203,100 @@ export default function GiftCardsPage() {
           }}
         />
       )}
+
+      {checking && <CheckCardModal onClose={() => setChecking(false)} />}
     </div>
+  );
+}
+
+/**
+ * Balance lookup by code — GET /gift-cards/:code. Read-only on purpose:
+ * redemption itself is a GIFT_CARD tender on the sell screen, there is
+ * no standalone redeem route.
+ */
+function CheckCardModal({ onClose }: { onClose: () => void }) {
+  const [code, setCode] = useState('');
+  const [card, setCard] = useState<GiftCard | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function lookup(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    setBusy(true);
+    setError(null);
+    setCard(null);
+    try {
+      const res = await api.get<{ giftCard: GiftCard }>(`/gift-cards/${encodeURIComponent(trimmed)}`);
+      setCard(res.data.giftCard);
+    } catch (e) {
+      setError(e instanceof ApiRequestError ? e.message : 'Lookup failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Check card</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={lookup} className="flex items-end gap-2">
+          <div className="flex-1 space-y-1.5">
+            <Label htmlFor="gc-lookup" className="font-normal text-muted-foreground">Card code</Label>
+            <Input
+              id="gc-lookup"
+              autoFocus
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="e.g. GC-XXXX-XXXX"
+              className="font-mono"
+            />
+          </div>
+          <Button type="submit" disabled={busy || !code.trim()}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            Check
+          </Button>
+        </form>
+
+        {error && <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
+
+        {card && (
+          <div className="rounded-lg border border-border p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono font-medium">{card.code}</span>
+              <StatusBadge status={card.status} />
+            </div>
+            <dl className="mt-3 space-y-1.5 text-sm">
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">Balance</dt>
+                <dd className="font-semibold">{rupiah(card.balance)}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">Initial</dt>
+                <dd className="text-muted-foreground">{rupiah(card.initialBalance)}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">Issued</dt>
+                <dd className="text-muted-foreground">{formatDate(card.createdAt)}</dd>
+              </div>
+              {card.note && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">Note</dt>
+                  <dd className="text-muted-foreground">{card.note}</dd>
+                </div>
+              )}
+            </dl>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Redeem at checkout: enter the code as a gift-card tender on the sell screen.
+            </p>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
