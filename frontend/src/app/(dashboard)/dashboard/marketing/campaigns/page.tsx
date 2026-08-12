@@ -101,6 +101,9 @@ export default function MarketingCampaignsHubPage() {
   const [working, setWorking] = useState(false);
   // Batch edit (agentic sheet) over the DataTable's selection.
   const [bulkEditing, setBulkEditing] = useState(false);
+  // The DataTable's ticked rows, mirrored up so the page assistant's
+  // action picker and the bulk bar share one delete executor.
+  const [selection, setSelection] = useState<Campaign[]>([]);
   const { enabled: assistantEnabled } = useCatentioStatus();
   const [form, setForm] = useState({
     name: '',
@@ -186,6 +189,22 @@ export default function MarketingCampaignsHubPage() {
     }
   }
 
+  // Bulk-delete executor over the mirrored selection — the bar's
+  // confirm AND the page assistant's picker both call this; each owns
+  // its own confirm dialog.
+  async function onBulkDelete() {
+    try {
+      await deleteMany(
+        selection.map((c) => ({ id: c.id, label: c.name })),
+        deleteCampaign,
+      );
+    } finally {
+      // Reload either way so the list is honest; a partial
+      // run's thrown message stays on the bar.
+      await load();
+    }
+  }
+
   function totalChildren(c: Campaign): number {
     if (!c._count) return 0;
     return (
@@ -206,7 +225,13 @@ export default function MarketingCampaignsHubPage() {
         description="Group creator briefs, discounts, broadcasts and more under one push. Each child still works standalone."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="marketing-campaigns" onApplied={load} />
+            <PageAssistant
+              resource="marketing-campaigns"
+              noun="campaign"
+              selection={selection as unknown as Record<string, unknown>[]}
+              onDeleteSelected={onBulkDelete}
+              onApplied={load}
+            />
             <AgenticEntry
               resource="marketing-campaigns"
               mode="create"
@@ -236,6 +261,7 @@ export default function MarketingCampaignsHubPage() {
           searchPlaceholder="Search name, description…"
           defaultSort={{ key: 'name', dir: 'asc' }}
           empty="No campaigns match."
+          onSelectionChange={setSelection}
           columns={[
             {
               key: 'name',
@@ -292,18 +318,7 @@ export default function MarketingCampaignsHubPage() {
                 count={selectedRows.length}
                 noun="campaign"
                 onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
-                onDelete={async () => {
-                  try {
-                    await deleteMany(
-                      selectedRows.map((c) => ({ id: c.id, label: c.name })),
-                      deleteCampaign,
-                    );
-                  } finally {
-                    // Reload either way so the list is honest; a partial
-                    // run's thrown message stays on the bar.
-                    await load();
-                  }
-                }}
+                onDelete={onBulkDelete}
                 onClear={clear}
               />
               {bulkEditing && (

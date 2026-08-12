@@ -172,7 +172,13 @@ export default function WebhooksPage() {
         description="Get an HTTPS POST whenever something happens to your sales or subscription."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="webhook-subscriptions" onApplied={load} />
+            <PageAssistant
+              resource="webhook-subscriptions"
+              noun="endpoint"
+              selection={bulkTargets}
+              onDeleteSelected={onBulkDelete}
+              onApplied={load}
+            />
             <AgenticEntry
               resource="webhook-subscriptions"
               mode="create"

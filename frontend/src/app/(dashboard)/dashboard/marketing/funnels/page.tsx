@@ -113,6 +113,21 @@ export default function FunnelsPage() {
     }
   }
 
+  // Bulk-delete executor — the bar's confirm AND the page assistant's
+  // picker both call this; each owns its own confirm dialog.
+  async function onBulkDelete() {
+    try {
+      await deleteMany(
+        bulkTargets.map((f) => ({ id: f.id, label: f.name })),
+        deleteFunnel,
+      );
+    } finally {
+      // Reload either way so the list is honest; a partial
+      // run's thrown message stays on the bar.
+      await load();
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -120,7 +135,13 @@ export default function FunnelsPage() {
         description="Trigger-driven multi-step automations. Welcome series, abandoned-cart recovery, win-back, post-purchase nurture."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="funnels" onApplied={load} />
+            <PageAssistant
+              resource="funnels"
+              noun="funnel"
+              selection={bulkTargets as unknown as Record<string, unknown>[]}
+              onDeleteSelected={onBulkDelete}
+              onApplied={load}
+            />
             <AgenticEntry
               resource="funnels"
               mode="create"
@@ -178,18 +199,7 @@ export default function FunnelsPage() {
           count={bulkTargets.length}
           noun="funnel"
           onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
-          onDelete={async () => {
-            try {
-              await deleteMany(
-                bulkTargets.map((f) => ({ id: f.id, label: f.name })),
-                deleteFunnel,
-              );
-            } finally {
-              // Reload either way so the list is honest; a partial
-              // run's thrown message stays on the bar.
-              await load();
-            }
-          }}
+          onDelete={onBulkDelete}
           onClear={() => setSelected(new Set())}
         />
       )}

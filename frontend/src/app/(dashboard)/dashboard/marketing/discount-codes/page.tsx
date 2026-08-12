@@ -90,6 +90,9 @@ export default function DiscountCodesPage() {
   const [editing, setEditing] = useState<DiscountCode | 'new' | null>(null);
   // Batch edit (agentic sheet) over the DataTable's selection.
   const [bulkEditing, setBulkEditing] = useState(false);
+  // The DataTable's ticked rows, mirrored up so the page assistant's
+  // action picker and the bulk bar share one delete executor.
+  const [selection, setSelection] = useState<DiscountCode[]>([]);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
   // Auto-open create modal when arriving with ?campaign=<id>
@@ -128,6 +131,22 @@ export default function DiscountCodesPage() {
       await reload();
     } catch (e: unknown) {
       alert((e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Archive failed');
+    }
+  }
+
+  // Bulk-"delete" executor over the mirrored selection — deactivate,
+  // same as the row action. The bar's confirm AND the page assistant's
+  // picker both call this; each owns its own confirm dialog.
+  async function onBulkDelete() {
+    try {
+      await deleteMany(
+        selection.map((c) => ({ id: c.id, label: c.code })),
+        (id) => discountCodesApi.archive(id),
+      );
+    } finally {
+      // Reload either way so the list is honest; a partial
+      // run's thrown message stays on the bar.
+      await refresh();
     }
   }
 
@@ -290,7 +309,13 @@ export default function DiscountCodesPage() {
         }
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="discount-codes" onApplied={refresh} />
+            <PageAssistant
+              resource="discount-codes"
+              noun="discount code"
+              selection={selection as unknown as Record<string, unknown>[]}
+              onDeleteSelected={onBulkDelete}
+              onApplied={refresh}
+            />
             <AgenticEntry
               resource="discount-codes"
               mode="create"
@@ -325,24 +350,14 @@ export default function DiscountCodesPage() {
           searchPlaceholder="Search code, description…"
           defaultSort={{ key: 'code', dir: 'asc' }}
           empty="No discount codes match."
+          onSelectionChange={setSelection}
           renderBulkBar={(selectedRows, clear) => (
             <>
               <BulkBar
                 count={selectedRows.length}
                 noun="discount code"
                 onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
-                onDelete={async () => {
-                  try {
-                    await deleteMany(
-                      selectedRows.map((c) => ({ id: c.id, label: c.code })),
-                      (id) => discountCodesApi.archive(id),
-                    );
-                  } finally {
-                    // Reload either way so the list is honest; a partial
-                    // run's thrown message stays on the bar.
-                    await refresh();
-                  }
-                }}
+                onDelete={onBulkDelete}
                 onClear={clear}
               />
               {bulkEditing && (

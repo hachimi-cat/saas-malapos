@@ -1,6 +1,7 @@
 import type { CrudResource, CrudSchemaField } from '@forjio/agent-ui';
 import type { ModulesState } from '@/hooks/use-modules';
 import type { AssistantMode, AssistantResource } from '@/hooks/use-catentio';
+import { BULK, BULK_EDIT_RESOURCES } from './capabilities';
 
 /**
  * CrudResource descriptors for the agentic sheet — the FRONTEND mirror
@@ -290,47 +291,14 @@ export function withBulk(
  * Empty until descriptors land — add an entry alongside each builder
  * that should offer "And also" rows + pasted-CSV import.
  */
-export const BULK: Partial<Record<AssistantResource, { noun: string; rowKeys?: string[] }>> = {
-  products: { noun: 'product', rowKeys: ['name'] },
-  categories: { noun: 'category', rowKeys: ['name'] },
-  modifiers: { noun: 'modifier group', rowKeys: ['name'] },
-  customers: { noun: 'customer', rowKeys: ['name', 'email'] },
-  suppliers: { noun: 'supplier', rowKeys: ['name'] },
-  tables: { noun: 'table', rowKeys: ['label'] },
-  'gift-cards': { noun: 'gift card', rowKeys: ['code'] },
-  'discount-codes': { noun: 'discount code', rowKeys: ['code'] },
-  'payment-customers': { noun: 'payment customer', rowKeys: ['email'] },
-  warehouses: { noun: 'warehouse', rowKeys: ['name'] },
-  licenses: { noun: 'license', rowKeys: ['customerId'] },
-};
+// BULK + BULK_EDIT_RESOURCES moved to ./capabilities (a no-heavy-imports
+// module) so the page-level action picker in agentic-entry.tsx can read
+// them without dragging this file's import graph onto every dashboard
+// page. Re-exported so existing import sites and the registry tests are
+// unchanged.
+export { BULK, BULK_EDIT_RESOURCES };
 
 // ── bulk edit ───────────────────────────────────────────────────────
-
-/**
- * The resources the list pages offer "Edit N selected" on. An explicit
- * list, not a derivation, because the dispatch above returns a
- * descriptor for EVERY resource whatever the mode — a create-only
- * builder ignores `mode` and its apply CREATES, so bulk-editing it
- * would mint N new records instead of touching the selected ones. Only
- * resources whose builder genuinely branches on mode belong here.
- */
-export const BULK_EDIT_RESOURCES: AssistantResource[] = [
-  'products',
-  'categories',
-  'modifiers',
-  'outlets',
-  'tables',
-  'suppliers',
-  'customers',
-  'webhook-subscriptions',
-  'discount-codes',
-  'plans',
-  'warehouses',
-  'payment-customers',
-  'marketing-campaigns',
-  'blog-posts',
-  'funnels',
-];
 
 /** Value kinds a shared patch cannot express: row lists would REPLACE
  *  each record's own rows, and file pickers hold per-record uploads. */

@@ -106,7 +106,15 @@ export default function WarehousesPage() {
         description="Where you store + ship from. Each variant tracks stock per warehouse."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="warehouses" onApplied={refresh} />
+            <PageAssistant
+              resource="warehouses"
+              noun="warehouse"
+              // Warehouse is an interface (no implicit index signature) —
+              // spread into fresh objects for Record<string, unknown>[].
+              selection={bulkTargets.map((w) => ({ ...w }))}
+              onDeleteSelected={onBulkDelete}
+              onApplied={refresh}
+            />
             <AgenticEntry
               resource="warehouses"
               mode="create"

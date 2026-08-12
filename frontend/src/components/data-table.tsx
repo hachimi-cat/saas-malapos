@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ChevronDown,
@@ -79,6 +79,7 @@ export function DataTable<T>({
   empty,
   renderExpanded,
   renderBulkBar,
+  onSelectionChange,
 }: {
   rows: T[];
   columns: Column<T>[];
@@ -100,6 +101,15 @@ export function DataTable<T>({
    * out of the count on their own.
    */
   renderBulkBar?: (selectedRows: T[], clear: () => void) => React.ReactNode;
+  /**
+   * Mirrors the table-owned selection up to the page whenever the SET
+   * of ticked rows changes (compared by row key), so header-level
+   * controls — the page assistant's action picker — can read what the
+   * merchant ticked. Fired with the same FILTERED selected rows
+   * `renderBulkBar` sees, and with `[]` on unmount so the page never
+   * keeps a selection for a table that is no longer on screen.
+   */
+  onSelectionChange?: (selectedRows: T[]) => void;
 }) {
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
@@ -171,6 +181,26 @@ export function DataTable<T>({
     selectable && filtered.length > 0 && selectedRows.length === filtered.length;
 
   const clearSelection = () => setSelectedKeys(new Set());
+
+  // Mirror the selection to the page. Guarded by a key signature so the
+  // parent's setState cannot loop through inline-prop identity churn
+  // (columns/filters are typically fresh arrays every parent render).
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  const selectionSigRef = useRef('');
+  useEffect(() => {
+    onSelectionChangeRef.current = onSelectionChange;
+    if (!onSelectionChange) return;
+    const sig = selectedRows.map((r) => rowKey(r)).join('\u0000');
+    if (selectionSigRef.current === sig) return;
+    selectionSigRef.current = sig;
+    onSelectionChange(selectedRows);
+  });
+  useEffect(
+    () => () => {
+      onSelectionChangeRef.current?.([]);
+    },
+    [],
+  );
 
   const toggleRow = (key: string) => {
     setSelectedKeys((prev) => {

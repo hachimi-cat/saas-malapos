@@ -25,6 +25,9 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   // The rows the bulk-edit sheet was opened over, or null when closed.
   const [bulkEditTargets, setBulkEditTargets] = useState<Customer[] | null>(null);
+  // The DataTable's ticked rows, mirrored up so the page assistant's
+  // action picker can offer Edit / Bulk edit over them.
+  const [selection, setSelection] = useState<Customer[]>([]);
   // DataTable owns the selection; keep its clear() so a successful bulk
   // edit can drop the ticks along with closing the sheet.
   const clearSelectionRef = useRef<(() => void) | null>(null);
@@ -93,7 +96,18 @@ export default function CustomersPage() {
             Open a customer to see their subscriptions and invoice history.
           </>
         }
-        action={<PageAssistant resource="payment-customers" onApplied={load} />}
+        action={
+          <PageAssistant
+            resource="payment-customers"
+            noun="customer"
+            // No DELETE route on /payments/customers, so no
+            // onDeleteSelected — the selection powers Edit / Bulk edit
+            // only. Customer is an interface (no implicit index
+            // signature) — spread into fresh objects.
+            selection={selection.map((c) => ({ ...c }))}
+            onApplied={load}
+          />
+        }
       />
 
       <BillingTabs />
@@ -115,6 +129,7 @@ export default function CustomersPage() {
           searchPlaceholder="Search by email, name, or phone…"
           defaultSort={{ key: 'createdAt', dir: 'desc' }}
           empty="No customers match."
+          onSelectionChange={setSelection}
           // Selection exists only for the agentic bulk edit, so the
           // checkboxes appear only when the assistant is on. No DELETE
           // route on /payments/customers → the bar offers Edit alone.

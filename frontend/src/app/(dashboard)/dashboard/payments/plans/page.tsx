@@ -331,7 +331,15 @@ export default function PlansPage() {
         description="Create and manage your billing plans"
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="plans" onApplied={load} />
+            <PageAssistant
+              resource="plans"
+              noun="plan"
+              // Plan is an interface (no implicit index signature) —
+              // spread into fresh objects for Record<string, unknown>[].
+              selection={bulkTargets.map((p) => ({ ...p }))}
+              onDeleteSelected={onBulkDelete}
+              onApplied={load}
+            />
             <AgenticEntry
               resource="plans"
               mode="create"

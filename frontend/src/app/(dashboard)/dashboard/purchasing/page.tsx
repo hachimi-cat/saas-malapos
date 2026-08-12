@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import {
   Plus,
   Pencil,
@@ -136,6 +136,13 @@ export default function PurchasingPage() {
   // Bumped when the page-level assistant applies a change — either tab's
   // list may be stale, so both refetch on it.
   const [reloadKey, setReloadKey] = useState(0);
+  // The Suppliers tab's ticked rows + its bulk-delete executor, mirrored
+  // up so the header assistant's picker can act on the suppliers table.
+  // The tab resets both when it unmounts (switching tabs drops the
+  // selection with the tab). Purchase orders have no row selection —
+  // that option stays create-only.
+  const [supplierSelection, setSupplierSelection] = useState<Supplier[]>([]);
+  const supplierBulkDelete = useRef<(() => Promise<void>) | null>(null);
 
   return (
     <div>
@@ -146,7 +153,13 @@ export default function PurchasingPage() {
           <PageAssistant
             options={[
               { resource: 'purchase-orders', label: 'Purchase order' },
-              { resource: 'suppliers', label: 'Supplier' },
+              {
+                resource: 'suppliers',
+                label: 'Supplier',
+                noun: 'supplier',
+                selection: supplierSelection,
+                onDeleteSelected: () => supplierBulkDelete.current?.(),
+              },
             ]}
             onApplied={() => setReloadKey((k) => k + 1)}
           />
@@ -162,7 +175,11 @@ export default function PurchasingPage() {
           <OrdersTab reloadKey={reloadKey} />
         </TabsContent>
         <TabsContent value="suppliers">
-          <SuppliersTab reloadKey={reloadKey} />
+          <SuppliersTab
+            reloadKey={reloadKey}
+            onSelectionChange={setSupplierSelection}
+            deleteRef={supplierBulkDelete}
+          />
         </TabsContent>
       </Tabs>
     </div>
@@ -851,7 +868,19 @@ function toSupplierForm(s: Supplier): SupplierForm {
   };
 }
 
-function SuppliersTab({ reloadKey }: { reloadKey: number }) {
+function SuppliersTab({
+  reloadKey,
+  onSelectionChange,
+  deleteRef,
+}: {
+  reloadKey: number;
+  /** Mirrors `bulkTargets` up whenever the ticked set changes, and
+   *  `[]` on unmount — the page assistant's picker reads it. */
+  onSelectionChange?: (targets: Supplier[]) => void;
+  /** Kept pointing at the CURRENT onBulkDelete closure, so the picker
+   *  always executes over this render's targets. */
+  deleteRef?: MutableRefObject<(() => Promise<void>) | null>;
+}) {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -941,6 +970,30 @@ function SuppliersTab({ reloadKey }: { reloadKey: number }) {
       return next;
     });
   }
+
+  // Mirror the selection + the live delete closure up to the page-level
+  // assistant. The selection callback is signature-guarded so the
+  // parent's setState cannot loop; the ref is refreshed every render so
+  // the picker never executes over a stale target list.
+  const selectionSigRef = useRef('');
+  useEffect(() => {
+    if (deleteRef) deleteRef.current = onBulkDelete;
+    if (!onSelectionChange) return;
+    const sig = bulkTargets.map((s) => s.id).join('\u0000');
+    if (selectionSigRef.current === sig) return;
+    selectionSigRef.current = sig;
+    onSelectionChange(bulkTargets);
+  });
+  useEffect(
+    () => () => {
+      // Tab unmounted (switched away) — its selection is gone with it.
+      if (deleteRef) deleteRef.current = null;
+      onSelectionChange?.([]);
+    },
+    // Both props are stable (a setState + a ref object).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 

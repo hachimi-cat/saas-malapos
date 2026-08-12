@@ -401,7 +401,15 @@ export default function TablesPage() {
             )}
             <PageAssistant
               options={[
-                { resource: 'tables', label: 'Table' },
+                {
+                  resource: 'tables',
+                  label: 'Table',
+                  noun: 'table',
+                  selection: bulkTargets,
+                  onDeleteSelected: onBulkDelete,
+                },
+                // Floors have no row selection on this page — the option
+                // stays create-only.
                 { resource: 'floors', label: 'Floor' },
               ]}
               onApplied={reloadAfterAssistant}

@@ -195,7 +195,13 @@ export default function OutletsPage() {
         description="Your stores and their tax, timezone, and receipt settings."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="outlets" onApplied={load} />
+            <PageAssistant
+              resource="outlets"
+              noun="outlet"
+              selection={bulkTargets}
+              onDeleteSelected={onBulkDelete}
+              onApplied={load}
+            />
             <AgenticEntry
               resource="outlets"
               mode="create"

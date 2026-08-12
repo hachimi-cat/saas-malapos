@@ -75,6 +75,21 @@ export default function BlogListPage() {
     });
   }
 
+  // Bulk-delete executor — the bar's confirm AND the page assistant's
+  // picker both call this; each owns its own confirm dialog.
+  async function onBulkDelete() {
+    try {
+      await deleteMany(
+        bulkTargets.map((p) => ({ id: p.id, label: p.title })),
+        (id) => blogApi.delete(id),
+      );
+    } finally {
+      // Reload either way so the list is honest; a partial
+      // run's thrown message stays on the bar.
+      await load();
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -87,7 +102,13 @@ export default function BlogListPage() {
         }
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="blog-posts" onApplied={load} />
+            <PageAssistant
+              resource="blog-posts"
+              noun="post"
+              selection={bulkTargets as unknown as Record<string, unknown>[]}
+              onDeleteSelected={onBulkDelete}
+              onApplied={load}
+            />
             <AgenticEntry
               resource="blog-posts"
               mode="create"
@@ -188,18 +209,7 @@ export default function BlogListPage() {
           count={bulkTargets.length}
           noun="post"
           onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
-          onDelete={async () => {
-            try {
-              await deleteMany(
-                bulkTargets.map((p) => ({ id: p.id, label: p.title })),
-                (id) => blogApi.delete(id),
-              );
-            } finally {
-              // Reload either way so the list is honest; a partial
-              // run's thrown message stays on the bar.
-              await load();
-            }
-          }}
+          onDelete={onBulkDelete}
           onClear={() => setSelected(new Set())}
         />
       )}

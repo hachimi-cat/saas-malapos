@@ -219,7 +219,13 @@ export default function CustomersPage() {
         description="Your customer roster and loyalty points."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="customers" onApplied={refresh} />
+            <PageAssistant
+              resource="customers"
+              noun="customer"
+              selection={bulkTargets}
+              onDeleteSelected={onBulkDelete}
+              onApplied={refresh}
+            />
             <AgenticEntry
               resource="customers"
               mode="create"

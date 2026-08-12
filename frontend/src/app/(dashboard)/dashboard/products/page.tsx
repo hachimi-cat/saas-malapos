@@ -237,7 +237,13 @@ export default function ProductsPage() {
         description="Manage your catalog — items, services, variants and categories."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="products" onApplied={load} />
+            <PageAssistant
+              resource="products"
+              noun="product"
+              selection={bulkTargets}
+              onDeleteSelected={onBulkDelete}
+              onApplied={load}
+            />
             <AgenticEntry
               resource="products"
               mode="create"

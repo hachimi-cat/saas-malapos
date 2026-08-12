@@ -194,7 +194,13 @@ export default function CategoriesPage() {
         description="Group your products so the sell screen finds them faster. This order is the order cashiers see on the sell screen."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="categories" onApplied={load} />
+            <PageAssistant
+              resource="categories"
+              noun="category"
+              selection={bulkTargets}
+              onDeleteSelected={onBulkDelete}
+              onApplied={load}
+            />
             <AgenticEntry
               resource="categories"
               mode="create"

@@ -148,7 +148,13 @@ export default function ModifiersPage() {
         }
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="modifiers" onApplied={load} />
+            <PageAssistant
+              resource="modifiers"
+              noun="modifier group"
+              selection={bulkTargets}
+              onDeleteSelected={onBulkDelete}
+              onApplied={load}
+            />
             <AgenticEntry
               resource="modifiers"
               mode="create"
