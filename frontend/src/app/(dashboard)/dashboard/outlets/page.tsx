@@ -1,14 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, Store, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Store } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { PageHeader } from '@/components/dashboard/page-header';
-import {
-  PageAssistant,
-  AgenticEntry,
-  BulkEditSlot,
-} from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
+import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
 import {
@@ -111,7 +109,7 @@ export default function OutletsPage() {
   // Batch edit (agentic sheet) + batch delete, over the row selection.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
@@ -148,21 +146,18 @@ export default function OutletsPage() {
     [outlets, selected],
   );
 
+  // The bulk-delete EXECUTOR — called by the Actions dropdown's confirm
+  // (BulkDeleteDialog). Throwing surfaces deleteMany's partial-failure
+  // sentence, which the BulkBar renders; the selection persists on a
+  // partial run so the failed rest can be retried.
   async function onBulkDelete() {
-    setBulkError(null);
-    setBulkDeleting(true);
     try {
       await deleteMany(
         bulkTargets.map((o) => ({ id: o.id, label: o.name })),
         (id) => api.delete(`/outlets/${id}`),
       );
-      setSelected(new Set());
-      await load();
-    } catch (e) {
-      setBulkError(e instanceof Error ? e.message : 'Some outlets could not be deleted');
-      await load();
     } finally {
-      setBulkDeleting(false);
+      await load();
     }
   }
 
@@ -188,6 +183,29 @@ export default function OutletsPage() {
 
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
+  // The page's batch verbs, on the Actions dropdown beside the "New X"
+  // entry (bang's entry-point contract). Labels recompute per render so
+  // the counts stay live.
+  const pageActions: PageAction[] = [
+    ...(assistantEnabled
+      ? [{
+          key: 'bulk-edit',
+          label: bulkTargets.length > 0 ? `Bulk edit ${bulkTargets.length} selected` : 'Bulk edit',
+          icon: Pencil,
+          run: () => setBulkEditing(true),
+          requiresSelection: true,
+        }]
+      : []),
+    {
+      key: 'bulk-delete',
+      label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
+      icon: Trash2,
+      run: () => setBulkDeleteOpen(true),
+      requiresSelection: true,
+      destructive: true,
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -195,81 +213,28 @@ export default function OutletsPage() {
         description="Your stores and their tax, timezone, and receipt settings."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant
-              resource="outlets"
+            <ActionsDropdown
+              actions={pageActions}
+              selectionCount={bulkTargets.length}
               noun="outlet"
-              selection={bulkTargets}
-              onDeleteSelected={onBulkDelete}
-              onApplied={load}
             />
             <AgenticEntry
               resource="outlets"
               mode="create"
+              split
               onApplied={load}
+              className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
               fallback={
                 <Button onClick={() => setCreating(true)}>
                   <Plus className="h-4 w-4" /> Add outlet
                 </Button>
               }
             >
-              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
-                <Plus className="h-4 w-4" /> Add outlet
-              </span>
+              <Plus className="h-4 w-4" /> Add outlet
             </AgenticEntry>
           </div>
         }
       />
-
-      {selected.size > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
-          <span className="text-sm font-medium">
-            {selected.size === 1 ? '1 outlet selected' : `${selected.size} outlets selected`}
-          </span>
-          <div className="ml-auto flex items-center gap-2">
-            {assistantEnabled && (
-              <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={bulkDeleting}>
-                <Pencil className="h-4 w-4" /> Edit
-              </Button>
-            )}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="text-destructive hover:text-destructive"
-                  disabled={bulkDeleting}
-                >
-                  {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Delete {selected.size} {selected.size === 1 ? 'outlet' : 'outlets'}?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This cannot be undone. An outlet with sales history is deactivated instead of deleted.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={onBulkDelete}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkDeleting}>
-              Clear
-            </Button>
-          </div>
-          {bulkError && (
-            <p className="w-full text-xs text-destructive">{bulkError}</p>
-          )}
-        </div>
-      )}
 
       {bulkEditing && (
         <BulkEditSlot
@@ -403,6 +368,24 @@ export default function OutletsPage() {
         </Card>
       )}
 
+
+      <BulkBar
+        count={bulkTargets.length}
+        noun="outlet"
+        onClear={() => { setBulkError(null); setSelected(new Set()); }}
+        error={bulkError}
+      />
+
+      <BulkDeleteDialog
+        count={bulkTargets.length}
+        noun="outlet"
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onDelete={onBulkDelete}
+        onError={setBulkError}
+        onDone={() => setSelected(new Set())}
+        description="This cannot be undone. An outlet with sales history is deactivated instead of deleted."
+      />
       {(creating || editing) && (
         <OutletModal
           outlet={editing}

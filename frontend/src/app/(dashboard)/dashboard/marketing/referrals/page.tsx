@@ -8,16 +8,7 @@ import {
   type ReferralAttributionRow,
   type ReferralProgramStats,
 } from '@/lib/marketing-api';
-import {
-  Loader2,
-  Save,
-  Gift,
-  Users,
-  MousePointerClick,
-  TrendingUp,
-  DollarSign,
-  Sparkles,
-} from 'lucide-react';
+import { Loader2, Save, Gift, Users, MousePointerClick, TrendingUp, DollarSign, Pencil } from 'lucide-react';
 import { DataTable, type Column } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
@@ -134,7 +125,7 @@ export default function ReferralsPage() {
         action={
           assistantEnabled ? (
             <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
-              <Sparkles className="h-4 w-4" /> Ask assistant
+              <Pencil className="h-4 w-4" /> Edit
             </Button>
           ) : undefined
         }

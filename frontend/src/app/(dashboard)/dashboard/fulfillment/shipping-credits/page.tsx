@@ -9,7 +9,7 @@ import {
   RefreshCcw,
   ArrowUpRight,
   ArrowDownRight,
-  Sparkles,
+  Settings2,
   type LucideIcon,
 } from 'lucide-react';
 import { shippingCreditsApi, type ShippingCreditBalance, type ShippingCreditTransaction } from '@/lib/fulfillment-api';
@@ -35,7 +35,7 @@ const KIND_META: Record<ShippingCreditTransaction['kind'], { label: string; icon
   topup: { label: 'Top up', icon: ArrowUpRight, tone: 'text-emerald-400' },
   shipment_charge: { label: 'Shipment charge', icon: Truck, tone: 'text-sky-400' },
   shipment_refund: { label: 'Refund', icon: ArrowDownRight, tone: 'text-amber-400' },
-  manual_adjustment: { label: 'Adjustment', icon: Sparkles, tone: 'text-muted-foreground' },
+  manual_adjustment: { label: 'Adjustment', icon: Settings2, tone: 'text-muted-foreground' },
 };
 
 export default function ShippingCreditsPage() {

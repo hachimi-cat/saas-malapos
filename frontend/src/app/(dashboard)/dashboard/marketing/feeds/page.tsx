@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { feedsApi, type MerchantFeedConfig } from '@/lib/marketing-api';
-import { Loader2, Save, Copy, Check, ExternalLink, Rss, AlertTriangle, ChevronRight, Sparkles } from 'lucide-react';
+import { Loader2, Save, Copy, Check, ExternalLink, Rss, AlertTriangle, ChevronRight, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
@@ -89,7 +89,7 @@ export default function FeedsPage() {
         action={
           assistantEnabled ? (
             <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
-              <Sparkles className="h-4 w-4" /> Ask assistant
+              <Pencil className="h-4 w-4" /> Edit
             </Button>
           ) : undefined
         }

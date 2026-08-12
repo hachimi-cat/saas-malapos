@@ -5,7 +5,7 @@ import { Package, AlertTriangle, Plus, Minus, Check, X, CalendarClock, ArrowLeft
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { PageAssistant, AgenticEntry } from '@/components/catentio/agentic-entry';
+import { AgenticEntry } from '@/components/catentio/agentic-entry';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -166,17 +166,21 @@ export default function InventoryPage() {
         description="On-hand stock, reorder points and expiry tracking per outlet."
         action={
           <div className="flex items-center gap-2">
-            {/* The stock movements themselves (adjustment / transfer /
-                batch) are create-only, approval-required resources — the
-                page lists stock LEVELS, so one sparkle covers all three. */}
-            <PageAssistant
-              options={[
-                { resource: 'inventory-adjustments', label: 'Stock adjustment' },
-                { resource: 'inventory-transfers', label: 'Stock transfer' },
-                { resource: 'stock-batches', label: 'Stock batch' },
-              ]}
+            {/* The old three-way picker dissolved into per-verb entry
+                points (bang's entry-point contract): "New adjustment" is
+                the agentic create for stock adjustments (fallback null —
+                the manual path lives per-row as Adjust), while Transfer
+                and Add batch below are the P2 manual dialogs for the
+                other two movement kinds. */}
+            <AgenticEntry
+              resource="inventory-adjustments"
+              mode="create"
               onApplied={refresh}
-            />
+              className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+              fallback={null}
+            >
+              <Plus className="h-4 w-4" /> New adjustment
+            </AgenticEntry>
             <Button
               variant="outline"
               onClick={() => setTransferring(true)}

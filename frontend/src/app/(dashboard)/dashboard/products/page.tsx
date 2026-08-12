@@ -6,11 +6,9 @@ import { api, ApiRequestError } from '@/lib/api';
 import { uploadImageToSpaces } from '@/lib/upload-with-preview';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
-import {
-  PageAssistant,
-  AgenticEntry,
-  BulkEditSlot,
-} from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
+import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
 import {
@@ -97,15 +95,19 @@ export default function ProductsPage() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
   const [creating, setCreating] = useState(false);
-  // Bulk categorization: row selection + the category the bar will apply.
-  // Categorizing an existing catalog one editor dialog at a time is the slow
-  // path — this is how a merchant gets the sell screen grouped in one pass.
+  // Bulk categorization: row selection + the category the dialog will
+  // apply. Categorizing an existing catalog one editor dialog at a time
+  // is the slow path — this is how a merchant gets the sell screen
+  // grouped in one pass. The verb lives on the header's Actions
+  // dropdown now (bang's entry-point contract); the bar is just the
+  // selection readout.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkCategoryId, setBulkCategoryId] = useState('');
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [applying, setApplying] = useState(false);
   // Batch edit (agentic sheet) + batch delete, over the same selection.
   const [bulkEditing, setBulkEditing] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
@@ -160,21 +162,18 @@ export default function ProductsPage() {
     [products, selected],
   );
 
+  // The bulk-delete EXECUTOR — called by the Actions dropdown's confirm
+  // (BulkDeleteDialog). Throwing surfaces deleteMany's partial-failure
+  // sentence, which the BulkBar renders; the selection persists on a
+  // partial run so the failed rest can be retried.
   async function onBulkDelete() {
-    setBulkError(null);
-    setBulkDeleting(true);
     try {
       await deleteMany(
         bulkTargets.map((p) => ({ id: p.id, label: p.name })),
         (id) => api.delete(`/products/${id}`),
       );
-      setSelected(new Set());
-      await load();
-    } catch (e) {
-      setBulkError(e instanceof Error ? e.message : 'Some products could not be deleted');
-      await load();
     } finally {
-      setBulkDeleting(false);
+      await load();
     }
   }
 
@@ -200,21 +199,27 @@ export default function ProductsPage() {
     });
   }
 
+  // The set-category EXECUTOR — same POST /products/bulk-category the
+  // old bar's Apply called, now run from the Actions dropdown's small
+  // dialog. A failure renders on the BulkBar (the batch-result surface)
+  // and the selection persists for a retry.
   async function applyBulkCategory() {
-    if (!selected.size || !bulkCategoryId) return;
+    if (!bulkTargets.length || !bulkCategoryId) return;
     setApplying(true);
-    setError(null);
+    setBulkError(null);
     try {
       await api.post('/products/bulk-category', {
-        productIds: [...selected],
+        productIds: bulkTargets.map((p) => p.id),
         // 'none' clears the category; a real id assigns it.
         categoryId: bulkCategoryId === 'none' ? null : bulkCategoryId,
       });
       setSelected(new Set());
       setBulkCategoryId('');
+      setCategoryDialogOpen(false);
       await load();
     } catch (e) {
-      setError(e instanceof ApiRequestError ? e.message : 'Could not update products');
+      setBulkError(e instanceof ApiRequestError ? e.message : 'Could not update products');
+      setCategoryDialogOpen(false);
     } finally {
       setApplying(false);
     }
@@ -230,6 +235,39 @@ export default function ProductsPage() {
 
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
+  // The page's batch verbs, on the Actions dropdown beside "Add
+  // product" (bang's entry-point contract). Labels recompute per render
+  // so the counts stay live.
+  const pageActions: PageAction[] = [
+    {
+      key: 'set-category',
+      label:
+        bulkTargets.length > 0
+          ? `Set category for ${bulkTargets.length} selected`
+          : 'Set category',
+      icon: Tag,
+      run: () => setCategoryDialogOpen(true),
+      requiresSelection: true,
+    },
+    ...(assistantEnabled
+      ? [{
+          key: 'bulk-edit',
+          label: bulkTargets.length > 0 ? `Bulk edit ${bulkTargets.length} selected` : 'Bulk edit',
+          icon: Pencil,
+          run: () => setBulkEditing(true),
+          requiresSelection: true,
+        }]
+      : []),
+    {
+      key: 'bulk-delete',
+      label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
+      icon: Trash2,
+      run: () => setBulkDeleteOpen(true),
+      requiresSelection: true,
+      destructive: true,
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -237,26 +275,24 @@ export default function ProductsPage() {
         description="Manage your catalog — items, services, variants and categories."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant
-              resource="products"
+            <ActionsDropdown
+              actions={pageActions}
+              selectionCount={bulkTargets.length}
               noun="product"
-              selection={bulkTargets}
-              onDeleteSelected={onBulkDelete}
-              onApplied={load}
             />
             <AgenticEntry
               resource="products"
               mode="create"
+              split
               onApplied={load}
+              className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
               fallback={
                 <Button onClick={() => setCreating(true)}>
                   <Plus className="h-4 w-4" /> Add product
                 </Button>
               }
             >
-              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
-                <Plus className="h-4 w-4" /> Add product
-              </span>
+              <Plus className="h-4 w-4" /> Add product
             </AgenticEntry>
           </div>
         }
@@ -287,70 +323,6 @@ export default function ProductsPage() {
           </SelectContent>
         </Select>
       </div>
-
-      {selected.size > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
-          <span className="text-sm font-medium">
-            {selected.size === 1 ? '1 product selected' : `${selected.size} products selected`}
-          </span>
-          <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
-            <SelectTrigger className="ml-auto w-auto min-w-[12rem] bg-background">
-              <SelectValue placeholder="Move to category…" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-              <SelectItem value="none">Remove category</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={applyBulkCategory} disabled={!bulkCategoryId || applying}>
-            {applying && <Loader2 className="h-4 w-4 animate-spin" />} Apply
-          </Button>
-          <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-          {assistantEnabled && (
-            <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={applying || bulkDeleting}>
-              <Pencil className="h-4 w-4" /> Edit
-            </Button>
-          )}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                disabled={applying || bulkDeleting}
-              >
-                {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  Delete {selected.size} {selected.size === 1 ? 'product' : 'products'}?
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  This cannot be undone. A product with sales history is kept and named.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={onBulkDelete}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={applying || bulkDeleting}>
-            Clear
-          </Button>
-          {bulkError && (
-            <p className="w-full text-xs text-destructive">{bulkError}</p>
-          )}
-        </div>
-      )}
 
       {bulkEditing && (
         <BulkEditSlot
@@ -477,6 +449,58 @@ export default function ProductsPage() {
           </TableBody>
         </Table>
       </Card>
+
+      <BulkBar
+        count={bulkTargets.length}
+        noun="product"
+        onClear={() => { setBulkError(null); setSelected(new Set()); }}
+        error={bulkError}
+      />
+
+      <BulkDeleteDialog
+        count={bulkTargets.length}
+        noun="product"
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onDelete={onBulkDelete}
+        onError={setBulkError}
+        onDone={() => setSelected(new Set())}
+        description="This cannot be undone. A product with sales history is kept and named."
+      />
+
+      {/* The set-category batch dialog — opened by the Actions
+          dropdown's "Set category" item; same Select + Apply executor
+          the old inline bar carried. */}
+      {categoryDialogOpen && (
+        <Dialog open onOpenChange={(o) => { if (!o && !applying) setCategoryDialogOpen(false); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>
+                Set category for {bulkTargets.length} {bulkTargets.length === 1 ? 'product' : 'products'}
+              </DialogTitle>
+            </DialogHeader>
+            <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Move to category…" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+                <SelectItem value="none">Remove category</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setCategoryDialogOpen(false)} disabled={applying}>
+                Cancel
+              </Button>
+              <Button onClick={applyBulkCategory} disabled={!bulkCategoryId || applying}>
+                {applying && <Loader2 className="h-4 w-4 animate-spin" />} Apply
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {(creating || editing) && (
         <ProductModal

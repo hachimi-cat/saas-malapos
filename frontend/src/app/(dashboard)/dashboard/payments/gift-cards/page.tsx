@@ -5,7 +5,7 @@ import { Plus, Loader2, Ban, Copy, Check, Search } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah, parseRupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { PageAssistant, AgenticEntry } from '@/components/catentio/agentic-entry';
+import { AgenticEntry } from '@/components/catentio/agentic-entry';
 import { cn } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -117,13 +117,13 @@ export default function GiftCardsPage() {
         description="Issue a prepaid balance and let customers spend it at checkout as a gift-card tender."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="gift-cards" onApplied={load} />
             <Button variant="outline" onClick={() => setChecking(true)} title="Look up a card by its code">
               <Search className="h-4 w-4" /> Check card
             </Button>
             <AgenticEntry
               resource="gift-cards"
               mode="create"
+              split
               onApplied={load}
               className={cn(buttonVariants(), 'font-semibold')}
               fallback={

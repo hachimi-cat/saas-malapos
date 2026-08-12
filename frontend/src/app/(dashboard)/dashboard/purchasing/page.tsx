@@ -1,25 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  Truck,
-  PackageCheck,
-  Send,
-  Ban,
-  ClipboardList,
-  Loader2,
-} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Pencil, Trash2, Truck, PackageCheck, Send, Ban, ClipboardList } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
-import {
-  PageAssistant,
-  AgenticEntry,
-  BulkEditSlot,
-} from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
+import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -134,37 +122,17 @@ function StatusBadge({ status }: { status: POStatus }) {
 
 export default function PurchasingPage() {
   const [tab, setTab] = useState<'orders' | 'suppliers'>('orders');
-  // Bumped when the page-level assistant applies a change — either tab's
-  // list may be stale, so both refetch on it.
-  const [reloadKey, setReloadKey] = useState(0);
-  // The Suppliers tab's ticked rows + its bulk-delete executor, mirrored
-  // up so the header assistant's picker can act on the suppliers table.
-  // The tab resets both when it unmounts (switching tabs drops the
-  // selection with the tab). Purchase orders have no row selection —
-  // that option stays create-only.
-  const [supplierSelection, setSupplierSelection] = useState<Supplier[]>([]);
-  const supplierBulkDelete = useRef<(() => Promise<void>) | null>(null);
 
+  // The old two-resource picker dissolved into per-tab entry points
+  // (bang's entry-point contract): the Purchase Orders tab owns "New
+  // PO" + its row verbs, the Suppliers tab owns the "Add supplier"
+  // split button + its Actions dropdown. No selection/ref bridge — each
+  // tab acts on its own table.
   return (
     <div>
       <PageHeader
         title="Purchasing"
         description="Restock from suppliers — raise purchase orders and receive stock into your outlets."
-        action={
-          <PageAssistant
-            options={[
-              { resource: 'purchase-orders', label: 'Purchase order' },
-              {
-                resource: 'suppliers',
-                label: 'Supplier',
-                noun: 'supplier',
-                selection: supplierSelection,
-                onDeleteSelected: () => supplierBulkDelete.current?.(),
-              },
-            ]}
-            onApplied={() => setReloadKey((k) => k + 1)}
-          />
-        }
       />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as 'orders' | 'suppliers')}>
@@ -173,14 +141,10 @@ export default function PurchasingPage() {
           <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
         </TabsList>
         <TabsContent value="orders">
-          <OrdersTab reloadKey={reloadKey} />
+          <OrdersTab />
         </TabsContent>
         <TabsContent value="suppliers">
-          <SuppliersTab
-            reloadKey={reloadKey}
-            onSelectionChange={setSupplierSelection}
-            deleteRef={supplierBulkDelete}
-          />
+          <SuppliersTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -191,7 +155,7 @@ export default function PurchasingPage() {
 /* Purchase Orders tab                                                */
 /* ------------------------------------------------------------------ */
 
-function OrdersTab({ reloadKey }: { reloadKey: number }) {
+function OrdersTab() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -228,12 +192,6 @@ function OrdersTab({ reloadKey }: { reloadKey: number }) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Page-level assistant applied something — refetch under the current filter.
-  useEffect(() => {
-    if (reloadKey > 0) loadOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadKey]);
 
   function changeFilter(next: POStatus | 'ALL') {
     setFilter(next);
@@ -950,19 +908,7 @@ function toSupplierForm(s: Supplier): SupplierForm {
   };
 }
 
-function SuppliersTab({
-  reloadKey,
-  onSelectionChange,
-  deleteRef,
-}: {
-  reloadKey: number;
-  /** Mirrors `bulkTargets` up whenever the ticked set changes, and
-   *  `[]` on unmount — the page assistant's picker reads it. */
-  onSelectionChange?: (targets: Supplier[]) => void;
-  /** Kept pointing at the CURRENT onBulkDelete closure, so the picker
-   *  always executes over this render's targets. */
-  deleteRef?: MutableRefObject<(() => Promise<void>) | null>;
-}) {
+function SuppliersTab() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -971,7 +917,7 @@ function SuppliersTab({
   // Batch edit (agentic sheet) + batch delete, over the row selection.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
@@ -991,12 +937,6 @@ function SuppliersTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Page-level assistant applied something — refetch.
-  useEffect(() => {
-    if (reloadKey > 0) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadKey]);
-
   async function remove(s: Supplier) {
     setError(null);
     try {
@@ -1015,21 +955,18 @@ function SuppliersTab({
     [suppliers, selected],
   );
 
+  // The bulk-delete EXECUTOR — called by the Actions dropdown's confirm
+  // (BulkDeleteDialog). Throwing surfaces deleteMany's partial-failure
+  // sentence, which the BulkBar renders; the selection persists on a
+  // partial run so the failed rest can be retried.
   async function onBulkDelete() {
-    setBulkError(null);
-    setBulkDeleting(true);
     try {
       await deleteMany(
         bulkTargets.map((s) => ({ id: s.id, label: s.name })),
         (id) => api.delete(`/suppliers/${id}`),
       );
-      setSelected(new Set());
-      await load();
-    } catch (e) {
-      setBulkError(e instanceof Error ? e.message : 'Some suppliers could not be deleted');
-      await load();
     } finally {
-      setBulkDeleting(false);
+      await load();
     }
   }
 
@@ -1053,101 +990,53 @@ function SuppliersTab({
     });
   }
 
-  // Mirror the selection + the live delete closure up to the page-level
-  // assistant. The selection callback is signature-guarded so the
-  // parent's setState cannot loop; the ref is refreshed every render so
-  // the picker never executes over a stale target list.
-  const selectionSigRef = useRef('');
-  useEffect(() => {
-    if (deleteRef) deleteRef.current = onBulkDelete;
-    if (!onSelectionChange) return;
-    const sig = bulkTargets.map((s) => s.id).join('\u0000');
-    if (selectionSigRef.current === sig) return;
-    selectionSigRef.current = sig;
-    onSelectionChange(bulkTargets);
-  });
-  useEffect(
-    () => () => {
-      // Tab unmounted (switched away) — its selection is gone with it.
-      if (deleteRef) deleteRef.current = null;
-      onSelectionChange?.([]);
-    },
-    // Both props are stable (a setState + a ref object).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
-
   if (loading) return <div className="p-6 text-muted-foreground">Loading…</div>;
+
+  // The tab's batch verbs, on the Actions dropdown beside "Add
+  // supplier" (bang's entry-point contract).
+  const pageActions: PageAction[] = [
+    ...(assistantEnabled
+      ? [{
+          key: 'bulk-edit',
+          label: bulkTargets.length > 0 ? `Bulk edit ${bulkTargets.length} selected` : 'Bulk edit',
+          icon: Pencil,
+          run: () => setBulkEditing(true),
+          requiresSelection: true,
+        }]
+      : []),
+    {
+      key: 'bulk-delete',
+      label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
+      icon: Trash2,
+      run: () => setBulkDeleteOpen(true),
+      requiresSelection: true,
+      destructive: true,
+    },
+  ];
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-end">
+      <div className="mb-4 flex items-center justify-end gap-2">
+        <ActionsDropdown
+          actions={pageActions}
+          selectionCount={bulkTargets.length}
+          noun="supplier"
+        />
         <AgenticEntry
           resource="suppliers"
           mode="create"
+          split
           onApplied={load}
+          className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
           fallback={
             <Button onClick={() => setCreating(true)}>
               <Plus className="h-4 w-4" /> Add supplier
             </Button>
           }
         >
-          <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
-            <Plus className="h-4 w-4" /> Add supplier
-          </span>
+          <Plus className="h-4 w-4" /> Add supplier
         </AgenticEntry>
       </div>
-
-      {selected.size > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
-          <span className="text-sm font-medium">
-            {selected.size === 1 ? '1 supplier selected' : `${selected.size} suppliers selected`}
-          </span>
-          <div className="ml-auto flex items-center gap-2">
-            {assistantEnabled && (
-              <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={bulkDeleting}>
-                <Pencil className="h-4 w-4" /> Edit
-              </Button>
-            )}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="text-destructive hover:text-destructive"
-                  disabled={bulkDeleting}
-                >
-                  {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Delete {selected.size} {selected.size === 1 ? 'supplier' : 'suppliers'}?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This cannot be undone. A supplier with purchase orders is deactivated instead of deleted.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={onBulkDelete}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkDeleting}>
-              Clear
-            </Button>
-          </div>
-          {bulkError && (
-            <p className="w-full text-xs text-destructive">{bulkError}</p>
-          )}
-        </div>
-      )}
 
       {bulkEditing && (
         <BulkEditSlot
@@ -1271,6 +1160,24 @@ function SuppliersTab({
           </Table>
         </Card>
       )}
+
+      <BulkBar
+        count={bulkTargets.length}
+        noun="supplier"
+        onClear={() => { setBulkError(null); setSelected(new Set()); }}
+        error={bulkError}
+      />
+
+      <BulkDeleteDialog
+        count={bulkTargets.length}
+        noun="supplier"
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onDelete={onBulkDelete}
+        onError={setBulkError}
+        onDone={() => setSelected(new Set())}
+        description="This cannot be undone. A supplier with purchase orders is deactivated instead of deleted."
+      />
 
       {(creating || editing) && (
         <SupplierModal

@@ -8,7 +8,7 @@ import { formatDate, cn } from '@/lib/utils';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { PageAssistant, AgenticEntry } from '@/components/catentio/agentic-entry';
+import { AgenticEntry } from '@/components/catentio/agentic-entry';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -295,10 +295,10 @@ export default function LicensesPage() {
         description="Issue and manage license keys for your products."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="licenses" onApplied={load} />
             <AgenticEntry
               resource="licenses"
               mode="create"
+              split
               onApplied={load}
               className={buttonVariants()}
               fallback={

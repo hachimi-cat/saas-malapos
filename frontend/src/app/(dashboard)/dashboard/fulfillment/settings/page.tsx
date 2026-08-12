@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Truck, Loader2, MapPin, RefreshCw, Settings, Sparkles } from 'lucide-react';
+import { Truck, Loader2, MapPin, RefreshCw, Settings, Pencil } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
 import { PageHeader } from '@/components/dashboard/page-header';
@@ -107,7 +107,7 @@ export default function DeliverySettingsPage() {
           <div className="flex items-center gap-2">
             {assistantEnabled && (
               <Button type="button" variant="outline" onClick={() => setAssistOpen(true)}>
-                <Sparkles className="h-4 w-4" /> Ask assistant
+                <Pencil className="h-4 w-4" /> Edit
               </Button>
             )}
             <Button type="button" variant="outline" onClick={() => void load()}>

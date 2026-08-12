@@ -3,14 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { blogApi, type BlogPost, type BlogPostStatus } from '@/lib/marketing-api';
-import { Loader2, Plus, Search, ExternalLink, FileText, Globe, Undo2, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Search, ExternalLink, FileText, Globe, Undo2, Trash2, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { BulkBar } from '@/components/dashboard/bulk-bar';
-import {
-  PageAssistant,
-  AgenticEntry,
-  BulkEditSlot,
-} from '@/components/catentio/agentic-entry';
+import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
+import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
 import {
@@ -46,6 +43,8 @@ export default function BlogListPage() {
   // bulk bar below while the selection is non-empty.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
   // Row-action in-flight guard: the post id being published/unpublished/
   // deleted, so its buttons disable while the call runs.
   const [working, setWorking] = useState<string | null>(null);
@@ -134,6 +133,30 @@ export default function BlogListPage() {
     }
   }
 
+
+  // The page's batch verbs, on the Actions dropdown beside the "New X"
+  // entry (bang's entry-point contract). Labels recompute per render so
+  // the counts stay live.
+  const pageActions: PageAction[] = [
+    ...(assistantEnabled
+      ? [{
+          key: 'bulk-edit',
+          label: bulkTargets.length > 0 ? `Bulk edit ${bulkTargets.length} selected` : 'Bulk edit',
+          icon: Pencil,
+          run: () => setBulkEditing(true),
+          requiresSelection: true,
+        }]
+      : []),
+    {
+      key: 'bulk-delete',
+      label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
+      icon: Trash2,
+      run: () => setBulkDeleteOpen(true),
+      requiresSelection: true,
+      destructive: true,
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -146,17 +169,17 @@ export default function BlogListPage() {
         }
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant
-              resource="blog-posts"
+            <ActionsDropdown
+              actions={pageActions}
+              selectionCount={bulkTargets.length}
               noun="post"
-              selection={bulkTargets as unknown as Record<string, unknown>[]}
-              onDeleteSelected={onBulkDelete}
-              onApplied={load}
             />
             <AgenticEntry
               resource="blog-posts"
               mode="create"
+              split
               onApplied={load}
+              className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
               fallback={
                 <Button asChild className="shrink-0">
                   <Link href="/dashboard/marketing/blog/new">
@@ -165,9 +188,7 @@ export default function BlogListPage() {
                 </Button>
               }
             >
-              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
-                <Plus className="h-4 w-4" /> New post
-              </span>
+              <Plus className="h-4 w-4" /> New post
             </AgenticEntry>
           </div>
         }
@@ -301,15 +322,23 @@ export default function BlogListPage() {
         </ul>
       )}
 
-      {bulkTargets.length > 0 && (
-        <BulkBar
-          count={bulkTargets.length}
-          noun="post"
-          onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
-          onDelete={onBulkDelete}
-          onClear={() => setSelected(new Set())}
-        />
-      )}
+      <BulkBar
+        count={bulkTargets.length}
+        noun="post"
+        onClear={() => { setBulkError(null); setSelected(new Set()); }}
+        error={bulkError}
+      />
+
+      <BulkDeleteDialog
+        count={bulkTargets.length}
+        noun="post"
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onDelete={onBulkDelete}
+        onError={setBulkError}
+        onDone={() => setSelected(new Set())}
+        description="Each post and its storefront page are removed. This cannot be undone."
+      />
 
       {bulkEditing && (
         <BulkEditSlot

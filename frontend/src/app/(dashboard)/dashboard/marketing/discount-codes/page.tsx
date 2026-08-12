@@ -8,12 +8,9 @@ import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { Loader2, Plus, Ticket, Pencil, Trash2, CheckCircle2, Clock, Eye, EyeOff } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { BulkBar } from '@/components/dashboard/bulk-bar';
-import {
-  PageAssistant,
-  AgenticEntry,
-  BulkEditSlot,
-} from '@/components/catentio/agentic-entry';
+import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
+import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
 import { Button } from '@/components/ui/button';
@@ -90,6 +87,8 @@ export default function DiscountCodesPage() {
   const [editing, setEditing] = useState<DiscountCode | 'new' | null>(null);
   // Batch edit (agentic sheet) over the DataTable's selection.
   const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
   // The DataTable's ticked rows, mirrored up so the page assistant's
   // action picker and the bulk bar share one delete executor.
   const [selection, setSelection] = useState<DiscountCode[]>([]);
@@ -297,6 +296,31 @@ export default function DiscountCodesPage() {
 
   if (loading) return <div className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
+
+  // The page's batch verbs, on the Actions dropdown beside "New code"
+  // (bang's entry-point contract). The batch "delete" here is the same
+  // deactivate the row's archive runs. Labels recompute per render so
+  // the counts stay live.
+  const pageActions: PageAction[] = [
+    ...(assistantEnabled
+      ? [{
+          key: 'bulk-edit',
+          label: selection.length > 0 ? `Bulk edit ${selection.length} selected` : 'Bulk edit',
+          icon: Pencil,
+          run: () => setBulkEditing(true),
+          requiresSelection: true,
+        }]
+      : []),
+    {
+      key: 'bulk-delete',
+      label: selection.length > 0 ? `Delete ${selection.length} selected` : 'Delete selected',
+      icon: Trash2,
+      run: () => setBulkDeleteOpen(true),
+      requiresSelection: true,
+      destructive: true,
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -309,26 +333,24 @@ export default function DiscountCodesPage() {
         }
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant
-              resource="discount-codes"
+            <ActionsDropdown
+              actions={pageActions}
+              selectionCount={selection.length}
               noun="discount code"
-              selection={selection as unknown as Record<string, unknown>[]}
-              onDeleteSelected={onBulkDelete}
-              onApplied={refresh}
             />
             <AgenticEntry
               resource="discount-codes"
               mode="create"
+              split
               onApplied={refresh}
+              className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 shrink-0"
               fallback={
                 <Button onClick={() => setEditing('new')} className="shrink-0">
                   <Plus className="h-3.5 w-3.5" /> New code
                 </Button>
               }
             >
-              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
-                <Plus className="h-3.5 w-3.5" /> New code
-              </span>
+              <Plus className="h-3.5 w-3.5" /> New code
             </AgenticEntry>
           </div>
         }
@@ -356,9 +378,8 @@ export default function DiscountCodesPage() {
               <BulkBar
                 count={selectedRows.length}
                 noun="discount code"
-                onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
-                onDelete={onBulkDelete}
-                onClear={clear}
+                onClear={() => { setBulkError(null); clear(); }}
+                error={bulkError}
               />
               {bulkEditing && (
                 <BulkEditSlot
@@ -376,6 +397,18 @@ export default function DiscountCodesPage() {
           )}
         />
       )}
+
+
+      <BulkDeleteDialog
+        count={selection.length}
+        noun="discount code"
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onDelete={onBulkDelete}
+        onError={setBulkError}
+        onDone={() => setSelection([])}
+        description="Each code is deactivated — buyers can no longer redeem it; redemption history is preserved."
+      />
 
       {editing && (
         <EditorModal

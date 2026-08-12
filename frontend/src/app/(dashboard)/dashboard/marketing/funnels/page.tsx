@@ -2,16 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Megaphone, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Megaphone, Loader2, Plus, Trash2, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { BulkBar } from '@/components/dashboard/bulk-bar';
+import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import { marketingFetch } from '@/lib/marketing-api';
 import { cn } from '@/lib/utils';
-import {
-  PageAssistant,
-  AgenticEntry,
-  BulkEditSlot,
-} from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
 import { Button } from '@/components/ui/button';
@@ -76,6 +73,8 @@ export default function FunnelsPage() {
   // bulk bar below while the selection is non-empty.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
   // Row-delete in-flight guard.
   const [working, setWorking] = useState<string | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
@@ -156,6 +155,30 @@ export default function FunnelsPage() {
     }
   }
 
+
+  // The page's batch verbs, on the Actions dropdown beside the "New X"
+  // entry (bang's entry-point contract). Labels recompute per render so
+  // the counts stay live.
+  const pageActions: PageAction[] = [
+    ...(assistantEnabled
+      ? [{
+          key: 'bulk-edit',
+          label: bulkTargets.length > 0 ? `Bulk edit ${bulkTargets.length} selected` : 'Bulk edit',
+          icon: Pencil,
+          run: () => setBulkEditing(true),
+          requiresSelection: true,
+        }]
+      : []),
+    {
+      key: 'bulk-delete',
+      label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
+      icon: Trash2,
+      run: () => setBulkDeleteOpen(true),
+      requiresSelection: true,
+      destructive: true,
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -163,22 +186,20 @@ export default function FunnelsPage() {
         description="Trigger-driven multi-step automations. Welcome series, abandoned-cart recovery, win-back, post-purchase nurture."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant
-              resource="funnels"
+            <ActionsDropdown
+              actions={pageActions}
+              selectionCount={bulkTargets.length}
               noun="funnel"
-              selection={bulkTargets as unknown as Record<string, unknown>[]}
-              onDeleteSelected={onBulkDelete}
-              onApplied={load}
             />
             <AgenticEntry
               resource="funnels"
               mode="create"
+              split
               onApplied={load}
+              className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
               fallback={<Button onClick={() => setShowNew(true)}><Plus className="h-4 w-4" /> New funnel</Button>}
             >
-              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
-                <Plus className="h-4 w-4" /> New funnel
-              </span>
+              <Plus className="h-4 w-4" /> New funnel
             </AgenticEntry>
           </div>
         }
@@ -254,15 +275,23 @@ export default function FunnelsPage() {
         </Card>
       )}
 
-      {bulkTargets.length > 0 && (
-        <BulkBar
-          count={bulkTargets.length}
-          noun="funnel"
-          onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
-          onDelete={onBulkDelete}
-          onClear={() => setSelected(new Set())}
-        />
-      )}
+      <BulkBar
+        count={bulkTargets.length}
+        noun="funnel"
+        onClear={() => { setBulkError(null); setSelected(new Set()); }}
+        error={bulkError}
+      />
+
+      <BulkDeleteDialog
+        count={bulkTargets.length}
+        noun="funnel"
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onDelete={onBulkDelete}
+        onError={setBulkError}
+        onDone={() => setSelected(new Set())}
+        description="Each funnel and its steps are removed. This cannot be undone."
+      />
 
       {bulkEditing && (
         <BulkEditSlot

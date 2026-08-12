@@ -15,7 +15,7 @@ import { ApiRequestError } from '@/lib/api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { PageAssistant } from '@/components/catentio/agentic-entry';
+import { AgenticEntry } from '@/components/catentio/agentic-entry';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -180,9 +180,18 @@ export default function InventoryPage() {
         action={
           <div className="flex items-center gap-2">
             {/* Stock adjustments are create-only (POST /inventory/adjust)
-                and the manual entry lives per-row (Adjust) — the sparkle
-                is the page-level agentic entry for them. */}
-            <PageAssistant resource="fulfillment-adjustments" onApplied={() => void load()} />
+                and the manual entry lives per-row (Adjust) — this is the
+                page-level agentic create for them, so `fallback={null}`
+                hides it when the assistant is off. */}
+            <AgenticEntry
+              resource="fulfillment-adjustments"
+              mode="create"
+              onApplied={() => void load()}
+              className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+              fallback={null}
+            >
+              <Plus className="h-4 w-4" /> New adjustment
+            </AgenticEntry>
             <Button variant="outline" onClick={() => void load()}>
               <RotateCcw className="h-3.5 w-3.5" /> Refresh
             </Button>

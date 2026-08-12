@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { pixelsApi, type MerchantPixelsConfig } from '@/lib/marketing-api';
-import { Loader2, Save, BarChart3, Eye, EyeOff, CheckCircle2, Activity, Target, Sparkles } from 'lucide-react';
+import { Loader2, Save, BarChart3, Eye, EyeOff, CheckCircle2, Activity, Target, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
 import { useCatentioStatus } from '@/hooks/use-catentio';
@@ -89,7 +89,7 @@ export default function PixelsPage() {
         action={
           assistantEnabled ? (
             <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
-              <Sparkles className="h-4 w-4" /> Ask assistant
+              <Pencil className="h-4 w-4" /> Edit
             </Button>
           ) : undefined
         }

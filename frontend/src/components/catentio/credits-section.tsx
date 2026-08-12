@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useCurrency } from '@/lib/currency';
@@ -116,7 +116,7 @@ export function CreditsSection() {
               : 'QRIS, virtual account, e-wallet or card — credits land as soon as the payment clears.'}
           </p>
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Sparkles className="h-3.5 w-3.5" />
+            <Gift className="h-3.5 w-3.5" />
             {grant > 0
               ? `${grant.toLocaleString()} credits included each month on your plan — the exact pack price shows at checkout.`
               : 'Monthly grant included with your plan — the exact pack price shows at checkout.'}

@@ -6,7 +6,7 @@ import { payoutsApi, type Payout, type PayoutStatus, type PayoutBankAccount } fr
 import { Loader2, Plus, Landmark, AlertCircle, CheckCircle2, Ban, Truck, Hourglass } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { PageAssistant, AgenticEntry } from '@/components/catentio/agentic-entry';
+import { AgenticEntry } from '@/components/catentio/agentic-entry';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -239,7 +239,6 @@ export default function PayoutsPage() {
         description="Withdraw funds to your bank. Platform manually wires funds in manual mode — Xendit disbursement auto-transfers once XenPlatform is approved."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="payouts" onApplied={reload} />
             <AgenticEntry
               resource="payouts"
               mode="create"

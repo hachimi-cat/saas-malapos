@@ -6,14 +6,11 @@ import { plansApi, Plan } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
-import {
-  PageAssistant,
-  AgenticEntry,
-  BulkEditSlot,
-} from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
-import { BulkBar } from '@/components/dashboard/bulk-bar';
+import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -243,6 +240,8 @@ export default function PlansPage() {
   // Bulk selection over the cards + the agentic bulk-edit sheet.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
@@ -316,6 +315,30 @@ export default function PlansPage() {
     }
   }
 
+
+  // The page's batch verbs, on the Actions dropdown beside the "New X"
+  // entry (bang's entry-point contract). Labels recompute per render so
+  // the counts stay live.
+  const pageActions: PageAction[] = [
+    ...(assistantEnabled
+      ? [{
+          key: 'bulk-edit',
+          label: bulkTargets.length > 0 ? `Bulk edit ${bulkTargets.length} selected` : 'Bulk edit',
+          icon: Pencil,
+          run: () => setBulkEditing(true),
+          requiresSelection: true,
+        }]
+      : []),
+    {
+      key: 'bulk-delete',
+      label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
+      icon: Trash2,
+      run: () => setBulkDeleteOpen(true),
+      requiresSelection: true,
+      destructive: true,
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {(showCreate || editPlan) && (
@@ -331,18 +354,15 @@ export default function PlansPage() {
         description="Create and manage your billing plans"
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant
-              resource="plans"
+            <ActionsDropdown
+              actions={pageActions}
+              selectionCount={bulkTargets.length}
               noun="plan"
-              // Plan is an interface (no implicit index signature) —
-              // spread into fresh objects for Record<string, unknown>[].
-              selection={bulkTargets.map((p) => ({ ...p }))}
-              onDeleteSelected={onBulkDelete}
-              onApplied={load}
             />
             <AgenticEntry
               resource="plans"
               mode="create"
+              split
               onApplied={load}
               className={buttonVariants()}
               fallback={
@@ -474,15 +494,23 @@ export default function PlansPage() {
         </div>
       )}
 
-      {bulkTargets.length > 0 && (
-        <BulkBar
-          count={bulkTargets.length}
-          noun="plan"
-          onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
-          onDelete={onBulkDelete}
-          onClear={() => setSelected(new Set())}
-        />
-      )}
+      <BulkBar
+        count={bulkTargets.length}
+        noun="plan"
+        onClear={() => { setBulkError(null); setSelected(new Set()); }}
+        error={bulkError}
+      />
+
+      <BulkDeleteDialog
+        count={bulkTargets.length}
+        noun="plan"
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onDelete={onBulkDelete}
+        onError={setBulkError}
+        onDone={() => setSelected(new Set())}
+        description="This cannot be undone. Existing subscriptions are unaffected."
+      />
 
       {bulkEditing && (
         <BulkEditSlot

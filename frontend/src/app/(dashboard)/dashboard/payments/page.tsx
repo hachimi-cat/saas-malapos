@@ -7,7 +7,7 @@ import { formatCurrency, formatDate, formatPaymentMethod, cn } from '@/lib/utils
 import { Plus, ExternalLink, Loader2, Copy, Check } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { PageAssistant, AgenticEntry } from '@/components/catentio/agentic-entry';
+import { AgenticEntry } from '@/components/catentio/agentic-entry';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -309,7 +309,6 @@ export default function PaymentsPage() {
         description="Manage and create hosted payment sessions"
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant resource="checkout-sessions" onApplied={load} />
             <AgenticEntry
               resource="checkout-sessions"
               mode="create"

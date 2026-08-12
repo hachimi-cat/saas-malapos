@@ -10,8 +10,8 @@ import {
   Megaphone,
   MoreHorizontal,
   Settings,
+  Bot,
   ShieldCheck,
-  Sparkles,
   Store,
   Terminal,
   Users,
@@ -461,7 +461,7 @@ export default function HomePage() {
                   { name: 'Plugipay', icon: CircleDollarSign, label: 'payments' },
                   { name: 'Fulkruma', icon: Boxes, label: 'fulfillment' },
                   { name: 'Ripllo', icon: Megaphone, label: 'marketing' },
-                  { name: 'Catentio', icon: Sparkles, label: 'agents' },
+                  { name: 'Catentio', icon: Bot, label: 'agents' },
                 ].map((p) => (
                   <div
                     key={p.name}

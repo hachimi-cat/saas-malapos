@@ -4,7 +4,7 @@ import { AssistantSection } from '@/components/catentio/assistant-section';
 import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Check, User, ShieldCheck, Cpu, UserX, Sparkles } from 'lucide-react';
+import { Settings as SettingsIcon, Check, User, ShieldCheck, Cpu, UserX, Pencil } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { APP_VERSION, BUILD_SHA, BUILD_DATE } from '@/lib/version';
 import { PageHeader } from '@/components/dashboard/page-header';
@@ -81,7 +81,7 @@ export default function SettingsPage() {
               disabled={!currentSettings}
               onClick={() => setSheetOpen(true)}
             >
-              <Sparkles /> Ask assistant
+              <Pencil /> Edit
             </Button>
           ) : undefined
         }

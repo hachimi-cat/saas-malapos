@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Ban, Check, Loader2, X } from 'lucide-react';
+import { Ban, Check, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -170,8 +172,16 @@ export default function AffiliateApprovalsPage() {
 
   // ── Batch over the queue ──
   // Enrollments are a card list (no DataTable), so the selection is
-  // page-owned; commissions use the DataTable's own renderBulkBar.
+  // page-owned; the commissions DataTable mirrors its ticked rows up so
+  // the header's Actions dropdown (which follows the active tab) can
+  // act on them. The bars are selection readouts + the batch-result
+  // feedback surface; the VERBS live on the dropdown.
   const [selEnroll, setSelEnroll] = useState<Set<string>>(new Set());
+  const [selCommissions, setSelCommissions] = useState<Commission[]>([]);
+  const clearCommissionsRef = useRef<(() => void) | null>(null);
+  const [enrollBatchError, setEnrollBatchError] = useState<string | null>(null);
+  const [commBatchError, setCommBatchError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<PendingBatchConfirm | null>(null);
   const enrollTargets = useMemo(
     () => (enrollments ?? []).filter((e) => selEnroll.has(e.id)),
     [enrollments, selEnroll],
@@ -224,11 +234,87 @@ export default function AffiliateApprovalsPage() {
   const enrollmentCount = enrollments?.length ?? 0;
   const pendingCommissionCount = commissions?.filter((c) => c.status === 'pending').length ?? 0;
 
+  // The ACTIVE tab's batch verbs, on the header's Actions dropdown
+  // (bang's entry-point contract — the header follows the tab). Each
+  // verb confirms first with the same copy the old bar carried; a
+  // partial run's thrown sentence lands on that tab's bar.
+  const pendingSel = selCommissions.filter((c) => c.status === 'pending');
+  const pageActions: PageAction[] =
+    tab === 'enrollments'
+      ? [
+          {
+            key: 'approve',
+            label:
+              enrollTargets.length > 0
+                ? `Approve ${enrollTargets.length} selected`
+                : 'Approve selected',
+            icon: Check,
+            requiresSelection: true,
+            run: () =>
+              setConfirming({
+                title: `Approve ${enrollTargets.length} enrollment${enrollTargets.length === 1 ? '' : 's'}?`,
+                body: 'Each affiliator joins their program and can start earning commissions. Failures are skipped and named.',
+                cta: `Approve ${enrollTargets.length}`,
+                run: batchApproveEnrollments,
+                onError: setEnrollBatchError,
+                onDone: () => setSelEnroll(new Set()),
+              }),
+          },
+        ]
+      : [
+          {
+            key: 'approve',
+            label:
+              pendingSel.length > 0 ? `Approve ${pendingSel.length} pending` : 'Approve pending',
+            icon: Check,
+            requiresSelection: true,
+            disabled: selCommissions.length > 0 && pendingSel.length === 0,
+            disabledHint: 'No pending commissions in the selection',
+            run: () =>
+              setConfirming({
+                title: `Approve ${pendingSel.length} commission${pendingSel.length === 1 ? '' : 's'}?`,
+                body: 'Approved commissions are batched into the next monthly payout. Already-approved rows in the selection are left alone; failures are skipped and named.',
+                cta: `Approve ${pendingSel.length}`,
+                run: () => batchCommissions(pendingSel, 'approve'),
+                onError: setCommBatchError,
+                onDone: () => clearCommissionsRef.current?.(),
+              }),
+          },
+          {
+            key: 'void',
+            label:
+              selCommissions.length > 0
+                ? `Void ${selCommissions.length} selected`
+                : 'Void selected',
+            icon: Ban,
+            destructive: true,
+            requiresSelection: true,
+            run: () =>
+              setConfirming({
+                title: `Void ${selCommissions.length} commission${selCommissions.length === 1 ? '' : 's'}?`,
+                body: 'Voided commissions never pay out. This cannot be undone; failures are skipped and named.',
+                cta: `Void ${selCommissions.length}`,
+                run: () => batchCommissions(selCommissions, 'void'),
+                onError: setCommBatchError,
+                onDone: () => clearCommissionsRef.current?.(),
+              }),
+          },
+        ];
+  const activeSelectionCount =
+    tab === 'enrollments' ? enrollTargets.length : selCommissions.length;
+
   return (
     <div>
       <PageHeader
         title="Affiliate approvals"
         description="Pending affiliator enrollments and commissions across every program. Approve or void before the next monthly payout batch."
+        action={
+          <ActionsDropdown
+            actions={pageActions}
+            selectionCount={activeSelectionCount}
+            noun={tab === 'enrollments' ? 'enrollment' : 'commission'}
+          />
+        }
       />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
@@ -285,25 +371,12 @@ export default function AffiliateApprovalsPage() {
                 </div>
               </Card>
             ))}
-            {enrollTargets.length > 0 && (
-              <BatchActionBar
-                count={enrollTargets.length}
-                noun="enrollment"
-                onClear={() => setSelEnroll(new Set())}
-                actions={[
-                  {
-                    key: 'approve',
-                    label: 'Approve',
-                    icon: <Check className="h-3.5 w-3.5" />,
-                    confirmTitle: `Approve ${enrollTargets.length} enrollment${enrollTargets.length === 1 ? '' : 's'}?`,
-                    confirmBody:
-                      'Each affiliator joins their program and can start earning commissions. Failures are skipped and named.',
-                    cta: `Approve ${enrollTargets.length}`,
-                    run: batchApproveEnrollments,
-                  },
-                ]}
-              />
-            )}
+            <BulkBar
+              count={enrollTargets.length}
+              noun="enrollment"
+              onClear={() => { setEnrollBatchError(null); setSelEnroll(new Set()); }}
+              error={enrollBatchError}
+            />
           </div>
         )
       }</TabsContent>
@@ -401,44 +474,15 @@ export default function AffiliateApprovalsPage() {
             searchPlaceholder="Search affiliator, program…"
             defaultSort={{ key: 'gross', dir: 'desc' }}
             empty="No commissions match."
+            onSelectionChange={setSelCommissions}
             renderBulkBar={(selectedRows, clear) => {
-              const pending = selectedRows.filter((c) => c.status === 'pending');
+              clearCommissionsRef.current = clear;
               return (
-                <BatchActionBar
+                <BulkBar
                   count={selectedRows.length}
                   noun="commission"
-                  onClear={clear}
-                  actions={[
-                    ...(pending.length > 0
-                      ? [{
-                          key: 'approve',
-                          label: pending.length === selectedRows.length ? 'Approve' : `Approve ${pending.length} pending`,
-                          icon: <Check className="h-3.5 w-3.5" />,
-                          confirmTitle: `Approve ${pending.length} commission${pending.length === 1 ? '' : 's'}?`,
-                          confirmBody:
-                            'Approved commissions are batched into the next monthly payout. Already-approved rows in the selection are left alone; failures are skipped and named.',
-                          cta: `Approve ${pending.length}`,
-                          run: async () => {
-                            await batchCommissions(pending, 'approve');
-                            clear();
-                          },
-                        }]
-                      : []),
-                    {
-                      key: 'void',
-                      label: 'Void',
-                      icon: <Ban className="h-3.5 w-3.5" />,
-                      destructive: true,
-                      confirmTitle: `Void ${selectedRows.length} commission${selectedRows.length === 1 ? '' : 's'}?`,
-                      confirmBody:
-                        'Voided commissions never pay out. This cannot be undone; failures are skipped and named.',
-                      cta: `Void ${selectedRows.length}`,
-                      run: async () => {
-                        await batchCommissions(selectedRows, 'void');
-                        clear();
-                      },
-                    },
-                  ]}
+                  onClear={() => { setCommBatchError(null); clear(); }}
+                  error={commBatchError}
                 />
               );
             }}
@@ -446,6 +490,8 @@ export default function AffiliateApprovalsPage() {
         )
       }</TabsContent>
       </Tabs>
+
+      <BatchConfirmDialog confirming={confirming} onClose={() => setConfirming(null)} />
 
       <Dialog open={!!actionDialog} onOpenChange={(o) => !o && setActionDialog(null)}>
         <DialogContent className="max-w-sm">
@@ -483,116 +529,73 @@ export default function AffiliateApprovalsPage() {
   );
 }
 
-type BatchAction = {
-  key: string;
-  label: string;
-  icon: React.ReactNode;
-  destructive?: boolean;
-  confirmTitle: string;
-  confirmBody: string;
+/** One batch verb's pending confirm — title/body/cta verbatim from the
+ *  old bar's dialogs. `run` is the actMany executor; a THROW is the
+ *  partial-failure sentence and lands on the tab's bar via `onError`.
+ *  `onDone` (clear the selection) fires only after a clean run. */
+type PendingBatchConfirm = {
+  title: string;
+  body: string;
   cta: string;
+  destructive?: boolean;
   run: () => Promise<void>;
+  onError: (message: string | null) => void;
+  onDone: () => void;
 };
 
 /**
- * The approvals variant of the shared BulkBar: `N selected · Approve ·
- * Void · clear`. Same sticky-bottom shape and the same partial-failure
- * contract — each action confirms first (naming the count), and a
- * partial run's thrown sentence stays on the bar.
+ * The batch confirm, opened by the header Actions dropdown's items —
+ * the same contract as BulkDeleteDialog: confirm first (naming the
+ * count), keep going past failures, report a partial run on the bar,
+ * selection persists on partial failure for a retry.
  */
-function BatchActionBar({
-  count,
-  noun,
-  actions,
-  onClear,
+function BatchConfirmDialog({
+  confirming,
+  onClose,
 }: {
-  count: number;
-  noun: string;
-  actions: BatchAction[];
-  onClear: () => void;
+  confirming: PendingBatchConfirm | null;
+  onClose: () => void;
 }) {
-  const [confirming, setConfirming] = useState<BatchAction | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  if (count === 0) return null;
-  const plural = count === 1 ? noun : `${noun}s`;
+  if (!confirming) return null;
 
-  const run = async (action: BatchAction) => {
-    setConfirming(null);
+  const run = async () => {
     setBusy(true);
-    setError(null);
+    confirming.onError(null);
     try {
-      await action.run();
+      await confirming.run();
+      confirming.onDone();
+      onClose();
     } catch (e) {
-      setError((e as Error).message);
+      confirming.onError((e as Error).message);
+      onClose();
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="sticky bottom-4 z-30 mt-3 flex justify-center">
-      <div className="flex max-w-full flex-col gap-1 rounded-xl border border-border bg-card px-4 py-2 shadow-lg">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="font-medium">
-            {count} {plural} selected
-          </span>
-          {actions.map((a) => (
-            <button
-              key={a.key}
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setError(null);
-                setConfirming(a);
-              }}
-              className={
-                a.destructive
-                  ? 'inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-background px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50'
-                  : 'inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-secondary disabled:opacity-50'
-              }
-            >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : a.icon} {a.label}
-            </button>
-          ))}
-          <button
-            type="button"
+    <AlertDialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{confirming.title}</AlertDialogTitle>
+          <AlertDialogDescription>{confirming.body}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
             disabled={busy}
-            onClick={() => {
-              setError(null);
-              onClear();
+            onClick={(e) => {
+              e.preventDefault();
+              void run();
             }}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+            className={confirming.destructive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : undefined}
           >
-            <X className="h-3.5 w-3.5" /> Clear
-          </button>
-        </div>
-        {error && (
-          <p className="max-w-md text-xs text-destructive" role="alert">
-            {error}
-          </p>
-        )}
-      </div>
-      {confirming && (
-        <AlertDialog open onOpenChange={(o) => { if (!o) setConfirming(null); }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{confirming.confirmTitle}</AlertDialogTitle>
-              <AlertDialogDescription>{confirming.confirmBody}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => run(confirming)}
-                className={confirming.destructive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : undefined}
-              >
-                {confirming.cta}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-    </div>
+            {busy ? 'Working…' : confirming.cta}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

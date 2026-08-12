@@ -17,16 +17,13 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
-  Loader2,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useBusinessType } from '@/hooks/use-business-type';
 import { PageHeader } from '@/components/dashboard/page-header';
-import {
-  PageAssistant,
-  AgenticEntry,
-  BulkEditSlot,
-} from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
+import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -66,7 +63,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -135,7 +131,7 @@ export default function TablesPage() {
   // The Layout canvas is not a selection surface.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
@@ -315,21 +311,18 @@ export default function TablesPage() {
     [tables, selected],
   );
 
+  // The bulk-delete EXECUTOR — called by the Actions dropdown's confirm
+  // (BulkDeleteDialog). Throwing surfaces deleteMany's partial-failure
+  // sentence, which the BulkBar renders; the selection persists on a
+  // partial run so the failed rest can be retried.
   async function onBulkDelete() {
-    setBulkError(null);
-    setBulkDeleting(true);
     try {
       await deleteMany(
         bulkTargets.map((t) => ({ id: t.id, label: t.label })),
         (id) => api.delete(`/tables/${id}`),
       );
-      setSelected(new Set());
-      await load(outletId, floorId);
-    } catch (e) {
-      setBulkError(e instanceof Error ? e.message : 'Some tables could not be deleted');
-      await load(outletId, floorId);
     } finally {
-      setBulkDeleting(false);
+      await load(outletId, floorId);
     }
   }
 
@@ -380,6 +373,30 @@ export default function TablesPage() {
     );
   }
 
+  // The tables batch verbs, on the Actions dropdown beside "Add table"
+  // (bang's entry-point contract). Floors keep their own controls on the
+  // FloorSwitcher below — the old two-resource picker dissolved into
+  // per-resource entry points.
+  const pageActions: PageAction[] = [
+    ...(assistantEnabled
+      ? [{
+          key: 'bulk-edit',
+          label: bulkTargets.length > 0 ? `Bulk edit ${bulkTargets.length} selected` : 'Bulk edit',
+          icon: Pencil,
+          run: () => setBulkEditing(true),
+          requiresSelection: true,
+        }]
+      : []),
+    {
+      key: 'bulk-delete',
+      label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
+      icon: Trash2,
+      run: () => setBulkDeleteOpen(true),
+      requiresSelection: true,
+      destructive: true,
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -399,34 +416,24 @@ export default function TablesPage() {
                 </SelectContent>
               </Select>
             )}
-            <PageAssistant
-              options={[
-                {
-                  resource: 'tables',
-                  label: 'Table',
-                  noun: 'table',
-                  selection: bulkTargets,
-                  onDeleteSelected: onBulkDelete,
-                },
-                // Floors have no row selection on this page — the option
-                // stays create-only.
-                { resource: 'floors', label: 'Floor' },
-              ]}
-              onApplied={reloadAfterAssistant}
+            <ActionsDropdown
+              actions={pageActions}
+              selectionCount={bulkTargets.length}
+              noun="table"
             />
             <AgenticEntry
               resource="tables"
               mode="create"
+              split
               onApplied={reloadAfterAssistant}
+              className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
               fallback={
                 <Button onClick={() => setCreating(true)}>
                   <Plus className="h-4 w-4" /> Add table
                 </Button>
               }
             >
-              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
-                <Plus className="h-4 w-4" /> Add table
-              </span>
+              <Plus className="h-4 w-4" /> Add table
             </AgenticEntry>
           </>
         }
@@ -454,57 +461,6 @@ export default function TablesPage() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-      )}
-
-      {floorId && view === 'list' && selected.size > 0 && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
-          <span className="text-sm font-medium">
-            {selected.size === 1 ? '1 table selected' : `${selected.size} tables selected`}
-          </span>
-          <div className="ml-auto flex items-center gap-2">
-            {assistantEnabled && (
-              <Button variant="outline" onClick={() => setBulkEditing(true)} disabled={bulkDeleting}>
-                <Pencil className="h-4 w-4" /> Edit
-              </Button>
-            )}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="text-destructive hover:text-destructive"
-                  disabled={bulkDeleting}
-                >
-                  {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Delete {selected.size} {selected.size === 1 ? 'table' : 'tables'}?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This cannot be undone. A table with sales history is deactivated instead of deleted.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={onBulkDelete}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <Button variant="ghost" onClick={() => setSelected(new Set())} disabled={bulkDeleting}>
-              Clear
-            </Button>
-          </div>
-          {bulkError && (
-            <p className="w-full text-xs text-destructive">{bulkError}</p>
-          )}
-        </div>
       )}
 
       {bulkEditing && (
@@ -690,6 +646,26 @@ export default function TablesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {floorId && view === 'list' && (
+        <BulkBar
+          count={bulkTargets.length}
+          noun="table"
+          onClear={() => { setBulkError(null); setSelected(new Set()); }}
+          error={bulkError}
+        />
+      )}
+
+      <BulkDeleteDialog
+        count={bulkTargets.length}
+        noun="table"
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onDelete={onBulkDelete}
+        onError={setBulkError}
+        onDone={() => setSelected(new Set())}
+        description="This cannot be undone. A table with sales history is deactivated instead of deleted."
+      />
 
       {error && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 rounded-md bg-destructive px-4 py-2 text-sm text-destructive-foreground shadow-lg">

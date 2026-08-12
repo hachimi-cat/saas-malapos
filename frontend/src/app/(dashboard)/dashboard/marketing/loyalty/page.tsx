@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Megaphone, Loader2, Gift, ExternalLink, Search, Sparkles } from 'lucide-react';
+import { Megaphone, Loader2, Gift, ExternalLink, Search, Pencil } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
@@ -117,7 +117,7 @@ export default function LoyaltyPage() {
         action={
           assistantEnabled ? (
             <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
-              <Sparkles className="h-4 w-4" /> Ask assistant
+              <Pencil className="h-4 w-4" /> Edit
             </Button>
           ) : undefined
         }

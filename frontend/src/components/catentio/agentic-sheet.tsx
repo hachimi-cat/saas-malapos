@@ -11,6 +11,7 @@ import { useModules } from '@/hooks/use-modules';
 import { uploadWithPreview } from '@/lib/upload-with-preview';
 import type { AssistantMode, AssistantResource } from '@/hooks/use-catentio';
 import { buildBulkEditResource, buildCrudResource } from './resources';
+import { BULK } from './capabilities';
 
 /**
  * Malapos's flavour of the extracted catentio sheet (storlaunch's
@@ -108,6 +109,30 @@ export function CatentioCrudSheet({
   );
 }
 
+/** What to call one selected row in the bulk-edit header. Rows carry
+ *  whatever the list carried; try the fields a merchant would recognise
+ *  before falling back to the id. */
+const DISPLAY_KEYS = [
+  'name',
+  'title',
+  'label',
+  'code',
+  'email',
+  'url',
+  'id',
+] as const;
+
+function displayName(row: Record<string, unknown>): string {
+  for (const key of DISPLAY_KEYS) {
+    const v = row[key];
+    if (typeof v === 'string' && v.trim()) {
+      return v.length > 40 ? `${v.slice(0, 37)}…` : v;
+    }
+    if (typeof v === 'number') return String(v);
+  }
+  return 'record';
+}
+
 /**
  * The "Edit N selected" sheet. Same body as the single-record sheet —
  * agentic tab, manual form, renderers, uploader — but the descriptor is
@@ -115,6 +140,11 @@ export function CatentioCrudSheet({
  * every selected row through the resource's own edit apply. `initial`
  * is deliberately absent — the form starts blank because a blank field
  * is the instruction to leave that field alone.
+ *
+ * Both tabs open on the legibility header (bang's original complaint —
+ * a blank form over an invisible selection): WHO is being edited
+ * ("Editing 4 products: a, b, c +1 more") and what blank means, so the
+ * empty manual form is self-explanatory.
  */
 export function CatentioBulkEditSheet({
   resource,
@@ -141,6 +171,10 @@ export function CatentioBulkEditSheet({
     [resource],
   );
   const n = targets.length;
+  const noun = BULK[resource]?.noun ?? 'record';
+  const names = targets.slice(0, 3).map(displayName).join(', ');
+  const more = n > 3 ? ` +${n - 3} more` : '';
+  const editing = `Editing ${n} ${n === 1 ? noun : `${noun}s`}: ${names}${more}. Fields left blank keep each item's current value.`;
   return (
     <AgenticCrudSheet
       resource={descriptor}
@@ -152,8 +186,8 @@ export function CatentioBulkEditSheet({
       fieldRenderers={fieldRenderers}
       imageUploader={(file, cb) => uploadWithPreview(file, cb)}
       descriptions={{
-        agentic: `Describe the change — it will be proposed once and applied to all ${n} selected records.`,
-        manual: `Only the fields you fill in are changed, on all ${n} selected records. Blank fields keep each record's current value.`,
+        agentic: `${editing} Describe the change — it will be proposed once and applied to all ${n}.`,
+        manual: editing,
       }}
     />
   );

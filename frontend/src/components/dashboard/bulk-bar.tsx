@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Pencil, Trash2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,54 +14,38 @@ import {
 } from '@/components/ui/alert-dialog';
 
 /**
- * The bar that appears once rows are ticked: `N selected · Edit ·
- * Delete · clear`. One component so every list page gets the identical
- * affordance — which actions it offers is the page's call (a list whose
- * records have no delete route simply passes no `onDelete`).
+ * The bar that appears once rows are ticked: `N selected · Clear` — and
+ * nothing else (bang's entry-point contract; storlaunch's bulk-bar.tsx
+ * is the reference). The VERBS live in the page header's Actions
+ * dropdown; the bar is the selection readout and the batch-result
+ * feedback surface.
  *
- * Delete confirms first and reports a partial run's error right here on
- * the bar: `deleteMany` throws `Deleted N of M. These did not: …` and
- * that sentence is the merchant's only way to learn which records the
- * server refused (sales history, active stock…). The page reloads its
- * rows either way, so the count on screen is honest.
+ * A batch delete's partial run reports its error right here on the bar:
+ * `deleteMany` throws `Deleted N of M. These did not: …` and that
+ * sentence is the merchant's only way to learn which records the server
+ * refused (sales history, active stock…). The selection persists on
+ * partial failure so the failed rest can be retried; the page reloads
+ * its rows either way, so the count on screen is honest.
  */
 export function BulkBar({
   count,
   noun,
-  onEdit,
-  onDelete,
+  plural: pluralWord,
   onClear,
+  error,
 }: {
   count: number;
   /** Singular, merchant's word: 'product', 'supplier'. */
   noun: string;
-  /** Opens the bulk-edit sheet. Omit when the resource has no edit. */
-  onEdit?: () => void;
-  /** Deletes the selection (deleteMany + reload). Omit when there is no
-   *  delete route. Throwing shows the message on the bar. */
-  onDelete?: () => Promise<void>;
+  /** Irregular plural ('categories'); defaults to `${noun}s`. */
+  plural?: string;
   onClear: () => void;
+  /** The last batch run's partial-failure sentence, page-owned now that
+   *  the verbs run from the Actions dropdown. */
+  error?: string | null;
 }) {
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   if (count === 0) return null;
-  const plural = count === 1 ? noun : `${noun}s`;
-
-  const runDelete = async () => {
-    setConfirming(false);
-    setBusy(true);
-    setError(null);
-    try {
-      await onDelete?.();
-      onClear();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const plural = count === 1 ? noun : pluralWord ?? `${noun}s`;
 
   return (
     <div className="sticky bottom-4 z-30 mt-3 flex justify-center">
@@ -70,38 +54,10 @@ export function BulkBar({
           <span className="font-medium">
             {count} {plural} selected
           </span>
-          {onEdit && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setError(null);
-                onEdit();
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-secondary disabled:opacity-50"
-            >
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setConfirming(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-background px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}{' '}
-              Delete
-            </button>
-          )}
           <button
             type="button"
-            disabled={busy}
-            onClick={() => {
-              setError(null);
-              onClear();
-            }}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+            onClick={onClear}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" /> Clear
           </button>
@@ -112,30 +68,95 @@ export function BulkBar({
           </p>
         )}
       </div>
-      {confirming && (
-        <AlertDialog open onOpenChange={(o) => { if (!o) setConfirming(false); }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                Delete {count} {plural}?
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                This cannot be undone. Records the server protects (sales
-                history, active use) are skipped and named.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={runDelete}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Delete {count}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </div>
+  );
+}
+
+/**
+ * The batch-delete confirm, verbatim from the old bar's Delete button —
+ * now opened by the Actions dropdown's "Delete N selected" item, which
+ * is why the open state lives with the page. Same executor contract:
+ * `onDelete` is deleteMany + reload, and a THROW is the partial-failure
+ * sentence — it lands in `onError`, whose value the page renders on the
+ * BulkBar. Selection is cleared only after a fully clean run.
+ */
+export function BulkDeleteDialog({
+  count,
+  noun,
+  open,
+  onOpenChange,
+  onDelete,
+  onError,
+  onDone,
+  description,
+  plural: pluralWord,
+}: {
+  count: number;
+  /** Singular, merchant's word — same as the bar's. */
+  noun: string;
+  /** Irregular plural ('categories'); defaults to `${noun}s`. */
+  plural?: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Page-specific consequence line, verbatim from the old confirm
+   *  (e.g. "Products in a deleted category become uncategorized.").
+   *  Defaults to the generic protected-records sentence. */
+  description?: string;
+  /** Deletes the selection (deleteMany + reload). Throwing reports the
+   *  message on the bar via `onError`. */
+  onDelete: () => Promise<void>;
+  /** Receives the partial-failure sentence, or null when a run starts
+   *  clean — render the value on the BulkBar's `error`. */
+  onError: (message: string | null) => void;
+  /** A fully clean run — clear the selection. */
+  onDone: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  if (!open) return null;
+  const plural = count === 1 ? noun : pluralWord ?? `${noun}s`;
+
+  const runDelete = async () => {
+    setBusy(true);
+    onError(null);
+    try {
+      await onDelete();
+      onDone();
+      onOpenChange(false);
+    } catch (e) {
+      onError((e as Error).message);
+      onOpenChange(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <AlertDialog open onOpenChange={(o) => { if (!o && !busy) onOpenChange(false); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Delete {count} {plural}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {description ??
+              'This cannot be undone. Records the server protects (sales history, active use) are skipped and named.'}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={busy}
+            onClick={(e) => {
+              e.preventDefault();
+              void runDelete();
+            }}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {busy ? 'Deleting…' : `Delete ${count}`}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

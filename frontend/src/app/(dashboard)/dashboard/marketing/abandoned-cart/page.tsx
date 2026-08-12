@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { abandonedCartApi, discountCodesApi, type AbandonedCartConfig, type AbandonedCartReminder, type AbandonedCartStats, type DiscountCode } from '@/lib/marketing-api';
-import { Loader2, Save, MailX, CheckCircle2, Clock, ShoppingBag, Sparkles } from 'lucide-react';
+import { Loader2, Save, MailX, CheckCircle2, Clock, ShoppingBag, Pencil } from 'lucide-react';
 import { DataTable, type Column } from '@/components/data-table';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { PageHeader } from '@/components/dashboard/page-header';
@@ -126,7 +126,7 @@ export default function AbandonedCartPage() {
         action={
           assistantEnabled ? (
             <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
-              <Sparkles className="h-4 w-4" /> Ask assistant
+              <Pencil className="h-4 w-4" /> Edit
             </Button>
           ) : undefined
         }

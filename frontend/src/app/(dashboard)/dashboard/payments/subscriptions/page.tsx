@@ -4,11 +4,11 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { subscriptionsApi, Subscription } from '@/lib/payments-api';
 import { formatDate, cn } from '@/lib/utils';
-import { Loader2, PauseCircle, PlayCircle, XCircle } from 'lucide-react';
+import { Loader2, PauseCircle, PlayCircle, Plus, XCircle } from 'lucide-react';
 import { BillingTabs } from '@/components/payment/BillingTabs';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { PageAssistant } from '@/components/catentio/agentic-entry';
+import { AgenticEntry } from '@/components/catentio/agentic-entry';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -230,10 +230,21 @@ export default function SubscriptionsPage() {
       <PageHeader
         title="Subscriptions"
         description="Manage customer subscription lifecycle"
-        // No hand-built create form on this page — the sparkle is the
-        // create entry (renders only when the assistant is enabled).
-        // Pause/resume/cancel stay per-row below.
-        action={<PageAssistant resource="subscriptions" onApplied={load} />}
+        // No hand-built create form on this page — creating a
+        // subscription is a sheet feature, so `fallback={null}` hides
+        // the entry when the assistant is off. Pause/resume/cancel stay
+        // per-row below.
+        action={
+          <AgenticEntry
+            resource="subscriptions"
+            mode="create"
+            onApplied={load}
+            className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+            fallback={null}
+          >
+            <Plus className="h-4 w-4" /> New subscription
+          </AgenticEntry>
+        }
       />
 
       <BillingTabs />

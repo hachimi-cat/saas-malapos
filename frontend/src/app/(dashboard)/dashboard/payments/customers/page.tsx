@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Users } from 'lucide-react';
+import { Loader2, Pencil, Plus, Users } from 'lucide-react';
 import { customersApi, type Customer } from '@/lib/payments-api';
 import { formatDate } from '@/lib/utils';
 import { BillingTabs } from '@/components/payment/BillingTabs';
 import { DataTable, type Column } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { PageAssistant, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { BulkBar } from '@/components/dashboard/bulk-bar';
 import { Card } from '@/components/ui/card';
@@ -16,10 +17,11 @@ import { Card } from '@/components/ui/card';
 // Payment customers (Plugipay billing identities). malapos has no
 // storefront buyer portal, so this lists the people you've billed —
 // the counterpart to the Subscriptions tab. The page itself is
-// read-only; creating/editing goes through the agentic sheet (the
-// sparkle for create, the bulk bar's Edit for the selection) — there
-// is no hand-built form here, and /payments/customers has no DELETE
-// route, so the bar offers Edit alone.
+// read-only; creating/editing goes through the agentic sheet ("New
+// customer" for create, the Actions dropdown's Bulk edit for the
+// selection) — there is no hand-built form here, and
+// /payments/customers has no DELETE route, so Bulk edit is the only
+// batch verb.
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +88,20 @@ export default function CustomersPage() {
     },
   ];
 
+  // The page's one batch verb (no DELETE route on /payments/customers):
+  // a single enabled action renders as a plain outline button, not a
+  // dropdown. Bulk edit is a sheet feature, so it exists only with the
+  // assistant on — off, the header carries nothing.
+  const pageActions: PageAction[] = assistantEnabled
+    ? [{
+        key: 'bulk-edit',
+        label: selection.length > 0 ? `Bulk edit ${selection.length} selected` : 'Bulk edit',
+        icon: Pencil,
+        run: () => setBulkEditTargets(selection),
+        requiresSelection: true,
+      }]
+    : [];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -97,16 +113,27 @@ export default function CustomersPage() {
           </>
         }
         action={
-          <PageAssistant
-            resource="payment-customers"
-            noun="customer"
-            // No DELETE route on /payments/customers, so no
-            // onDeleteSelected — the selection powers Edit / Bulk edit
-            // only. Customer is an interface (no implicit index
-            // signature) — spread into fresh objects.
-            selection={selection.map((c) => ({ ...c }))}
-            onApplied={load}
-          />
+          <>
+            <ActionsDropdown
+              actions={pageActions}
+              selectionCount={selection.length}
+              noun="customer"
+            />
+            {/* This page has never had a hand-built create form —
+                creating a billing identity is a sheet feature.
+                `fallback={null}` keeps the page as it was when the
+                assistant is off. */}
+            <AgenticEntry
+              resource="payment-customers"
+              mode="create"
+              split
+              onApplied={load}
+              className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+              fallback={null}
+            >
+              <Plus className="h-4 w-4" /> New customer
+            </AgenticEntry>
+          </>
         }
       />
 
@@ -131,21 +158,21 @@ export default function CustomersPage() {
           empty="No customers match."
           onSelectionChange={setSelection}
           // Selection exists only for the agentic bulk edit, so the
-          // checkboxes appear only when the assistant is on. No DELETE
-          // route on /payments/customers → the bar offers Edit alone.
+          // checkboxes appear only when the assistant is on. The verb
+          // lives on the header's Actions dropdown; the bar is the
+          // selection readout.
           renderBulkBar={
             assistantEnabled
-              ? (selectedRows, clear) => (
-                  <BulkBar
-                    count={selectedRows.length}
-                    noun="customer"
-                    onEdit={() => {
-                      clearSelectionRef.current = clear;
-                      setBulkEditTargets(selectedRows);
-                    }}
-                    onClear={clear}
-                  />
-                )
+              ? (selectedRows, clear) => {
+                  clearSelectionRef.current = clear;
+                  return (
+                    <BulkBar
+                      count={selectedRows.length}
+                      noun="customer"
+                      onClear={clear}
+                    />
+                  );
+                }
               : undefined
           }
         />

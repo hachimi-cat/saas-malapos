@@ -20,17 +20,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { BulkBar } from '@/components/dashboard/bulk-bar';
+import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
-import {
-  PageAssistant,
-  AgenticEntry,
-  BulkEditSlot,
-} from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
 import { Button } from '@/components/ui/button';
@@ -112,6 +109,8 @@ export default function MarketingCampaignsHubPage() {
   const [working, setWorking] = useState(false);
   // Batch edit (agentic sheet) over the DataTable's selection.
   const [bulkEditing, setBulkEditing] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
   // The DataTable's ticked rows, mirrored up so the page assistant's
   // action picker and the bulk bar share one delete executor.
   const [selection, setSelection] = useState<Campaign[]>([]);
@@ -246,6 +245,30 @@ export default function MarketingCampaignsHubPage() {
     );
   }
 
+
+  // The page's batch verbs, on the Actions dropdown beside the "New X"
+  // entry (bang's entry-point contract). Labels recompute per render so
+  // the counts stay live.
+  const pageActions: PageAction[] = [
+    ...(assistantEnabled
+      ? [{
+          key: 'bulk-edit',
+          label: selection.length > 0 ? `Bulk edit ${selection.length} selected` : 'Bulk edit',
+          icon: Pencil,
+          run: () => setBulkEditing(true),
+          requiresSelection: true,
+        }]
+      : []),
+    {
+      key: 'bulk-delete',
+      label: selection.length > 0 ? `Delete ${selection.length} selected` : 'Delete selected',
+      icon: Trash2,
+      run: () => setBulkDeleteOpen(true),
+      requiresSelection: true,
+      destructive: true,
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -253,22 +276,20 @@ export default function MarketingCampaignsHubPage() {
         description="Group creator briefs, discounts, broadcasts and more under one push. Each child still works standalone."
         action={
           <div className="flex items-center gap-2">
-            <PageAssistant
-              resource="marketing-campaigns"
+            <ActionsDropdown
+              actions={pageActions}
+              selectionCount={selection.length}
               noun="campaign"
-              selection={selection as unknown as Record<string, unknown>[]}
-              onDeleteSelected={onBulkDelete}
-              onApplied={load}
             />
             <AgenticEntry
               resource="marketing-campaigns"
               mode="create"
+              split
               onApplied={load}
+              className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
               fallback={<Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New campaign</Button>}
             >
-              <span className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90">
-                <Plus className="h-4 w-4" /> New campaign
-              </span>
+              <Plus className="h-4 w-4" /> New campaign
             </AgenticEntry>
           </div>
         }
@@ -378,9 +399,8 @@ export default function MarketingCampaignsHubPage() {
               <BulkBar
                 count={selectedRows.length}
                 noun="campaign"
-                onEdit={assistantEnabled ? () => setBulkEditing(true) : undefined}
-                onDelete={onBulkDelete}
-                onClear={clear}
+                onClear={() => { setBulkError(null); clear(); }}
+                error={bulkError}
               />
               {bulkEditing && (
                 <BulkEditSlot
@@ -398,6 +418,18 @@ export default function MarketingCampaignsHubPage() {
           )}
         />
       )}
+
+
+      <BulkDeleteDialog
+        count={selection.length}
+        noun="campaign"
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        onDelete={onBulkDelete}
+        onError={setBulkError}
+        onDone={() => setSelection([])}
+        description="The campaign umbrellas are removed — linked briefs, codes and posts stay, they just lose the grouping. This cannot be undone."
+      />
 
       {showForm && (
         <Dialog open onOpenChange={(o) => !o && setShowForm(false)}>
