@@ -109,6 +109,7 @@ type PurchaseOrder = {
   total: number;
   outletId: string;
   supplier?: Supplier | null;
+  note?: string | null;
   createdAt: string;
   items: POItem[];
 };
@@ -197,6 +198,7 @@ function OrdersTab({ reloadKey }: { reloadKey: number }) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<POStatus | 'ALL'>('ALL');
   const [building, setBuilding] = useState(false);
+  const [editing, setEditing] = useState<PurchaseOrder | null>(null);
   const [receiving, setReceiving] = useState<PurchaseOrder | null>(null);
   const [acting, setActing] = useState<string | null>(null);
 
@@ -325,6 +327,18 @@ function OrdersTab({ reloadKey }: { reloadKey: number }) {
                     <div className="flex justify-end gap-1">
                       {po.status === 'DRAFT' && (
                         <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={acting === po.id}
+                          onClick={() => setEditing(po)}
+                          title="Edit draft"
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {po.status === 'DRAFT' && (
+                        <Button
                           variant="outline"
                           size="sm"
                           disabled={acting === po.id}
@@ -413,6 +427,19 @@ function OrdersTab({ reloadKey }: { reloadKey: number }) {
         />
       )}
 
+      {editing && (
+        <POBuilderModal
+          outlets={outlets}
+          po={editing}
+          onClose={() => setEditing(null)}
+          onSaved={async () => {
+            setEditing(null);
+            setLoading(true);
+            await loadOrders();
+          }}
+        />
+      )}
+
       {receiving && (
         <ReceiveModal
           po={receiving}
@@ -454,16 +481,21 @@ function newLineKey() {
 
 function POBuilderModal({
   outlets,
+  po,
   onClose,
   onSaved,
 }: {
   outlets: Outlet[];
+  /** When set, the modal edits this DRAFT order (PATCH) instead of
+   *  creating one. Backend refuses non-drafts with a 409, and the edit
+   *  replaces the whole line set — same contract as the builder. */
+  po?: PurchaseOrder;
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [outletId, setOutletId] = useState(outlets[0]?.id ?? '');
-  const [supplierId, setSupplierId] = useState('');
-  const [note, setNote] = useState('');
+  const [outletId, setOutletId] = useState(po?.outletId ?? outlets[0]?.id ?? '');
+  const [supplierId, setSupplierId] = useState(po?.supplier?.id ?? '');
+  const [note, setNote] = useState(po?.note ?? '');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [lines, setLines] = useState<DraftLine[]>([]);
@@ -478,11 +510,28 @@ function POBuilderModal({
           api.get<{ products: Product[] }>('/products?active=true'),
         ]);
         setSuppliers((s.data.suppliers ?? []).filter((x) => x.isActive));
-        setProducts((p.data.products ?? []).filter((x) => x.variants.length));
+        const prods = (p.data.products ?? []).filter((x) => x.variants.length);
+        setProducts(prods);
+        // Edit mode: seed the lines from the draft's items once products
+        // are here — each line's productId is derived from its variant.
+        if (po) {
+          setLines(
+            po.items.map((it) => ({
+              key: newLineKey(),
+              productId: prods.find((pr) => pr.variants.some((v) => v.id === it.variantId))?.id ?? '',
+              variantId: it.variantId,
+              quantity: it.quantity,
+              cost: it.cost,
+              batchNo: it.batchNo ?? '',
+              expiryDate: it.expiryDate ? it.expiryDate.slice(0, 10) : '',
+            })),
+          );
+        }
       } catch (e) {
         setErr(e instanceof ApiRequestError ? e.message : 'Failed to load form data');
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function addLine() {
@@ -533,23 +582,37 @@ function POBuilderModal({
       return;
     }
     setBusy(true);
-    const body = {
-      outletId,
-      supplierId: supplierId || undefined,
-      note: note.trim() || undefined,
-      items: valid.map((l) => ({
-        variantId: l.variantId,
-        quantity: l.quantity,
-        cost: l.cost,
-        batchNo: l.batchNo.trim() || undefined,
-        expiryDate: l.expiryDate || undefined,
-      })),
-    };
+    const items = valid.map((l) => ({
+      variantId: l.variantId,
+      quantity: l.quantity,
+      cost: l.cost,
+      batchNo: l.batchNo.trim() || undefined,
+      expiryDate: l.expiryDate || undefined,
+    }));
     try {
-      await api.post<{ purchaseOrder: PurchaseOrder }>('/purchase-orders', body);
+      if (po) {
+        // PATCH edits a DRAFT in place — no outletId (the draft keeps its
+        // outlet); the line set replaces the old one wholesale.
+        await api.patch<{ purchaseOrder: PurchaseOrder }>(`/purchase-orders/${po.id}`, {
+          supplierId: supplierId || undefined,
+          note: note.trim() || undefined,
+          items,
+        });
+      } else {
+        await api.post<{ purchaseOrder: PurchaseOrder }>('/purchase-orders', {
+          outletId,
+          supplierId: supplierId || undefined,
+          note: note.trim() || undefined,
+          items,
+        });
+      }
       onSaved();
     } catch (e) {
-      setErr(e instanceof ApiRequestError ? e.message : 'Failed to create purchase order');
+      setErr(
+        e instanceof ApiRequestError
+          ? e.message
+          : `Failed to ${po ? 'update' : 'create'} purchase order`,
+      );
       setBusy(false);
     }
   }
@@ -558,7 +621,7 @@ function POBuilderModal({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New purchase order</DialogTitle>
+          <DialogTitle>{po ? `Edit ${po.number}` : 'New purchase order'}</DialogTitle>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-3">
@@ -566,6 +629,7 @@ function POBuilderModal({
             <Select
               value={outletId || '__none__'}
               onValueChange={(v) => setOutletId(v === '__none__' ? '' : v)}
+              disabled={Boolean(po)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -729,7 +793,7 @@ function POBuilderModal({
             Cancel
           </Button>
           <Button disabled={busy} onClick={save}>
-            {busy ? 'Saving…' : 'Create PO'}
+            {busy ? 'Saving…' : po ? 'Save changes' : 'Create PO'}
           </Button>
         </DialogFooter>
       </DialogContent>
