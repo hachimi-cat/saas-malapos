@@ -65,7 +65,23 @@ export const ASSISTANT_RESOURCES = [
 ] as const;
 
 export type AssistantResource = (typeof ASSISTANT_RESOURCES)[number];
-export type AssistantMode = 'create' | 'edit';
+
+/** The classic pair every resource supports — the modes the engine
+ *  synthesizes when a profile resource declares no `actions`. */
+export type AssistantCrudMode = 'create' | 'edit';
+
+/**
+ * An action name — `AssistantCrudMode` plus whatever verbs a resource
+ * declares in `MALAPOS_PROFILE.resources[…].actions` ('delete',
+ * 'publish', 'unpublish', 'mark-paid', …). Deliberately `string`: the
+ * BFF validates the (resource, mode) pair against the profile and 422s
+ * anything undeclared, and the frontend registry throws on a verb it
+ * has no builder for (`resourceSupports` in ./capabilities), so a
+ * union here would only duplicate those gates. The per-resource verb
+ * list lives in `RESOURCE_EXTRA_ACTIONS` (components/catentio/
+ * capabilities.ts).
+ */
+export type AssistantMode = string;
 
 export interface AssistantPlanResponse {
   requestId: string;

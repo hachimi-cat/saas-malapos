@@ -54,3 +54,32 @@ export const BULK_EDIT_RESOURCES: AssistantResource[] = [
   'blog-posts',
   'funnels',
 ];
+
+/**
+ * Verbs beyond the create/edit pair, per resource — the frontend
+ * mirror of the profile's declared ActionSpecs
+ * (backend/src/lib/catentio-profile.ts, wave 1). A verb added to the
+ * profile without a builder arm here (or vice versa) is a card that
+ * renders and then fails on Apply — keep the two in step.
+ */
+export const RESOURCE_EXTRA_ACTIONS: Partial<Record<AssistantResource, readonly string[]>> = {
+  categories: ['delete'],
+  products: ['delete'],
+  customers: ['delete'],
+  'webhook-subscriptions': ['delete'],
+  'blog-posts': ['publish', 'unpublish', 'delete'],
+  payouts: ['mark-paid'],
+};
+
+/** May this (resource, mode) pair reach the descriptor registry at
+ *  all? The BFF's sanitizer already drops undeclared actions server-
+ *  side; this is the frontend's own fail-loud gate, so an unknown verb
+ *  rejects cleanly instead of falling into a builder whose apply
+ *  treats "not edit" as create. */
+export function resourceSupports(resource: AssistantResource, mode: string): boolean {
+  return (
+    mode === 'create' ||
+    mode === 'edit' ||
+    (RESOURCE_EXTRA_ACTIONS[resource] ?? []).includes(mode)
+  );
+}

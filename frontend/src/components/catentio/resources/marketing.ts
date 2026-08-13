@@ -15,9 +15,12 @@ import {
   bool,
   buildAgentPrompt,
   defined,
+  deleteDescriptor,
   num,
   numOrNull,
   str,
+  verbDescriptor,
+  verbTargetId,
   type Fields,
   type ResourceBuilder,
 } from '../resource-helpers';
@@ -191,7 +194,38 @@ const FUNNEL_TRIGGERS = [
 
 // ── blog posts (blog/_components/post-editor.tsx) ───────────────────
 
-const blogPostsResource: ResourceBuilder = (mode) => ({
+const blogPostsResource: ResourceBuilder = (mode) => {
+  // Lifecycle verbs — the same blogApi calls the list page's row
+  // buttons make; the id is the row the user opened (or the id the
+  // agent looked up and the BFF validated), never one a plan names.
+  if (mode === 'publish') {
+    return verbDescriptor({
+      slug: 'blog-posts',
+      label: 'blog post',
+      title: 'Publish blog post',
+      confirmLabel: 'Publish',
+      examplePrompts: ['Publish this post'],
+      apply: ({ initial }) => blogApi.publish(verbTargetId(initial, 'post')),
+    });
+  }
+  if (mode === 'unpublish') {
+    return verbDescriptor({
+      slug: 'blog-posts',
+      label: 'blog post',
+      title: 'Unpublish blog post',
+      confirmLabel: 'Unpublish',
+      examplePrompts: ['Unpublish this post — back to draft'],
+      apply: ({ initial }) => blogApi.unpublish(verbTargetId(initial, 'post')),
+    });
+  }
+  if (mode === 'delete') {
+    return deleteDescriptor({
+      slug: 'blog-posts',
+      label: 'blog post',
+      del: (id) => blogApi.delete(id),
+    });
+  }
+  return {
   slug: 'blog-posts',
   label: 'blog post',
   fields: [
@@ -292,7 +326,8 @@ const blogPostsResource: ResourceBuilder = (mode) => ({
     if (!body.body) throw new Error('Body is required');
     await blogApi.create(body);
   },
-});
+  };
+};
 
 // ── product feeds (feeds/page.tsx — EDIT-ONLY singleton) ────────────
 

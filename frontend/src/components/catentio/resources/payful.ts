@@ -22,8 +22,11 @@ import {
   defined,
   num,
   str,
+  verbDescriptor,
+  verbTargetId,
   type Fields,
   type ResourceBuilder,
+  type ResourceWithResult,
 } from '../resource-helpers';
 
 /**
@@ -244,7 +247,7 @@ const CURRENCY_OPTIONS = [
  * page is a read-only table — so the form comes straight from the
  * profile: email (required on create) + nullable name. Direct write.
  */
-function paymentCustomersResource(mode: AssistantMode): CrudResource<Fields> {
+function paymentCustomersResource(mode: AssistantMode): ResourceWithResult {
   return {
     slug: 'payment-customers',
     label: 'payment customer',
@@ -290,7 +293,9 @@ function paymentCustomersResource(mode: AssistantMode): CrudResource<Fields> {
         return;
       }
       if (!body.email) throw new Error('Email is required');
-      await customersApi.create(body as Parameters<typeof customersApi.create>[0]);
+      // Returned for `$n` cross-refs — a subscriptions/checkout-sessions
+      // action may reference the customer created earlier in the reply.
+      return (await customersApi.create(body as Parameters<typeof customersApi.create>[0])).data;
     },
   };
 }
@@ -301,7 +306,7 @@ function paymentCustomersResource(mode: AssistantMode): CrudResource<Fields> {
  * ONLY (changing an existing plan's price is a prices action), while
  * description / active are edit-only.
  */
-function plansResource(mode: AssistantMode): CrudResource<Fields> {
+function plansResource(mode: AssistantMode): ResourceWithResult {
   return {
     slug: 'plans',
     label: 'billing plan',
@@ -396,7 +401,9 @@ function plansResource(mode: AssistantMode): CrudResource<Fields> {
         currency: str(fields.currency) ?? 'IDR',
         interval: str(fields.interval) ?? 'monthly',
       };
-      await plansApi.create(body as Parameters<typeof plansApi.create>[0]);
+      // Returned for `$n` cross-refs — a prices/subscriptions action
+      // may reference the plan created earlier in the same reply.
+      return (await plansApi.create(body as Parameters<typeof plansApi.create>[0])).data;
     },
   };
 }
@@ -725,6 +732,35 @@ function payoutsResource(): CrudResource<Fields> {
       await payoutsApi.create(body as Parameters<typeof payoutsApi.create>[0]);
     },
   };
+}
+
+/**
+ * Mark a payout paid — the wave-1 proof of the per-action approval
+ * chain. Mirrors the TransitionModal on /dashboard/payments/payouts
+ * (optional bank reference; final — a paid payout cannot be reopened);
+ * the same payoutsApi.markPaid POST the modal makes, under the USER's
+ * own session. The endpoint is deliberately off the delegation
+ * writable list, so this apply is the ONLY way the transition happens.
+ */
+function payoutMarkPaidResource() {
+  return verbDescriptor({
+    slug: 'payouts',
+    label: 'payout',
+    title: 'Mark payout paid',
+    confirmLabel: 'Mark paid',
+    fields: [
+      {
+        name: 'reference',
+        label: 'Bank reference (optional)',
+        placeholder: 'e.g. transfer receipt number',
+        description:
+          'Recorded on the payout. Confirms the bank settled the transfer — this posts the ledger debit and is final.',
+      },
+    ],
+    examplePrompts: ['Mark this payout as paid', 'Paid — reference TRX-2231'],
+    apply: ({ fields, initial }) =>
+      payoutsApi.markPaid(verbTargetId(initial, 'payout'), str(fields.reference) ?? null),
+  });
 }
 
 // ── fulfillment module (Fulkruma) ───────────────────────────────────
@@ -1165,7 +1201,8 @@ export const PAYFUL_BUILDERS: Record<string, ResourceBuilder> = {
   prices: (mode) => (mode === 'edit' ? null : pricesResource()),
   'checkout-sessions': (mode) => (mode === 'edit' ? null : checkoutSessionsResource()),
   subscriptions: (mode) => (mode === 'edit' ? null : subscriptionsResource()),
-  payouts: (mode) => (mode === 'edit' ? null : payoutsResource()),
+  payouts: (mode) =>
+    mode === 'mark-paid' ? payoutMarkPaidResource() : mode === 'create' ? payoutsResource() : null,
   // fulfillment module (Fulkruma)
   warehouses: (mode) => warehousesResource(mode),
   'delivery-origin': (mode) => (mode === 'create' ? null : deliveryOriginResource()),

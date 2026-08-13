@@ -33,16 +33,17 @@ import { BULK, BULK_EDIT_RESOURCES } from './capabilities';
  */
 
 export type { CrudResource, CrudSchemaField, CrudFieldGroup, CrudTemplate } from '@forjio/agent-ui';
-export type { Fields, ResourceContext, ResourceBuilder } from './resource-helpers';
+export type { Fields, ResourceContext, ResourceBuilder, ResourceWithResult } from './resource-helpers';
 export { buildAgentPrompt, defined, strOrNull } from './resource-helpers';
 
-import type { Fields, ResourceContext, ResourceBuilder } from './resource-helpers';
+import type { Fields, ResourceContext, ResourceBuilder, ResourceWithResult } from './resource-helpers';
 import { str } from './resource-helpers';
 import { CORE_BUILDERS } from './resources/core';
 import { BOOKS_BUILDERS } from './resources/books';
 import { MARKETING_BUILDERS } from './resources/marketing';
 import { PAYFUL_BUILDERS } from './resources/payful';
 import { ASSISTANT_RESOURCES } from '@/hooks/use-catentio';
+import { resourceSupports } from './capabilities';
 
 // ── the registry ────────────────────────────────────────────────────
 
@@ -68,12 +69,18 @@ for (const key of ASSISTANT_RESOURCES) {
 
 export const RESOURCE_BUILDERS = COMPOSED as Record<AssistantResource, ResourceBuilder>;
 
-/** The base (un-bulked) descriptor, for both the sheet and bulk edit. */
+/** The base (un-bulked) descriptor, for the sheet, bulk edit AND the
+ *  docked chat's Apply. An action name outside the resource's declared
+ *  vocabulary (capabilities.ts RESOURCE_EXTRA_ACTIONS) throws instead
+ *  of falling into a builder whose apply treats "not edit" as create. */
 function buildBaseResource(
   resource: AssistantResource,
   mode: AssistantMode,
   ctx?: ResourceContext,
-): CrudResource<Fields> {
+): ResourceWithResult {
+  if (!resourceSupports(resource, mode)) {
+    throw new Error(`The ${resource} assistant surface does not support "${mode}"`);
+  }
   const built = RESOURCE_BUILDERS[resource](mode, ctx);
   if (!built) {
     throw new Error(`The ${resource} assistant surface is not available here`);
@@ -81,14 +88,32 @@ function buildBaseResource(
   return built;
 }
 
+/** The sheet's view: the package's exact `CrudResource`, with the write
+ *  result dropped because `AgenticCrudSheet` has no use for it. */
 export function buildCrudResource(
   resource: AssistantResource,
   mode: AssistantMode,
   ctx?: ResourceContext,
-): CrudResource<Fields> {
+): CrudResource<Fields, AssistantMode> {
   const built = buildBaseResource(resource, mode, ctx);
   const bulk = BULK[resource];
-  return bulk ? withBulk(built, mode, bulk) : built;
+  const descriptor = bulk ? withBulk(built, mode, bulk) : built;
+  return {
+    ...descriptor,
+    apply: async (args) => {
+      await descriptor.apply(args);
+    },
+  };
+}
+
+/** The chat's view: the same write, with the written record handed back
+ *  so a later `$n` in the reply can reference its id (chat-actions.ts). */
+export function applyResource(
+  resource: AssistantResource,
+  mode: AssistantMode,
+  args: { fields: Fields; initial?: Partial<Fields> },
+): Promise<unknown> {
+  return buildBaseResource(resource, mode).apply({ mode, ...args });
 }
 
 // ── bulk create ─────────────────────────────────────────────────────
@@ -224,10 +249,10 @@ function parseCsvRows(text: string, known: Set<string>): Fields[] {
 }
 
 export function withBulk(
-  resource: CrudResource<Fields>,
+  resource: ResourceWithResult,
   mode: AssistantMode,
   opts: { noun: string; rowKeys?: string[] },
-): CrudResource<Fields> {
+): ResourceWithResult {
   if (mode !== 'create') return resource;
   const singular = resource.fields.filter(
     (f) => f.name !== 'alsoCreate' && f.name !== 'pasteRows',
@@ -338,7 +363,7 @@ export function buildBulkEditResource(
   resource: AssistantResource,
   targets: Fields[],
   ctx?: ResourceContext,
-): CrudResource<Fields> {
+): CrudResource<Fields, AssistantMode> {
   const single = buildBaseResource(resource, 'edit', ctx);
   const bulk = BULK[resource];
   const nameRow = (r: Fields) =>

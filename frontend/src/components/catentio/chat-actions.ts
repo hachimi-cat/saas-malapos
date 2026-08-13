@@ -1,110 +1,94 @@
 import type { ChatAction } from '@forjio/agent-ui';
-import { api } from '@/lib/api';
+import type { AssistantMode, AssistantResource } from '@/hooks/use-catentio';
+import { applyResource } from './resources';
 
 /**
  * The docked chat's Apply path (review mode) — executes a BFF-sanitized
- * ChatAction with the USER's own session via the same api-client calls
- * the dashboard pages use (the agent only ever proposed it).
+ * ChatAction with the USER's own session. The agent only ever proposed
+ * it.
  *
- * `$n` categoryId refs: the BFF re-based them onto the action list it
- * returned (1-based); `earlier` is that same list, index-addressed, so
- * `$2` resolves to `earlier[1]`'s applied result.
+ * This file used to carry a per-resource `if (action.resource === …)`
+ * ladder that hand-implemented categories and products and threw a
+ * not-supported error for everything else — so all 19 approvalRequired
+ * resources (refunds, voids, adjustments, gift cards…) were proposed
+ * by the prompt, survived the sanitizer, rendered a card, and then
+ * failed on Apply. A second write path is
+ * also free to drift: the same request, made from the chat instead of
+ * the sheet, quietly sends a different body.
+ *
+ * So there is one write path per (resource, action), in the descriptor
+ * registry (resources.ts `applyResource`, storlaunch's shape), and
+ * this file only does what is genuinely chat-specific: resolve `$n`
+ * cross-references against earlier applied actions, then hand the
+ * field set to that resource's `apply`. An action name outside the
+ * registry's vocabulary rejects cleanly there.
  */
 
 const ACTION_REF_RE = /^\$([1-9])$/;
 
-const str = (v: unknown): string | undefined =>
-  typeof v === 'string' && v ? v : undefined;
-const num = (v: unknown): number | undefined =>
-  typeof v === 'number' && Number.isFinite(v) ? v : undefined;
-const bool = (v: unknown): boolean | undefined =>
-  typeof v === 'boolean' ? v : undefined;
-/** Nullable pass-through: null clears, string sets, absent stays. */
-const strOrNull = (v: unknown): string | null | undefined =>
-  v === null ? null : typeof v === 'string' ? v : undefined;
+/**
+ * Fields that may carry a `$n` reference to an earlier action in the
+ * same reply, and the resource that action must have been — keyed
+ * `resource.field` because the same field name points at different
+ * books depending on who carries it (`customerId` is the POS customer
+ * book on gift-cards but the Plugipay billing book on subscriptions
+ * and checkout-sessions). Mirrors `MALAPOS_PROFILE.crossRefs` — the
+ * BFF already rebased and validated these, so this map only has to
+ * resolve them to real ids.
+ */
+const CROSS_REF_TARGETS: Record<string, AssistantResource> = {
+  'products.categoryId': 'categories',
+  'tables.outletId': 'outlets',
+  'tables.floorId': 'floors',
+  'floors.outletId': 'outlets',
+  'purchase-orders.supplierId': 'suppliers',
+  'subscriptions.customerId': 'payment-customers',
+  'subscriptions.planId': 'plans',
+  'checkout-sessions.customerId': 'payment-customers',
+  'prices.planId': 'plans',
+  'gift-cards.customerId': 'customers',
+};
 
-function resolveCategoryRef(
-  categoryId: string | null | undefined,
+function resolveRef(
+  wanted: AssistantResource,
+  value: unknown,
   earlier: { action: ChatAction; result?: unknown }[],
-): string | null | undefined {
-  if (categoryId === null || categoryId === undefined) return categoryId;
-  const m = ACTION_REF_RE.exec(categoryId);
-  if (!m) return categoryId;
+): unknown {
+  if (typeof value !== 'string') return value;
+  const m = ACTION_REF_RE.exec(value);
+  if (!m) return value;
   const prior = earlier[Number(m[1]) - 1];
-  if (!prior || prior.action.resource !== 'categories') {
-    throw new Error('This product references a category action that does not exist');
+  if (!prior || prior.action.resource !== wanted) {
+    throw new Error(`This item references a ${wanted} action that does not exist`);
   }
   const created = prior.result as { id?: unknown } | undefined;
   const id = typeof created?.id === 'string' ? created.id : undefined;
   if (!id) {
-    throw new Error('Apply the category action first — this product goes into it');
+    throw new Error(`Apply the ${wanted} action first — this item attaches to it`);
   }
   return id;
-}
-
-/** Build a payload of only the fields the action actually set —
- *  omitted keys stay untouched on PATCH. */
-function defined<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
 }
 
 export async function applyChatAction(
   action: ChatAction,
   earlier: { action: ChatAction; result?: unknown }[],
 ): Promise<unknown> {
-  const f = action.fields ?? {};
+  const resource = action.resource as AssistantResource;
+  const mode = action.mode as AssistantMode;
 
-  if (action.resource === 'categories') {
-    const payload = defined({
-      name: str(f.name),
-      sortOrder: num(f.sortOrder),
-      isActive: bool(f.isActive),
-    });
-    if (action.mode === 'edit') {
-      const id = str(action.id);
-      if (!id) throw new Error('Missing category id');
-      return (await api.patch(`/categories/${encodeURIComponent(id)}`, payload)).data;
-    }
-    if (!payload.name) throw new Error('A category needs a name');
-    return (await api.post('/categories', payload)).data;
+  const fields: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(action.fields ?? {})) {
+    const wanted = CROSS_REF_TARGETS[`${action.resource}.${key}`];
+    fields[key] = wanted ? resolveRef(wanted, value, earlier) : value;
   }
 
-  if (action.resource === 'products') {
-    const categoryId =
-      f.categoryId !== undefined ? resolveCategoryRef(strOrNull(f.categoryId), earlier) : undefined;
-    const base = defined({
-      name: str(f.name),
-      description: strOrNull(f.description),
-      categoryId,
-      kind: str(f.kind),
-      isActive: bool(f.isActive),
-    });
-    // Malapos keeps price/sku/barcode on the VARIANT, not the product
-    // row, and a simple product is exactly one variant. The action model
-    // is flat, so fold the money back into the shape the API wants.
-    const price = num(f.price);
-    const variant = defined({
-      name: 'Default',
-      price,
-      sku: strOrNull(f.sku),
-      barcode: strOrNull(f.barcode),
-    });
+  // `initial` is how an apply learns WHICH record it is touching. In
+  // the sheet that is the row the user opened; here it is the id the
+  // agent looked up and the BFF validated (actions whose ActionSpec
+  // requires an id are dropped server-side without one).
+  const initial = action.id ? { id: action.id } : undefined;
 
-    if (action.mode === 'edit') {
-      const id = str(action.id);
-      if (!id) throw new Error('Missing product id');
-      // PATCH replaces the variant list, so only send it when the action
-      // actually carried variant-level fields — otherwise an edit that
-      // only renames a product would wipe its SKUs and prices.
-      const touchesVariant =
-        f.price !== undefined || f.sku !== undefined || f.barcode !== undefined;
-      const payload = touchesVariant ? { ...base, variants: [variant] } : base;
-      return (await api.patch(`/products/${encodeURIComponent(id)}`, payload)).data;
-    }
-    if (!base.name) throw new Error('A product needs a name');
-    if (price === undefined) throw new Error('A product needs a price');
-    return (await api.post('/products', { ...base, variants: [variant] })).data;
-  }
-
-  throw new Error('This action type is not supported');
+  // applyResource, not buildCrudResource — the sheet's wrapper swallows
+  // the write result, and `$n` needs the created record's id back.
+  return applyResource(resource, mode, { fields, initial });
 }

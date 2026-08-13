@@ -4,6 +4,7 @@ import type { Fields, ResourceBuilder } from '../resource-helpers';
 import {
   buildAgentPrompt,
   defined,
+  deleteDescriptor,
   str,
   strOrNull,
   num,
@@ -124,7 +125,15 @@ const loadFloorOptions = (outletId: string) =>
 
 // ── catalog ─────────────────────────────────────────────────────────
 
-const categoriesResource: ResourceBuilder = (mode) => ({
+const categoriesResource: ResourceBuilder = (mode) => {
+  if (mode === 'delete') {
+    return deleteDescriptor({
+      slug: 'categories',
+      label: 'category',
+      del: (id) => api.delete(`/categories/${encodeURIComponent(id)}`),
+    });
+  }
+  return {
   slug: 'categories',
   label: 'category',
   // The CategoryModal is name-only (sortOrder/isActive are managed from
@@ -166,6 +175,8 @@ const categoriesResource: ResourceBuilder = (mode) => ({
           'Hide this category from the sell screen',
         ],
   buildAgentPrompt,
+  // The created record is RETURNED (unwrapped from the {category}
+  // envelope) so a `$n` cross-ref in the docked chat can read its id.
   apply: async ({ mode: applyMode, fields: f, initial }) => {
     const body = defined({
       name: str(f.name),
@@ -177,9 +188,11 @@ const categoriesResource: ResourceBuilder = (mode) => ({
       return;
     }
     if (!body.name) throw new Error('A category needs a name');
-    await api.post('/categories', body);
+    const res = await api.post<{ category?: unknown }>('/categories', body);
+    return res.data?.category;
   },
-});
+  };
+};
 
 /** The ProductModal's variant rows: name / price / cost / SKU on one
  *  4-up line, barcode full-width under it. sortOrder is not in the
@@ -192,7 +205,15 @@ const VARIANT_ROW_FIELDS: CrudSchemaField[] = [
   { name: 'barcode', label: 'Barcode (optional)', colSpan: 4 },
 ];
 
-const productsResource: ResourceBuilder = (mode) => ({
+const productsResource: ResourceBuilder = (mode) => {
+  if (mode === 'delete') {
+    return deleteDescriptor({
+      slug: 'products',
+      label: 'product',
+      del: (id) => api.delete(`/products/${encodeURIComponent(id)}`),
+    });
+  }
+  return {
   slug: 'products',
   label: 'product',
   fields: [
@@ -344,7 +365,8 @@ const productsResource: ResourceBuilder = (mode) => ({
     }
     await api.post('/products', { ...base, variants });
   },
-});
+  };
+};
 
 const modifiersResource: ResourceBuilder = (mode) => ({
   slug: 'modifiers',
@@ -538,7 +560,10 @@ const outletsResource: ResourceBuilder = (mode) => ({
       return;
     }
     if (!body.name) throw new Error('An outlet needs a name');
-    await api.post('/outlets', body);
+    // Returned (unwrapped) for `$n` cross-refs — a tables/floors action
+    // may reference the outlet created earlier in the same reply.
+    const res = await api.post<{ outlet?: unknown }>('/outlets', body);
+    return res.data?.outlet;
   },
 });
 
@@ -732,7 +757,10 @@ const floorsResource: ResourceBuilder = (mode) => ({
     const outletId = str(f.outletId);
     if (!outletId) throw new Error('Pick an outlet for the floor');
     if (!body.name) throw new Error('A floor needs a name');
-    await api.post('/floors', { outletId, ...body });
+    // Returned (unwrapped) for `$n` cross-refs — a tables action may
+    // reference the floor created earlier in the same reply.
+    const res = await api.post<{ floor?: unknown }>('/floors', { outletId, ...body });
+    return res.data?.floor;
   },
 });
 
@@ -800,11 +828,22 @@ const suppliersResource: ResourceBuilder = (mode) => ({
       return;
     }
     if (!body.name) throw new Error('A supplier needs a name');
-    await api.post('/suppliers', body);
+    // Returned (unwrapped) for `$n` cross-refs — a purchase-orders
+    // action may reference the supplier created earlier in the reply.
+    const res = await api.post<{ supplier?: unknown }>('/suppliers', body);
+    return res.data?.supplier;
   },
 });
 
-const customersResource: ResourceBuilder = (mode) => ({
+const customersResource: ResourceBuilder = (mode) => {
+  if (mode === 'delete') {
+    return deleteDescriptor({
+      slug: 'customers',
+      label: 'customer',
+      del: (id) => api.delete(`/customers/${encodeURIComponent(id)}`),
+    });
+  }
+  return {
   slug: 'customers',
   label: 'customer',
   fields: [
@@ -838,9 +877,13 @@ const customersResource: ResourceBuilder = (mode) => ({
       return;
     }
     if (!body.name) throw new Error('A customer needs a name');
-    await api.post('/customers', body);
+    // Returned (unwrapped) for `$n` cross-refs — a gift-cards action
+    // may reference the customer created earlier in the same reply.
+    const res = await api.post<{ customer?: unknown }>('/customers', body);
+    return res.data?.customer;
   },
-});
+  };
+};
 
 // ── configuration ───────────────────────────────────────────────────
 
@@ -912,7 +955,15 @@ const WEBHOOK_EVENT_OPTIONS = [
   { value: 'malapos.billing.canceled.v1', label: 'malapos.billing.canceled.v1' },
 ];
 
-const webhookSubscriptionsResource: ResourceBuilder = (mode) => ({
+const webhookSubscriptionsResource: ResourceBuilder = (mode) => {
+  if (mode === 'delete') {
+    return deleteDescriptor({
+      slug: 'webhook-subscriptions',
+      label: 'webhook subscription',
+      del: (id) => api.delete(`/webhook-subscriptions/${encodeURIComponent(id)}`),
+    });
+  }
+  return {
   slug: 'webhook-subscriptions',
   label: 'webhook subscription',
   // Create and edit share almost nothing here: an endpoint's url and
@@ -980,7 +1031,8 @@ const webhookSubscriptionsResource: ResourceBuilder = (mode) => ({
       }),
     );
   },
-});
+  };
+};
 
 // ── the group registry ──────────────────────────────────────────────
 

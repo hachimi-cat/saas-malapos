@@ -1,6 +1,7 @@
 import type { CrudResource, CrudSchemaField } from '@forjio/agent-ui';
 import { api } from '@/lib/api';
 import { discountCodesApi, referralsApi } from '@/lib/marketing-api';
+import type { AssistantMode } from '@/hooks/use-catentio';
 import type { Fields, ResourceBuilder } from '../resource-helpers';
 import { buildAgentPrompt, bool, defined, num, numOrNull, str } from '../resource-helpers';
 
@@ -206,7 +207,7 @@ function poLines(v: unknown): Record<string, unknown>[] {
     .filter((r) => r.variantId !== undefined && typeof r.quantity === 'number' && r.quantity > 0);
 }
 
-function purchaseOrdersResource(mode: 'create' | 'edit'): CrudResource<Fields> {
+function purchaseOrdersResource(mode: AssistantMode): CrudResource<Fields> {
   return {
     slug: 'purchase-orders',
     label: 'purchase order',
@@ -824,7 +825,7 @@ const DISCOUNT_SCOPE_OPTIONS = [
 const isNotShippingDiscount = (d: Record<string, unknown>) =>
   d.type !== 'shipping_percent' && d.type !== 'shipping_fixed';
 
-function discountCodesResource(mode: 'create' | 'edit'): CrudResource<Fields> {
+function discountCodesResource(mode: AssistantMode): CrudResource<Fields> {
   return {
     slug: 'discount-codes',
     label: 'discount code',
