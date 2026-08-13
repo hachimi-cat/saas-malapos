@@ -21,7 +21,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -265,57 +266,102 @@ export default function BlogListPage() {
                 </div>
               </Link>
               <div className="flex shrink-0 items-center gap-1">
+                {/* Row verbs are agentic entries (P3): the button opens
+                    the sheet for that (resource, action) with the row as
+                    `initial`; assistant off keeps the direct-API flow. */}
                 {p.status === 'published' ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <AgenticEntry
+                    resource="blog-posts"
+                    mode="unpublish"
+                    initial={{ id: p.id, title: p.title, status: p.status }}
+                    onApplied={load}
                     disabled={working === p.id}
-                    onClick={() => togglePublish(p)}
                     title="Unpublish — back to draft, removed from the storefront"
+                    className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                    fallback={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={working === p.id}
+                        onClick={() => togglePublish(p)}
+                        title="Unpublish — back to draft, removed from the storefront"
+                      >
+                        <Undo2 className="h-3.5 w-3.5" /> Unpublish
+                      </Button>
+                    }
                   >
                     <Undo2 className="h-3.5 w-3.5" /> Unpublish
-                  </Button>
+                  </AgenticEntry>
                 ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <AgenticEntry
+                    resource="blog-posts"
+                    mode="publish"
+                    initial={{ id: p.id, title: p.title, status: p.status }}
+                    onApplied={load}
                     disabled={working === p.id}
-                    onClick={() => togglePublish(p)}
                     title="Publish to the storefront"
+                    className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                    fallback={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={working === p.id}
+                        onClick={() => togglePublish(p)}
+                        title="Publish to the storefront"
+                      >
+                        <Globe className="h-3.5 w-3.5" /> Publish
+                      </Button>
+                    }
                   >
                     <Globe className="h-3.5 w-3.5" /> Publish
-                  </Button>
+                  </AgenticEntry>
                 )}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      disabled={working === p.id}
-                      title="Delete post"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete &ldquo;{p.title}&rdquo;?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        The post and its storefront page are removed. This cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Keep post</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => deletePost(p)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Delete post
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <AgenticEntry
+                  resource="blog-posts"
+                  mode="delete"
+                  initial={{ id: p.id, title: p.title }}
+                  onApplied={load}
+                  disabled={working === p.id}
+                  title="Delete post"
+                  className={cn(
+                    buttonVariants({ variant: 'ghost', size: 'icon' }),
+                    'h-8 w-8 text-muted-foreground hover:text-destructive',
+                  )}
+                  fallback={
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={working === p.id}
+                          title="Delete post"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete &ldquo;{p.title}&rdquo;?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            The post and its storefront page are removed. This cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Keep post</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deletePost(p)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete post
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  }
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </AgenticEntry>
               </div>
             </li>
           ))}

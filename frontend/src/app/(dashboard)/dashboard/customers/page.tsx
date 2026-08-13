@@ -21,7 +21,8 @@ import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -610,14 +611,31 @@ function CustomerDetail({
               <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
                 <Pencil className="h-4 w-4" /> Edit
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => { setConfirmingDelete(true); setDeleteErr(null); }}
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              {/* Delete is an agentic entry (P3): opens the delete
+                  sheet (destructive confirm inside); assistant off
+                  keeps the inline confirm flow below. */}
+              <AgenticEntry
+                resource="customers"
+                mode="delete"
+                initial={{ id, name: customer?.name }}
+                onApplied={onDeleted}
+                className={cn(
+                  buttonVariants({ variant: 'outline', size: 'sm' }),
+                  'text-destructive hover:bg-destructive/10 hover:text-destructive',
+                )}
+                fallback={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setConfirmingDelete(true); setDeleteErr(null); }}
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </Button>
+                }
               >
                 <Trash2 className="h-4 w-4" /> Delete
-              </Button>
+              </AgenticEntry>
             </div>
 
             {confirmingDelete && (

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Package, AlertTriangle, Plus, Minus, Check, X, CalendarClock, ArrowLeftRight, PackagePlus, Loader2 } from 'lucide-react';
+import { Package, AlertTriangle, Plus, Minus, Check, X, CalendarClock, ArrowDownUp, ArrowLeftRight, PackagePlus, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
@@ -271,12 +271,12 @@ export default function InventoryPage() {
                     onApplied={refresh}
                     fallback={
                       <Button variant="outline" size="sm" onClick={() => setAdjusting(l)}>
-                        Adjust
+                        <ArrowDownUp className="h-3.5 w-3.5" /> Adjust
                       </Button>
                     }
                   >
-                    <span className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
-                      Adjust
+                    <span className="inline-flex h-8 items-center gap-1 rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
+                      <ArrowDownUp className="h-3.5 w-3.5" /> Adjust
                     </span>
                   </AgenticEntry>
                 </TableCell>

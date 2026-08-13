@@ -184,13 +184,31 @@ export default function PayoutsPage() {
           )}
           {(r.status === 'pending' || r.status === 'in_transit') && (
             <>
-              <Button
-                variant="link"
-                className="h-auto p-0 text-xs text-emerald-500"
-                onClick={() => setTransition({ kind: 'paid', payout: r })}
+              {/* Mark paid is an agentic entry (P3) — the wave-1
+                  approval-chain verb. Opens the mark-paid sheet
+                  (optional bank reference); assistant off keeps the
+                  TransitionModal confirm. */}
+              <AgenticEntry
+                resource="payouts"
+                mode="mark-paid"
+                initial={{ id: r.id, ...(r.reference ? { reference: r.reference } : {}) }}
+                onApplied={reload}
+                className={cn(
+                  buttonVariants({ variant: 'link' }),
+                  'h-auto gap-1 p-0 text-xs text-emerald-500',
+                )}
+                fallback={
+                  <Button
+                    variant="link"
+                    className="h-auto p-0 text-xs text-emerald-500"
+                    onClick={() => setTransition({ kind: 'paid', payout: r })}
+                  >
+                    Mark paid
+                  </Button>
+                }
               >
-                Mark paid
-              </Button>
+                <CheckCircle2 className="h-3 w-3" /> Mark paid
+              </AgenticEntry>
               <Button
                 variant="link"
                 className="h-auto p-0 text-xs text-destructive"

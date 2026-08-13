@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
@@ -201,9 +201,13 @@ export default function WebhooksPage() {
               split
               onApplied={load}
               className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
-              fallback={<Button onClick={() => setShowAdd(true)}>Add endpoint</Button>}
+              fallback={
+                <Button onClick={() => setShowAdd(true)}>
+                  <Plus className="h-4 w-4" /> Add endpoint
+                </Button>
+              }
             >
-              Add endpoint
+              <Plus className="h-4 w-4" /> Add endpoint
             </AgenticEntry>
           </div>
         }
