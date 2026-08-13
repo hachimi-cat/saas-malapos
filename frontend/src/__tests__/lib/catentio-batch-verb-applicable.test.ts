@@ -272,12 +272,53 @@ describe('products.set-category — live on open, but still a real form', () => 
     const descriptor = buildBulkVerbResource('products', 'set-category', TARGETS);
     const sheet = openSheet(descriptor, 'set-category', batchTargetsInitial(NAMES));
     expect(sheet.applyEnabled).toBe(true);
-    // The hazard the seeded line creates: `categoryTarget(undefined)`
-    // is null, which CLEARS the category on every selected product. The
-    // required check is what stands between a live button and a silent
-    // mass-clear, so it is pinned here.
+    // The hazard the seeded line creates: this verb writes `null` to
+    // CLEAR, so an unanswered Category on a live button is a mass-clear
+    // of the whole selection. The required check catches the missing
+    // case, so it is pinned here — but only the missing case: see below.
     await expect(sheet.pressApply()).rejects.toThrow('Missing required field: Category');
     expect(reqs).toHaveLength(0);
+  });
+
+  /*
+   * REGRESSION. `required` is NOT the whole guard, and reading it as
+   * though it were is how the mass-clear gets through.
+   *
+   * The package's check is `merged[f.name] == null` — an EMPTY STRING
+   * sails past it. The BFF's plan sanitizer admits one too (`typeOk`
+   * for a `string` field is `typeof value === 'string'`), so a plan
+   * proposing `{"categoryId": ""}` reaches the draft of a verb that is
+   * NOT destructive and therefore has no confirm dialog. Before the
+   * fix, `categoryTarget('')` folded blank into `null` and one press of
+   * a live "Set category" stripped the category off every ticked row —
+   * up to 500 products in a single request, silently.
+   *
+   * Clearing is now only ever something the merchant ASKED for: an
+   * explicit null, or the picker's own "Remove category" sentinel.
+   */
+  it.each([
+    ['an empty string', ''],
+    ['whitespace only', '   '],
+  ])('a blank Category (%s) is refused, NOT read as "clear them all"', async (_label, value) => {
+    const descriptor = buildBulkVerbResource('products', 'set-category', TARGETS);
+    const sheet = openSheet(descriptor, 'set-category', batchTargetsInitial(NAMES));
+    // It gets past `required` — that is the whole point of this test.
+    await expect(sheet.pressApply({ categoryId: value })).rejects.toThrow(/Pick a category/);
+    expect(reqs, 'a blank answer must never reach the bulk route').toHaveLength(0);
+  });
+
+  it('clearing still works when it is ASKED for — sentinel or explicit null', async () => {
+    const descriptor = buildBulkVerbResource('products', 'set-category', TARGETS);
+    // The picker's "Remove category" row.
+    await openSheet(descriptor, 'set-category', batchTargetsInitial(NAMES)).pressApply({
+      categoryId: 'none',
+    });
+    expect(reqs[0]!.body).toEqual({ productIds: ['row_1', 'row_2'], categoryId: null });
+    // …and a plan that says null outright (the chat-card path; the
+    // sheet's own required check stops this one earlier).
+    reqs = [];
+    await descriptor.apply({ mode: 'set-category', fields: { categoryId: null } });
+    expect(reqs[0]!.body.categoryId).toBeNull();
   });
 
   it('picking one sends the whole selection in one request, target line stripped', async () => {

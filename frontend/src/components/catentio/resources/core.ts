@@ -212,12 +212,32 @@ const VARIANT_ROW_FIELDS: CrudSchemaField[] = [
  *  wire clears; the sentinel only has to survive a <select>. */
 const CLEAR_CATEGORY = 'none';
 
-/** What the batch route should store: a real id, or null to clear. A
- *  plan may say null outright; the manual select says 'none'. */
+/**
+ * What the batch route should store: a real id, or null to clear.
+ *
+ * Clearing must be something the merchant ASKED FOR — a plan saying
+ * null outright, or the picker's own "Remove category" row. Everything
+ * else blank ('', whitespace, a field the plan simply omitted) is a
+ * MISSING answer, and it throws.
+ *
+ * That distinction is load-bearing, not tidiness. The sheet's only
+ * guard on this verb is the package's required check, and that check is
+ * `merged[name] == null` — which an empty string passes. Folding blank
+ * into null would therefore let a plan proposing `{"categoryId": ""}`
+ * (the sanitizer admits it: `typeof '' === 'string'` for a string
+ * field) press a non-destructive, unconfirmed Apply and silently strip
+ * the category off the whole selection — up to 500 products in one
+ * request. The verb asks for exactly one thing; not answering it is an
+ * error, not an instruction.
+ */
 function categoryTarget(v: unknown): string | null {
   if (v === null) return null;
   const s = str(v);
-  return !s || s === CLEAR_CATEGORY ? null : s;
+  if (s === CLEAR_CATEGORY) return null;
+  if (!s) {
+    throw new Error('Pick a category, or choose "Remove category" to clear it.');
+  }
+  return s;
 }
 
 /**
