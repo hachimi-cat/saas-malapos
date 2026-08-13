@@ -248,9 +248,14 @@ export default function WarehousesPage() {
           // spread into fresh objects for Record<string, unknown>[].
           targets={bulkTargets.map((w) => ({ ...w }))}
           onClose={() => setBulkEditing(false)}
-          onApplied={async () => {
-            setBulkEditing(false);
-            setSelected(new Set());
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkEditing(false);
+              setSelected(new Set());
+            }
             await refresh();
           }}
         />

@@ -185,9 +185,14 @@ export default function CustomersPage() {
           // spread into fresh objects for Record<string, unknown>[].
           targets={bulkEditTargets.map((c) => ({ ...c }))}
           onClose={() => setBulkEditTargets(null)}
-          onApplied={async () => {
-            setBulkEditTargets(null);
-            clearSelectionRef.current?.();
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkEditTargets(null);
+              clearSelectionRef.current?.();
+            }
             await load();
           }}
         />

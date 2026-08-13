@@ -519,9 +519,14 @@ export default function PlansPage() {
           // into fresh objects to satisfy Record<string, unknown>[].
           targets={bulkTargets.map((p) => ({ ...p }))}
           onClose={() => setBulkEditing(false)}
-          onApplied={async () => {
-            setBulkEditing(false);
-            setSelected(new Set());
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkEditing(false);
+              setSelected(new Set());
+            }
             await load();
           }}
         />

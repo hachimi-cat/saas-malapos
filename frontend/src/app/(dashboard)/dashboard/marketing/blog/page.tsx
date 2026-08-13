@@ -463,9 +463,14 @@ export default function BlogListPage() {
           resource="blog-posts"
           targets={bulkTargets as unknown as Record<string, unknown>[]}
           onClose={() => setBulkEditing(false)}
-          onApplied={async () => {
-            setBulkEditing(false);
-            setSelected(new Set());
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkEditing(false);
+              setSelected(new Set());
+            }
             await load();
           }}
         />
@@ -477,9 +482,14 @@ export default function BlogListPage() {
           verb={bulkVerb}
           targets={bulkTargets as unknown as Record<string, unknown>[]}
           onClose={() => setBulkVerb(null)}
-          onApplied={async () => {
-            setBulkVerb(null);
-            setSelected(new Set());
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkVerb(null);
+              setSelected(new Set());
+            }
             await load();
           }}
         />

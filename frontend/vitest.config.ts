@@ -11,6 +11,7 @@ import path from 'path';
 export default defineConfig({
   test: {
     include: ['src/**/*.test.{ts,tsx}'],
+    server: { deps: { inline: ['@forjio/agent-ui'] } },
   },
   resolve: {
     alias: {

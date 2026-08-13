@@ -1,3 +1,4 @@
+import { PartialApplyError } from '@forjio/agent-ui';
 import type { CrudResource, CrudSchemaField } from '@forjio/agent-ui';
 import type { ModulesState } from '@/hooks/use-modules';
 import type { AssistantMode, AssistantResource } from '@/hooks/use-catentio';
@@ -120,6 +121,66 @@ export function applyResource(
   args: { fields: Fields; initial?: Partial<Fields> },
 ): Promise<unknown> {
   return buildBaseResource(resource, mode).apply({ mode, ...args });
+}
+
+// ── the batch fan-out ───────────────────────────────────────────────
+
+/**
+ * The loop every batch descriptor shares: one approved field set,
+ * applied to N closure-captured records one at a time, continuing past
+ * failures (stopping cannot undo what already went through, only lose
+ * work). It owns two things a plain `for` loop does not.
+ *
+ * A PARTIAL RUN IS ITS OWN KIND OF FAILURE. "Deleted 2 of 3" is not
+ * just a sentence — two records are GONE, so the list behind the sheet
+ * is now wrong. `PartialApplyError` (@forjio/agent-ui >= 0.21.0) is
+ * what tells the sheet to fire `onApplied` anyway so the host refetches;
+ * a plain Error leaves the dead rows on screen looking alive. Nothing
+ * applied stays a plain Error — nothing moved, so there is nothing to
+ * reload, and an ordinary 400 can never read as "it half worked".
+ *
+ * RETRY MEANS RETRY THE FAILURES. The sheet stays OPEN on a partial run
+ * and this closure outlives it, so a second Apply would otherwise
+ * re-fire the whole selection at records that are already deleted /
+ * already approved. Records that went through are remembered by index
+ * and skipped, and the count keeps running against the ORIGINAL
+ * selection — the retry still says "Deleted 2 of 3" (two of those three
+ * really are gone), never "Deleted 0 of 3".
+ *
+ * The memory is keyed on the FIELD SET, because changing it is a new
+ * instruction rather than a retry: move the selection to a different
+ * category and every record is applied again, including the ones the
+ * first category already took.
+ */
+function fanOut(
+  pastTense: string,
+  targets: Fields[],
+  nameRow: (r: Fields) => string,
+): (fields: Fields, applyOne: (t: Fields) => Promise<unknown>) => Promise<void> {
+  const applied = new Set<number>();
+  let signature: string | null = null;
+  return async (fields, applyOne) => {
+    const sig = JSON.stringify(fields);
+    if (sig !== signature) {
+      signature = sig;
+      applied.clear();
+    }
+    const failed: string[] = [];
+    for (const [i, t] of targets.entries()) {
+      if (applied.has(i)) continue;
+      try {
+        await applyOne(t);
+        applied.add(i);
+      } catch (e) {
+        failed.push(`${nameRow(t)} (${(e as Error).message})`);
+      }
+    }
+    if (failed.length === 0) return;
+    const message = `${pastTense} ${applied.size} of ${targets.length}. These did not: ${failed.join('; ')}`;
+    throw applied.size > 0
+      ? new PartialApplyError(message, applied.size, targets.length)
+      : new Error(message);
+  };
 }
 
 // ── bulk create ─────────────────────────────────────────────────────
@@ -270,6 +331,21 @@ export function withBulk(
 
   const known = new Set(singular.map((f) => f.name));
 
+  // What already went through, so a retry after a partial run does not
+  // mint the same record twice. Not `fanOut`'s index memory: a "target"
+  // here is DRAFT CONTENT, not a closure-captured row, and the merchant
+  // reaches for Apply again precisely to fix the row that failed. So a
+  // record is remembered by (position, exact content) and skipped only
+  // when both still match — a row that was edited is a different record
+  // and is created; a row left alone is not created a second time.
+  // Nothing is ever skipped that was not successfully written.
+  const madePrimary = { key: null as string | null };
+  const madeRows = new Map<number, string>();
+  const rowKey = (f: Fields) => {
+    const { alsoCreate: _a, pasteRows: _p, ...rest } = f;
+    return JSON.stringify(rest);
+  };
+
   return {
     ...resource,
     fields: [
@@ -290,26 +366,42 @@ export function withBulk(
         ...filledRows(args.fields.alsoCreate),
         ...(str(args.fields.pasteRows) ? parseCsvRows(str(args.fields.pasteRows)!, known) : []),
       ];
-      await resource.apply(args);
+      const primaryKey = rowKey(args.fields);
+      if (madePrimary.key !== primaryKey) {
+        await resource.apply(args);
+        madePrimary.key = primaryKey;
+      }
       if (extras.length === 0) return;
 
       // The primary is already written by the time a row fails, so a bad
       // row does NOT abandon the rows after it — stopping cannot undo
       // anything, only lose work. A partial run is reported as a FAILURE
-      // naming what did not land.
+      // naming what did not land — as a PartialApplyError, so the sheet
+      // also tells the page to refetch (the records that DID land are
+      // missing from the list until it does).
       let made = 1;
       const failed: string[] = [];
-      for (const r of extras) {
+      for (const [i, r] of extras.entries()) {
+        const key = rowKey(r);
+        if (madeRows.get(i) === key) {
+          made++;
+          continue;
+        }
         try {
           await resource.apply({ ...args, fields: rowFields(r) });
+          madeRows.set(i, key);
           made++;
         } catch (e) {
           failed.push(`${nameRow(r)} (${(e as Error).message})`);
         }
       }
       if (failed.length > 0) {
-        throw new Error(
+        // `made` is at least the primary, which is written above before
+        // any row runs — so a partial here always moved something.
+        throw new PartialApplyError(
           `Added ${made} of ${made + failed.length}. These did not: ${failed.join('; ')}`,
+          made,
+          made + failed.length,
         );
       }
     },
@@ -393,6 +485,8 @@ export function buildBulkEditResource(
       };
     });
 
+  const fan = fanOut(pastVerb('edit'), targets, nameRow);
+
   return {
     ...single,
     fields,
@@ -405,21 +499,7 @@ export function buildBulkEditResource(
           'Fill in at least one field — blank fields keep their current values.',
         );
       }
-      let changed = 0;
-      const failed: string[] = [];
-      for (const t of targets) {
-        try {
-          await single.apply({ mode: 'edit', fields: patch, initial: t });
-          changed++;
-        } catch (e) {
-          failed.push(`${nameRow(t)} (${(e as Error).message})`);
-        }
-      }
-      if (failed.length > 0) {
-        throw new Error(
-          `Changed ${changed} of ${targets.length}. These did not: ${failed.join('; ')}`,
-        );
-      }
+      await fan(patch, (t) => single.apply({ mode: 'edit', fields: patch, initial: t }));
     },
   };
 }
@@ -531,6 +611,7 @@ export function buildBulkVerbResource(
   const n = targets.length;
   const noun = n === 1 ? single.label : `${single.label}s`;
   const rowSupplied = new Set(ROW_SUPPLIED_FIELDS[resource] ?? []);
+  const fan = fanOut(pastVerb(verb), targets, nameRow);
 
   return {
     ...single,
@@ -557,21 +638,7 @@ export function buildBulkVerbResource(
         await single.applyMany({ targets, fields });
         return;
       }
-      let done = 0;
-      const failed: string[] = [];
-      for (const t of targets) {
-        try {
-          await single.apply({ mode: verb, fields, initial: t });
-          done++;
-        } catch (e) {
-          failed.push(`${nameRow(t)} (${(e as Error).message})`);
-        }
-      }
-      if (failed.length > 0) {
-        throw new Error(
-          `${pastVerb(verb)} ${done} of ${targets.length}. These did not: ${failed.join('; ')}`,
-        );
-      }
+      await fan(fields, (t) => single.apply({ mode: verb, fields, initial: t }));
     },
   };
 }

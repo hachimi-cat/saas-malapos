@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   AgenticCrudSheet,
   type FieldRendererProps,
@@ -66,6 +66,28 @@ const fieldRenderers: FieldRenderers = {
   static: { render: (props) => <StaticField {...props} /> },
 };
 
+/**
+ * How an apply ENDED, which for a batch is not a yes/no question.
+ *
+ *  - 'applied' — everything the sheet was asked to do went through. The
+ *    sheet has already closed itself; the page may clear its selection.
+ *  - 'partial' — some records changed and some did not. The sheet is
+ *    STILL OPEN over the failures with the error shown verbatim, so the
+ *    merchant can read it and retry. The list behind it is stale and
+ *    must be refetched, but the page must NOT close the sheet or drop
+ *    the selection out from under it.
+ *
+ * The sheet reports the second case by calling `onApplied` with no
+ * result (@forjio/agent-ui >= 0.21.0 — its `isPartialApply` branch);
+ * a clean apply always hands over the merged field set, which is an
+ * object, so the two can never be confused.
+ */
+export type ApplyOutcome = 'applied' | 'partial';
+
+function outcomeOf(result: unknown): ApplyOutcome {
+  return result === undefined ? 'partial' : 'applied';
+}
+
 export interface CatentioCrudSheetProps {
   resource: AssistantResource;
   mode: AssistantMode;
@@ -75,7 +97,7 @@ export interface CatentioCrudSheetProps {
    *  apply PATCHes the record the USER picked, never one the plan
    *  names). */
   initial?: Record<string, unknown>;
-  onApplied?: () => void;
+  onApplied?: (outcome: ApplyOutcome) => void;
 }
 
 export function CatentioCrudSheet({
@@ -112,7 +134,7 @@ export function CatentioCrudSheet({
       onOpenChange={onOpenChange}
       transport={transport}
       initial={initial}
-      onApplied={() => onApplied?.()}
+      onApplied={(result) => onApplied?.(outcomeOf(result))}
       fieldRenderers={fieldRenderers}
       // The SAME uploader the hand-built product form calls — the
       // presign endpoint and the error envelope stay in one place, so an
@@ -152,6 +174,27 @@ function displayName(row: Record<string, unknown>): string {
   return 'record';
 }
 
+/**
+ * The rows a batch sheet runs on, pinned at the moment it opened —
+ * "the rows you ticked; this runs on these and nothing else".
+ *
+ * A page derives its targets from the CURRENT list
+ * (`rows.filter((r) => selected.has(r.id))`), so a refetch behind an
+ * open sheet rewrites them. That refetch is now the normal path: a
+ * partial run tells the page to reload, and the records that DID go
+ * through vanish from the list. Left live, the open sheet would silently
+ * re-title itself mid-flight ("Delete 3 categories" → "1 category"), and
+ * — worse — rebuild its descriptor, throwing away the closure that
+ * remembers who already succeeded, so the retry would fire at deleted
+ * records all over again.
+ */
+function useFrozenTargets(
+  targets: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const [frozen] = useState(targets);
+  return frozen;
+}
+
 /** WHO is about to be touched — the legibility header both batch
  *  sheets open on (bang's original complaint: a form over an invisible
  *  selection). First three by name, the rest counted. */
@@ -186,20 +229,21 @@ export function CatentioBulkEditSheet({
   targets: Record<string, unknown>[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApplied?: () => void;
+  onApplied?: (outcome: ApplyOutcome) => void;
 }) {
   const { modules } = useModules();
+  const rows = useFrozenTargets(targets);
   const descriptor = useMemo(
-    () => buildBulkEditResource(resource, targets, { modules }),
-    [resource, targets, modules],
+    () => buildBulkEditResource(resource, rows, { modules }),
+    [resource, rows, modules],
   );
   const transport = useMemo(
     () => createPlanTransport(resource, 'edit'),
     [resource],
   );
-  const n = targets.length;
+  const n = rows.length;
   const noun = BULK[resource]?.noun ?? 'record';
-  const editing = `Editing ${n} ${n === 1 ? noun : `${noun}s`}: ${targetList(targets)}. Fields left blank keep each item's current value.`;
+  const editing = `Editing ${n} ${n === 1 ? noun : `${noun}s`}: ${targetList(rows)}. Fields left blank keep each item's current value.`;
   return (
     <AgenticCrudSheet
       resource={descriptor}
@@ -207,7 +251,7 @@ export function CatentioBulkEditSheet({
       open={open}
       onOpenChange={onOpenChange}
       transport={transport}
-      onApplied={() => onApplied?.()}
+      onApplied={(result) => onApplied?.(outcomeOf(result))}
       fieldRenderers={fieldRenderers}
       imageUploader={(file, cb) => uploadWithPreview(file, cb)}
       descriptions={{
@@ -257,20 +301,21 @@ export function CatentioBulkVerbSheet({
   targets: Record<string, unknown>[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApplied?: () => void;
+  onApplied?: (outcome: ApplyOutcome) => void;
 }) {
   const { modules } = useModules();
+  const rows = useFrozenTargets(targets);
   const descriptor = useMemo(
-    () => buildBulkVerbResource(resource, verb, targets, { modules }),
-    [resource, verb, targets, modules],
+    () => buildBulkVerbResource(resource, verb, rows, { modules }),
+    [resource, verb, rows, modules],
   );
   const transport = useMemo(
     () => createPlanTransport(resource, verb),
     [resource, verb],
   );
-  const n = targets.length;
+  const n = rows.length;
   const noun = n === 1 ? descriptor.label : `${descriptor.label}s`;
-  const names = targetList(targets);
+  const names = targetList(rows);
   const doing = `${descriptor.confirmLabel ?? verb} ${n} ${noun}: ${names}.`;
   // The target line is always there now, so "nothing to fill in" means
   // nothing BESIDES it — set-category is the only verb that asks.
@@ -283,7 +328,7 @@ export function CatentioBulkVerbSheet({
       onOpenChange={onOpenChange}
       transport={transport}
       initial={batchTargetsInitial(names)}
-      onApplied={() => onApplied?.()}
+      onApplied={(result) => onApplied?.(outcomeOf(result))}
       fieldRenderers={fieldRenderers}
       imageUploader={(file, cb) => uploadWithPreview(file, cb)}
       descriptions={{

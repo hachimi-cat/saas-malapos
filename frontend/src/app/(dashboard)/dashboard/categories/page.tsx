@@ -246,9 +246,14 @@ export default function CategoriesPage() {
           resource="categories"
           targets={bulkTargets}
           onClose={() => setBulkEditing(false)}
-          onApplied={async () => {
-            setBulkEditing(false);
-            setSelected(new Set());
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkEditing(false);
+              setSelected(new Set());
+            }
             await load();
           }}
         />
@@ -260,9 +265,14 @@ export default function CategoriesPage() {
           verb="delete"
           targets={bulkTargets}
           onClose={() => setBulkDeleting(false)}
-          onApplied={async () => {
-            setBulkDeleting(false);
-            setSelected(new Set());
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkDeleting(false);
+              setSelected(new Set());
+            }
             await load();
           }}
         />

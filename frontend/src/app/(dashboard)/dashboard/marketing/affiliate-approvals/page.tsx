@@ -514,10 +514,15 @@ export default function AffiliateApprovalsPage() {
           verb={bulkVerb.verb}
           targets={bulkVerbTargets}
           onClose={() => setBulkVerb(null)}
-          onApplied={async () => {
-            setBulkVerb(null);
-            if (bulkVerb.resource === 'affiliate-enrollments') setSelEnroll(new Set());
-            else clearCommissionsRef.current?.();
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkVerb(null);
+              if (bulkVerb.resource === 'affiliate-enrollments') setSelEnroll(new Set());
+              else clearCommissionsRef.current?.();
+            }
             await load();
           }}
         />

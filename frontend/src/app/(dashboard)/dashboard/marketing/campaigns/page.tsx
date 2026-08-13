@@ -407,9 +407,14 @@ export default function MarketingCampaignsHubPage() {
                   resource="marketing-campaigns"
                   targets={selectedRows as unknown as Record<string, unknown>[]}
                   onClose={() => setBulkEditing(false)}
-                  onApplied={async () => {
-                    setBulkEditing(false);
-                    clear();
+                  onApplied={async (outcome) => {
+                    // A partial run leaves the sheet OPEN over the records that
+                    // did not go through — only the list behind it is stale, so
+                    // reload and leave the sheet and the ticks alone.
+                    if (outcome === 'applied') {
+                      setBulkEditing(false);
+                      clear();
+                    }
                     await load();
                   }}
                 />

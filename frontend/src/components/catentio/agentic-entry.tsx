@@ -12,6 +12,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { BULK } from './capabilities';
+// Type-only, so @forjio/agent-ui stays out of THIS module's runtime
+// graph — see the dynamic imports below for why that matters.
+import type { ApplyOutcome } from './agentic-sheet';
+
+export type { ApplyOutcome };
 
 /**
  * Loaded on demand, for two reasons.
@@ -84,7 +89,7 @@ export interface AgenticEntryProps {
   /** Edit mode: the row's current values, including `id`. The apply
    *  PATCHes the record the USER opened, never one a plan names. */
   initial?: Record<string, unknown>;
-  onApplied?: () => void;
+  onApplied?: (outcome: ApplyOutcome) => void;
   /** Rendered when the assistant is off — the page's own control. */
   fallback: ReactNode;
   /** Trigger content when the assistant is on. */
@@ -172,11 +177,24 @@ export function AgenticEntry({
             if (!o) setOpen(false);
           }}
           initial={initial}
-          onApplied={() => onApplied?.()}
+          onApplied={(outcome) => onApplied?.(outcome)}
         />
       )}
     </>
   );
+}
+
+/**
+ * Whether this slot opened over a real selection — decided ONCE, at
+ * mount. A partial run makes the page refetch behind the open sheet,
+ * which can empty the page's derived targets (the records that DID go
+ * through are gone from the list); re-reading them here would tear the
+ * sheet down mid-error, taking the message and the retry with it. The
+ * sheet pins the rows it acts on for the same reason.
+ */
+function useOpenedWithTargets(targets: Record<string, unknown>[]): boolean {
+  const [opened] = useState(() => targets.length > 0);
+  return opened;
 }
 
 /**
@@ -186,6 +204,11 @@ export function AgenticEntry({
  * selected rows ARE the state). Pages offer Bulk edit only when
  * `useCatentioStatus().enabled` — bulk edit is a sheet feature, so with
  * the assistant off the Actions dropdown offers Delete alone.
+ *
+ * `onApplied` reports HOW the apply ended (see `ApplyOutcome`): on
+ * 'partial' the sheet is still open over the records that did not go
+ * through, so the page must refetch and leave both the sheet and the
+ * selection alone.
  */
 export function BulkEditSlot({
   resource,
@@ -198,10 +221,11 @@ export function BulkEditSlot({
    *  resource's edit apply reads. */
   targets: Record<string, unknown>[];
   onClose: () => void;
-  onApplied?: () => void;
+  onApplied?: (outcome: ApplyOutcome) => void;
 }) {
   const { enabled } = useCatentioStatus();
-  if (!enabled || targets.length === 0) return null;
+  const anyTargets = useOpenedWithTargets(targets);
+  if (!enabled || !anyTargets) return null;
   return (
     <CatentioBulkEditSheet
       resource={resource}
@@ -210,7 +234,7 @@ export function BulkEditSlot({
       onOpenChange={(o: boolean) => {
         if (!o) onClose();
       }}
-      onApplied={() => onApplied?.()}
+      onApplied={(outcome) => onApplied?.(outcome)}
     />
   );
 }
@@ -226,6 +250,11 @@ export function BulkEditSlot({
  * delete confirm, the category dialog) instead. That is the
  * agentic-only-entries-hide rule — the fallback is always the
  * hand-built control, never nothing.
+ *
+ * `onApplied` reports HOW the apply ended (see `ApplyOutcome`): on
+ * 'partial' the sheet is still open over the records that did not go
+ * through, so the page must refetch and leave both the sheet and the
+ * selection alone.
  */
 export function BulkVerbSlot({
   resource,
@@ -241,10 +270,11 @@ export function BulkVerbSlot({
    *  reads off the row (an affiliate row's `programId`). */
   targets: Record<string, unknown>[];
   onClose: () => void;
-  onApplied?: () => void;
+  onApplied?: (outcome: ApplyOutcome) => void;
 }) {
   const { enabled } = useCatentioStatus();
-  if (!enabled || targets.length === 0) return null;
+  const anyTargets = useOpenedWithTargets(targets);
+  if (!enabled || !anyTargets) return null;
   return (
     <CatentioBulkVerbSheet
       resource={resource}
@@ -254,7 +284,7 @@ export function BulkVerbSlot({
       onOpenChange={(o: boolean) => {
         if (!o) onClose();
       }}
-      onApplied={() => onApplied?.()}
+      onApplied={(outcome) => onApplied?.(outcome)}
     />
   );
 }
@@ -278,7 +308,7 @@ export function AgenticSheetSlot({
   open: boolean;
   onClose: () => void;
   initial?: Record<string, unknown>;
-  onApplied?: () => void;
+  onApplied?: (outcome: ApplyOutcome) => void;
 }) {
   const { enabled } = useCatentioStatus();
   if (!enabled || !open) return null;
@@ -291,7 +321,7 @@ export function AgenticSheetSlot({
         if (!o) onClose();
       }}
       initial={initial}
-      onApplied={() => onApplied?.()}
+      onApplied={(outcome) => onApplied?.(outcome)}
     />
   );
 }
