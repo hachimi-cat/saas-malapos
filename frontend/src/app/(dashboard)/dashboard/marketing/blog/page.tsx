@@ -5,11 +5,16 @@ import Link from 'next/link';
 import { blogApi, type BlogPost, type BlogPostStatus } from '@/lib/marketing-api';
 import { Loader2, Plus, Search, ExternalLink, FileText, Globe, Undo2, Trash2, Pencil } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
-import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import {
+  BulkBar,
+  BulkDeleteDialog,
+  BulkActionDialog,
+  type PendingBatchAction,
+} from '@/components/dashboard/bulk-bar';
+import { AgenticEntry, BulkEditSlot, BulkVerbSlot } from '@/components/catentio/agentic-entry';
 import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { useCatentioStatus } from '@/hooks/use-catentio';
-import { deleteMany } from '@/lib/bulk';
+import { actMany, deleteMany } from '@/lib/bulk';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +51,13 @@ export default function BlogListPage() {
   const [bulkEditing, setBulkEditing] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  // Wave-2 batch verbs. Assistant ON: the dropdown item opens the
+  // agentic verb sheet over the selection (one plan turn, fanned out
+  // through the same blogApi calls the row buttons make). Assistant
+  // OFF: the hand-built confirm — `confirming` for publish/unpublish,
+  // BulkDeleteDialog for delete.
+  const [bulkVerb, setBulkVerb] = useState<'publish' | 'unpublish' | 'delete' | null>(null);
+  const [confirming, setConfirming] = useState<PendingBatchAction | null>(null);
   // Row-action in-flight guard: the post id being published/unpublished/
   // deleted, so its buttons disable while the call runs.
   const [working, setWorking] = useState<string | null>(null);
@@ -134,6 +146,30 @@ export default function BlogListPage() {
     }
   }
 
+  /** The assistant-off batch lifecycle executor — the SAME blogApi
+   *  calls the row buttons make, looped with actMany's partial-failure
+   *  contract. */
+  async function onBatchLifecycle(verb: 'publish' | 'unpublish') {
+    try {
+      await actMany(
+        verb === 'publish' ? 'Published' : 'Unpublished',
+        bulkTargets.map((p) => ({ id: p.id, label: p.title })),
+        (id) => (verb === 'publish' ? blogApi.publish(id) : blogApi.unpublish(id)),
+      );
+    } finally {
+      await load();
+    }
+  }
+
+  /** One dropdown item's run: the agentic verb sheet with the assistant
+   *  on, the hand-built confirm with it off. Both end at the same
+   *  per-record routes. */
+  function batchRun(verb: 'publish' | 'unpublish' | 'delete', manual: () => void) {
+    return () => (assistantEnabled ? setBulkVerb(verb) : manual());
+  }
+
+  const n = bulkTargets.length;
+  const nPosts = n === 1 ? 'post' : 'posts';
 
   // The page's batch verbs, on the Actions dropdown beside the "New X"
   // entry (bang's entry-point contract). Labels recompute per render so
@@ -142,17 +178,51 @@ export default function BlogListPage() {
     ...(assistantEnabled
       ? [{
           key: 'bulk-edit',
-          label: bulkTargets.length > 0 ? `Bulk edit ${bulkTargets.length} selected` : 'Bulk edit',
+          label: n > 0 ? `Bulk edit ${n} selected` : 'Bulk edit',
           icon: Pencil,
           run: () => setBulkEditing(true),
           requiresSelection: true,
         }]
       : []),
+    // The lifecycle verbs were declared in wave 1 and wired per ROW;
+    // these are the same two over a selection.
+    {
+      key: 'bulk-publish',
+      label: n > 0 ? `Publish ${n} selected` : 'Publish selected',
+      icon: Globe,
+      requiresSelection: true,
+      run: batchRun('publish', () =>
+        setConfirming({
+          title: `Publish ${n} ${nPosts}?`,
+          body: 'Each post goes live on the storefront and is indexed in the sitemap + RSS feed. Already-published posts are left alone; failures are skipped and named.',
+          cta: `Publish ${n}`,
+          run: () => onBatchLifecycle('publish'),
+          onError: setBulkError,
+          onDone: () => setSelected(new Set()),
+        }),
+      ),
+    },
+    {
+      key: 'bulk-unpublish',
+      label: n > 0 ? `Unpublish ${n} selected` : 'Unpublish selected',
+      icon: Undo2,
+      requiresSelection: true,
+      run: batchRun('unpublish', () =>
+        setConfirming({
+          title: `Unpublish ${n} ${nPosts}?`,
+          body: 'Each post goes back to draft and comes off the storefront. Nothing is deleted; failures are skipped and named.',
+          cta: `Unpublish ${n}`,
+          run: () => onBatchLifecycle('unpublish'),
+          onError: setBulkError,
+          onDone: () => setSelected(new Set()),
+        }),
+      ),
+    },
     {
       key: 'bulk-delete',
-      label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
+      label: n > 0 ? `Delete ${n} selected` : 'Delete selected',
       icon: Trash2,
-      run: () => setBulkDeleteOpen(true),
+      run: batchRun('delete', () => setBulkDeleteOpen(true)),
       requiresSelection: true,
       destructive: true,
     },
@@ -386,6 +456,8 @@ export default function BlogListPage() {
         description="Each post and its storefront page are removed. This cannot be undone."
       />
 
+      <BulkActionDialog action={confirming} onClose={() => setConfirming(null)} />
+
       {bulkEditing && (
         <BulkEditSlot
           resource="blog-posts"
@@ -393,6 +465,20 @@ export default function BlogListPage() {
           onClose={() => setBulkEditing(false)}
           onApplied={async () => {
             setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
+      )}
+
+      {bulkVerb && (
+        <BulkVerbSlot
+          resource="blog-posts"
+          verb={bulkVerb}
+          targets={bulkTargets as unknown as Record<string, unknown>[]}
+          onClose={() => setBulkVerb(null)}
+          onApplied={async () => {
+            setBulkVerb(null);
             setSelected(new Set());
             await load();
           }}

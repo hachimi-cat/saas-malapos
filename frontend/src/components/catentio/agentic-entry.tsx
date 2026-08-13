@@ -38,6 +38,11 @@ const CatentioBulkEditSheet = dynamic(
   { ssr: false },
 );
 
+const CatentioBulkVerbSheet = dynamic(
+  () => import('./agentic-sheet').then((m) => m.CatentioBulkVerbSheet),
+  { ssr: false },
+);
+
 /**
  * One create/edit entry point, assistant-aware (storlaunch's
  * agentic-entry.tsx is the reference).
@@ -200,6 +205,50 @@ export function BulkEditSlot({
   return (
     <CatentioBulkEditSheet
       resource={resource}
+      targets={targets}
+      open
+      onOpenChange={(o: boolean) => {
+        if (!o) onClose();
+      }}
+      onApplied={() => onApplied?.()}
+    />
+  );
+}
+
+/**
+ * The "{Verb} N selected" sheet — BulkEditSlot's twin for every other
+ * declared verb (delete, publish, unpublish, approve, void,
+ * set-category). Same rules: dynamic import, assistant-gated, caller
+ * keeps the open state because the selected rows ARE the state.
+ *
+ * A page offers the agentic verb only while the assistant is on; with
+ * it off the dropdown item runs the page's own manual batch flow (the
+ * delete confirm, the category dialog) instead. That is the
+ * agentic-only-entries-hide rule — the fallback is always the
+ * hand-built control, never nothing.
+ */
+export function BulkVerbSlot({
+  resource,
+  verb,
+  targets,
+  onClose,
+  onApplied,
+}: {
+  resource: AssistantResource;
+  /** A verb from `BULK_VERBS[resource]` (capabilities.ts). */
+  verb: AssistantMode;
+  /** The selected rows, each with `id` plus whatever the verb's apply
+   *  reads off the row (an affiliate row's `programId`). */
+  targets: Record<string, unknown>[];
+  onClose: () => void;
+  onApplied?: () => void;
+}) {
+  const { enabled } = useCatentioStatus();
+  if (!enabled || targets.length === 0) return null;
+  return (
+    <CatentioBulkVerbSheet
+      resource={resource}
+      verb={verb}
       targets={targets}
       open
       onOpenChange={(o: boolean) => {

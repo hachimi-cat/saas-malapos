@@ -6,7 +6,7 @@ import { api, ApiRequestError } from '@/lib/api';
 import { uploadImageToSpaces } from '@/lib/upload-with-preview';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot, BulkVerbSlot } from '@/components/catentio/agentic-entry';
 import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import { useCatentioStatus } from '@/hooks/use-catentio';
@@ -110,6 +110,10 @@ export default function ProductsPage() {
   const [bulkEditing, setBulkEditing] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  // Wave-2 batch verbs. Assistant ON: the dropdown item opens the
+  // agentic verb sheet over the selection. Assistant OFF: the
+  // hand-built dialogs below — the category picker, the delete confirm.
+  const [bulkVerb, setBulkVerb] = useState<'set-category' | 'delete' | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
@@ -247,7 +251,11 @@ export default function ProductsPage() {
           ? `Set category for ${bulkTargets.length} selected`
           : 'Set category',
       icon: Tag,
-      run: () => setCategoryDialogOpen(true),
+      // The declared verb (wave-2): the sheet's apply hands the WHOLE
+      // selection to POST /products/bulk-category in one request, the
+      // same route this page's own dialog calls.
+      run: () =>
+        assistantEnabled ? setBulkVerb('set-category') : setCategoryDialogOpen(true),
       requiresSelection: true,
     },
     ...(assistantEnabled
@@ -263,7 +271,7 @@ export default function ProductsPage() {
       key: 'bulk-delete',
       label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
       icon: Trash2,
-      run: () => setBulkDeleteOpen(true),
+      run: () => (assistantEnabled ? setBulkVerb('delete') : setBulkDeleteOpen(true)),
       requiresSelection: true,
       destructive: true,
     },
@@ -332,6 +340,20 @@ export default function ProductsPage() {
           onClose={() => setBulkEditing(false)}
           onApplied={async () => {
             setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
+      )}
+
+      {bulkVerb && (
+        <BulkVerbSlot
+          resource="products"
+          verb={bulkVerb}
+          targets={bulkTargets}
+          onClose={() => setBulkVerb(null)}
+          onApplied={async () => {
+            setBulkVerb(null);
             setSelected(new Set());
             await load();
           }}

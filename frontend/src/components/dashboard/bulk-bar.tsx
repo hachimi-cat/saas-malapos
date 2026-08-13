@@ -160,3 +160,84 @@ export function BulkDeleteDialog({
     </AlertDialog>
   );
 }
+
+/**
+ * One pending batch verb's confirm — `BulkDeleteDialog` generalized to
+ * every other verb (approve, void, publish, unpublish), and the
+ * ASSISTANT-OFF fallback for a page whose Actions dropdown otherwise
+ * opens the agentic verb sheet.
+ *
+ * The page hands over the whole pending action (its words and its
+ * executor) instead of a pile of props, because the dropdown builds
+ * these per item and only ever has one open at a time.
+ *
+ * `run` is the `actMany` executor; a THROW is the partial-failure
+ * sentence and lands on the bar via `onError`. `onDone` (clear the
+ * selection) fires only after a clean run, so a partial run leaves the
+ * selection for a retry.
+ */
+export type PendingBatchAction = {
+  title: string;
+  body: string;
+  /** The confirm button's own words, e.g. "Approve 4". */
+  cta: string;
+  destructive?: boolean;
+  run: () => Promise<void>;
+  onError: (message: string | null) => void;
+  onDone: () => void;
+};
+
+export function BulkActionDialog({
+  action,
+  onClose,
+}: {
+  action: PendingBatchAction | null;
+  onClose: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  if (!action) return null;
+
+  const run = async () => {
+    setBusy(true);
+    action.onError(null);
+    try {
+      await action.run();
+      action.onDone();
+      onClose();
+    } catch (e) {
+      action.onError((e as Error).message);
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <AlertDialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{action.title}</AlertDialogTitle>
+          <AlertDialogDescription>{action.body}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={busy}
+            onClick={(e) => {
+              e.preventDefault();
+              void run();
+            }}
+            className={
+              action.destructive
+                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                : undefined
+            }
+          >
+            {busy ? 'Working…' : action.cta}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}

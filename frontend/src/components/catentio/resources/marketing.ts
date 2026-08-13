@@ -664,6 +664,96 @@ const funnelsResource: ResourceBuilder = (mode) => ({
   },
 });
 
+// ── affiliate approval queue (verb-only) ────────────────────────────
+
+/**
+ * The affiliate queue's two resources have NO form: an affiliator
+ * enrolls themselves and a commission is earned by a sale, so the whole
+ * vocabulary is the review verb the approvals page offers. The registry
+ * gate (`resourceSupports` — they are VERB_ONLY_RESOURCES) refuses
+ * create/edit before these builders are reached.
+ *
+ * Every apply is the SAME per-record proxy POST the approvals page's
+ * row buttons make. There is no ids[] route in Ripllo for either, so a
+ * batch is a fan-out over these (the batch verb sheet's default path).
+ *
+ * The proxy path needs the PROGRAM as well as the record. The sheet
+ * gets it off the row (`initial`); a chat card carries only the record
+ * id, so `programId` is a declared field the agent fills from the queue
+ * it read — hence the initial-then-fields lookup order.
+ */
+const AFFILIATE_PROGRAM_FIELD: CrudSchemaField = {
+  name: 'programId',
+  label: 'Program',
+  required: true,
+  placeholder: 'prog_…',
+  description:
+    'The affiliate program this belongs to, taken from the row. Rows in the approvals queue carry it — never type one in by hand.',
+};
+
+function requireProgramId(fields: Fields, initial: Partial<Fields> | undefined): string {
+  const id = str(initial?.programId) ?? str(fields.programId);
+  if (!id) throw new Error('Missing affiliate program id');
+  return id;
+}
+
+/** POST through the marketing passthrough, exactly as the approvals
+ *  page does it (same wrapper, same paths, same error shape). */
+async function affiliatePost(path: string): Promise<void> {
+  const r = await marketingFetch(`/api/v1/account/marketing/programs/${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    credentials: 'include',
+    body: '{}',
+  });
+  const b = (await r.json().catch(() => null)) as { error?: { message?: string } } | null;
+  if (!r.ok) throw new Error(b?.error?.message ?? 'action failed');
+}
+
+const affiliateEnrollmentsResource: ResourceBuilder = (mode) => {
+  if (mode !== 'approve') return null;
+  return verbDescriptor({
+    slug: 'affiliate-enrollments',
+    label: 'affiliate enrollment',
+    title: 'Approve enrollment',
+    confirmLabel: 'Approve',
+    fields: [AFFILIATE_PROGRAM_FIELD],
+    examplePrompts: [
+      'Approve this affiliator',
+      'Approve the ones with an audience over 10.000',
+    ],
+    apply: ({ fields, initial }) =>
+      affiliatePost(
+        `${encodeURIComponent(requireProgramId(fields, initial))}/enrollments/${encodeURIComponent(
+          verbTargetId(initial, 'enrollment'),
+        )}/approve`,
+      ),
+  });
+};
+
+const affiliateCommissionsResource: ResourceBuilder = (mode) => {
+  if (mode !== 'approve' && mode !== 'void') return null;
+  const voiding = mode === 'void';
+  return verbDescriptor({
+    slug: 'affiliate-commissions',
+    label: 'affiliate commission',
+    title: voiding ? 'Void commission' : 'Approve commission',
+    confirmLabel: voiding ? 'Void' : 'Approve',
+    // Voided money is never paid and the void cannot be undone.
+    destructive: voiding,
+    fields: [AFFILIATE_PROGRAM_FIELD],
+    examplePrompts: voiding
+      ? ['Void this commission', 'Void the ones from the refunded order']
+      : ['Approve this commission', 'Approve everything still pending'],
+    apply: ({ fields, initial }) =>
+      affiliatePost(
+        `${encodeURIComponent(requireProgramId(fields, initial))}/commissions/${encodeURIComponent(
+          verbTargetId(initial, 'commission'),
+        )}/${voiding ? 'void' : 'approve'}`,
+      ),
+  });
+};
+
 // ── the group's registry slice ──────────────────────────────────────
 
 export const MARKETING_BUILDERS: Record<string, ResourceBuilder> = {
@@ -673,4 +763,6 @@ export const MARKETING_BUILDERS: Record<string, ResourceBuilder> = {
   'abandoned-cart': abandonedCartResource,
   'marketing-campaigns': marketingCampaignsResource,
   funnels: funnelsResource,
+  'affiliate-enrollments': affiliateEnrollmentsResource,
+  'affiliate-commissions': affiliateCommissionsResource,
 };

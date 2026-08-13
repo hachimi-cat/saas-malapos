@@ -41,6 +41,22 @@ export type ResourceWithResult = Omit<CrudResource<Fields, AssistantMode>, 'appl
     fields: Fields;
     initial?: Partial<Fields>;
   }): Promise<unknown>;
+  /**
+   * A REAL server-side batch endpoint for this verb, when one exists.
+   *
+   * The batch verb sheet (`buildBulkVerbResource`) fans a single
+   * approved field set out over the selection through `apply` — one
+   * request per row — because that is the only path most resources
+   * have. Where the backend takes ids[] in ONE request
+   * (POST /products/bulk-category is malapos's only merchant-plane
+   * example), that route is both faster and atomic, so the descriptor
+   * declares it here and the batch sheet prefers it.
+   *
+   * The delegated agent's exclusion from such a route (where it has
+   * one) is irrelevant to this call: an apply runs under the USER's own
+   * browser session. The exclusion binds the agent, not the merchant.
+   */
+  applyMany?(args: { targets: Fields[]; fields: Fields }): Promise<unknown>;
 };
 
 export type ResourceBuilder = (

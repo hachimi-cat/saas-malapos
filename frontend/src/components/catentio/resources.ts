@@ -1,7 +1,7 @@
 import type { CrudResource, CrudSchemaField } from '@forjio/agent-ui';
 import type { ModulesState } from '@/hooks/use-modules';
 import type { AssistantMode, AssistantResource } from '@/hooks/use-catentio';
-import { BULK, BULK_EDIT_RESOURCES } from './capabilities';
+import { BULK, BULK_EDIT_RESOURCES, BULK_VERBS, supportsBulkVerb } from './capabilities';
 
 /**
  * CrudResource descriptors for the agentic sheet — the FRONTEND mirror
@@ -321,7 +321,7 @@ export function withBulk(
 // them without dragging this file's import graph onto every dashboard
 // page. Re-exported so existing import sites and the registry tests are
 // unchanged.
-export { BULK, BULK_EDIT_RESOURCES };
+export { BULK, BULK_EDIT_RESOURCES, BULK_VERBS };
 
 // ── bulk edit ───────────────────────────────────────────────────────
 
@@ -412,6 +412,103 @@ export function buildBulkEditResource(
       if (failed.length > 0) {
         throw new Error(
           `Changed ${changed} of ${targets.length}. These did not: ${failed.join('; ')}`,
+        );
+      }
+    },
+  };
+}
+
+// ── bulk verbs ──────────────────────────────────────────────────────
+
+/**
+ * How a verb reads once it has happened, for the partial-failure
+ * sentence — the product-wide contract shape ("… N of M. These did
+ * not: …"), same as withBulk's "Added", bulk edit's "Changed" and
+ * deleteMany's "Deleted".
+ */
+const VERB_PAST: Record<string, string> = {
+  delete: 'Deleted',
+  publish: 'Published',
+  unpublish: 'Unpublished',
+  approve: 'Approved',
+  void: 'Voided',
+  'set-category': 'Moved',
+  edit: 'Changed',
+};
+
+export function pastVerb(verb: string): string {
+  return VERB_PAST[verb] ?? 'Applied';
+}
+
+/**
+ * `buildBulkEditResource`, generalized past edit — the wave-2 half of
+ * the batch story.
+ *
+ * A list page's Actions dropdown offers a verb over the ticked rows;
+ * this builds the sheet for it. Exactly like bulk edit: ONE plan turn
+ * (the agent proposes the verb's fields once — a category to move to,
+ * or nothing at all for delete/publish/approve), then the apply fans
+ * that one field set out over the closure-captured `targets` through
+ * the resource's OWN single-record apply. No second write path, and
+ * the verb's declared chrome (destructive → the sheet's confirm) rides
+ * along with the descriptor.
+ *
+ * Two deliberate differences from bulk EDIT:
+ *
+ *  - `required` is NOT stripped and a checkbox is NOT weakened to a
+ *    three-state select. Blank means "keep" on an edit patch; on a verb
+ *    the fields ARE the verb's arguments (set-category needs a
+ *    category), so they keep the descriptor's own rules.
+ *  - a resource with a REAL ids[] endpoint declares `applyMany` and the
+ *    whole selection goes in one request — a true batch, not a loop.
+ *    Its all-or-nothing failure is the server's own message, so there
+ *    is no partial sentence on that path (nothing partially happened).
+ */
+export function buildBulkVerbResource(
+  resource: AssistantResource,
+  verb: AssistantMode,
+  targets: Fields[],
+  ctx?: ResourceContext,
+): CrudResource<Fields, AssistantMode> {
+  if (!supportsBulkVerb(resource, verb)) {
+    throw new Error(`${resource} does not offer "${verb}" over a selection`);
+  }
+  const single = buildBaseResource(resource, verb, ctx);
+  const bulk = BULK[resource];
+  const nameRow = (r: Fields) =>
+    bulk?.rowKeys?.map((k) => str(r[k])).find(Boolean) ??
+    str(r.name) ??
+    str(r.title) ??
+    str(r.label) ??
+    str(r.id) ??
+    'a record';
+
+  const n = targets.length;
+  const noun = n === 1 ? single.label : `${single.label}s`;
+
+  return {
+    ...single,
+    // The sheet's own title is written for one record ("Delete blog
+    // post"); say what is actually about to happen instead.
+    title: `${single.confirmLabel ?? single.title ?? verb} ${n} ${noun}`,
+    apply: async (args) => {
+      if (single.applyMany) {
+        await single.applyMany({ targets, fields: args.fields });
+        return;
+      }
+      let done = 0;
+      const failed: string[] = [];
+      for (const t of targets) {
+        try {
+          await single.apply({ mode: verb, fields: args.fields, initial: t });
+          done++;
+        } catch (e) {
+          failed.push(`${nameRow(t)} (${(e as Error).message})`);
+        }
+      }
+      if (failed.length > 0) {
+        throw new Error(
+          `${pastVerb(verb)} ${done} of ${targets.length}. These did not: ${failed.join('; ')}`,
         );
       }
     },

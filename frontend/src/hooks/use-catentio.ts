@@ -49,6 +49,11 @@ export const ASSISTANT_RESOURCES = [
   'abandoned-cart',
   'marketing-campaigns',
   'funnels',
+  // affiliate approval queue (Ripllo) — verb-only: an affiliator
+  // enrolls themselves and a commission is earned by a sale, so these
+  // are reviewed, never authored (see MALAPOS_PROFILE).
+  'affiliate-enrollments',
+  'affiliate-commissions',
   // payments module (Plugipay)
   'payment-customers',
   'plans',

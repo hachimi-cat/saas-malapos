@@ -33,6 +33,44 @@ export async function deleteMany(
   }
 }
 
+/**
+ * `deleteMany` for every OTHER batch verb — approve, void, publish,
+ * unpublish. Same contract: keep going past failures (stopping cannot
+ * undo what already went through, only lose work), and report a partial
+ * run as a FAILURE naming what did NOT make it, in the server's own
+ * words.
+ *
+ * `pastVerb` is how the verb reads once it has happened ("Approved",
+ * "Published") so the sentence matches the product-wide shape — the
+ * same one `withBulk`, `buildBulkEditResource`, `buildBulkVerbResource`
+ * and `deleteMany` all produce.
+ *
+ * This is the ASSISTANT-OFF path: with the assistant on, a page's batch
+ * verb opens the agentic verb sheet, whose descriptor fans out through
+ * the resource's own apply. Both end at the same per-record endpoint.
+ */
+export async function actMany(
+  pastVerb: string,
+  targets: { id: string; label: string }[],
+  actOne: (id: string) => Promise<unknown>,
+): Promise<void> {
+  let done = 0;
+  const failed: string[] = [];
+  for (const t of targets) {
+    try {
+      await actOne(t.id);
+      done++;
+    } catch (e) {
+      failed.push(`${t.label} (${errorMessage(e)})`);
+    }
+  }
+  if (failed.length > 0) {
+    throw new Error(
+      `${pastVerb} ${done} of ${targets.length}. These did not: ${failed.join('; ')}`,
+    );
+  }
+}
+
 /** The server's own words when it sent any — malapos's api client
  *  throws ApiRequestError with the envelope's message already on it,
  *  so `.message` is the whole story (no axios envelope digging). */

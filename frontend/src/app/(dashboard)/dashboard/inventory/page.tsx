@@ -6,7 +6,8 @@ import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { AgenticEntry } from '@/components/catentio/agentic-entry';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -167,35 +168,68 @@ export default function InventoryPage() {
         action={
           <div className="flex items-center gap-2">
             {/* The old three-way picker dissolved into per-verb entry
-                points (bang's entry-point contract): "New adjustment" is
-                the agentic create for stock adjustments (fallback null —
-                the manual path lives per-row as Adjust), while Transfer
-                and Add batch below are the P2 manual dialogs for the
-                other two movement kinds. */}
+                points (bang's entry-point contract). All three movement
+                kinds are declared create-only approvalRequired
+                resources, so all three are agentic entries with the
+                hand-built dialog as the assistant-off fallback —
+                "New adjustment" has none of its own because its manual
+                path lives per-row as Adjust.
+
+                Each seeds the sheet with the outlet the merchant is
+                looking at, so the plan starts where they are (wave-1
+                row parity). These are single movements: there is no
+                ids[] route and no selection model on the levels table,
+                so no batch treatment. */}
             <AgenticEntry
               resource="inventory-adjustments"
               mode="create"
+              initial={{ outletId }}
               onApplied={refresh}
               className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
               fallback={null}
             >
               <Plus className="h-4 w-4" /> New adjustment
             </AgenticEntry>
-            <Button
-              variant="outline"
-              onClick={() => setTransferring(true)}
+            <AgenticEntry
+              resource="inventory-transfers"
+              mode="create"
+              initial={{ fromOutletId: outletId }}
+              onApplied={refresh}
               disabled={outlets.length < 2}
               title={outlets.length < 2 ? 'Transfers need a second outlet' : 'Move stock between outlets'}
+              className={cn(buttonVariants({ variant: 'outline' }))}
+              fallback={
+                <Button
+                  variant="outline"
+                  onClick={() => setTransferring(true)}
+                  disabled={outlets.length < 2}
+                  title={outlets.length < 2 ? 'Transfers need a second outlet' : 'Move stock between outlets'}
+                >
+                  <ArrowLeftRight className="h-4 w-4" /> Transfer
+                </Button>
+              }
             >
               <ArrowLeftRight className="h-4 w-4" /> Transfer
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setBatching(true)}
+            </AgenticEntry>
+            <AgenticEntry
+              resource="stock-batches"
+              mode="create"
+              initial={{ outletId }}
+              onApplied={refresh}
               title="Receive a dated lot (pharmacy batch)"
+              className={cn(buttonVariants({ variant: 'outline' }))}
+              fallback={
+                <Button
+                  variant="outline"
+                  onClick={() => setBatching(true)}
+                  title="Receive a dated lot (pharmacy batch)"
+                >
+                  <PackagePlus className="h-4 w-4" /> Add batch
+                </Button>
+              }
             >
               <PackagePlus className="h-4 w-4" /> Add batch
-            </Button>
+            </AgenticEntry>
             <Select value={outletId} onValueChange={setOutletId}>
               <SelectTrigger className="w-auto min-w-[12rem]">
                 <SelectValue />

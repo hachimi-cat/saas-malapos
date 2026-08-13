@@ -10,6 +10,8 @@ import {
   num,
   numOrNull,
   bool,
+  verbDescriptor,
+  verbTargetId,
 } from '../resource-helpers';
 
 /*
@@ -205,7 +207,78 @@ const VARIANT_ROW_FIELDS: CrudSchemaField[] = [
   { name: 'barcode', label: 'Barcode (optional)', colSpan: 4 },
 ];
 
+/** The set-category picker's own "clear it" row — the same "Remove
+ *  category" the products page's batch dialog offers. `null` on the
+ *  wire clears; the sentinel only has to survive a <select>. */
+const CLEAR_CATEGORY = 'none';
+
+/** What the batch route should store: a real id, or null to clear. A
+ *  plan may say null outright; the manual select says 'none'. */
+function categoryTarget(v: unknown): string | null {
+  if (v === null) return null;
+  const s = str(v);
+  return !s || s === CLEAR_CATEGORY ? null : s;
+}
+
+/**
+ * `set-category` — the one merchant-plane verb malapos backs with a
+ * REAL server-side batch route (POST /products/bulk-category, 1-500
+ * ids in one transaction). The single-record apply posts a one-id
+ * batch so both paths hit the same route with the same body shape, and
+ * `applyMany` hands the whole selection over at once (the batch verb
+ * sheet prefers it — see buildBulkVerbResource).
+ *
+ * Declared as a direct write in the profile (wave-2 reconciliation):
+ * the route already rode the products prefix grant, so this closes the
+ * gap between what the agent may call and what it is told it may call.
+ */
+function productsSetCategoryResource() {
+  const post = async (ids: string[], categoryId: string | null) => {
+    // The route takes 1-500 ids in one transaction. Say so in the
+    // merchant's own terms rather than surfacing a raw zod complaint
+    // about `productIds`.
+    if (ids.length > 500) {
+      throw new Error(`Move at most 500 products at a time — ${ids.length} are selected.`);
+    }
+    return api.post('/products/bulk-category', { productIds: ids, categoryId });
+  };
+  return {
+    ...verbDescriptor({
+      slug: 'products',
+      label: 'product',
+      title: 'Set product category',
+      confirmLabel: 'Set category',
+      fields: [
+        {
+          name: 'categoryId',
+          label: 'Category',
+          kind: 'select',
+          required: true,
+          loadOptions: async () => [
+            ...(await loadCategoryOptions()),
+            { value: CLEAR_CATEGORY, label: 'Remove category' },
+          ],
+          placeholder: 'Move to category…',
+          description:
+            'Where these products sit on the sell screen. Pick "Remove category" to leave them uncategorized.',
+        },
+      ],
+      examplePrompts: ['Move these into Minuman', 'Take the category off these'],
+      apply: ({ fields, initial }) =>
+        post([verbTargetId(initial, 'product')], categoryTarget(fields.categoryId)),
+    }),
+    // One request for the whole selection — atomic, and the server's
+    // own message on failure (nothing partially moved).
+    applyMany: ({ targets, fields }: { targets: Fields[]; fields: Fields }) =>
+      post(
+        targets.map((t) => verbTargetId(t, 'product')),
+        categoryTarget(fields.categoryId),
+      ),
+  };
+}
+
 const productsResource: ResourceBuilder = (mode) => {
+  if (mode === 'set-category') return productsSetCategoryResource();
   if (mode === 'delete') {
     return deleteDescriptor({
       slug: 'products',

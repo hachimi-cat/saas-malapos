@@ -10,7 +10,7 @@ import { createPlanTransport } from '@/lib/agent-ui-adapters';
 import { useModules } from '@/hooks/use-modules';
 import { uploadWithPreview } from '@/lib/upload-with-preview';
 import type { AssistantMode, AssistantResource } from '@/hooks/use-catentio';
-import { buildBulkEditResource, buildCrudResource } from './resources';
+import { buildBulkEditResource, buildBulkVerbResource, buildCrudResource } from './resources';
 import { BULK } from './capabilities';
 
 /**
@@ -133,6 +133,14 @@ function displayName(row: Record<string, unknown>): string {
   return 'record';
 }
 
+/** WHO is about to be touched — the legibility header both batch
+ *  sheets open on (bang's original complaint: a form over an invisible
+ *  selection). First three by name, the rest counted. */
+function targetList(targets: Record<string, unknown>[]): string {
+  const names = targets.slice(0, 3).map(displayName).join(', ');
+  return targets.length > 3 ? `${names} +${targets.length - 3} more` : names;
+}
+
 /**
  * The "Edit N selected" sheet. Same body as the single-record sheet —
  * agentic tab, manual form, renderers, uploader — but the descriptor is
@@ -172,9 +180,7 @@ export function CatentioBulkEditSheet({
   );
   const n = targets.length;
   const noun = BULK[resource]?.noun ?? 'record';
-  const names = targets.slice(0, 3).map(displayName).join(', ');
-  const more = n > 3 ? ` +${n - 3} more` : '';
-  const editing = `Editing ${n} ${n === 1 ? noun : `${noun}s`}: ${names}${more}. Fields left blank keep each item's current value.`;
+  const editing = `Editing ${n} ${n === 1 ? noun : `${noun}s`}: ${targetList(targets)}. Fields left blank keep each item's current value.`;
   return (
     <AgenticCrudSheet
       resource={descriptor}
@@ -188,6 +194,75 @@ export function CatentioBulkEditSheet({
       descriptions={{
         agentic: `${editing} Describe the change — it will be proposed once and applied to all ${n}.`,
         manual: editing,
+      }}
+    />
+  );
+}
+
+/**
+ * The "{Verb} N selected" sheet — bulk edit's shape, for every OTHER
+ * declared verb (delete, publish, unpublish, approve, void,
+ * set-category). Same body as the single-record sheet; the descriptor
+ * is `buildBulkVerbResource`, so one plan turn produces the verb's
+ * fields once (or none at all) and the apply fans them over the
+ * selection through the resource's own single-record apply — or, where
+ * the backend has a real ids[] route, hands the whole selection over in
+ * one request.
+ *
+ * `initial` is deliberately absent for the same reason bulk edit omits
+ * it: there is no single current record, and each target's own row is
+ * passed at apply time so parent-id reads (a commission's programId)
+ * keep working.
+ *
+ * The verb's declared chrome travels with the descriptor — a
+ * destructive verb keeps the sheet's alert-dialog confirm.
+ */
+export function CatentioBulkVerbSheet({
+  resource,
+  verb,
+  targets,
+  open,
+  onOpenChange,
+  onApplied,
+}: {
+  resource: AssistantResource;
+  /** A verb from `BULK_VERBS[resource]` — never 'create'/'edit'. */
+  verb: AssistantMode;
+  /** The selected rows, each with `id` plus whatever the verb's apply
+   *  reads off the row (an affiliate row's `programId`). */
+  targets: Record<string, unknown>[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onApplied?: () => void;
+}) {
+  const { modules } = useModules();
+  const descriptor = useMemo(
+    () => buildBulkVerbResource(resource, verb, targets, { modules }),
+    [resource, verb, targets, modules],
+  );
+  const transport = useMemo(
+    () => createPlanTransport(resource, verb),
+    [resource, verb],
+  );
+  const n = targets.length;
+  const noun = n === 1 ? descriptor.label : `${descriptor.label}s`;
+  const doing = `${descriptor.confirmLabel ?? verb} ${n} ${noun}: ${targetList(targets)}.`;
+  return (
+    <AgenticCrudSheet
+      resource={descriptor}
+      mode={verb}
+      open={open}
+      onOpenChange={onOpenChange}
+      transport={transport}
+      onApplied={() => onApplied?.()}
+      fieldRenderers={fieldRenderers}
+      imageUploader={(file, cb) => uploadWithPreview(file, cb)}
+      descriptions={{
+        agentic:
+          descriptor.fields.length > 0
+            ? `${doing} Say what you want and it will be proposed once, then applied to all ${n}.`
+            : `${doing} Nothing to fill in — review the list and apply.`,
+        manual: doing,
       }}
     />
   );

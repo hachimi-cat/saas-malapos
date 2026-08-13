@@ -64,12 +64,23 @@ export const BULK_EDIT_RESOURCES: AssistantResource[] = [
  */
 export const RESOURCE_EXTRA_ACTIONS: Partial<Record<AssistantResource, readonly string[]>> = {
   categories: ['delete'],
-  products: ['delete'],
+  products: ['set-category', 'delete'],
   customers: ['delete'],
   'webhook-subscriptions': ['delete'],
   'blog-posts': ['publish', 'unpublish', 'delete'],
   payouts: ['mark-paid'],
+  'affiliate-enrollments': ['approve'],
+  'affiliate-commissions': ['approve', 'void'],
 };
+
+/** Resources whose profile declares NO create/edit — only verbs. The
+ *  classic pair must be REFUSED for them: their builder has one arm per
+ *  verb and no form, so falling into "not edit means create" would be a
+ *  descriptor with nothing in it. */
+const VERB_ONLY_RESOURCES: readonly AssistantResource[] = [
+  'affiliate-enrollments',
+  'affiliate-commissions',
+];
 
 /** May this (resource, mode) pair reach the descriptor registry at
  *  all? The BFF's sanitizer already drops undeclared actions server-
@@ -77,9 +88,39 @@ export const RESOURCE_EXTRA_ACTIONS: Partial<Record<AssistantResource, readonly 
  *  rejects cleanly instead of falling into a builder whose apply
  *  treats "not edit" as create. */
 export function resourceSupports(resource: AssistantResource, mode: string): boolean {
-  return (
-    mode === 'create' ||
-    mode === 'edit' ||
-    (RESOURCE_EXTRA_ACTIONS[resource] ?? []).includes(mode)
-  );
+  if (mode === 'create' || mode === 'edit') {
+    return !VERB_ONLY_RESOURCES.includes(resource);
+  }
+  return (RESOURCE_EXTRA_ACTIONS[resource] ?? []).includes(mode);
+}
+
+/**
+ * The (resource, verb) pairs a LIST PAGE offers as a batch action over
+ * its ticked rows — wave-2's Pattern A. The verb sheet is the same
+ * single-record descriptor with its apply fanned out over the
+ * selection, so a pair only belongs here when that resource's builder
+ * genuinely has an arm for the verb (`RESOURCE_EXTRA_ACTIONS` above, or
+ * 'edit' for the bulk-edit path).
+ *
+ * `BulkVerbSlot` refuses a pair that is not listed — the fail-loud twin
+ * of `resourceSupports`, so a page cannot quietly offer a batch verb
+ * nothing can apply.
+ *
+ * Undeclared resources' batch items (tables, outlets, modifiers,
+ * plans, discount-codes, purchase orders, funnels/campaigns…) are
+ * deliberately absent: they stay the hand-built manual dialogs until
+ * their resource declares the verb.
+ */
+export const BULK_VERBS: Partial<Record<AssistantResource, readonly string[]>> = {
+  categories: ['delete'],
+  products: ['set-category', 'delete'],
+  customers: ['delete'],
+  'webhook-subscriptions': ['delete'],
+  'blog-posts': ['publish', 'unpublish', 'delete'],
+  'affiliate-enrollments': ['approve'],
+  'affiliate-commissions': ['approve', 'void'],
+};
+
+export function supportsBulkVerb(resource: AssistantResource, verb: string): boolean {
+  return (BULK_VERBS[resource] ?? []).includes(verb);
 }

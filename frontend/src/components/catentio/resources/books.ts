@@ -26,10 +26,10 @@ import { buildAgentPrompt, bool, defined, num, numOrNull, str } from '../resourc
  *    both carry it, so the sheet offers it.
  *  - gift-cards: the IssueModal has no customer picker; the profile and
  *    POST /gift-cards accept `customerId`, so the sheet offers it.
- *  - inventory-transfers / stock-batches: the inventory page has no
- *    transfer or batch-add form at all (the batches section is
- *    read-only "expiring soon"); these mirror the backend routes
- *    (routes/inventory.ts POST /transfer, POST /batches) directly.
+ *  - inventory-transfers / stock-batches: these mirror the backend
+ *    routes (routes/inventory.ts POST /transfer, POST /batches)
+ *    directly rather than a form — the page's TransferModal and
+ *    BatchModal came later and are the assistant-off fallbacks.
  *  - discount-codes: the EditorModal also shows `currency` and a
  *    campaign picker; the profile declares neither (the route defaults
  *    currency to IDR and its zod strips marketingCampaignId), so
@@ -639,9 +639,12 @@ function inventoryAdjustmentsResource(): CrudResource<Fields> {
 // ── inventory transfers ─────────────────────────────────────────────
 
 /**
- * The inventory page has NO transfer UI — this mirrors POST
- * /inventory/transfer (routes/inventory.ts) directly: one variant, a
- * positive quantity, two different outlets, moved in one transaction.
+ * Mirrors POST /inventory/transfer (routes/inventory.ts): one variant,
+ * a positive quantity, two different outlets, moved in one
+ * transaction. The inventory page's hand-built TransferModal is the
+ * assistant-off fallback behind the same header button (wave 2 — this
+ * used to say the page had no transfer UI at all, true until the P2
+ * dialogs landed).
  */
 function inventoryTransfersResource(): CrudResource<Fields> {
   return {
@@ -711,10 +714,11 @@ function inventoryTransfersResource(): CrudResource<Fields> {
 // ── stock batches ───────────────────────────────────────────────────
 
 /**
- * The inventory page's batches section is read-only ("expiring soon") —
- * there is no add form. This mirrors POST /inventory/batches
- * (routes/inventory.ts): recording a lot ADDS its quantity to stock as
- * a PURCHASE movement, with the batch/expiry pharmacies track.
+ * Mirrors POST /inventory/batches (routes/inventory.ts): recording a
+ * lot ADDS its quantity to stock as a PURCHASE movement, with the
+ * batch/expiry pharmacies track. The page's own batches section stays
+ * read-only ("expiring soon"); its BatchModal is the assistant-off
+ * fallback behind the same header button.
  */
 function stockBatchesResource(): CrudResource<Fields> {
   return {

@@ -7,7 +7,14 @@ import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
-import { BulkBar } from '@/components/dashboard/bulk-bar';
+import {
+  BulkBar,
+  BulkActionDialog,
+  type PendingBatchAction,
+} from '@/components/dashboard/bulk-bar';
+import { BulkVerbSlot } from '@/components/catentio/agentic-entry';
+import { useCatentioStatus } from '@/hooks/use-catentio';
+import { actMany } from '@/lib/bulk';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,16 +29,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 interface ProgramRef { id: string; name: string }
 
@@ -61,31 +58,12 @@ interface Commission {
 
 type Tab = 'enrollments' | 'commissions';
 
-/**
- * Batch executor over the per-row endpoints — same contract as
- * lib/bulk.ts's deleteMany: keep going past failures (stopping cannot
- * undo what already went through) and report a partial run as an error
- * naming what did NOT make it, in the server's own words.
- */
-async function actMany(
-  pastVerb: string,
-  targets: { id: string; label: string }[],
-  actOne: (id: string) => Promise<unknown>,
-): Promise<void> {
-  let done = 0;
-  const failed: string[] = [];
-  for (const t of targets) {
-    try {
-      await actOne(t.id);
-      done++;
-    } catch (e) {
-      failed.push(`${t.label} (${(e as Error).message || 'unknown error'})`);
-    }
-  }
-  if (failed.length > 0) {
-    throw new Error(`${pastVerb} ${done} of ${targets.length}. These did not: ${failed.join('; ')}`);
-  }
-}
+/** Which agentic verb sheet is open over the current selection —
+ *  wave-2 Pattern A. The rows ARE the state, so only the (resource,
+ *  verb) pair and the tab's own post-apply cleanup live here. */
+type BulkVerb =
+  | { resource: 'affiliate-enrollments'; verb: 'approve' }
+  | { resource: 'affiliate-commissions'; verb: 'approve' | 'void' };
 
 export default function AffiliateApprovalsPage() {
   const [enrollments, setEnrollments] = useState<PendingEnrollment[] | null>(null);
@@ -181,7 +159,13 @@ export default function AffiliateApprovalsPage() {
   const clearCommissionsRef = useRef<(() => void) | null>(null);
   const [enrollBatchError, setEnrollBatchError] = useState<string | null>(null);
   const [commBatchError, setCommBatchError] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<PendingBatchConfirm | null>(null);
+  const [confirming, setConfirming] = useState<PendingBatchAction | null>(null);
+  // Assistant ON: the dropdown item opens the agentic verb sheet over
+  // the selection (one plan turn, fanned out through the same per-record
+  // proxy POSTs below). Assistant OFF: it opens `confirming` — the
+  // hand-built confirm, unchanged.
+  const [bulkVerb, setBulkVerb] = useState<BulkVerb | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
   const enrollTargets = useMemo(
     () => (enrollments ?? []).filter((e) => selEnroll.has(e.id)),
     [enrollments, selEnroll],
@@ -234,6 +218,18 @@ export default function AffiliateApprovalsPage() {
   const enrollmentCount = enrollments?.length ?? 0;
   const pendingCommissionCount = commissions?.filter((c) => c.status === 'pending').length ?? 0;
 
+  /**
+   * One dropdown item's run. With the assistant ON it opens the agentic
+   * verb sheet over the selection — ONE plan turn, then a fan-out
+   * through the same per-record proxy POSTs this page already uses.
+   * With it OFF it opens the hand-built confirm, unchanged. Neither
+   * path is a second way to write: both end at postEnrollment /
+   * postCommission.
+   */
+  function batchRun(agentic: BulkVerb, manual: PendingBatchAction) {
+    return () => (assistantEnabled ? setBulkVerb(agentic) : setConfirming(manual));
+  }
+
   // The ACTIVE tab's batch verbs, on the header's Actions dropdown
   // (bang's entry-point contract — the header follows the tab). Each
   // verb confirms first with the same copy the old bar carried; a
@@ -250,15 +246,17 @@ export default function AffiliateApprovalsPage() {
                 : 'Approve selected',
             icon: Check,
             requiresSelection: true,
-            run: () =>
-              setConfirming({
+            run: batchRun(
+              { resource: 'affiliate-enrollments', verb: 'approve' },
+              {
                 title: `Approve ${enrollTargets.length} enrollment${enrollTargets.length === 1 ? '' : 's'}?`,
                 body: 'Each affiliator joins their program and can start earning commissions. Failures are skipped and named.',
                 cta: `Approve ${enrollTargets.length}`,
                 run: batchApproveEnrollments,
                 onError: setEnrollBatchError,
                 onDone: () => setSelEnroll(new Set()),
-              }),
+              },
+            ),
           },
         ]
       : [
@@ -270,15 +268,17 @@ export default function AffiliateApprovalsPage() {
             requiresSelection: true,
             disabled: selCommissions.length > 0 && pendingSel.length === 0,
             disabledHint: 'No pending commissions in the selection',
-            run: () =>
-              setConfirming({
+            run: batchRun(
+              { resource: 'affiliate-commissions', verb: 'approve' },
+              {
                 title: `Approve ${pendingSel.length} commission${pendingSel.length === 1 ? '' : 's'}?`,
                 body: 'Approved commissions are batched into the next monthly payout. Already-approved rows in the selection are left alone; failures are skipped and named.',
                 cta: `Approve ${pendingSel.length}`,
                 run: () => batchCommissions(pendingSel, 'approve'),
                 onError: setCommBatchError,
                 onDone: () => clearCommissionsRef.current?.(),
-              }),
+              },
+            ),
           },
           {
             key: 'void',
@@ -289,19 +289,34 @@ export default function AffiliateApprovalsPage() {
             icon: Ban,
             destructive: true,
             requiresSelection: true,
-            run: () =>
-              setConfirming({
+            run: batchRun(
+              { resource: 'affiliate-commissions', verb: 'void' },
+              {
                 title: `Void ${selCommissions.length} commission${selCommissions.length === 1 ? '' : 's'}?`,
                 body: 'Voided commissions never pay out. This cannot be undone; failures are skipped and named.',
                 cta: `Void ${selCommissions.length}`,
+                // Money nobody will be paid — the confirm wears the
+                // destructive button, same as the dropdown item does.
+                destructive: true,
                 run: () => batchCommissions(selCommissions, 'void'),
                 onError: setCommBatchError,
                 onDone: () => clearCommissionsRef.current?.(),
-              }),
+              },
+            ),
           },
         ];
   const activeSelectionCount =
     tab === 'enrollments' ? enrollTargets.length : selCommissions.length;
+
+  /** The rows the open verb sheet acts on, and what to tidy up after a
+   *  clean apply — the same selections the manual confirms use. */
+  const bulkVerbTargets = (
+    bulkVerb?.resource === 'affiliate-enrollments'
+      ? enrollTargets
+      : bulkVerb?.verb === 'approve'
+        ? pendingSel
+        : selCommissions
+  ) as unknown as Record<string, unknown>[];
 
   return (
     <div>
@@ -491,7 +506,22 @@ export default function AffiliateApprovalsPage() {
       }</TabsContent>
       </Tabs>
 
-      <BatchConfirmDialog confirming={confirming} onClose={() => setConfirming(null)} />
+      <BulkActionDialog action={confirming} onClose={() => setConfirming(null)} />
+
+      {bulkVerb && (
+        <BulkVerbSlot
+          resource={bulkVerb.resource}
+          verb={bulkVerb.verb}
+          targets={bulkVerbTargets}
+          onClose={() => setBulkVerb(null)}
+          onApplied={async () => {
+            setBulkVerb(null);
+            if (bulkVerb.resource === 'affiliate-enrollments') setSelEnroll(new Set());
+            else clearCommissionsRef.current?.();
+            await load();
+          }}
+        />
+      )}
 
       <Dialog open={!!actionDialog} onOpenChange={(o) => !o && setActionDialog(null)}>
         <DialogContent className="max-w-sm">
@@ -526,76 +556,5 @@ export default function AffiliateApprovalsPage() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-/** One batch verb's pending confirm — title/body/cta verbatim from the
- *  old bar's dialogs. `run` is the actMany executor; a THROW is the
- *  partial-failure sentence and lands on the tab's bar via `onError`.
- *  `onDone` (clear the selection) fires only after a clean run. */
-type PendingBatchConfirm = {
-  title: string;
-  body: string;
-  cta: string;
-  destructive?: boolean;
-  run: () => Promise<void>;
-  onError: (message: string | null) => void;
-  onDone: () => void;
-};
-
-/**
- * The batch confirm, opened by the header Actions dropdown's items —
- * the same contract as BulkDeleteDialog: confirm first (naming the
- * count), keep going past failures, report a partial run on the bar,
- * selection persists on partial failure for a retry.
- */
-function BatchConfirmDialog({
-  confirming,
-  onClose,
-}: {
-  confirming: PendingBatchConfirm | null;
-  onClose: () => void;
-}) {
-  const [busy, setBusy] = useState(false);
-
-  if (!confirming) return null;
-
-  const run = async () => {
-    setBusy(true);
-    confirming.onError(null);
-    try {
-      await confirming.run();
-      confirming.onDone();
-      onClose();
-    } catch (e) {
-      confirming.onError((e as Error).message);
-      onClose();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <AlertDialog open onOpenChange={(o) => { if (!o && !busy) onClose(); }}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{confirming.title}</AlertDialogTitle>
-          <AlertDialogDescription>{confirming.body}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            disabled={busy}
-            onClick={(e) => {
-              e.preventDefault();
-              void run();
-            }}
-            className={confirming.destructive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : undefined}
-          >
-            {busy ? 'Working…' : confirming.cta}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }

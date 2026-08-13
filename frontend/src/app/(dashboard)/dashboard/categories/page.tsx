@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot, BulkVerbSlot } from '@/components/catentio/agentic-entry';
 import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import { useCatentioStatus } from '@/hooks/use-catentio';
@@ -75,6 +75,11 @@ export default function CategoriesPage() {
   const [bulkEditing, setBulkEditing] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  // Wave-2: with the assistant ON the batch delete is the agentic verb
+  // sheet over the selection (the declared `delete` action, fanned out
+  // through the same api.delete the row confirm makes); with it OFF the
+  // dropdown item opens BulkDeleteDialog exactly as before.
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function load() {
@@ -200,7 +205,7 @@ export default function CategoriesPage() {
       key: 'bulk-delete',
       label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
       icon: Trash2,
-      run: () => setBulkDeleteOpen(true),
+      run: () => (assistantEnabled ? setBulkDeleting(true) : setBulkDeleteOpen(true)),
       requiresSelection: true,
       destructive: true,
     },
@@ -243,6 +248,20 @@ export default function CategoriesPage() {
           onClose={() => setBulkEditing(false)}
           onApplied={async () => {
             setBulkEditing(false);
+            setSelected(new Set());
+            await load();
+          }}
+        />
+      )}
+
+      {bulkDeleting && (
+        <BulkVerbSlot
+          resource="categories"
+          verb="delete"
+          targets={bulkTargets}
+          onClose={() => setBulkDeleting(false)}
+          onApplied={async () => {
+            setBulkDeleting(false);
             setSelected(new Set());
             await load();
           }}
