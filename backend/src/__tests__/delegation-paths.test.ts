@@ -127,6 +127,25 @@ describe('delegation gate — read/write path split', () => {
     expect(res.body.error.message).toMatch(/cannot write directly/i);
   });
 
+  /*
+   * WAVE 2 — the affiliate approval queue. The verbs are proposals, so
+   * the whole model rests on the agent being able to GATHER the queue
+   * first: an agent told to propose an approval but forbidden from
+   * reading the pending rows has been given a job it cannot start
+   * (the same flaw the read/write split above exists to avoid).
+   */
+  it.each([
+    '/api/v1/account/marketing/programs',
+    '/api/v1/account/marketing/programs/prog_1/enrollments',
+    '/api/v1/account/marketing/programs/commissions?status=pending,approved',
+  ])('the affiliate queue is READABLE: GET %s passes the gate', async (path) => {
+    const res = await request(makeApp())
+      .get(path)
+      .set('Authorization', `Delegation ${token(true)}`);
+    expect(res.status).toBe(200);
+    expect(res.body.reached).toBe(true);
+  });
+
   it('a garbage token is a 401, not a 500', async () => {
     const res = await request(makeApp())
       .get('/api/v1/categories')
@@ -161,6 +180,18 @@ describe('delegation gate — method axis', () => {
     ['post', '/api/v1/account/marketing/funnels', true],
     ['patch', '/api/v1/delivery/origin', true],
     ['post', '/api/v1/delivery/rates', true],
+    // WAVE 2 — the reconciled bulk route. It rode the products prefix
+    // grant before anything declared it (invokable but undeclared);
+    // products.set-category is the declaration that closes the gap, so
+    // the grant is now advertised rather than incidental.
+    ['post', '/api/v1/products/bulk-category', true],
+    // The affiliate approval verbs are declared approvalRequired and
+    // stay OFF the writable list — the passthrough grant covers only
+    // marketing-campaigns and funnels under the same prefix.
+    ['post', '/api/v1/account/marketing/programs/prog_1/enrollments/enr_1/approve', false],
+    ['post', '/api/v1/account/marketing/programs/prog_1/enrollments/enr_1/reject', false],
+    ['post', '/api/v1/account/marketing/programs/prog_1/commissions/com_1/approve', false],
+    ['post', '/api/v1/account/marketing/programs/prog_1/commissions/com_1/void', false],
     // Blog publish/unpublish are declared DIRECT actions — the POST
     // subpaths ride the blog entry's prefix grant.
     ['post', '/api/v1/account/blog/posts/post_1/publish', true],

@@ -43,6 +43,10 @@ import type { ChatActionOut, ProductAgentProfile } from '@forjio/catentio-embed'
  *   - Payment-provider settings (/payments/plugipay-settings): gateway
  *     credentials.
  *   - Modules toggling: billing.
+ *   - Affiliate enrollment REJECTION: the reason is shown to the
+ *     affiliator, so it is the merchant's own words to a third party.
+ *     Approving an enrollment, and approving or voiding a commission,
+ *     ARE in scope (as proposals).
  *
  * Field sets are TRANSCRIBED from each route's zod schema (catalog.ts,
  * routes/{categories,modifiers,outlets,tables,floors,suppliers,
@@ -118,6 +122,23 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
           label: 'Edit',
           fields: ['name', 'description', 'categoryId', 'price', 'sku', 'barcode', 'kind', 'isActive'],
           requiresId: true,
+        },
+        // WAVE-2 reconciliation. POST /api/v1/products/bulk-category
+        // (productIds[] 1-500 + a categoryId or null) already rode the
+        // products prefix grant, so a delegated agent could CALL it
+        // while no ActionSpec advertised it — invokable but undeclared,
+        // the one hole wave-1's method axis left open. Declaring it
+        // makes the advertised surface equal the writable one.
+        //
+        // Not approvalRequired: which shelf a product sits on is shop
+        // configuration, the same category the create/edit pair already
+        // writes directly — the batch route only does it for many rows
+        // at once. The single-record form of the same change is an
+        // ordinary `edit` with categoryId set.
+        'set-category': {
+          label: 'Set category',
+          requiresId: true,
+          fields: ['categoryId'],
         },
         delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
       },
@@ -508,6 +529,57 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'programTerms', type: 'string', create: false, edit: true, nullable: true, description: 'terms text shown to participants (≤10000 chars), or null' },
       ],
     },
+    // ── WAVE-2: the affiliate approval queue (verb-only resources). ──
+    //
+    // Both live in Ripllo and reach Malapos through the catch-all
+    // marketing passthrough (/api/v1/account/marketing/programs/…).
+    // They declare NO create/edit — an affiliator enrolls themselves
+    // and a commission is earned by a sale, so there is nothing for
+    // the agent to author; the whole vocabulary is the review verb the
+    // dashboard's approval queue offers. Same shape as storlaunch's
+    // webhook-events.
+    //
+    // Every verb is approvalRequired and every one of these POSTs is
+    // deliberately OFF the delegation writable list (auth.ts grants
+    // only …/marketing/marketing-campaigns and …/marketing/funnels
+    // under that prefix): the agent can GATHER the queue — the
+    // /account/marketing read grant covers it — work out which rows
+    // qualify, and propose; the merchant's own session applies.
+    'affiliate-enrollments': {
+      label: 'affiliate enrollment',
+      createRequired: [],
+      approvalRequired: true,
+      fields: [
+        // The proxy path needs the program as well as the enrollment,
+        // and a chat card only ever carries the record id — so the
+        // program travels as a declared field the agent reads off the
+        // row it is proposing on. create:false/edit:false: no
+        // synthesized action ever carried it.
+        { key: 'programId', type: 'string', create: false, edit: false, description: 'the affiliate program the enrollment belongs to, by id — read it off the enrollment row, never guess it' },
+      ],
+      actions: {
+        // Approving lets the affiliator start earning commissions
+        // against the program. Rejecting is NOT declared: it carries a
+        // reason shown to the affiliator, which is the merchant's own
+        // words to a third party — that stays a hand-typed action.
+        approve: { label: 'Approve', requiresId: true, fields: ['programId'], approvalRequired: true },
+      },
+    },
+    'affiliate-commissions': {
+      label: 'affiliate commission',
+      createRequired: [],
+      approvalRequired: true,
+      fields: [
+        { key: 'programId', type: 'string', create: false, edit: false, description: 'the affiliate program the commission was earned under, by id — read it off the commission row, never guess it' },
+      ],
+      actions: {
+        approve: { label: 'Approve', requiresId: true, fields: ['programId'], approvalRequired: true },
+        // Voiding is money the affiliator will never be paid, and it
+        // cannot be undone — destructive chrome on top of the approval
+        // card.
+        void: { label: 'Void', requiresId: true, fields: ['programId'], approvalRequired: true, destructive: true },
+      },
+    },
     plans: {
       label: 'billing plan',
       createRequired: ['name', 'amount'],
@@ -636,9 +708,9 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
     "the shop's catalog, floor plan, sales, stock and purchasing, shifts, customers, gift cards, marketing, payments, deliveries, or reports",
   multiStepExample: 'add a category AND the products that go in it',
   writablesSummary:
-    'categories, products, modifier groups, outlets, floors and tables, suppliers, the POS customer book, POS settings, webhook subscriptions, blog posts (including publishing and unpublishing them), the feed/pixel/abandoned-cart configs, marketing campaigns and funnels, fulfillment warehouses, the shipping origin, and payment customers — and, as PROPOSALS the user approves, record deletions, purchase orders and their receipts, refunds and sale voids, gift cards, stock adjustments/transfers/batches, discount codes, the loyalty and referral programs, billing plans and prices, payment links, subscriptions, payouts and marking them paid, shipments, licenses, and warehouse stock corrections',
+    'categories, products (including moving a batch of them into a category at once), modifier groups, outlets, floors and tables, suppliers, the POS customer book, POS settings, webhook subscriptions, blog posts (including publishing and unpublishing them), the feed/pixel/abandoned-cart configs, marketing campaigns and funnels, fulfillment warehouses, the shipping origin, and payment customers — and, as PROPOSALS the user approves, record deletions, purchase orders and their receipts, refunds and sale voids, gift cards, stock adjustments/transfers/batches, discount codes, the loyalty and referral programs, approving affiliate enrollments and approving or voiding affiliate commissions, billing plans and prices, payment links, subscriptions, payouts and marking them paid, shipments, licenses, and warehouse stock corrections',
   endpointsLine:
-    '- Key endpoints: GET/POST /api/v1/categories · PATCH /api/v1/categories/{id} · GET/POST /api/v1/products · PATCH /api/v1/products/{id} · GET/POST /api/v1/modifiers · PATCH /api/v1/modifiers/{id} · GET/POST /api/v1/outlets · PATCH /api/v1/outlets/{id} · GET/POST /api/v1/tables (?outletId=) · PATCH /api/v1/tables/{id} · GET/POST /api/v1/floors (?outletId=) · PATCH /api/v1/floors/{id} · GET/POST /api/v1/suppliers · PATCH /api/v1/suppliers/{id} · GET/POST /api/v1/customers · PATCH /api/v1/customers/{id} · GET/PUT /api/v1/settings · GET/POST /api/v1/webhook-subscriptions · PATCH /api/v1/webhook-subscriptions/{id} · GET/POST /api/v1/account/blog/posts · PATCH /api/v1/account/blog/posts/{id} · POST /api/v1/account/blog/posts/{id}/publish · POST /api/v1/account/blog/posts/{id}/unpublish · GET/PATCH /api/v1/account/feeds · GET/PATCH /api/v1/account/pixels · GET/PATCH /api/v1/account/abandoned-cart · GET/POST /api/v1/account/marketing/marketing-campaigns · PATCH /api/v1/account/marketing/marketing-campaigns/{id} · GET/POST /api/v1/account/marketing/funnels · PATCH /api/v1/account/marketing/funnels/{id} · GET/POST /api/v1/fulfillment/warehouses · PATCH /api/v1/fulfillment/warehouses/{id} · GET/PATCH /api/v1/delivery/origin · GET/POST /api/v1/payments/customers · PATCH /api/v1/payments/customers/{id}. DELETE is never called directly — where a resource declares a delete action you PROPOSE it. PROPOSED (you gather with GET, then propose the write — never call these yourself): DELETE /api/v1/categories/{id} · DELETE /api/v1/products/{id} · DELETE /api/v1/customers/{id} · DELETE /api/v1/webhook-subscriptions/{id} · DELETE /api/v1/account/blog/posts/{id} · POST /api/v1/payments/payouts/{id}/mark-paid · POST /api/v1/purchase-orders · PATCH /api/v1/purchase-orders/{id} (DRAFT only) · POST /api/v1/purchase-orders/{id}/receive · POST /api/v1/sales/{id}/refund · POST /api/v1/sales/{id}/void · POST /api/v1/gift-cards · POST /api/v1/inventory/adjust · POST /api/v1/inventory/transfer · POST /api/v1/inventory/batches · POST /api/v1/marketing/discount-codes · PATCH /api/v1/marketing/discount-codes/{id} · PUT /api/v1/marketing/loyalty/program · PUT /api/v1/account/referrals · POST /api/v1/payments/plans · PATCH /api/v1/payments/plans/{id} · POST /api/v1/payments/plans/{id}/prices · POST /api/v1/payments/checkout-sessions · POST /api/v1/payments/subscriptions · POST /api/v1/payments/payouts · POST /api/v1/fulfillment/shipments · POST /api/v1/fulfillment/licenses · POST /api/v1/fulfillment/inventory/adjust. READ these to gather first: GET /api/v1/sales and /api/v1/sales/{id} (a sale, its line items and payments), /api/v1/inventory/levels, /api/v1/inventory/movements, /api/v1/inventory/batches, /api/v1/purchase-orders, /api/v1/gift-cards, /api/v1/marketing/discount-codes, /api/v1/marketing/loyalty/program, /api/v1/account/referrals, /api/v1/payments/plans, /api/v1/payments/plans/{id}/prices, /api/v1/payments/subscriptions, /api/v1/payments/customers, /api/v1/payments/payouts, /api/v1/delivery/couriers, POST /api/v1/delivery/rates, /api/v1/fulfillment/shipments, /api/v1/fulfillment/inventory/products, /api/v1/fulfillment/inventory/stock, /api/v1/fulfillment/licenses.',
+    '- Key endpoints: GET/POST /api/v1/categories · PATCH /api/v1/categories/{id} · GET/POST /api/v1/products · PATCH /api/v1/products/{id} · POST /api/v1/products/bulk-category (moves a batch of products into one category: {"productIds": […1-500], "categoryId": "cat_… or null"}) · GET/POST /api/v1/modifiers · PATCH /api/v1/modifiers/{id} · GET/POST /api/v1/outlets · PATCH /api/v1/outlets/{id} · GET/POST /api/v1/tables (?outletId=) · PATCH /api/v1/tables/{id} · GET/POST /api/v1/floors (?outletId=) · PATCH /api/v1/floors/{id} · GET/POST /api/v1/suppliers · PATCH /api/v1/suppliers/{id} · GET/POST /api/v1/customers · PATCH /api/v1/customers/{id} · GET/PUT /api/v1/settings · GET/POST /api/v1/webhook-subscriptions · PATCH /api/v1/webhook-subscriptions/{id} · GET/POST /api/v1/account/blog/posts · PATCH /api/v1/account/blog/posts/{id} · POST /api/v1/account/blog/posts/{id}/publish · POST /api/v1/account/blog/posts/{id}/unpublish · GET/PATCH /api/v1/account/feeds · GET/PATCH /api/v1/account/pixels · GET/PATCH /api/v1/account/abandoned-cart · GET/POST /api/v1/account/marketing/marketing-campaigns · PATCH /api/v1/account/marketing/marketing-campaigns/{id} · GET/POST /api/v1/account/marketing/funnels · PATCH /api/v1/account/marketing/funnels/{id} · GET/POST /api/v1/fulfillment/warehouses · PATCH /api/v1/fulfillment/warehouses/{id} · GET/PATCH /api/v1/delivery/origin · GET/POST /api/v1/payments/customers · PATCH /api/v1/payments/customers/{id}. DELETE is never called directly — where a resource declares a delete action you PROPOSE it. PROPOSED (you gather with GET, then propose the write — never call these yourself): DELETE /api/v1/categories/{id} · DELETE /api/v1/products/{id} · DELETE /api/v1/customers/{id} · DELETE /api/v1/webhook-subscriptions/{id} · DELETE /api/v1/account/blog/posts/{id} · POST /api/v1/payments/payouts/{id}/mark-paid · POST /api/v1/purchase-orders · PATCH /api/v1/purchase-orders/{id} (DRAFT only) · POST /api/v1/purchase-orders/{id}/receive · POST /api/v1/sales/{id}/refund · POST /api/v1/sales/{id}/void · POST /api/v1/gift-cards · POST /api/v1/inventory/adjust · POST /api/v1/inventory/transfer · POST /api/v1/inventory/batches · POST /api/v1/marketing/discount-codes · PATCH /api/v1/marketing/discount-codes/{id} · PUT /api/v1/marketing/loyalty/program · PUT /api/v1/account/referrals · POST /api/v1/account/marketing/programs/{programId}/enrollments/{id}/approve · POST /api/v1/account/marketing/programs/{programId}/commissions/{id}/approve · POST /api/v1/account/marketing/programs/{programId}/commissions/{id}/void · POST /api/v1/payments/plans · PATCH /api/v1/payments/plans/{id} · POST /api/v1/payments/plans/{id}/prices · POST /api/v1/payments/checkout-sessions · POST /api/v1/payments/subscriptions · POST /api/v1/payments/payouts · POST /api/v1/fulfillment/shipments · POST /api/v1/fulfillment/licenses · POST /api/v1/fulfillment/inventory/adjust. READ these to gather first: GET /api/v1/sales and /api/v1/sales/{id} (a sale, its line items and payments), /api/v1/inventory/levels, /api/v1/inventory/movements, /api/v1/inventory/batches, /api/v1/purchase-orders, /api/v1/gift-cards, /api/v1/marketing/discount-codes, /api/v1/marketing/loyalty/program, /api/v1/account/referrals, /api/v1/account/marketing/programs (the affiliate programs and their ids), /api/v1/account/marketing/programs/{programId}/enrollments (each row carries its programId — the approve action needs it), /api/v1/account/marketing/programs/commissions?status=pending,approved, /api/v1/payments/plans, /api/v1/payments/plans/{id}/prices, /api/v1/payments/subscriptions, /api/v1/payments/customers, /api/v1/payments/payouts, /api/v1/delivery/couriers, POST /api/v1/delivery/rates, /api/v1/fulfillment/shipments, /api/v1/fulfillment/inventory/products, /api/v1/fulfillment/inventory/stock, /api/v1/fulfillment/licenses.',
   extraExecuteLines: [
     '- A product that belongs to a category you just created takes that category\'s "id" as "categoryId" (create the category first, read its id from the response).',
   ],
@@ -689,6 +761,8 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
     pixels: '/dashboard/marketing/pixels',
     'abandoned-cart': '/dashboard/marketing/abandoned-cart',
     'referrals-program': '/dashboard/marketing/referrals',
+    'affiliate-enrollments': '/dashboard/marketing/affiliate-approvals',
+    'affiliate-commissions': '/dashboard/marketing/affiliate-approvals',
     'marketing-campaigns': '/dashboard/marketing/campaigns',
     funnels: '/dashboard/marketing/funnels',
     plans: '/dashboard/payments/plans',
