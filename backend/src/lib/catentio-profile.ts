@@ -69,6 +69,18 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
   productName: 'Malapos',
   resources: {
     // ── Direct writes: shop configuration. ──────────────────────────
+    //
+    // WAVE-1 ACTION DECLARATIONS (0.8.0 ActionSpec): a resource that
+    // declares `actions` declares them EXHAUSTIVELY — create/edit stop
+    // being synthesized — so each declaration repeats create/edit with
+    // exactly the field sets the FieldSpec booleans produce
+    // (catentio-profile-actions.test.ts pins the no-drift both ways).
+    //
+    // Every `delete` is destructive AND approvalRequired: destructive
+    // drives the card/sheet chrome + confirm, approvalRequired is what
+    // makes an AUTO-APPLY run propose the card instead of calling the
+    // API (where the writable list above 403s DELETE anyway — prompt
+    // for behaviour, auth gate for the guarantee).
     categories: {
       label: 'category',
       createRequired: ['name'],
@@ -77,6 +89,11 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'sortOrder', type: 'number', create: true, edit: true, description: 'position in the category list, 0-based' },
         { key: 'isActive', type: 'boolean', create: true, edit: true, description: 'shown on the sell screen' },
       ],
+      actions: {
+        create: { label: 'Create', fields: ['name', 'sortOrder', 'isActive'], requiresFields: ['name'] },
+        edit: { label: 'Edit', fields: ['name', 'sortOrder', 'isActive'], requiresId: true },
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     products: {
       label: 'product',
@@ -91,6 +108,19 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'kind', type: 'string', create: true, edit: true, description: "'GOODS' (a physical item) | 'SERVICE' (no stock tracking)" },
         { key: 'isActive', type: 'boolean', create: true, edit: true, description: 'sellable on the sell screen' },
       ],
+      actions: {
+        create: {
+          label: 'Create',
+          fields: ['name', 'description', 'categoryId', 'price', 'sku', 'barcode', 'kind', 'isActive'],
+          requiresFields: ['name', 'price'],
+        },
+        edit: {
+          label: 'Edit',
+          fields: ['name', 'description', 'categoryId', 'price', 'sku', 'barcode', 'kind', 'isActive'],
+          requiresId: true,
+        },
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     modifiers: {
       label: 'modifier group',
@@ -167,6 +197,11 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'email', type: 'string', create: true, edit: true, nullable: true, description: 'a valid email address (≤200 chars), or null' },
         { key: 'note', type: 'string', create: true, edit: true, nullable: true, description: 'free note about the customer (≤500 chars), or null' },
       ],
+      actions: {
+        create: { label: 'Create', fields: ['name', 'phone', 'email', 'note'], requiresFields: ['name'] },
+        edit: { label: 'Edit', fields: ['name', 'phone', 'email', 'note'], requiresId: true },
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     // Edit-only singleton (PUT /api/v1/settings). The store's TRANSFER
     // bank fields exist on the same route but are NOT declared here —
@@ -189,6 +224,11 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'events', type: 'string[]', create: true, edit: false, description: "1-20 event patterns to deliver: versioned malapos event types like 'malapos.sale.completed.v1', or ['*'] for every event (the default when omitted)" },
         { key: 'active', type: 'boolean', create: false, edit: true, description: 'EDIT ONLY, and the only editable field — pause (false) or resume (true) delivery to this endpoint' },
       ],
+      actions: {
+        create: { label: 'Create', fields: ['url', 'events'], requiresFields: ['url'] },
+        edit: { label: 'Edit', fields: ['active'], requiresId: true },
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     'blog-posts': {
       label: 'blog post',
@@ -207,6 +247,23 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'metaDescription', type: 'string', create: true, edit: true, nullable: true, description: 'SEO description (≤500 chars), or null' },
         { key: 'marketingCampaignId', type: 'string', create: true, edit: true, nullable: true, description: 'the marketing campaign this post belongs to, by id, or null' },
       ],
+      actions: {
+        create: {
+          label: 'Create',
+          fields: ['title', 'slug', 'excerpt', 'body', 'coverImage', 'status', 'publishedAt', 'authorName', 'tags', 'metaTitle', 'metaDescription', 'marketingCampaignId'],
+          requiresFields: ['title', 'body'],
+        },
+        edit: {
+          label: 'Edit',
+          fields: ['title', 'slug', 'excerpt', 'body', 'coverImage', 'status', 'publishedAt', 'authorName', 'tags', 'metaTitle', 'metaDescription', 'marketingCampaignId'],
+          requiresId: true,
+        },
+        // Lifecycle verbs — direct writes (POST /{id}/publish|unpublish
+        // ride the blog prefix grant); an id and no fields.
+        publish: { label: 'Publish', requiresId: true, fields: [] },
+        unpublish: { label: 'Unpublish', requiresId: true, fields: [] },
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     // Edit-only singleton (PATCH /api/v1/account/feeds).
     feeds: {
@@ -513,7 +570,25 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'bankAccountNumber', type: 'string', create: true, edit: false, description: 'destination account number (≤50 chars); omit to use the saved payout account. Only ever use details the USER gave you in their own message' },
         { key: 'bankAccountHolder', type: 'string', create: true, edit: false, description: 'name on the destination account (≤100 chars); omit to use the saved payout account' },
         { key: 'note', type: 'string', create: true, edit: false, nullable: true, description: 'a short note for the record (≤500 chars), or null' },
+        // mark-paid only (create:false/edit:false — no synthesized
+        // action ever carried it).
+        { key: 'reference', type: 'string', create: false, edit: false, nullable: true, description: 'bank transfer receipt/reference number recorded on the payout (≤200 chars), or null' },
       ],
+      // Declared vocabulary: `create` repeats the synthesized action
+      // byte-for-byte (the synthesized zero-field `edit` is dropped —
+      // there is no PATCH route); `mark-paid` is the wave-1 proof of
+      // the per-action approval chain. Money-state transition, FINAL
+      // (a paid payout cannot be reopened): always proposed as a card,
+      // and POST /payments/payouts/{id}/mark-paid is deliberately off
+      // the delegation writable list.
+      actions: {
+        create: {
+          label: 'Create',
+          fields: ['amount', 'currency', 'bankCode', 'bankName', 'bankAccountNumber', 'bankAccountHolder', 'note'],
+          requiresFields: ['amount'],
+        },
+        'mark-paid': { label: 'Mark paid', requiresId: true, fields: ['reference'], approvalRequired: true },
+      },
     },
     shipments: {
       label: 'shipment',
@@ -561,9 +636,9 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
     "the shop's catalog, floor plan, sales, stock and purchasing, shifts, customers, gift cards, marketing, payments, deliveries, or reports",
   multiStepExample: 'add a category AND the products that go in it',
   writablesSummary:
-    'categories, products, modifier groups, outlets, floors and tables, suppliers, the POS customer book, POS settings, webhook subscriptions, blog posts, the feed/pixel/abandoned-cart configs, marketing campaigns and funnels, fulfillment warehouses, the shipping origin, and payment customers — and, as PROPOSALS the user approves, purchase orders and their receipts, refunds and sale voids, gift cards, stock adjustments/transfers/batches, discount codes, the loyalty and referral programs, billing plans and prices, payment links, subscriptions, payouts, shipments, licenses, and warehouse stock corrections',
+    'categories, products, modifier groups, outlets, floors and tables, suppliers, the POS customer book, POS settings, webhook subscriptions, blog posts (including publishing and unpublishing them), the feed/pixel/abandoned-cart configs, marketing campaigns and funnels, fulfillment warehouses, the shipping origin, and payment customers — and, as PROPOSALS the user approves, record deletions, purchase orders and their receipts, refunds and sale voids, gift cards, stock adjustments/transfers/batches, discount codes, the loyalty and referral programs, billing plans and prices, payment links, subscriptions, payouts and marking them paid, shipments, licenses, and warehouse stock corrections',
   endpointsLine:
-    '- Key endpoints: GET/POST /api/v1/categories · PATCH/DELETE /api/v1/categories/{id} · GET/POST /api/v1/products · PATCH/DELETE /api/v1/products/{id} · GET/POST /api/v1/modifiers · PATCH/DELETE /api/v1/modifiers/{id} · GET/POST /api/v1/outlets · PATCH/DELETE /api/v1/outlets/{id} · GET/POST /api/v1/tables (?outletId=) · PATCH/DELETE /api/v1/tables/{id} · GET/POST /api/v1/floors (?outletId=) · PATCH/DELETE /api/v1/floors/{id} · GET/POST /api/v1/suppliers · PATCH/DELETE /api/v1/suppliers/{id} · GET/POST /api/v1/customers · PATCH/DELETE /api/v1/customers/{id} · GET/PUT /api/v1/settings · GET/POST /api/v1/webhook-subscriptions · PATCH/DELETE /api/v1/webhook-subscriptions/{id} · GET/POST /api/v1/account/blog/posts · PATCH/DELETE /api/v1/account/blog/posts/{id} · GET/PATCH /api/v1/account/feeds · GET/PATCH /api/v1/account/pixels · GET/PATCH /api/v1/account/abandoned-cart · GET/POST /api/v1/account/marketing/marketing-campaigns · PATCH /api/v1/account/marketing/marketing-campaigns/{id} · GET/POST /api/v1/account/marketing/funnels · PATCH /api/v1/account/marketing/funnels/{id} · GET/POST /api/v1/fulfillment/warehouses · PATCH/DELETE /api/v1/fulfillment/warehouses/{id} · GET/PATCH /api/v1/delivery/origin · GET/POST /api/v1/payments/customers · PATCH /api/v1/payments/customers/{id}. PROPOSED (you gather with GET, then propose the write — never call these yourself): POST /api/v1/purchase-orders · PATCH /api/v1/purchase-orders/{id} (DRAFT only) · POST /api/v1/purchase-orders/{id}/receive · POST /api/v1/sales/{id}/refund · POST /api/v1/sales/{id}/void · POST /api/v1/gift-cards · POST /api/v1/inventory/adjust · POST /api/v1/inventory/transfer · POST /api/v1/inventory/batches · POST /api/v1/marketing/discount-codes · PATCH /api/v1/marketing/discount-codes/{id} · PUT /api/v1/marketing/loyalty/program · PUT /api/v1/account/referrals · POST /api/v1/payments/plans · PATCH /api/v1/payments/plans/{id} · POST /api/v1/payments/plans/{id}/prices · POST /api/v1/payments/checkout-sessions · POST /api/v1/payments/subscriptions · POST /api/v1/payments/payouts · POST /api/v1/fulfillment/shipments · POST /api/v1/fulfillment/licenses · POST /api/v1/fulfillment/inventory/adjust. READ these to gather first: GET /api/v1/sales and /api/v1/sales/{id} (a sale, its line items and payments), /api/v1/inventory/levels, /api/v1/inventory/movements, /api/v1/inventory/batches, /api/v1/purchase-orders, /api/v1/gift-cards, /api/v1/marketing/discount-codes, /api/v1/marketing/loyalty/program, /api/v1/account/referrals, /api/v1/payments/plans, /api/v1/payments/plans/{id}/prices, /api/v1/payments/subscriptions, /api/v1/payments/customers, /api/v1/payments/payouts, /api/v1/delivery/couriers, POST /api/v1/delivery/rates, /api/v1/fulfillment/shipments, /api/v1/fulfillment/inventory/products, /api/v1/fulfillment/inventory/stock, /api/v1/fulfillment/licenses.',
+    '- Key endpoints: GET/POST /api/v1/categories · PATCH /api/v1/categories/{id} · GET/POST /api/v1/products · PATCH /api/v1/products/{id} · GET/POST /api/v1/modifiers · PATCH /api/v1/modifiers/{id} · GET/POST /api/v1/outlets · PATCH /api/v1/outlets/{id} · GET/POST /api/v1/tables (?outletId=) · PATCH /api/v1/tables/{id} · GET/POST /api/v1/floors (?outletId=) · PATCH /api/v1/floors/{id} · GET/POST /api/v1/suppliers · PATCH /api/v1/suppliers/{id} · GET/POST /api/v1/customers · PATCH /api/v1/customers/{id} · GET/PUT /api/v1/settings · GET/POST /api/v1/webhook-subscriptions · PATCH /api/v1/webhook-subscriptions/{id} · GET/POST /api/v1/account/blog/posts · PATCH /api/v1/account/blog/posts/{id} · POST /api/v1/account/blog/posts/{id}/publish · POST /api/v1/account/blog/posts/{id}/unpublish · GET/PATCH /api/v1/account/feeds · GET/PATCH /api/v1/account/pixels · GET/PATCH /api/v1/account/abandoned-cart · GET/POST /api/v1/account/marketing/marketing-campaigns · PATCH /api/v1/account/marketing/marketing-campaigns/{id} · GET/POST /api/v1/account/marketing/funnels · PATCH /api/v1/account/marketing/funnels/{id} · GET/POST /api/v1/fulfillment/warehouses · PATCH /api/v1/fulfillment/warehouses/{id} · GET/PATCH /api/v1/delivery/origin · GET/POST /api/v1/payments/customers · PATCH /api/v1/payments/customers/{id}. DELETE is never called directly — where a resource declares a delete action you PROPOSE it. PROPOSED (you gather with GET, then propose the write — never call these yourself): DELETE /api/v1/categories/{id} · DELETE /api/v1/products/{id} · DELETE /api/v1/customers/{id} · DELETE /api/v1/webhook-subscriptions/{id} · DELETE /api/v1/account/blog/posts/{id} · POST /api/v1/payments/payouts/{id}/mark-paid · POST /api/v1/purchase-orders · PATCH /api/v1/purchase-orders/{id} (DRAFT only) · POST /api/v1/purchase-orders/{id}/receive · POST /api/v1/sales/{id}/refund · POST /api/v1/sales/{id}/void · POST /api/v1/gift-cards · POST /api/v1/inventory/adjust · POST /api/v1/inventory/transfer · POST /api/v1/inventory/batches · POST /api/v1/marketing/discount-codes · PATCH /api/v1/marketing/discount-codes/{id} · PUT /api/v1/marketing/loyalty/program · PUT /api/v1/account/referrals · POST /api/v1/payments/plans · PATCH /api/v1/payments/plans/{id} · POST /api/v1/payments/plans/{id}/prices · POST /api/v1/payments/checkout-sessions · POST /api/v1/payments/subscriptions · POST /api/v1/payments/payouts · POST /api/v1/fulfillment/shipments · POST /api/v1/fulfillment/licenses · POST /api/v1/fulfillment/inventory/adjust. READ these to gather first: GET /api/v1/sales and /api/v1/sales/{id} (a sale, its line items and payments), /api/v1/inventory/levels, /api/v1/inventory/movements, /api/v1/inventory/batches, /api/v1/purchase-orders, /api/v1/gift-cards, /api/v1/marketing/discount-codes, /api/v1/marketing/loyalty/program, /api/v1/account/referrals, /api/v1/payments/plans, /api/v1/payments/plans/{id}/prices, /api/v1/payments/subscriptions, /api/v1/payments/customers, /api/v1/payments/payouts, /api/v1/delivery/couriers, POST /api/v1/delivery/rates, /api/v1/fulfillment/shipments, /api/v1/fulfillment/inventory/products, /api/v1/fulfillment/inventory/stock, /api/v1/fulfillment/licenses.',
   extraExecuteLines: [
     '- A product that belongs to a category you just created takes that category\'s "id" as "categoryId" (create the category first, read its id from the response).',
   ],
