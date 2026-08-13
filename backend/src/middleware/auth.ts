@@ -91,46 +91,117 @@ const DELEGATION_DENIED_PATHS = [
 ];
 
 /**
- * Non-GET is allowed ONLY under these prefixes — the direct-write
- * resources: things the merchant CONFIGURES. Money in motion, stock
- * movements and anything deciding what someone pays (refunds, gift
- * cards, adjustments, PO receiving, plans/prices, checkout sessions,
- * subscriptions, payouts, shipments, discount codes, loyalty/referral
- * rates) is deliberately absent: those are `approvalRequired` resources
- * whose Apply runs under the merchant's own session. Enforced here
- * rather than left to the token's write bit, so even an auto-apply
- * workspace cannot have its agent write a sale or move stock.
+ * Non-GET is allowed ONLY when it matches an entry here — prefix AND
+ * method — the direct-write resources: things the merchant CONFIGURES.
+ * Money in motion, stock movements and anything deciding what someone
+ * pays (refunds, gift cards, adjustments, PO receiving, plans/prices,
+ * checkout sessions, subscriptions, payouts, shipments, discount codes,
+ * loyalty/referral rates) is deliberately absent: those are
+ * `approvalRequired` resources whose Apply runs under the merchant's
+ * own session. Enforced here rather than left to the token's write bit,
+ * so even an auto-apply workspace cannot have its agent write a sale or
+ * move stock.
+ *
+ * The `methods` axis (storlaunch's entry shape, f0dd757) is what keeps
+ * DELETE — and any other verb the profile does not advertise — off the
+ * delegated surface even where the route exists. DELETE is writable
+ * NOWHERE: deletes are declared, destructive, approval-required actions
+ * the agent proposes on a card and the merchant's own browser session
+ * applies. Same for the payout mark-* transitions and the customer
+ * loyalty adjust/redeem POSTs (spendable value): the entries below
+ * grant exactly the methods each profile-advertised write uses, one
+ * verified route comment per entry.
  *
  * /api/v1/settings is writable but the transfer bank details it carries
  * are NOT — where the merchant's money lands is stripped from delegated
  * writes in routes/settings.ts, the same way plugipay strips payment-
  * method routing from its delegated checkout-settings path.
- *
- * /api/v1/delivery/rates is a POST but computes a courier quote — the
- * gather step of a shipment proposal — and mutates nothing.
  */
-const DELEGATION_WRITABLE_PATHS = [
-  '/api/v1/categories',
-  '/api/v1/products',
-  '/api/v1/modifiers',
-  '/api/v1/outlets',
-  '/api/v1/tables',
-  '/api/v1/floors',
-  '/api/v1/suppliers',
-  '/api/v1/customers',
-  '/api/v1/settings',
-  '/api/v1/webhook-subscriptions',
-  '/api/v1/account/blog/posts',
-  '/api/v1/account/feeds',
-  '/api/v1/account/pixels',
-  '/api/v1/account/abandoned-cart',
-  '/api/v1/account/marketing/marketing-campaigns',
-  '/api/v1/account/marketing/funnels',
-  '/api/v1/delivery/origin',
-  '/api/v1/delivery/rates',
-  '/api/v1/fulfillment/warehouses',
-  '/api/v1/payments/customers',
+interface DelegationWritableEntry {
+  /** Full mounted path prefix, /api/v1 included. */
+  prefix: string;
+  /** Permitted write methods; omitted = all non-GET/HEAD. */
+  methods?: Array<'POST' | 'PATCH' | 'PUT' | 'DELETE'>;
+  /** Match ONLY the collection root, not subpaths — used where money
+   *  verbs live under an otherwise-writable collection. */
+  exact?: true;
+}
+
+const DELEGATION_WRITABLE_PATHS: DelegationWritableEntry[] = [
+  // ── core POS configuration ───────────────────────────────────────
+  // categories — POST / + PATCH /{id}; the prefix also carries
+  // POST /reorder (the same sortOrder knob the profile edits). DELETE
+  // /{id} exists and is deliberately NOT granted.
+  { prefix: '/api/v1/categories', methods: ['POST', 'PATCH'] },
+  // products — POST / + PATCH /{id}, plus the nested variant POSTs/
+  // PATCHes and POST /bulk-category under the same prefix. DELETE /{id},
+  // DELETE …/variants/{vid} and PUT …/recipe (not profile-advertised)
+  // stay unwritable.
+  { prefix: '/api/v1/products', methods: ['POST', 'PATCH'] },
+  // modifiers — POST / + PATCH /{id}, plus the nested /items POSTs/
+  // PATCHes. The DELETEs and PUT /product/{productId} (group assignment,
+  // not advertised) are excluded.
+  { prefix: '/api/v1/modifiers', methods: ['POST', 'PATCH'] },
+  // outlets — POST / + PATCH /{id}; DELETE excluded.
+  { prefix: '/api/v1/outlets', methods: ['POST', 'PATCH'] },
+  // tables — POST / + PATCH /{id}; PUT /layout is the canvas editor
+  // (posX/posY are deliberately not agent fields) and DELETE excluded.
+  { prefix: '/api/v1/tables', methods: ['POST', 'PATCH'] },
+  // floors — POST / + PATCH /{id}; DELETE excluded.
+  { prefix: '/api/v1/floors', methods: ['POST', 'PATCH'] },
+  // suppliers — POST / + PATCH /{id}; DELETE excluded.
+  { prefix: '/api/v1/suppliers', methods: ['POST', 'PATCH'] },
+  // customers — create on the collection ROOT only (exact), because
+  // POST /{id}/loyalty/adjust and /{id}/loyalty/redeem move spendable
+  // loyalty value and stay propose-only; PATCH /{id} edits the book.
+  { prefix: '/api/v1/customers', methods: ['POST'], exact: true },
+  { prefix: '/api/v1/customers', methods: ['PATCH'] },
+  // settings — the PUT / singleton (transfer bank fields stripped in
+  // routes/settings.ts).
+  { prefix: '/api/v1/settings', methods: ['PUT'] },
+  // webhook-subscriptions — POST / + PATCH /{id} (the pause/resume
+  // bit); DELETE excluded.
+  { prefix: '/api/v1/webhook-subscriptions', methods: ['POST', 'PATCH'] },
+
+  // ── marketing module (Ripllo) ────────────────────────────────────
+  // blog-posts — POST / + PATCH /{id}, plus the /{id}/publish and
+  // /{id}/unpublish POSTs (declared direct actions); DELETE excluded.
+  { prefix: '/api/v1/account/blog/posts', methods: ['POST', 'PATCH'] },
+  // feeds / pixels / abandoned-cart — PATCH singletons.
+  { prefix: '/api/v1/account/feeds', methods: ['PATCH'] },
+  { prefix: '/api/v1/account/pixels', methods: ['PATCH'] },
+  { prefix: '/api/v1/account/abandoned-cart', methods: ['PATCH'] },
+  // campaigns + funnels — POST / + PATCH /{id} through the Ripllo
+  // passthrough; the proxy forwards DELETE too, which stays excluded.
+  { prefix: '/api/v1/account/marketing/marketing-campaigns', methods: ['POST', 'PATCH'] },
+  { prefix: '/api/v1/account/marketing/funnels', methods: ['POST', 'PATCH'] },
+
+  // ── fulfillment module (Fulkruma) ────────────────────────────────
+  // shipping origin — PATCH singleton.
+  { prefix: '/api/v1/delivery/origin', methods: ['PATCH'] },
+  // rates — a POST that computes a courier quote (the gather step of a
+  // shipment proposal) and mutates nothing.
+  { prefix: '/api/v1/delivery/rates', methods: ['POST'] },
+  // warehouses — POST / + PATCH /{id}; DELETE excluded.
+  { prefix: '/api/v1/fulfillment/warehouses', methods: ['POST', 'PATCH'] },
+
+  // ── payments module (Plugipay) ───────────────────────────────────
+  // payment customers — POST / + PATCH /{id}.
+  { prefix: '/api/v1/payments/customers', methods: ['POST', 'PATCH'] },
 ];
+
+/** True when a delegated write (method + full mounted path) matches the
+ *  writable list. Exported for the unit table in
+ *  __tests__/delegation-paths.test.ts. */
+export function isDelegationWritable(method: string, fullPath: string): boolean {
+  return DELEGATION_WRITABLE_PATHS.some((entry) => {
+    if (entry.methods && !(entry.methods as string[]).includes(method)) return false;
+    // Root routes inside a mounted router read as `${baseUrl}/`, so the
+    // trailing-slash form IS the root form — accept both.
+    if (fullPath === entry.prefix || fullPath === `${entry.prefix}/`) return true;
+    return !entry.exact && fullPath.startsWith(`${entry.prefix}/`);
+  });
+}
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -234,14 +305,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return sendErr(res, req, 403, 'FORBIDDEN', 'This resource is not available to delegated agents');
     }
     // Reads and writes are separate grants: a path on the allowlist but
-    // off the writable list is exactly read-only, whatever the token's
-    // write bit says. This is the auth half of `approvalRequired` — the
-    // agent gathers here, proposes on a card, and the merchant's own
-    // session applies.
+    // off the writable list — or on it with a method the entry does not
+    // grant — is exactly read-only, whatever the token's write bit says.
+    // This is the auth half of `approvalRequired` — the agent gathers
+    // here, proposes on a card, and the merchant's own session applies.
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      const writable = DELEGATION_WRITABLE_PATHS.some(
-        (pth) => fullPath === pth || fullPath.startsWith(`${pth}/`),
-      );
+      const writable = isDelegationWritable(req.method, fullPath);
       if (!writable) {
         return sendErr(
           res,

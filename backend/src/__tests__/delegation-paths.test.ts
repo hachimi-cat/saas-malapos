@@ -134,3 +134,66 @@ describe('delegation gate — read/write path split', () => {
     expect(res.status).toBe(401);
   });
 });
+
+/*
+ * The METHOD axis (storlaunch's f0dd757 entry shape, adopted for the
+ * 0.8.0 action vocabulary): an entry grants exactly the methods its
+ * profile-advertised writes use. DELETE is writable NOWHERE — deletes
+ * are declared destructive/approval actions the agent proposes on a
+ * card and the merchant's own browser session applies. Same for the
+ * payout mark-* transitions and the loyalty value POSTs.
+ */
+describe('delegation gate — method axis', () => {
+  const cases: Array<[method: 'post' | 'patch' | 'put' | 'delete', path: string, pass: boolean]> = [
+    // DELETE must not be writable anywhere — the routes exist.
+    ['delete', '/api/v1/products/prod_1', false],
+    ['delete', '/api/v1/categories/cat_1', false],
+    ['delete', '/api/v1/customers/cus_1', false],
+    ['delete', '/api/v1/webhook-subscriptions/whs_1', false],
+    ['delete', '/api/v1/account/blog/posts/post_1', false],
+    ['delete', '/api/v1/fulfillment/warehouses/wh_1', false],
+    ['delete', '/api/v1/account/marketing/marketing-campaigns/cmp_1', false],
+    // The granted method/path pairs keep working.
+    ['post', '/api/v1/products', true],
+    ['patch', '/api/v1/products/prod_1', true],
+    ['put', '/api/v1/settings', true],
+    ['patch', '/api/v1/account/feeds', true],
+    ['post', '/api/v1/account/marketing/funnels', true],
+    ['patch', '/api/v1/delivery/origin', true],
+    ['post', '/api/v1/delivery/rates', true],
+    // Blog publish/unpublish are declared DIRECT actions — the POST
+    // subpaths ride the blog entry's prefix grant.
+    ['post', '/api/v1/account/blog/posts/post_1/publish', true],
+    ['post', '/api/v1/account/blog/posts/post_1/unpublish', true],
+    // Payout money-state transitions stay propose-only: mark-paid is a
+    // declared approvalRequired action, applied by the merchant.
+    ['post', '/api/v1/payments/payouts/po_1/mark-paid', false],
+    ['post', '/api/v1/payments/payouts/po_1/mark-in-transit', false],
+    ['post', '/api/v1/payments/payouts', false],
+    // Loyalty adjust/redeem move spendable value — the customers grant
+    // is exact-POST (collection root) + PATCH, nothing under /{id}.
+    ['post', '/api/v1/customers', true],
+    ['patch', '/api/v1/customers/cus_1', true],
+    ['post', '/api/v1/customers/cus_1/loyalty/adjust', false],
+    ['post', '/api/v1/customers/cus_1/loyalty/redeem', false],
+    // The layout canvas is not an agent surface.
+    ['put', '/api/v1/tables/layout', false],
+    // Recipes and modifier-group assignment are not profile-advertised.
+    ['put', '/api/v1/products/prod_1/variants/var_1/recipe', false],
+    ['put', '/api/v1/modifiers/product/prod_1', false],
+  ];
+
+  it.each(cases)('%s %s → %s', async (method, path, pass) => {
+    const res = await request(makeApp())
+      [method](path)
+      .set('Authorization', `Delegation ${token(true)}`)
+      .send({});
+    if (pass) {
+      expect(res.status).toBe(200);
+      expect(res.body.reached).toBe(true);
+    } else {
+      expect(res.status).toBe(403);
+      expect(res.body.error.message).toMatch(/proposes changes here/i);
+    }
+  });
+});
