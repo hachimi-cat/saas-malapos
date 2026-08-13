@@ -1,7 +1,13 @@
 import type { CrudResource, CrudSchemaField } from '@forjio/agent-ui';
 import type { ModulesState } from '@/hooks/use-modules';
 import type { AssistantMode, AssistantResource } from '@/hooks/use-catentio';
-import { BULK, BULK_EDIT_RESOURCES, BULK_VERBS, supportsBulkVerb } from './capabilities';
+import {
+  BULK,
+  BULK_EDIT_RESOURCES,
+  BULK_VERBS,
+  ROW_SUPPLIED_FIELDS,
+  supportsBulkVerb,
+} from './capabilities';
 
 /**
  * CrudResource descriptors for the agentic sheet — the FRONTEND mirror
@@ -440,6 +446,38 @@ export function pastVerb(verb: string): string {
   return VERB_PAST[verb] ?? 'Applied';
 }
 
+// 'static' is a CUSTOM renderer kind, registered in agentic-sheet.tsx's
+// `fieldRenderers`. The package's kind union does not know custom
+// kinds, but its lookup is `fieldRenderers[kind]` — any string
+// resolves. Used for the batch sheets' read-only target line.
+const STATIC = 'static' as NonNullable<CrudSchemaField['kind']>;
+
+/**
+ * The read-only line naming WHO a batch verb runs on.
+ *
+ * It carries the legibility the batch sheets were always supposed to
+ * have (bang's original complaint: a form over an invisible selection),
+ * and it is also what makes a FIELDLESS verb usable at all. The sheet
+ * disables its primary button while the draft has no keys
+ * (`Object.keys(draft).length === 0`) and seeds that draft from the
+ * mount's `initial`; delete / publish / unpublish / approve / void
+ * carry no fields, so without a seeded key their Apply is disabled
+ * forever — a sheet that opens correctly titled over the right rows and
+ * can never be applied.
+ *
+ * It is a LABEL, never a payload: the backend profile does not declare
+ * the key (so the BFF's plan sanitizer drops it), and the batch apply
+ * strips it before anything reaches a record.
+ */
+export const BATCH_TARGETS_FIELD = 'batchTargets';
+
+/** What `BulkVerbSlot` must mount the verb sheet with — the ticked rows
+ *  as the human list the sheet header already computes. Exported so the
+ *  seed is one thing both the sheet and its regression test name. */
+export function batchTargetsInitial(names: string): Fields {
+  return { [BATCH_TARGETS_FIELD]: names };
+}
+
 /**
  * `buildBulkEditResource`, generalized past edit — the wave-2 half of
  * the batch story.
@@ -458,11 +496,18 @@ export function pastVerb(verb: string): string {
  *  - `required` is NOT stripped and a checkbox is NOT weakened to a
  *    three-state select. Blank means "keep" on an edit patch; on a verb
  *    the fields ARE the verb's arguments (set-category needs a
- *    category), so they keep the descriptor's own rules.
+ *    category), so they keep the descriptor's own rules. The exception
+ *    is a field the fan-out reads off each ROW instead of asking for
+ *    (ROW_SUPPLIED_FIELDS — the affiliate queues' programId); asking
+ *    for it would bounce Apply on a value the merchant must not type.
  *  - a resource with a REAL ids[] endpoint declares `applyMany` and the
  *    whole selection goes in one request — a true batch, not a loop.
  *    Its all-or-nothing failure is the server's own message, so there
  *    is no partial sentence on that path (nothing partially happened).
+ *
+ * Every verb sheet opens on the seeded `BATCH_TARGETS_FIELD` line: what
+ * the batch runs on, and — for the fieldless verbs, which is most of
+ * them — the only reason the sheet's Apply is live at all.
  */
 export function buildBulkVerbResource(
   resource: AssistantResource,
@@ -485,22 +530,38 @@ export function buildBulkVerbResource(
 
   const n = targets.length;
   const noun = n === 1 ? single.label : `${single.label}s`;
+  const rowSupplied = new Set(ROW_SUPPLIED_FIELDS[resource] ?? []);
 
   return {
     ...single,
     // The sheet's own title is written for one record ("Delete blog
     // post"); say what is actually about to happen instead.
     title: `${single.confirmLabel ?? single.title ?? verb} ${n} ${noun}`,
+    fields: [
+      {
+        name: BATCH_TARGETS_FIELD,
+        label: `${n} ${noun} selected`,
+        kind: STATIC,
+        description: 'The rows you ticked — this runs on these and nothing else.',
+      },
+      ...single.fields.filter((f) => !rowSupplied.has(f.name)),
+    ],
     apply: async (args) => {
+      // The seeded target line is chrome: strip it before ANY path,
+      // so no record's apply is ever handed a field that only ever
+      // existed to make the sheet legible and its Apply live.
+      const fields = { ...args.fields };
+      delete fields[BATCH_TARGETS_FIELD];
+
       if (single.applyMany) {
-        await single.applyMany({ targets, fields: args.fields });
+        await single.applyMany({ targets, fields });
         return;
       }
       let done = 0;
       const failed: string[] = [];
       for (const t of targets) {
         try {
-          await single.apply({ mode: verb, fields: args.fields, initial: t });
+          await single.apply({ mode: verb, fields, initial: t });
           done++;
         } catch (e) {
           failed.push(`${nameRow(t)} (${(e as Error).message})`);

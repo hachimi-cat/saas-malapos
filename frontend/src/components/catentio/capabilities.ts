@@ -124,3 +124,26 @@ export const BULK_VERBS: Partial<Record<AssistantResource, readonly string[]>> =
 export function supportsBulkVerb(resource: AssistantResource, verb: string): boolean {
   return (BULK_VERBS[resource] ?? []).includes(verb);
 }
+
+/**
+ * Fields a BATCH verb sheet must not ask for, because the fan-out reads
+ * them off each ticked ROW instead.
+ *
+ * The affiliate queues are the whole list. `programId` is `required` on
+ * their single-record descriptors — it is how a CHAT CARD names the
+ * program when there is no row to read — and `requireProgramId` prefers
+ * `initial.programId` (the row) over the field, so on a batch the field
+ * is never consulted. Leaving it on the batch sheet would only bounce
+ * Apply on "Missing required field: Program", asking the merchant to
+ * type by hand the one value the field's own description tells them
+ * never to type by hand.
+ *
+ * This is per-field and explicit on purpose. "Drop what every row
+ * carries" would look equivalent and quietly take the picker off
+ * products.set-category the moment the ticked products happened to
+ * share a category.
+ */
+export const ROW_SUPPLIED_FIELDS: Partial<Record<AssistantResource, readonly string[]>> = {
+  'affiliate-enrollments': ['programId'],
+  'affiliate-commissions': ['programId'],
+};

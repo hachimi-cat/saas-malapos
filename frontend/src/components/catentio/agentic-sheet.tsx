@@ -10,7 +10,13 @@ import { createPlanTransport } from '@/lib/agent-ui-adapters';
 import { useModules } from '@/hooks/use-modules';
 import { uploadWithPreview } from '@/lib/upload-with-preview';
 import type { AssistantMode, AssistantResource } from '@/hooks/use-catentio';
-import { buildBulkEditResource, buildBulkVerbResource, buildCrudResource } from './resources';
+import {
+  BATCH_TARGETS_FIELD,
+  batchTargetsInitial,
+  buildBulkEditResource,
+  buildBulkVerbResource,
+  buildCrudResource,
+} from './resources';
 import { BULK } from './capabilities';
 
 /**
@@ -43,8 +49,21 @@ function DateField({ field, value, onChange }: FieldRendererProps) {
   );
 }
 
+/** The 'static' kind — a read-only line whose value rides in on the
+ *  mount's `initial` (today: the batch sheets' target list). It renders
+ *  text and produces no input, so nothing the merchant does can change
+ *  it and no apply reads it. */
+function StaticField({ value }: FieldRendererProps) {
+  return (
+    <p className="text-sm text-muted-foreground">
+      {typeof value === 'string' && value ? value : '—'}
+    </p>
+  );
+}
+
 const fieldRenderers: FieldRenderers = {
   date: { render: (props) => <DateField {...props} /> },
+  static: { render: (props) => <StaticField {...props} /> },
 };
 
 export interface CatentioCrudSheetProps {
@@ -209,10 +228,15 @@ export function CatentioBulkEditSheet({
  * the backend has a real ids[] route, hands the whole selection over in
  * one request.
  *
- * `initial` is deliberately absent for the same reason bulk edit omits
- * it: there is no single current record, and each target's own row is
- * passed at apply time so parent-id reads (a commission's programId)
- * keep working.
+ * `initial` seeds ONE key and one only: the read-only target line
+ * (`batchTargetsInitial`). No record's values are seeded — there is no
+ * single current record, and each target's own row is passed at apply
+ * time so parent-id reads (a commission's programId) keep working. The
+ * line is what the sheet is about (WHO the verb runs on) and it is also
+ * load-bearing: the package disables Apply while the draft has no keys,
+ * and a fieldless verb — delete, publish, unpublish, approve, void, so
+ * ten of the eleven wired here — has nothing else to put one there.
+ * Without it the sheet opens correctly and can never be applied.
  *
  * The verb's declared chrome travels with the descriptor — a
  * destructive verb keeps the sheet's alert-dialog confirm.
@@ -246,7 +270,11 @@ export function CatentioBulkVerbSheet({
   );
   const n = targets.length;
   const noun = n === 1 ? descriptor.label : `${descriptor.label}s`;
-  const doing = `${descriptor.confirmLabel ?? verb} ${n} ${noun}: ${targetList(targets)}.`;
+  const names = targetList(targets);
+  const doing = `${descriptor.confirmLabel ?? verb} ${n} ${noun}: ${names}.`;
+  // The target line is always there now, so "nothing to fill in" means
+  // nothing BESIDES it — set-category is the only verb that asks.
+  const asks = descriptor.fields.some((f) => f.name !== BATCH_TARGETS_FIELD);
   return (
     <AgenticCrudSheet
       resource={descriptor}
@@ -254,14 +282,14 @@ export function CatentioBulkVerbSheet({
       open={open}
       onOpenChange={onOpenChange}
       transport={transport}
+      initial={batchTargetsInitial(names)}
       onApplied={() => onApplied?.()}
       fieldRenderers={fieldRenderers}
       imageUploader={(file, cb) => uploadWithPreview(file, cb)}
       descriptions={{
-        agentic:
-          descriptor.fields.length > 0
-            ? `${doing} Say what you want and it will be proposed once, then applied to all ${n}.`
-            : `${doing} Nothing to fill in — review the list and apply.`,
+        agentic: asks
+          ? `${doing} Say what you want and it will be proposed once, then applied to all ${n}.`
+          : `${doing} Nothing to fill in — review the list and apply.`,
         manual: doing,
       }}
     />
