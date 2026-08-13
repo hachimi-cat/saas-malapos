@@ -100,6 +100,16 @@ describe('assistant entry icons', () => {
     }
   });
 
+  it('finds the wave-2 movement entries — all three stock moves have agentic twins', () => {
+    // Transfer and Add batch shipped as manual P2 dialogs only; wave 2
+    // gives them the same AgenticEntry treatment inventory-adjustments
+    // already had, with those dialogs as the assistant-off fallback.
+    const pairs = new Set(all.map((e) => `${e.resource}:${e.mode}`));
+    for (const r of ['inventory-adjustments', 'inventory-transfers', 'stock-batches']) {
+      expect(pairs.has(`${r}:create`), `no AgenticEntry for ${r}`).toBe(true);
+    }
+  });
+
   it('every entry has an icon — "just make sure they have icon"', () => {
     const bare = all
       .filter((e) => !/<[A-Z][A-Za-z0-9]*\b/.test(e.trigger))

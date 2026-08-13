@@ -130,6 +130,67 @@ describe('applyChatAction — registry dispatch', () => {
     ]);
   });
 
+  it('products set-category posts the reconciled bulk route with one id', async () => {
+    // The wave-2 declaration. A chat card is one product at a time, but
+    // there is only ONE write path — the same POST /products/bulk-category
+    // the products page's batch dialog calls.
+    await applyChatAction(
+      act({ resource: 'products', mode: 'set-category', id: 'prod_1', fields: { categoryId: 'cat_9' } }),
+      [],
+    );
+    expect(reqs).toEqual([
+      expect.objectContaining({
+        method: 'POST',
+        url: expect.stringContaining('/api/v1/products/bulk-category'),
+        body: { productIds: ['prod_1'], categoryId: 'cat_9' },
+      }),
+    ]);
+  });
+
+  it('affiliate approve/void post through the marketing proxy with the declared programId', async () => {
+    // A card carries only the record id, so the program travels as a
+    // declared field — without it the apply must fail rather than POST
+    // to /programs/undefined/….
+    await applyChatAction(
+      act({
+        resource: 'affiliate-enrollments',
+        mode: 'approve',
+        id: 'enr_1',
+        fields: { programId: 'prog_1' },
+      }),
+      [],
+    );
+    await applyChatAction(
+      act({
+        resource: 'affiliate-commissions',
+        mode: 'void',
+        id: 'com_1',
+        fields: { programId: 'prog_1' },
+      }),
+      [],
+    );
+    expect(reqs.map((r) => r.url)).toEqual([
+      expect.stringContaining('/api/v1/account/marketing/programs/prog_1/enrollments/enr_1/approve'),
+      expect.stringContaining('/api/v1/account/marketing/programs/prog_1/commissions/com_1/void'),
+    ]);
+    expect(reqs.every((r) => r.method === 'POST')).toBe(true);
+
+    reqs = [];
+    await expect(
+      applyChatAction(act({ resource: 'affiliate-commissions', mode: 'approve', id: 'com_2' }), []),
+    ).rejects.toThrow(/Missing affiliate program id/);
+    expect(reqs).toHaveLength(0);
+  });
+
+  it('the verb-only affiliate resources refuse create/edit from a card', async () => {
+    for (const mode of ['create', 'edit'] as const) {
+      await expect(
+        applyChatAction(act({ resource: 'affiliate-enrollments', mode, id: 'enr_1' }), []),
+      ).rejects.toThrow(new RegExp(`does not support "${mode}"`));
+    }
+    expect(reqs).toHaveLength(0);
+  });
+
   it('an approvalRequired resource applies through the registry (the old ladder threw here)', async () => {
     await applyChatAction(
       act({ resource: 'gift-cards', mode: 'create', fields: { amount: 100000 } }),

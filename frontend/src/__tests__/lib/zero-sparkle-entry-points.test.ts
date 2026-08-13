@@ -92,6 +92,49 @@ describe('batch verbs live on the Actions dropdown', () => {
     expect(src).toMatch(/<ActionsDropdown/);
   });
 
+  it('every batch item wears an icon — the icon follows the ACTION', () => {
+    // Same rule the row entries live under (catentio-entry-icons):
+    // what the item DOES is what the merchant reads off it. Count the
+    // `key:`/`icon:` pairs inside each page's pageActions block — it
+    // runs from the declaration to the JSX that mounts the dropdown.
+    const offenders: string[] = [];
+    for (const rel of surfaces) {
+      const src = readFileSync(join(SRC, rel), 'utf8');
+      const from = src.indexOf('const pageActions');
+      const to = src.indexOf('<ActionsDropdown', from);
+      expect(from, `${rel}: no pageActions block`).toBeGreaterThan(-1);
+      expect(to, `${rel}: pageActions must be declared before the mount`).toBeGreaterThan(from);
+      const block = src.slice(from, to);
+      const keys = block.match(/\bkey: '/g)?.length ?? 0;
+      const icons = block.match(/\bicon: /g)?.length ?? 0;
+      if (keys === 0 || keys !== icons) offenders.push(`${rel}: ${keys} items, ${icons} icons`);
+    }
+    expect(offenders, 'these batch items render a bare word with no icon').toEqual([]);
+  });
+
+  /**
+   * WAVE 2 — a declared verb's batch item opens the agentic verb sheet
+   * (BulkVerbSlot) when the assistant is on, and falls back to the
+   * page's own manual dialog when it is off. A page offering the verb
+   * without mounting the slot is a dropdown item that opens nothing.
+   */
+  const agenticBatchSurfaces = [
+    'app/(dashboard)/dashboard/products/page.tsx',
+    'app/(dashboard)/dashboard/categories/page.tsx',
+    'app/(dashboard)/dashboard/customers/page.tsx',
+    'app/(dashboard)/dashboard/webhooks/page.tsx',
+    'app/(dashboard)/dashboard/marketing/blog/page.tsx',
+    'app/(dashboard)/dashboard/marketing/affiliate-approvals/page.tsx',
+  ];
+
+  it.each(agenticBatchSurfaces)('%s mounts BulkVerbSlot behind the assistant flag', (rel) => {
+    const src = readFileSync(join(SRC, rel), 'utf8');
+    expect(src).toMatch(/<BulkVerbSlot/);
+    // …and keeps the assistant-off path: the hand-built confirm is
+    // still mounted, never replaced.
+    expect(src).toMatch(/<(BulkDeleteDialog|BulkActionDialog|Dialog)\b/);
+  });
+
   it('every ActionsDropdown mount also slims its BulkBar (no verbs on the bar)', () => {
     // The bar is "{n} {noun} selected · Clear" + the partial-failure
     // alert line only. Its Edit/Delete props are gone from the
