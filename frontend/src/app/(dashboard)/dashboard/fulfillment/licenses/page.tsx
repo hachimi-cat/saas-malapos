@@ -298,7 +298,6 @@ export default function LicensesPage() {
             <AgenticEntry
               resource="licenses"
               mode="create"
-              split
               onApplied={load}
               className={buttonVariants()}
               fallback={

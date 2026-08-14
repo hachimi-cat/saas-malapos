@@ -15,6 +15,7 @@ import {
   batchDoingLine,
   batchTargetsInitial,
   buildBulkEditResource,
+  buildBulkEditRows,
   buildBulkVerbResource,
   buildCrudResource,
 } from './resources';
@@ -207,15 +208,17 @@ function targetList(targets: Record<string, unknown>[]): string {
 /**
  * The "Edit N selected" sheet. Same body as the single-record sheet —
  * agentic tab, manual form, renderers, uploader — but the descriptor is
- * `buildBulkEditResource`: one PATCH body, blank-means-keep, applied to
- * every selected row through the resource's own edit apply. `initial`
- * is deliberately absent — the form starts blank because a blank field
- * is the instruction to leave that field alone.
+ * `buildBulkEditResource`: ONE FORM PER SELECTED RECORD, each seeded
+ * from that record and applied back to it through the resource's own
+ * edit apply.
  *
- * Both tabs open on the legibility header (bang's original complaint —
- * a blank form over an invisible selection): WHO is being edited
- * ("Editing 4 products: a, b, c +1 more") and what blank means, so the
- * empty manual form is self-explanatory.
+ * It used to open BLANK over the selection, on a shared patch where a
+ * blank field meant "leave this one alone" — which made the commonest
+ * case (fix a typo on three of the ten) impossible to see, and needed a
+ * sentence of explanation before the form made sense at all. Both tabs
+ * still open on the legibility header naming WHO is being edited
+ * ("Editing 4 products: a, b, c +1 more"); the form itself is now
+ * self-evident.
  */
 export function CatentioBulkEditSheet({
   resource,
@@ -242,9 +245,13 @@ export function CatentioBulkEditSheet({
     () => createPlanTransport(resource, 'edit'),
     [resource],
   );
+  // One form per selected record, each seeded with that record's own
+  // current values (bang, 2026-08-14). Derived from the descriptor, so
+  // the seeded keys are exactly the fields it renders.
+  const initial = useMemo(() => buildBulkEditRows(descriptor, rows), [descriptor, rows]);
   const n = rows.length;
   const noun = BULK[resource]?.noun ?? 'record';
-  const editing = `Editing ${n} ${n === 1 ? noun : `${noun}s`}: ${targetList(rows)}. Fields left blank keep each item's current value.`;
+  const editing = `Editing ${n} ${n === 1 ? noun : `${noun}s`}: ${targetList(rows)}. Each one is filled in with its current values — change what you want; saving writes each record back.`;
   return (
     <AgenticCrudSheet
       resource={descriptor}
@@ -252,11 +259,12 @@ export function CatentioBulkEditSheet({
       open={open}
       onOpenChange={onOpenChange}
       transport={transport}
+      initial={initial}
       onApplied={(result) => onApplied?.(outcomeOf(result))}
       fieldRenderers={fieldRenderers}
       imageUploader={(file, cb) => uploadWithPreview(file, cb)}
       descriptions={{
-        agentic: `${editing} Describe the change — it will be proposed once and applied to all ${n}.`,
+        agentic: `${editing} Describe the change — it will be proposed once and filled into all ${n} below.`,
         manual: editing,
       }}
     />

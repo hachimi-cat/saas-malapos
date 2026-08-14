@@ -200,34 +200,64 @@ export function applyResource(
  * instruction rather than a retry: move the selection to a different
  * category and every record is applied again, including the ones the
  * first category already took.
+ *
+ * Batch EDIT passes `opts.signature` and keys that memory PER ROW,
+ * since every record now carries its own body (bang's prefilled form).
+ * With the whole-batch key, fixing the one row the server refused would
+ * read as a new instruction and re-PATCH the four that already landed.
+ * It passes `opts.rows` too, so an untouched record is neither written
+ * nor counted.
  */
 function fanOut(
   pastTense: string,
   targets: Fields[],
   nameRow: (r: Fields) => string,
-): (fields: Fields, applyOne: (t: Fields) => Promise<unknown>) => Promise<void> {
-  const applied = new Set<number>();
-  let signature: string | null = null;
-  return async (fields, applyOne) => {
-    const sig = JSON.stringify(fields);
-    if (sig !== signature) {
-      signature = sig;
-      applied.clear();
-    }
+): (
+  fields: Fields,
+  applyOne: (t: Fields) => Promise<unknown>,
+  opts?: {
+    /** Batch EDIT only: the rows the merchant actually changed. The
+     *  run — and the count with it — is over THESE, so an untouched
+     *  record is neither written nor counted. Omit for a verb, where
+     *  every ticked row is the instruction. */
+    rows?: Fields[];
+    /** Batch EDIT only: each record now carries its OWN body, so the
+     *  memory has to be keyed per row. With the whole-batch key,
+     *  fixing the one row the server refused reads as a new
+     *  instruction and re-PATCHes the four that already went through. */
+    signature?: (t: Fields) => string;
+  },
+) => Promise<void> {
+  // The record -> the signature last applied FOR it. Keyed by the row
+  // object because the run may be over a subset. A row is skipped only
+  // while what it would write is what it already wrote.
+  const applied = new Map<Fields, string>();
+  return async (fields, applyOne, opts) => {
+    const list = opts?.rows ?? targets;
+    const whole = JSON.stringify(fields);
     const failed: string[] = [];
-    for (const [i, t] of targets.entries()) {
-      if (applied.has(i)) continue;
+    let done = 0;
+    for (const t of list) {
+      const sig = opts?.signature ? opts.signature(t) : whole;
+      if (applied.get(t) === sig) {
+        done++;
+        continue;
+      }
       try {
         await applyOne(t);
-        applied.add(i);
+        applied.set(t, sig);
+        done++;
       } catch (e) {
+        // Drop any earlier success for this row: what it holds now is
+        // NOT what is stored, so the count must not claim it landed.
+        applied.delete(t);
         failed.push(`${nameRow(t)} (${(e as Error).message})`);
       }
     }
     if (failed.length === 0) return;
-    const message = `${pastTense} ${applied.size} of ${targets.length}. These did not: ${failed.join('; ')}`;
-    throw applied.size > 0
-      ? new PartialApplyError(message, applied.size, targets.length)
+    const message = `${pastTense} ${done} of ${list.length}. These did not: ${failed.join('; ')}`;
+    throw done > 0
+      ? new PartialApplyError(message, done, list.length)
       : new Error(message);
   };
 }
@@ -472,39 +502,42 @@ export { BULK, BULK_EDIT_RESOURCES, BULK_VERBS };
 
 // ── bulk edit ───────────────────────────────────────────────────────
 
-/** Value kinds a shared patch cannot express: row lists would REPLACE
- *  each record's own rows, and file pickers hold per-record uploads. */
+/** Value kinds a per-record row cannot carry: a nested row list is a
+ *  repeater inside a repeater, and file pickers hold a live File[] that
+ *  belongs to one upload, not to N records. Dropping a kind here does
+ *  NOT lose the value — malapos's applies build sparse bodies, so a
+ *  field the row never carries is left untouched on the PATCH. */
 const BULK_EDIT_DROP_KINDS = new Set(['repeater', 'keyed-rows', 'files', 'avatar']);
 
-/** A field counts as SET when the merchant typed or picked something.
- *  Blank means "keep each record's current value" — which also means
- *  bulk edit cannot CLEAR a field to empty; that stays a one-record
- *  operation where '' unambiguously means "clear it". */
-function isSet(v: unknown): boolean {
-  if (v == null) return false;
-  if (typeof v === 'string') return v.trim() !== '';
-  if (Array.isArray(v)) return v.length > 0;
-  return true;
+/** The one draft key holding every selected record's form. */
+export const BULK_EDIT_ROWS = 'records';
+
+/** Which row a target's form section lives under. `id` is what the
+ *  apply PATCHes, so a target without one cannot be written anyway;
+ *  the index fallback only keeps the form from collapsing two rows
+ *  into one if that ever happens. */
+function rowKeyOf(target: Fields, i: number): string {
+  return str(target.id) ?? `row-${i}`;
 }
 
 /**
- * One PATCH body, applied to every selected record through the
- * resource's OWN edit apply — the same no-second-write-path rule as
- * `withBulk`, in the other direction.
+ * ONE FORM PER SELECTED RECORD, each prefilled with that record's own
+ * values (bang, 2026-08-14: *"when i select 1 or 5 or 10, expect it
+ * populates all the selected item data"*). Apply writes each row back
+ * to its own record through the resource's OWN edit apply — the same
+ * no-second-write-path rule as `withBulk`, in the other direction.
  *
- * Two deliberate shape changes on the fields:
+ * This replaces a shared blank patch where every field meant "leave it
+ * alone unless typed". That form opened EMPTY over an invisible
+ * selection, and it forced two weakenings on the descriptor to say so:
+ * `required` was stripped, and a checkbox became a Yes/No/— select
+ * because an untouched one reads as `false` and would have deactivated
+ * everything selected. A row that starts as the record needs neither,
+ * so the row IS the single-record form.
  *
- *  - `required` is stripped everywhere: an empty field is an
- *    instruction to leave that field alone, so nothing is required.
- *  - a checkbox becomes an OPTIONAL select (Yes / No / — none —),
- *    because an untouched checkbox reads as `false` and would silently
- *    deactivate everything selected. Its values stay the strings
- *    'true' / 'false' — exactly what the checkbox control writes into
- *    the draft — so each resource's own coercions apply unchanged.
- *
- * Each target's own record is passed as `initial`, so applies that read
- * parent ids from the row keep working, and nothing is inherited across
- * records.
+ * Each target's own record is still passed as `initial`, so applies
+ * that read parent ids from the row keep working, and nothing is
+ * inherited across records.
  */
 export function buildBulkEditResource(
   resource: AssistantResource,
@@ -515,41 +548,108 @@ export function buildBulkEditResource(
   const bulk = BULK[resource];
   const nameRow = (r: Fields) =>
     bulk?.rowKeys?.map((k) => str(r[k])).find(Boolean) ?? str(r.id) ?? 'a record';
+  const cols = 4;
 
-  const fields = single.fields
+  const itemFields = single.fields
     .filter((f) => !BULK_EDIT_DROP_KINDS.has(String(f.kind)))
-    .map((f) => {
-      const base = { ...f, required: false };
-      if (f.kind !== 'checkbox') return base;
-      return {
-        ...base,
-        kind: 'select' as const,
-        options: [
-          { value: 'true', label: 'Yes' },
-          { value: 'false', label: 'No' },
-        ],
-        description: f.description
-          ? `${f.description} Leave unset to keep each record's current value.`
-          : "Leave unset to keep each record's current value.",
-      };
-    });
+    // Groups are dropped — a row is a record's line, not a stack of
+    // panels — but every field survives, conditionals included. Same
+    // treatment the batch-create repeater gives its rows.
+    .map(({ group: _group, colSpan, ...f }) => ({
+      ...f,
+      colSpan: Math.min(colSpan ?? 2, cols),
+    }));
 
+  const keyOf = new Map(targets.map((target, i) => [target, rowKeyOf(target, i)]));
+  const names = itemFields.map((f) => f.name);
+  const currentOf = (target: Fields) =>
+    Object.fromEntries(names.filter((n) => n in target).map((n) => [n, target[n]]));
   const fan = fanOut(pastVerb('edit'), targets, nameRow);
 
   return {
     ...single,
-    fields,
-    apply: async (args) => {
-      const patch = Object.fromEntries(
-        Object.entries(args.fields).filter(([, v]) => isSet(v)),
-      );
-      if (Object.keys(patch).length === 0) {
-        throw new Error(
-          'Fill in at least one field — blank fields keep their current values.',
-        );
+    fields: [
+      {
+        name: BULK_EDIT_ROWS,
+        label: `Selected ${bulk?.noun ?? single.label}s`,
+        kind: 'keyed-rows',
+        rowKeys: targets.map((target) => ({
+          key: keyOf.get(target)!,
+          label: nameRow(target),
+        })),
+        itemFields,
+        rowColumns: cols,
+      },
+    ],
+    // The agent plans against the resource's own DECLARED edit fields —
+    // it proposes `{isActive: 'false'}`, knowing nothing about rows. Fan
+    // it across every row so the form shows the change on each record
+    // before it is applied, instead of parking an orphan key beside
+    // them. Idempotent: the same plan is merged again at Apply.
+    mergePlan: ({ draft, plan }) => {
+      // The rows key is not a DECLARED field, so a plan naming it is
+      // noise (the BFF's sanitizer drops undeclared keys before this).
+      const flat: Fields = {};
+      for (const [k, v] of Object.entries(plan)) {
+        if (k !== BULK_EDIT_ROWS) flat[k] = v;
       }
-      await fan(patch, (t) => single.apply({ mode: 'edit', fields: patch, initial: t }));
+      if (Object.keys(flat).length === 0) return draft;
+      const rows = (draft[BULK_EDIT_ROWS] ?? {}) as Record<string, Fields>;
+      return {
+        ...draft,
+        [BULK_EDIT_ROWS]: Object.fromEntries(
+          Object.entries(rows).map(([k, row]) => [k, { ...row, ...flat }]),
+        ),
+      };
     },
+    apply: async (args) => {
+      const rows = (args.fields[BULK_EDIT_ROWS] ?? {}) as Record<string, Fields>;
+      const rowOf = (t: Fields) => rows[keyOf.get(t)!] ?? {};
+      // Only what the merchant actually moved. Re-PATCHing an untouched
+      // record would burn a request per row for nothing; with the form
+      // prefilled, "unchanged" is the common case rather than the
+      // impossible one — so the run, and the "Changed N of M" count
+      // with it, is over the rows the merchant actually edited.
+      const dirty = targets.filter((t) => {
+        const row = rows[keyOf.get(t)!];
+        if (!row) return false;
+        const current = currentOf(t);
+        return Object.entries(row).some(
+          ([k, v]) => JSON.stringify(v ?? null) !== JSON.stringify(current[k] ?? null),
+        );
+      });
+      if (dirty.length === 0) {
+        throw new Error('Nothing changed — edit at least one field first.');
+      }
+      await fan(rows, (t) => single.apply({ mode: 'edit', fields: rowOf(t), initial: t }), {
+        rows: dirty,
+        signature: (t) => JSON.stringify(rowOf(t)),
+      });
+    },
+  };
+}
+
+/**
+ * The sheet's `initial` — every selected record's current values, under
+ * its own row key. Derived from the DESCRIPTOR (its row keys, its item
+ * fields), so the form the merchant sees and the values seeded into it
+ * cannot drift apart.
+ */
+export function buildBulkEditRows(
+  descriptor: CrudResource<Fields, AssistantMode>,
+  targets: Fields[],
+): Fields {
+  const field = descriptor.fields.find((f) => f.name === BULK_EDIT_ROWS);
+  const names = (field?.itemFields ?? []).map((f) => f.name);
+  return {
+    [BULK_EDIT_ROWS]: Object.fromEntries(
+      (field?.rowKeys ?? []).map((rk, i) => [
+        rk.key,
+        Object.fromEntries(
+          names.filter((n) => n in (targets[i] ?? {})).map((n) => [n, targets[i]![n]]),
+        ),
+      ]),
+    ),
   };
 }
 

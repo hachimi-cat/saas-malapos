@@ -123,7 +123,6 @@ export default function GiftCardsPage() {
             <AgenticEntry
               resource="gift-cards"
               mode="create"
-              split
               onApplied={load}
               className={cn(buttonVariants(), 'font-semibold')}
               fallback={

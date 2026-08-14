@@ -6,6 +6,7 @@ import {
   batchDoingLine,
   batchTargetsInitial,
   buildBulkEditResource,
+  buildBulkEditRows,
   buildBulkVerbResource,
   BULK_VERBS,
   RESOURCE_BUILDERS,
@@ -487,9 +488,15 @@ describe('bulk EDIT keeps its own contract', () => {
   it('no target line, and a blank form is still the instruction to keep', () => {
     const descriptor = buildBulkEditResource('products', TARGETS);
     expect(descriptor.fields.map((f) => f.name)).not.toContain(BATCH_TARGETS_FIELD);
-    // Blank-means-keep, so the sheet legitimately opens un-appliable
-    // until the merchant types the change they want.
-    expect(openSheet(descriptor, 'edit', undefined).applyEnabled).toBe(false);
+    // Edit needs no seeded target line — its rows ARE the targets and
+    // they name themselves — and it is live the moment it opens now,
+    // because those prefilled rows are the draft. (It used to open
+    // un-appliable: a blank field meant "leave this one alone", so an
+    // untouched form had nothing to say.) The descriptor's own apply is
+    // what refuses a form nobody touched.
+    expect(
+      openSheet(descriptor, 'edit', buildBulkEditRows(descriptor, TARGETS)).applyEnabled,
+    ).toBe(true);
   });
 });
 
@@ -522,7 +529,11 @@ describe('the verb slot actually mounts with the seed', () => {
     expect(SHEET_TSX).toMatch(/static: \{ render:/);
   });
 
-  it('CatentioBulkEditSheet still mounts with NO initial', () => {
-    expect(componentSource('CatentioBulkEditSheet')).not.toContain('initial=');
+  it('CatentioBulkEditSheet mounts with the prefilled rows as `initial`', () => {
+    // It used to mount with NO initial, because a blank field meant
+    // "leave this one alone". bang, 2026-08-14: the form must open
+    // holding every selected record's own values.
+    expect(componentSource('CatentioBulkEditSheet')).toContain('initial={initial}');
+    expect(componentSource('CatentioBulkEditSheet')).toContain('buildBulkEditRows(descriptor, rows)');
   });
 });

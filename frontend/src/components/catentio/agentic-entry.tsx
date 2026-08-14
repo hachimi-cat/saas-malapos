@@ -2,16 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
-import { ChevronDown } from 'lucide-react';
 import { useCatentioStatus, type AssistantMode, type AssistantResource } from '@/hooks/use-catentio';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
-import { BULK } from './capabilities';
 // Type-only, so @forjio/agent-ui stays out of THIS module's runtime
 // graph — see the dynamic imports below for why that matters.
 import type { ApplyOutcome } from './agentic-sheet';
@@ -72,16 +63,16 @@ const CatentioBulkVerbSheet = dynamic(
  * transport (fresh agent history) and a fresh draft — the package keeps
  * both for the life of the component.
  *
- * `split` is the "New X covers single AND batch" contract (bang): on a
- * bulk-create-capable resource (BULK) the header's New X renders as a
- * split button — the main segment opens the create sheet exactly as
- * before, the attached chevron offers "New {noun}" and "Bulk new
- * {noun}s". Both land on the same create sheet (its Manual tab takes a
- * whole batch — "+ Add another", CSV paste); the menu is the affordance
- * that says the batch path exists. On a resource without BULK, `split`
- * is inert and the plain button renders. With the assistant off, the
- * fallback renders alone — the sheet (and with it the batch path) is a
- * sheet feature, per the agentic-only-entries-hide rule.
+ * ONE button, never a split. "New X covers single AND batch" (bang)
+ * was briefly read as a chevron offering "New {noun}" / "Bulk new
+ * {noun}s" — but both items opened the same sheet onto the same form,
+ * because the create sheet's Manual tab has always taken a whole batch
+ * ("+ Add another", CSV paste). A menu whose two entries do the
+ * identical thing is not an affordance, it is a question the merchant
+ * has to answer twice (bang, 2026-08-14: *"just lose the dropdown and
+ * separate bulk button if the form is exactly the same"*). With the
+ * assistant off the fallback renders alone — the sheet, and with it the
+ * batch path, is a sheet feature per the agentic-only-entries-hide rule.
  */
 export interface AgenticEntryProps {
   resource: AssistantResource;
@@ -97,8 +88,6 @@ export interface AgenticEntryProps {
   className?: string;
   title?: string;
   disabled?: boolean;
-  /** Header "New X" on a BULK resource: render the split button. */
-  split?: boolean;
 }
 
 export function AgenticEntry({
@@ -111,63 +100,23 @@ export function AgenticEntry({
   className,
   title,
   disabled,
-  split,
 }: AgenticEntryProps) {
   const { enabled } = useCatentioStatus();
   const [open, setOpen] = useState(false);
 
   if (!enabled) return <>{fallback}</>;
 
-  const bulk = split && mode === 'create' ? BULK[resource] : undefined;
-
   return (
     <>
-      {bulk ? (
-        <div className="inline-flex">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className={cn(className, 'rounded-r-none')}
-            title={title}
-            disabled={disabled}
-          >
-            {children}
-          </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label={`More ways to add ${bulk.noun}s`}
-                className={cn(
-                  className,
-                  'rounded-l-none border-l border-primary-foreground/30 px-2',
-                )}
-                disabled={disabled}
-              >
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setOpen(true)}>
-                New {bulk.noun}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setOpen(true)}>
-                Bulk new {bulk.noun}s
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className={className}
-          title={title}
-          disabled={disabled}
-        >
-          {children}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={className}
+        title={title}
+        disabled={disabled}
+      >
+        {children}
+      </button>
       {open && (
         <CatentioCrudSheet
           resource={resource}

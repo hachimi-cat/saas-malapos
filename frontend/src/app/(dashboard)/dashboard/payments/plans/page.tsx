@@ -365,7 +365,6 @@ export default function PlansPage() {
             <AgenticEntry
               resource="plans"
               mode="create"
-              split
               onApplied={load}
               className={buttonVariants()}
               fallback={

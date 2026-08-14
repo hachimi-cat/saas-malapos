@@ -4,8 +4,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   buildBulkEditResource,
+  buildBulkEditRows,
   buildBulkVerbResource,
   buildCrudResource,
+  BULK_EDIT_ROWS,
 } from '@/components/catentio/resources';
 import { deleteMany } from '@/lib/bulk';
 import { ApiRequestError } from '@/lib/api';
@@ -137,6 +139,21 @@ describe('a batch verb that got part-way through', () => {
 
 // ── the retry ───────────────────────────────────────────────────────
 
+/** The prefilled batch-edit form with the merchant's edit typed into
+ *  every row — what the sheet hands `apply`. */
+function editedRows(
+  bulk: ReturnType<typeof buildBulkEditResource>,
+  targets: Record<string, unknown>[],
+  patchFields: Record<string, unknown>,
+) {
+  const draft = buildBulkEditRows(bulk, targets) as Record<
+    string,
+    Record<string, Record<string, unknown>>
+  >;
+  for (const t of targets) Object.assign(draft[BULK_EDIT_ROWS][String(t.id)], patchFields);
+  return draft;
+}
+
 describe('Apply again, after a partial run', () => {
   it('retries ONLY the failures, and keeps counting against the whole selection', async () => {
     refuse = new Set(['cat_c']);
@@ -166,22 +183,40 @@ describe('Apply again, after a partial run', () => {
     expect(touched()).toEqual(['cat_c']);
   });
 
-  it('a DIFFERENT field set is a new instruction, not a retry', async () => {
-    // Bulk edit is the fan-out that carries fields. Changing the patch
-    // means "apply this to all of them", including the ones the last
-    // patch already took.
+  it('bulk edit remembers PER ROW: fixing the refusal writes only that row', async () => {
+    // Bulk edit is the fan-out whose records each carry their own body
+    // now, so its memory is keyed per row. Under the old whole-batch
+    // key, editing the one row the server refused counted as a new
+    // instruction and re-PATCHed the two that already landed.
     refuse = new Set(['cat_c']);
     const bulk = buildBulkEditResource('categories', THREE);
-    await applyAndCatch(() => bulk.apply({ mode: 'edit', fields: { sortOrder: '1' } }));
-
-    reqs = [];
-    await applyAndCatch(() => bulk.apply({ mode: 'edit', fields: { sortOrder: '2' } }));
+    const draft = editedRows(bulk, THREE, { sortOrder: '1' });
+    await applyAndCatch(() => bulk.apply({ mode: 'edit', fields: draft }));
     expect(touched()).toEqual(['cat_a', 'cat_b', 'cat_c']);
 
-    // …and the SAME patch again is a retry.
+    // The merchant fixes the row that was refused and presses Apply.
+    refuse = new Set();
     reqs = [];
-    await applyAndCatch(() => bulk.apply({ mode: 'edit', fields: { sortOrder: '2' } }));
-    expect(touched()).toEqual(['cat_c']);
+    draft[BULK_EDIT_ROWS].cat_c.sortOrder = '2';
+    await bulk.apply({ mode: 'edit', fields: draft });
+    expect(touched(), 'cat_a and cat_b already carry their value').toEqual(['cat_c']);
+
+    // …and the SAME form again is a retry with nothing left to do.
+    reqs = [];
+    await bulk.apply({ mode: 'edit', fields: draft });
+    expect(touched()).toEqual([]);
+  });
+
+  it('editing a row that already landed writes it again — it is a new value', async () => {
+    const bulk = buildBulkEditResource('categories', THREE);
+    const draft = editedRows(bulk, THREE, { sortOrder: '1' });
+    await bulk.apply({ mode: 'edit', fields: draft });
+    expect(touched()).toEqual(['cat_a', 'cat_b', 'cat_c']);
+
+    reqs = [];
+    draft[BULK_EDIT_ROWS].cat_a.sortOrder = '9';
+    await bulk.apply({ mode: 'edit', fields: draft });
+    expect(touched()).toEqual(['cat_a']);
   });
 });
 
@@ -192,7 +227,9 @@ describe('bulk edit', () => {
     refuse = new Set(['cat_c']);
     const bulk = buildBulkEditResource('categories', THREE);
 
-    const e = await applyAndCatch(() => bulk.apply({ mode: 'edit', fields: { name: 'Renamed' } }));
+    const e = await applyAndCatch(() =>
+      bulk.apply({ mode: 'edit', fields: editedRows(bulk, THREE, { name: 'Renamed' }) }),
+    );
 
     expect(isPartialApply(e)).toBe(true);
     expect(e.applied).toBe(2);
@@ -203,7 +240,9 @@ describe('bulk edit', () => {
   it('a patch nothing accepted is an ordinary error', async () => {
     refuse = new Set(['cat_a', 'cat_b', 'cat_c']);
     const bulk = buildBulkEditResource('categories', THREE);
-    const e = await applyAndCatch(() => bulk.apply({ mode: 'edit', fields: { name: 'Renamed' } }));
+    const e = await applyAndCatch(() =>
+      bulk.apply({ mode: 'edit', fields: editedRows(bulk, THREE, { name: 'Renamed' }) }),
+    );
     expect(isPartialApply(e)).toBe(false);
     expect(e.message).toMatch(/^Changed 0 of 3\. These did not: /);
   });

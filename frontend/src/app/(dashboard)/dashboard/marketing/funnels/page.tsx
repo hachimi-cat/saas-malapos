@@ -197,7 +197,6 @@ export default function FunnelsPage() {
             <AgenticEntry
               resource="funnels"
               mode="create"
-              split
               onApplied={load}
               className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
               fallback={<Button onClick={() => setShowNew(true)}><Plus className="h-4 w-4" /> New funnel</Button>}

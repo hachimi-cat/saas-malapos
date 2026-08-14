@@ -139,7 +139,6 @@ export default function WarehousesPage() {
             <AgenticEntry
               resource="warehouses"
               mode="create"
-              split
               onApplied={refresh}
               className={buttonVariants()}
               fallback={

@@ -9,7 +9,7 @@ import { join } from 'node:path';
  * The page-level assistant button is gone entirely: every entry point
  * is an ACTION button now —
  *
- *   create (single + batch)  "New X" header button (split on BULK)
+ *   create (single + batch)  ONE "New X" header button
  *   single verbs             row buttons / detail-page buttons
  *   batch verbs              ActionsDropdown BESIDE "New X"
  *
@@ -37,7 +37,74 @@ function pageFiles(): string[] {
   return files.filter((f) => f.endsWith('page.tsx'));
 }
 
+/** A file's CODE, with comments stripped. A sweep for a banned label
+ *  that greps raw source fires on the very comment explaining why the
+ *  thing was removed — and then passes or fails on where the sentence
+ *  happens to wrap. */
+function code(file: string): string {
+  return readFileSync(file, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
 describe('zero sparkles — the entry-point contract', () => {
+  /**
+   * ONE "New X", never a split (bang, 2026-08-14: *"why every new
+   * button got dropdown which show redundant new x and bulk new x…
+   * just lose the dropdown and separate bulk button if the form is
+   * exactly the same"*).
+   *
+   * It was a split button whose chevron offered "New {noun}" and "Bulk
+   * new {noun}s" — two menu items that both ran `setOpen(true)` on the
+   * same create sheet, because that sheet's Manual tab has always taken
+   * a single record OR a whole batch. The batch path is not a second
+   * entry point; it is the same form.
+   */
+  it('no entry point offers a second way into the same create sheet', () => {
+    const offenders = files.filter((f) => /Bulk new |More ways to add /.test(code(f)));
+    expect(offenders, 'the chevron menu is gone — one button opens the one form').toEqual([]);
+  });
+
+  it('AgenticEntry renders a plain button, with no menu attached', () => {
+    const src = readFileSync(join(SRC, 'components/catentio/agentic-entry.tsx'), 'utf8');
+    expect(src, 'the split trigger is a DropdownMenu — it must be gone').not.toMatch(
+      /DropdownMenu|ChevronDown/,
+    );
+    // Positive control for the read itself: this IS the entry file.
+    expect(src).toMatch(/export function AgenticEntry/);
+  });
+
+  it('no page still passes a `split` prop', () => {
+    // `split` is not a prop any more, so a page still passing it fails
+    // to compile; this catches it in review, and names the file.
+    const offenders = files.filter((f) => {
+      const src = readFileSync(f, 'utf8');
+      for (const m of src.matchAll(/<AgenticEntry\b([\s\S]*?)>/g)) {
+        if (/^\s*split\s*$/m.test(m[1] ?? '')) return true;
+      }
+      return false;
+    });
+    expect(offenders, '`split` was removed with the chevron').toEqual([]);
+  });
+
+  it('the sweep reads CODE — the comment explaining the removal is not a hit', () => {
+    // Load-bearing control for `code()`. agentic-entry.tsx's doc comment
+    // quotes the very labels the sweep bans (that is what the comment is
+    // FOR), so without stripping the guard would fail on the explanation
+    // — or, worse, pass only because of where the sentence wraps.
+    const entry = join(SRC, 'components/catentio/agentic-entry.tsx');
+    expect(readFileSync(entry, 'utf8'), 'the doc comment should still explain the removal').toMatch(
+      /Bulk new/,
+    );
+    expect(code(entry), 'and the stripped code must not carry it').not.toMatch(/Bulk new/);
+    expect(code(entry)).toMatch(/export function AgenticEntry/);
+  });
+
+  it('the pages carrying a header create are actually being scanned', () => {
+    const withEntry = files.filter((f) => /<AgenticEntry\b/.test(code(f)));
+    expect(withEntry.length).toBeGreaterThan(10);
+  });
+
   it('finds the dashboard pages at all (guards the walk itself)', () => {
     const pages = pageFiles();
     expect(pages.length).toBeGreaterThan(20);
