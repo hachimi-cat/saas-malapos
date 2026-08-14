@@ -562,6 +562,11 @@ export function buildBulkEditResource(
     }));
 
   const keyOf = new Map(targets.map((target, i) => [target, rowKeyOf(target, i)]));
+  // Row key -> the name a human would call that record, for the prose
+  // block the agent reads. Same key and same label the form shows.
+  const labelByKey = new Map(
+    targets.map((target) => [keyOf.get(target)!, nameRow(target)]),
+  );
   const names = itemFields.map((f) => f.name);
   const currentOf = (target: Fields) =>
     Object.fromEntries(names.filter((n) => n in target).map((n) => [n, target[n]]));
@@ -582,6 +587,53 @@ export function buildBulkEditResource(
         rowColumns: cols,
       },
     ],
+    // The agent plans against the resource's own DECLARED edit fields,
+    // so it must never be SHOWN the rows — `records` is not a declared
+    // field, and a draft carrying it invites the model to answer in the
+    // same shape. It did: shown `{records: {...}}`, every batch ask came
+    // back as a per-record object, the BFF's sanitizer dropped the lot
+    // as out-of-schema, and the sheet never reached "Draft ready" —
+    // `plan: null`, `droppedFields: ['records']`. That killed the
+    // agentic tab of EVERY batch edit from the day the rows landed
+    // (malapos 4f4d521 and siblings); the manual tab still worked, which is why it
+    // stayed quiet.
+    //
+    // So: the rows go into the PROSE, where they read as context, and
+    // the draft goes out flat. The current values still have to reach
+    // the agent — "make these three the same theme" cannot pick a
+    // reference colour without them — they just must not arrive shaped
+    // like the answer. The prose is English because the BFF writes the
+    // rest of the agent prompt in English; the merchant's own words
+    // ride in untouched at the top.
+    buildAgentPrompt: ({ draft, userPrompt, history }) => {
+      const rows = (draft?.[BULK_EDIT_ROWS] ?? {}) as Record<string, Fields>;
+      const entries = Object.entries(rows);
+      // The transport slices the prompt at 4k and the BFF 422s past it.
+      // The user's own words go FIRST and are never what gets cut; the
+      // row block lives on what is left, and says so when it is short.
+      const budget = 2_400;
+      const lines: string[] = [];
+      let used = 0;
+      let omitted = 0;
+      for (const [k, row] of entries) {
+        const line = `- ${labelByKey.get(k) ?? k}: ${JSON.stringify(row)}`;
+        if (used + line.length > budget) { omitted++; continue; }
+        lines.push(line);
+        used += line.length + 1;
+      }
+      const prompt = [
+        userPrompt,
+        '',
+        `This one change applies to all ${entries.length} ${entries.length === 1 ? 'record' : 'records'} below. Their current values:`,
+        ...lines,
+        ...(omitted ? [`(+${omitted} more, not shown here — the change still applies to them)`] : []),
+        '',
+        'Propose ONE set of schema fields to set on every one of them.' +
+          ' Return only flat schema fields — never a per-record object,' +
+          ' a list, or a `records` key.',
+      ].join('\n');
+      return JSON.stringify({ prompt, draft: {}, history });
+    },
     // The agent plans against the resource's own DECLARED edit fields —
     // it proposes `{isActive: 'false'}`, knowing nothing about rows. Fan
     // it across every row so the form shows the change on each record

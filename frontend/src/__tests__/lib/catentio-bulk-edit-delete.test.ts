@@ -440,3 +440,95 @@ describe('buildBulkEditResource', () => {
     expect(writes()).toHaveLength(2);
   });
 });
+
+/**
+ * THE seam the tests above assumed instead of checking. They hand
+ * `mergePlan` a flat plan by hand and prove the fan-out — but the agent
+ * is the thing that has to PRODUCE that flat plan, and it only will if
+ * the payload it is shown looks nothing like rows.
+ *
+ * It did look like rows. `buildAgentPrompt` shipped the whole `records`
+ * map as the draft, the model answered in the same shape, and the BFF's
+ * sanitizer — which keeps declared schema fields only — dropped every
+ * key. Proven live on plugipay staging: both a cross-kind ask and a
+ * sheet's OWN example prompt came back `plan: null,
+ * droppedFields: ['records']`. The agentic tab of every batch edit had
+ * been dead since the rows landed (malapos 4f4d521).
+ *
+ * So this asserts the payload, not the aftermath.
+ */
+describe('the payload the agent is shown', () => {
+  const ROWS = [
+    { id: 'tpl_r', name: 'Receipt', kind: 'receipt', config: { thankYouText: 'Terima kasih' } },
+    { id: 'tpl_i', name: 'Invoice', kind: 'invoice', config: { termsText: 'Net 30' } },
+  ];
+
+  const envelope = (userPrompt = 'make them the same theme') => {
+    const bulk = buildBulkEditResource('payment-templates', ROWS);
+    const seeded = buildBulkEditRows(bulk, ROWS) as Record<string, unknown>;
+    const env = JSON.parse(
+      bulk.buildAgentPrompt!({
+        draft: seeded,
+        mode: 'edit',
+        userPrompt,
+        history: '',
+      }),
+    ) as { prompt: string; draft: Record<string, unknown> };
+    return { ...env, seeded };
+  };
+
+  it('never hands the agent the rows key it must not answer in', () => {
+    const { draft, prompt } = envelope();
+    // The draft is what the BFF renders as <current_draft> — the block
+    // the model mirrors. It must not carry the rows.
+    expect(draft).toEqual({});
+    expect(Object.keys(draft)).not.toContain(BULK_EDIT_ROWS);
+    expect(prompt).not.toContain(`"${BULK_EDIT_ROWS}":`);
+  });
+
+  it('still shows every record\'s current values, so "the same" has a reference', () => {
+    const { prompt, seeded } = envelope();
+    // Positive control: stripping the draft would satisfy the test above
+    // all on its own. Every record's values have to SURVIVE, verbatim.
+    const rows = seeded[BULK_EDIT_ROWS] as Record<string, unknown>;
+    expect(Object.keys(rows).length).toBeGreaterThan(1);
+    for (const row of Object.values(rows)) {
+      expect(prompt).toContain(JSON.stringify(row));
+    }
+  });
+
+  it('asks in the user\'s own words first, then for ONE flat set of fields', () => {
+    const { prompt } = envelope('paint them all forest green');
+    // The transport slices at 4k; the instruction must never be what
+    // gets cut, so it leads.
+    expect(prompt.startsWith('paint them all forest green')).toBe(true);
+    expect(prompt).toMatch(/never a per-record object/i);
+    expect(prompt).toMatch(new RegExp(`\`${BULK_EDIT_ROWS}\` key`, 'i'));
+  });
+
+  it('drops rows rather than the instruction when the batch is huge', () => {
+    const many = Array.from({ length: 400 }, (_, i) => ({
+      id: `tpl_${i}`,
+      name: `Template ${i}`,
+      kind: 'receipt',
+      config: { thankYouText: 'x'.repeat(40) },
+    }));
+    const bulk = buildBulkEditResource('payment-templates', many);
+    const { prompt } = JSON.parse(
+      bulk.buildAgentPrompt!({
+        draft: buildBulkEditRows(bulk, many) as Record<string, unknown>,
+        mode: 'edit',
+        userPrompt: 'make them the same theme',
+        history: '',
+      }),
+    ) as { prompt: string };
+    // Under the transport's 4k slice, so nothing is silently cut...
+    expect(prompt.length).toBeLessThan(4_000);
+    // ...the instruction survives at both ends...
+    expect(prompt.startsWith('make them the same theme')).toBe(true);
+    expect(prompt).toMatch(/never a per-record object/i);
+    // ...and what was left out is STATED, not silently dropped.
+    expect(prompt).toMatch(/\(\+\d+ more, not shown here/);
+    expect(prompt).toContain('all 400 records');
+  });
+});
