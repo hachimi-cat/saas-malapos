@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   BATCH_TARGETS_FIELD,
+  batchDoingLine,
   batchTargetsInitial,
   buildBulkEditResource,
   buildBulkVerbResource,
@@ -223,6 +224,44 @@ describe('a batch verb sheet is applicable the moment it opens', () => {
     // One row reads as one record — the count is still there.
     const one = buildBulkVerbResource(resource, verb, [TARGETS[0]!]);
     expect(`${one.confirmLabel} ${one.label}?`).toMatch(/ 1 /);
+  });
+
+  it('the description says what is about to happen ONCE', () => {
+    // Was `${descriptor.confirmLabel} ${n} ${descriptor.label}s` — three
+    // re-derivations of what the descriptor's own title already says.
+    // The moment wave-3's confirm fix put the count on `confirmLabel`
+    // and the plural on `label`, this rendered
+    // "Delete 3 3 supplierss: …" to the merchant. Live on staging
+    // 2026-08-14, shipped in malapos 43.
+    //
+    // Asserted as the WHOLE SENTENCE, exactly as read. The doubling
+    // survived review because every existing check looked at the parts.
+    const rows: Fields[] = [
+      { id: 'a', name: 'V22 Alpha' },
+      { id: 'b', name: 'V22 Beta' },
+      { id: 'c', name: 'V22 Gamma' },
+    ];
+    const many = buildBulkVerbResource('suppliers', 'delete', rows);
+    expect(batchDoingLine(many, 'V22 Alpha, V22 Beta, V22 Gamma', 'delete')).toBe(
+      'Delete 3 suppliers: V22 Alpha, V22 Beta, V22 Gamma.',
+    );
+    const one = buildBulkVerbResource('suppliers', 'delete', [rows[0]!]);
+    expect(batchDoingLine(one, 'V22 Alpha', 'delete')).toBe(
+      'Delete 1 supplier: V22 Alpha.',
+    );
+  });
+
+  it.each(MOUNTABLE)('%s: the description carries the count once', (_n, resource, verb) => {
+    const line = batchDoingLine(
+      buildBulkVerbResource(resource, verb, TARGETS),
+      NAMES,
+      verb,
+    );
+    // TARGETS is two rows, and NAMES ("First, Second") carries no digit,
+    // so the count must appear exactly once in the whole sentence.
+    expect(line.match(/\d+/g) ?? [], line).toEqual(['2']);
+    // …and the noun must not be pluralised twice: "supplierss".
+    expect(line, line).not.toMatch(/(ys|ss|xs|zs|chs|shs)\b/);
   });
 
   it('the seed is what makes the draft non-empty — nothing else can', () => {

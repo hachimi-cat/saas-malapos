@@ -12,6 +12,7 @@ import { uploadWithPreview } from '@/lib/upload-with-preview';
 import type { AssistantMode, AssistantResource } from '@/hooks/use-catentio';
 import {
   BATCH_TARGETS_FIELD,
+  batchDoingLine,
   batchTargetsInitial,
   buildBulkEditResource,
   buildBulkVerbResource,
@@ -314,9 +315,8 @@ export function CatentioBulkVerbSheet({
     [resource, verb],
   );
   const n = rows.length;
-  const noun = n === 1 ? descriptor.label : `${descriptor.label}s`;
   const names = targetList(rows);
-  const doing = `${descriptor.confirmLabel ?? verb} ${n} ${noun}: ${names}.`;
+  const doing = batchDoingLine(descriptor, names, verb);
   // The target line is always there now, so "nothing to fill in" means
   // nothing BESIDES it — set-category is the only verb that asks.
   const asks = descriptor.fields.some((f) => f.name !== BATCH_TARGETS_FIELD);

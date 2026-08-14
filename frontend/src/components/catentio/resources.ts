@@ -625,6 +625,33 @@ function plural(label: string): string {
 }
 
 /**
+ * "Delete 3 suppliers: V22 Alpha, V22 Beta, V22 Gamma."
+ *
+ * Read straight off the descriptor's own `title`, which
+ * `buildBulkVerbResource` has ALREADY written from the count and the
+ * pluralised noun. This line used to re-derive both —
+ * `${descriptor.confirmLabel} ${n} ${descriptor.label}s` — which was
+ * correct only while those two fields were undecorated. Wave-3's
+ * confirm fix then put the count on `confirmLabel` ("Delete 3") and the
+ * plural on `label` ("suppliers"), and this sentence started rendering
+ * "Delete 3 3 supplierss". Live on staging 2026-08-14, in production
+ * since malapos 43.
+ *
+ * The rule it encodes: a string assembled from a field ANOTHER layer is
+ * free to decorate must be assembled once, where the decoration
+ * happens. Exported so the sentence itself can be asserted — this file
+ * has no render harness, and asserting the parts is exactly how the
+ * doubling survived review.
+ */
+export function batchDoingLine(
+  descriptor: { title?: string },
+  names: string,
+  fallbackVerb: string,
+): string {
+  return `${descriptor.title ?? fallbackVerb}: ${names}.`;
+}
+
+/**
  * `buildBulkEditResource`, generalized past edit — the wave-2 half of
  * the batch story.
  *
