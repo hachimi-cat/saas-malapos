@@ -35,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DatePicker } from '@/components/ui/date-picker';
 
 /*
  * Inventory — per-outlet stock control. Lists on-hand quantities against
@@ -756,12 +757,7 @@ function BatchModal({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="bt-expiry">Expiry (optional)</Label>
-              <Input
-                id="bt-expiry"
-                type="date"
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
-              />
+              <DatePicker id="bt-expiry" value={expiryDate} onChange={setExpiryDate} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">

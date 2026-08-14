@@ -186,6 +186,75 @@ function editedRows(
   return draft;
 }
 
+describe('payment-templates — one instruction, all three kinds', () => {
+  /**
+   * The templates page reaches the assistant through ONE header entry
+   * spanning EVERY template, instead of a per-kind selection (bang,
+   * 2026-08-14: *"i should be able to do like, please make my checkout,
+   * invoice and receipt template the same theme … so the assistant will
+   * edit all 3 at once"*).
+   *
+   * `config` here is ONE opaque JSON field, so the single proposal
+   * `mergePlan` fans across the rows would REPLACE each template's whole
+   * body — handing the receipt the checkout's blob and dropping its
+   * thank-you line. The apply merges onto each row's own current config
+   * for exactly that reason. (plugipay is not exposed to this: its
+   * descriptor has one flat field per config key.)
+   */
+  const TEMPLATES = [
+    { id: 'tpl_r', name: 'Receipt', kind: 'receipt', config: { thankYouText: 'Terima kasih', accentColor: null } },
+    { id: 'tpl_i', name: 'Invoice', kind: 'invoice', config: { termsText: 'Net 30', accentColor: null } },
+    { id: 'tpl_c', name: 'Checkout', kind: 'checkout', config: { successMessage: 'Thanks!', accentColor: null } },
+  ];
+
+  const patches = () =>
+    writes().filter((r) => r.method === 'PATCH' && r.url.includes('/templates/'));
+
+  it('a shared theme lands on every template without clobbering its content', async () => {
+    const bulk = buildBulkEditResource('payment-templates', TEMPLATES);
+    const seeded = buildBulkEditRows(bulk, TEMPLATES) as Record<string, unknown>;
+    // What the AGENT does: one proposal against the declared edit
+    // fields, fanned to every row by mergePlan.
+    const merged = bulk.mergePlan!({
+      draft: seeded,
+      plan: { config: { accentColor: '#6F4E37' } },
+    });
+
+    await bulk.apply({ mode: 'edit', fields: merged });
+
+    expect(patches()).toHaveLength(3);
+    const byId = Object.fromEntries(
+      patches().map((r) => [r.url.split('/templates/')[1], r.body.config as Record<string, unknown>]),
+    );
+    for (const id of ['tpl_r', 'tpl_i', 'tpl_c']) {
+      expect(byId[id]!.accentColor, `${id} missed the theme`).toBe('#6F4E37');
+    }
+    // Each KEPT the field only its own kind has — a replacing apply
+    // passes the loop above and fails right here.
+    expect(byId.tpl_r!.thankYouText).toBe('Terima kasih');
+    expect(byId.tpl_i!.termsText).toBe('Net 30');
+    expect(byId.tpl_c!.successMessage).toBe('Thanks!');
+    expect(byId.tpl_r!.termsText).toBeUndefined();
+    expect(byId.tpl_c!.thankYouText).toBeUndefined();
+  });
+
+  it('an untouched template is not written at all', async () => {
+    // Every template is a target every time now, so without the dirty
+    // check, restyling the checkout page would rewrite the other two.
+    const bulk = buildBulkEditResource('payment-templates', TEMPLATES);
+    const draft = buildBulkEditRows(bulk, TEMPLATES) as Record<
+      string,
+      Record<string, Record<string, unknown>>
+    >;
+    draft[BULK_EDIT_ROWS]!.tpl_r!.name = 'Receipt v2';
+
+    await bulk.apply({ mode: 'edit', fields: draft });
+
+    expect(patches()).toHaveLength(1);
+    expect(patches()[0]!.url).toContain('tpl_r');
+  });
+});
+
 describe('buildBulkEditResource', () => {
   it('covers exactly the intended resources (canary)', () => {
     expect(BULK_EDIT_RESOURCES).toHaveLength(15);

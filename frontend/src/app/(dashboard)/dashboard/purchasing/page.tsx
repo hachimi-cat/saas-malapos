@@ -51,6 +51,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DatePicker } from '@/components/ui/date-picker';
 
 /*
  * Purchasing — restocking from suppliers. Two tabs:
@@ -704,10 +705,9 @@ function POBuilderModal({
                         />
                       </div>
                       <div className="sm:col-span-4">
-                        <Input
-                          type="date"
+                        <DatePicker
                           value={l.expiryDate}
-                          onChange={(e) => updateLine(l.key, { expiryDate: e.target.value })}
+                          onChange={(v) => updateLine(l.key, { expiryDate: v })}
                         />
                       </div>
                       <div className="flex items-center justify-end gap-3 sm:col-span-4">
@@ -854,10 +854,9 @@ function ReceiveModal({
                   </label>
                   <label className="block text-xs">
                     <span className="mb-1 block text-muted-foreground">Expiry</span>
-                    <Input
-                      type="date"
+                    <DatePicker
                       value={row.expiryDate}
-                      onChange={(e) => update(it.id, { expiryDate: e.target.value })}
+                      onChange={(v) => update(it.id, { expiryDate: v })}
                     />
                   </label>
                 </div>

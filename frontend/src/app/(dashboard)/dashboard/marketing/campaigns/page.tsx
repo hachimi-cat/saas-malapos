@@ -59,6 +59,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 
 type Goal = 'awareness' | 'conversion' | 'retention' | 'launch' | 'other';
 type Status = 'draft' | 'live' | 'paused' | 'completed' | 'archived';
@@ -505,11 +506,11 @@ export default function MarketingCampaignsHubPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="campaign-starts">Starts</Label>
-                  <Input id="campaign-starts" type="date" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} />
+                  <DatePicker id="campaign-starts" value={form.startsAt} onChange={(v) => setForm({ ...form, startsAt: v })} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="campaign-ends">Ends</Label>
-                  <Input id="campaign-ends" type="date" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} />
+                  <DatePicker id="campaign-ends" value={form.endsAt} onChange={(v) => setForm({ ...form, endsAt: v })} />
                 </div>
               </div>
               <div className="flex gap-2">

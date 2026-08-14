@@ -20,6 +20,7 @@ import {
   buildCrudResource,
 } from './resources';
 import { BULK, pluralNoun } from './capabilities';
+import { DatePicker } from '@/components/ui/date-picker';
 
 /**
  * Malapos's flavour of the extracted catentio sheet (storlaunch's
@@ -41,12 +42,18 @@ import { BULK, pluralNoun } from './capabilities';
 function DateField({ field, value, onChange }: FieldRendererProps) {
   const raw = typeof value === 'string' ? value : '';
   return (
-    <input
-      type="date"
+    // The real shadcn date picker — Popover + Calendar — NOT an
+    // `<input type="date">`, and not shadcn's `<Input type="date">`
+    // either: `type="date"` hands the whole control to the browser, so
+    // what the merchant sees is the OS widget wearing a shadcn border
+    // (bang, 2026-08-14, rejecting exactly that on storlaunch: *"still
+    // use primitive datepicker, not shadcn"*). Every customKind('date')
+    // in every sheet renders through here. The value stays yyyy-MM-dd,
+    // so the resources' own coercions are unchanged.
+    <DatePicker
       id={`crud-${field.name}`}
       value={raw.length > 10 ? raw.slice(0, 10) : raw}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+      onChange={onChange}
     />
   );
 }
@@ -234,6 +241,7 @@ export function CatentioBulkEditSheet({
   open,
   onOpenChange,
   onApplied,
+  agentOnly,
 }: {
   resource: AssistantResource;
   /** The selected rows, each with `id` (and whatever parent ids the
@@ -242,6 +250,11 @@ export function CatentioBulkEditSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onApplied?: (outcome: ApplyOutcome) => void;
+  /** Drop the Manual tab — for a batch reached by a sparkle on a page
+   *  that IS the form, rather than by ticking rows. The package leaves
+   *  the manual editor UNMOUNTED rather than hidden, so a form nobody
+   *  can see cannot seed the shared draft behind the reviewed plan. */
+  agentOnly?: boolean;
 }) {
   const { modules } = useModules();
   const rows = useFrozenTargets(targets);
@@ -266,6 +279,7 @@ export function CatentioBulkEditSheet({
       mode="edit"
       open={open}
       onOpenChange={onOpenChange}
+      agentOnly={agentOnly}
       transport={transport}
       initial={initial}
       onApplied={(result) => onApplied?.(outcomeOf(result))}

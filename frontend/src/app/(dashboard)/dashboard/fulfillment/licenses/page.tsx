@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 
 /*
  * Fulfillment → Licenses. malapos port of storlaunch's page over
@@ -99,11 +100,10 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
             <Label htmlFor="expiresAt">
               Expires at <span className="font-normal text-muted-foreground/60">(optional)</span>
             </Label>
-            <Input
+            <DatePicker
               id="expiresAt"
-              type="date"
               value={form.expiresAt}
-              onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
+              onChange={(v) => setForm({ ...form, expiresAt: v })}
             />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}

@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DatePicker } from '@/components/ui/date-picker';
 
 /**
  * /dashboard/payments/reports — P&L + Cash Flow over a date range, with CSV export.
@@ -131,13 +132,11 @@ export default function ReportsPage() {
         </Tabs>
         <div className="flex h-9 items-center gap-2 rounded-lg border border-border bg-muted/30 px-2">
           <Label htmlFor="rpt-from" className="text-xs font-normal text-muted-foreground">From</Label>
-          <Input id="rpt-from" type="date" value={custom?.from?.slice(0, 10) ?? (presets.find((x) => x.id === presetId)?.from.toISOString().slice(0, 10) ?? '')}
-            onChange={(e) => setCustom({ from: new Date(`${e.target.value}T00:00:00Z`).toISOString(), to: custom?.to ?? activeRange.to })}
-            className="h-auto w-auto rounded border border-border bg-background px-2 py-1 text-xs" />
+          <DatePicker id="rpt-from" className="h-8 w-[150px] text-xs" value={custom?.from?.slice(0, 10) ?? (presets.find((x) => x.id === presetId)?.from.toISOString().slice(0, 10) ?? '')}
+            onChange={(v) => setCustom({ from: new Date(`${v}T00:00:00Z`).toISOString(), to: custom?.to ?? activeRange.to })} />
           <Label htmlFor="rpt-to" className="text-xs font-normal text-muted-foreground">To</Label>
-          <Input id="rpt-to" type="date" value={custom?.to?.slice(0, 10) ?? (presets.find((x) => x.id === presetId)?.to.toISOString().slice(0, 10) ?? '')}
-            onChange={(e) => setCustom({ from: custom?.from ?? activeRange.from, to: new Date(`${e.target.value}T23:59:59Z`).toISOString() })}
-            className="h-auto w-auto rounded border border-border bg-background px-2 py-1 text-xs" />
+          <DatePicker id="rpt-to" className="h-8 w-[150px] text-xs" value={custom?.to?.slice(0, 10) ?? (presets.find((x) => x.id === presetId)?.to.toISOString().slice(0, 10) ?? '')}
+            onChange={(v) => setCustom({ from: custom?.from ?? activeRange.from, to: new Date(`${v}T23:59:59Z`).toISOString() })} />
         </div>
       </div>
 

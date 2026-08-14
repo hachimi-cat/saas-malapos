@@ -69,12 +69,24 @@ export default function TemplatesPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  // EVERY template, across all three kinds — what the page-level "Ask
+  // assistant" edits. The tab list below is per-kind (the tab IS the
+  // kind); this deliberately is not, because the whole point of the
+  // entry is instructions that span them.
+  const [allRows, setAllRows] = React.useState<TemplateDTO[]>([]);
 
   const load = React.useCallback(async () => {
     setRows(null);
     try {
-      const list = (await plugipaySettingsApi.listTemplates(tab)) ?? [];
+      // Two reads, one refresh: the open tab's list for the UI, and the
+      // whole set for the assistant entry. listTemplates() with no kind
+      // returns every kind.
+      const [list, every] = await Promise.all([
+        plugipaySettingsApi.listTemplates(tab).then((r) => r ?? []),
+        plugipaySettingsApi.listTemplates().then((r) => r ?? []),
+      ]);
       setRows(list);
+      setAllRows(every);
       if (!list.find((t) => t.id === selectedId)) {
         setSelectedId(list.find((t) => t.isDefault)?.id ?? list[0]?.id ?? null);
       }
@@ -91,6 +103,23 @@ export default function TemplatesPage() {
   }, []);
 
   const selected = rows?.find((t) => t.id === selectedId) ?? null;
+
+  // Every template, flattened for the assistant. Each target carries the
+  // whole record — the batch apply reads `kind` off the row it is
+  // patching, which is what lets one instruction cross the three kinds
+  // whose config shapes differ.
+  // `config` stays NESTED, matching the descriptor's single JSON field.
+  // (plugipay spreads it flat because ITS descriptor has one flat field
+  // per config key; here there is one `config` textarea, so a flat
+  // spread would seed the row with nothing and the apply would replace
+  // the whole object instead of merging onto it.)
+  const assistantTargets = allRows.map((t) => ({
+    id: t.id,
+    name: t.name,
+    kind: t.kind,
+    isDefault: t.isDefault,
+    config: t.config,
+  }));
 
   async function makeDefault(id: string) {
     setError(null);
@@ -165,8 +194,27 @@ export default function TemplatesPage() {
         <span className="text-foreground">Templates</span>
       </nav>
 
+      {/* The per-record `+ New` lives in the tab, next to the record it
+          makes. The header carries ONE thing: the assistant, over EVERY
+          template across all three kinds.
+
+          bang, 2026-08-14: *"i should be able to do like, please make my
+          checkout, invoice and receipt template the same theme … so the
+          assistant will edit all 3 at once"*. That instruction cannot be
+          expressed by a per-kind tick list, which is why plugipay's
+          batch-verb dropdown came off rather than being copied here. The
+          agent plans against the resource's declared edit fields and
+          `mergePlan` fans the one proposal across every row. */}
       <PageHeader
         title="Templates"
+        action={
+          <AskAssistantEntry
+            resource="payment-templates"
+            targets={assistantTargets}
+            onApplied={load}
+            className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+          />
+        }
         description={
           <span className="block max-w-[62ch]">
             Checkout pages, receipts, and invoices — build multiple templates per kind and switch the default

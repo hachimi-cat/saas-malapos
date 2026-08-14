@@ -45,6 +45,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 
 /**
  * /dashboard/marketing/discount-codes — create, edit, archive promo codes.
@@ -613,12 +614,12 @@ function EditorModal({ editing, campaignPrefill, onClose, onDone }: { editing: D
           <div className="flex flex-wrap gap-3">
             <div className="space-y-1.5">
               <Label>Starts</Label>
-              <Input type="date" value={startsAt} onChange={(e) => setStartsAt(e.target.value)}
+              <DatePicker value={startsAt} onChange={setStartsAt}
                 className="w-[180px]" />
             </div>
             <div className="space-y-1.5">
               <Label>Expires</Label>
-              <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)}
+              <DatePicker value={expiresAt} onChange={setExpiresAt}
                 className="w-[180px]" />
             </div>
           </div>

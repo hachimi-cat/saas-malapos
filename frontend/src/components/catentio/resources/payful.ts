@@ -1450,7 +1450,16 @@ function paymentTemplatesResource(mode: AssistantMode): CrudResource<Fields> {
     buildAgentPrompt,
     apply: async ({ mode: applyMode, fields, initial }) => {
       const name = str(fields.name);
-      const config = obj(fields.config);
+      const proposed = obj(fields.config);
+      // MERGE onto what the template already has, rather than replacing
+      // it. `config` here is one opaque JSON field, and the page-level
+      // assistant entry edits EVERY template at once across all three
+      // kinds — so one proposed `config` is fanned to all of them.
+      // Replacing would hand the receipt the checkout's blob and drop
+      // its thank-you line. Merging is also what the profile promises
+      // the agent: "change only the keys you mean to".
+      const current = applyMode === 'edit' ? obj(initial?.config) : undefined;
+      const config = proposed && current ? { ...current, ...proposed } : proposed;
       if (applyMode === 'edit') {
         const body = defined({ name, config });
         if (!Object.keys(body).length) throw new Error('Nothing to change');

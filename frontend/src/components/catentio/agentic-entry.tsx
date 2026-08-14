@@ -170,43 +170,85 @@ export function AskAssistantEntry({
   resource,
   mode = 'edit',
   initial,
+  targets,
   onApplied,
   className,
   label = 'Ask assistant',
+  disabled,
 }: {
   resource: AssistantResource;
   /** Defaults to `edit` — these pages all edit one standing record. */
   mode?: AssistantMode;
   /** The record as it stands, so the agent reads the current values. */
   initial?: Record<string, unknown>;
+  /**
+   * ALL the records this page's form covers, when it covers more than
+   * one. Present -> the sheet is the batch-EDIT descriptor over every
+   * one of them, so a single instruction reaches the lot: *"please make
+   * my checkout, invoice and receipt template the same theme"* (bang,
+   * 2026-08-14). The agent plans against the resource's own declared
+   * edit fields, knowing nothing about rows; `mergePlan` fans that one
+   * proposal across every record, and Apply PATCHes only the ones it
+   * actually changed.
+   *
+   * This is NOT a selection surface — there are no tick boxes and
+   * nothing to choose. The page IS the form, and the form covers these
+   * records.
+   */
+  targets?: Record<string, unknown>[];
   /** Apply writes straight through; the page refetches here (bang chose
    *  save-straight-through over filling the page's form). */
   onApplied?: () => void;
   className?: string;
   label?: string;
+  disabled?: boolean;
 }) {
   const { enabled } = useCatentioStatus();
   const [open, setOpen] = useState(false);
 
   if (!enabled) return null;
 
+  const batch = targets !== undefined;
+  // A batch entry over an empty set would open a sheet naming nothing
+  // and applying to nothing. Disable the trigger instead, so the page's
+  // shape does not flicker while the list loads.
+  const empty = batch && targets.length === 0;
+
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={className}>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={className}
+        disabled={disabled || empty}
+      >
         <Sparkles className="h-4 w-4" /> {label}
       </button>
-      {open && (
-        <CatentioCrudSheet
-          resource={resource}
-          mode={mode}
-          open
-          agentOnly
-          onOpenChange={(o) => {
-            if (!o) setOpen(false);
-          }}
-          initial={initial}
-          onApplied={() => onApplied?.()}
-        />
+      {open && !empty && (
+        batch ? (
+          <CatentioBulkEditSheet
+            resource={resource}
+            targets={targets}
+            open
+            agentOnly
+            onOpenChange={(o) => {
+              if (!o) setOpen(false);
+            }}
+            onApplied={() => onApplied?.()}
+          />
+        ) : (
+          <CatentioCrudSheet
+            resource={resource}
+            mode={mode}
+            open
+            agentOnly
+            onOpenChange={(o) => {
+              if (!o) setOpen(false);
+            }}
+            initial={initial}
+            onApplied={() => onApplied?.()}
+          />
+        )
       )}
     </>
   );
