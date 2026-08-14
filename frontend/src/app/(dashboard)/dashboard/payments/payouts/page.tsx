@@ -6,7 +6,10 @@ import { payoutsApi, type Payout, type PayoutStatus, type PayoutBankAccount } fr
 import { Loader2, Plus, Landmark, AlertCircle, CheckCircle2, Ban, Truck, Hourglass } from 'lucide-react';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { AgenticEntry } from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkVerbSlot } from '@/components/catentio/agentic-entry';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -72,6 +75,11 @@ export default function PayoutsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showRequest, setShowRequest] = useState(false);
+  // The ticked rows, mirrored up so the header's Actions dropdown reads
+  // the same selection the bar counts.
+  const [selection, setSelection] = useState<Payout[]>([]);
+  const [verbRows, setVerbRows] = useState<Payout[] | null>(null);
+  const { enabled: assistantOn } = useCatentioStatus();
   const [showBankModal, setShowBankModal] = useState(false);
 
   const reload = useCallback(async () => {
@@ -250,6 +258,33 @@ export default function PayoutsPage() {
 
   if (loading) return <Card className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></Card>;
 
+  // The batch half of the payout vocabulary. malapos declares exactly
+  // one payout verb (`mark-paid`), so this is one item, not four — and
+  // it carries the SAME status guard the row button uses. That is not
+  // politeness: a payout in the wrong state is refused by the API, and
+  // firing N transitions to collect N refusals turns a batch into a
+  // partial-failure sentence naming rows the merchant never meant to
+  // include. The optional bank reference is shared across the batch by
+  // design — one wire covering several payouts is the case for it.
+  //
+  // Assistant-gated as a whole: this opens a sheet, and with the flag
+  // off there is no sheet — the row buttons and TransitionModal remain
+  // the manual path, unchanged.
+  const payable = selection.filter((p) => p.status === 'pending' || p.status === 'in_transit');
+  const pageActions: PageAction[] = assistantOn
+    ? [
+        {
+          key: 'mark-paid',
+          label: payable.length > 0 ? `Mark ${payable.length} paid` : 'Mark paid',
+          icon: CheckCircle2,
+          run: () => setVerbRows(payable),
+          requiresSelection: true,
+          disabled: selection.length > 0 && payable.length === 0,
+          disabledHint: 'None of the selected payouts can be marked paid',
+        },
+      ]
+    : [];
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -257,6 +292,11 @@ export default function PayoutsPage() {
         description="Withdraw funds to your bank. Platform manually wires funds in manual mode — Xendit disbursement auto-transfers once XenPlatform is approved."
         action={
           <div className="flex items-center gap-2">
+            <ActionsDropdown
+              actions={pageActions}
+              selectionCount={selection.length}
+              noun="payout"
+            />
             <AgenticEntry
               resource="payouts"
               mode="create"
@@ -337,6 +377,25 @@ export default function PayoutsPage() {
           searchPlaceholder="Search reference, bank…"
           defaultSort={{ key: 'requested', dir: 'desc' }}
           empty="No payouts match."
+          onSelectionChange={setSelection}
+          renderBulkBar={(rows, clear) => (
+            <BulkBar count={rows.length} noun="payout" onClear={clear} />
+          )}
+        />
+      )}
+
+      {verbRows && verbRows.length > 0 && (
+        <BulkVerbSlot
+          resource="payouts"
+          verb="mark-paid"
+          targets={verbRows as unknown as Record<string, unknown>[]}
+          onClose={() => setVerbRows(null)}
+          // Complete run only. On a PARTIAL run the sheet stays open on
+          // the failure, so the ticks stay and the reload reconciles.
+          onApplied={(applied) => {
+            if (applied) setSelection([]);
+            void reload();
+          }}
         />
       )}
 
