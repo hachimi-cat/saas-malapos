@@ -11,3 +11,7 @@ coverage/
 playwright-report/
 test-results/
 tsconfig.tsbuildinfo
+
+# Throwaway live-check scripts + their screenshots (gojo's probes).
+e2e/_*.mjs
+e2e/screenshots/_*.png
