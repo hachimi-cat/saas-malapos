@@ -6,6 +6,7 @@ import {
   BULK,
   BULK_EDIT_RESOURCES,
   BULK_VERBS,
+  pluralNoun,
   ROW_SUPPLIED_FIELDS,
   supportsBulkVerb,
 } from './capabilities';
@@ -571,7 +572,7 @@ export function buildBulkEditResource(
     fields: [
       {
         name: BULK_EDIT_ROWS,
-        label: `Selected ${bulk?.noun ?? single.label}s`,
+        label: `Selected ${pluralNoun(resource, 2, single.label)}`,
         kind: 'keyed-rows',
         rowKeys: targets.map((target) => ({
           key: keyOf.get(target)!,

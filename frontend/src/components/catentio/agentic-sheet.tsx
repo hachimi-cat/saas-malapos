@@ -19,7 +19,7 @@ import {
   buildBulkVerbResource,
   buildCrudResource,
 } from './resources';
-import { BULK } from './capabilities';
+import { BULK, pluralNoun } from './capabilities';
 
 /**
  * Malapos's flavour of the extracted catentio sheet (storlaunch's
@@ -251,7 +251,7 @@ export function CatentioBulkEditSheet({
   const initial = useMemo(() => buildBulkEditRows(descriptor, rows), [descriptor, rows]);
   const n = rows.length;
   const noun = BULK[resource]?.noun ?? 'record';
-  const editing = `Editing ${n} ${n === 1 ? noun : `${noun}s`}: ${targetList(rows)}. Each one is filled in with its current values — change what you want; saving writes each record back.`;
+  const editing = `Editing ${n} ${pluralNoun(resource, n)}: ${targetList(rows)}. Each one is filled in with its current values — change what you want; saving writes each record back.`;
   return (
     <AgenticCrudSheet
       resource={descriptor}

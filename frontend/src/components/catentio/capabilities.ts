@@ -12,10 +12,14 @@ import type { AssistantResource } from '@/hooks/use-catentio';
  */
 
 /** `+ New` batches for these — {noun, rowKeys} drive the bulk-create
- *  repeater + pasted-CSV section inside the create sheet. */
-export const BULK: Partial<Record<AssistantResource, { noun: string; rowKeys?: string[] }>> = {
+ *  repeater + pasted-CSV section inside the create sheet. `plural` is
+ *  for a noun `${noun}s` gets wrong; the bulk bar has carried the same
+ *  escape hatch (`pluralWord`) since it was written. */
+export const BULK: Partial<
+  Record<AssistantResource, { noun: string; plural?: string; rowKeys?: string[] }>
+> = {
   products: { noun: 'product', rowKeys: ['name'] },
-  categories: { noun: 'category', rowKeys: ['name'] },
+  categories: { noun: 'category', plural: 'categories', rowKeys: ['name'] },
   modifiers: { noun: 'modifier group', rowKeys: ['name'] },
   customers: { noun: 'customer', rowKeys: ['name', 'email'] },
   suppliers: { noun: 'supplier', rowKeys: ['name'] },
@@ -26,6 +30,16 @@ export const BULK: Partial<Record<AssistantResource, { noun: string; rowKeys?: s
   warehouses: { noun: 'warehouse', rowKeys: ['name'] },
   licenses: { noun: 'license', rowKeys: ['customerId'] },
 };
+
+/** How to say N of them. Every batch surface that names the noun goes
+ *  through here, so "3 categorys" cannot come back one sentence at a
+ *  time. */
+export function pluralNoun(resource: AssistantResource, n: number, fallback?: string): string {
+  const bulk = BULK[resource];
+  const noun = bulk?.noun ?? fallback ?? 'record';
+  if (n === 1) return noun;
+  return bulk?.plural ?? `${noun}s`;
+}
 
 /**
  * The resources the list pages offer "Edit N selected" on — and the

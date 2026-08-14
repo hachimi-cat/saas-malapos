@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { pluralNoun } from '@/components/catentio/capabilities';
 import {
   buildBulkEditResource,
   buildBulkEditRows,
@@ -287,6 +288,16 @@ describe('buildBulkEditResource', () => {
       }
     },
   );
+
+  it('names N of them in English — "3 categorys" is not a plural', () => {
+    // Every batch surface that names the noun goes through pluralNoun,
+    // which is why the form's own heading can be asserted here.
+    expect(pluralNoun('categories', 3)).toBe('categories');
+    expect(pluralNoun('categories', 1)).toBe('category');
+    expect(pluralNoun('products', 3)).toBe('products');
+    const bulk = buildBulkEditResource('categories', TARGETS);
+    expect(bulk.fields[0].label).toBe('Selected categories');
+  });
 
   it('two rows edited differently each get their own body', async () => {
     const bulk = buildBulkEditResource('customers', TARGETS);
