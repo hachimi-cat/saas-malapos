@@ -87,14 +87,25 @@ describe('BULK_VERBS — what a list page may offer over a selection', () => {
       'blog-posts': ['publish', 'unpublish', 'delete'],
       'affiliate-enrollments': ['approve'],
       'affiliate-commissions': ['approve', 'void'],
+      // wave-3: the nine pages whose batch delete was manual-only.
+      plans: ['delete'],
+      outlets: ['delete'],
+      modifiers: ['delete'],
+      warehouses: ['delete'],
+      tables: ['delete'],
+      suppliers: ['delete'],
+      funnels: ['delete'],
+      'marketing-campaigns': ['delete'],
+      'discount-codes': ['delete'],
     });
   });
 
   it('every batch verb is a DECLARED verb of its resource', () => {
     // The frontend mirror of the profile's ActionSpecs. A batch item
     // for an undeclared verb is a sheet whose plan the BFF would 422 —
-    // undeclared resources (tables, outlets, plans, discount-codes…)
-    // keep their manual dialogs until they declare one.
+    // a resource keeps its manual dialog alone until it declares one.
+    // wave-3 declared nine of them; `floors` is the shape still left
+    // out (a DELETE route, but no batch surface on its page).
     for (const [resource, verbs] of Object.entries(BULK_VERBS)) {
       for (const verb of verbs!) {
         expect(
@@ -106,8 +117,10 @@ describe('BULK_VERBS — what a list page may offer over a selection', () => {
   });
 
   it('refuses a pair no page offers — fail loud, not a silent write', () => {
-    expect(() => buildBulkVerbResource('suppliers', 'delete', TARGETS)).toThrow(
-      /suppliers does not offer "delete"/,
+    // floors has a DELETE route and no batch surface — suppliers was
+    // this example until wave-3 gave it one.
+    expect(() => buildBulkVerbResource('floors', 'delete', TARGETS)).toThrow(
+      /floors does not offer "delete"/,
     );
     // Bulk EDIT has its own builder; the verb sheet must not become a
     // second way in.

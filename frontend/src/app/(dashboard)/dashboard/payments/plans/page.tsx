@@ -6,7 +6,7 @@ import { plansApi, Plan } from '@/lib/payments-api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot, BulkVerbSlot } from '@/components/catentio/agentic-entry';
 import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
@@ -241,6 +241,7 @@ export default function PlansPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
@@ -333,7 +334,9 @@ export default function PlansPage() {
       key: 'bulk-delete',
       label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
       icon: Trash2,
-      run: () => setBulkDeleteOpen(true),
+      // Same verb either way — only the review surface differs, so
+      // this item stays put with the assistant off.
+      run: () => (assistantEnabled ? setBulkDeleting(true) : setBulkDeleteOpen(true)),
       requiresSelection: true,
       destructive: true,
     },
@@ -525,6 +528,25 @@ export default function PlansPage() {
             // reload and leave the sheet and the ticks alone.
             if (outcome === 'applied') {
               setBulkEditing(false);
+              setSelected(new Set());
+            }
+            await load();
+          }}
+        />
+      )}
+
+      {bulkDeleting && (
+        <BulkVerbSlot
+          resource="plans"
+          verb="delete"
+          targets={bulkTargets.map((p) => ({ ...p }))}
+          onClose={() => setBulkDeleting(false)}
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkDeleting(false);
               setSelected(new Set());
             }
             await load();

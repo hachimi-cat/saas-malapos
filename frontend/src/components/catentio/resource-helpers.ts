@@ -143,6 +143,26 @@ export function deleteDescriptor(opts: {
   });
 }
 
+/**
+ * Give an existing builder a `delete` arm without restructuring it.
+ *
+ * Most builders here are `(mode) => ({ … })` — an arrow returning an
+ * object literal — so adding an `if (mode === 'delete')` inside each
+ * means rewriting nine function bodies to add a branch that is the same
+ * four lines every time. Wrapping at the registry keeps each resource's
+ * delete wiring on ONE readable line next to its builder, and leaves the
+ * create/edit body untouched.
+ *
+ * The wrapped builder is still a plain ResourceBuilder, so the dispatch,
+ * the bulk-edit path and the batch fan-out pick it up unchanged.
+ */
+export function withDelete(
+  builder: ResourceBuilder,
+  opts: { slug: string; label: string; del: (id: string) => Promise<unknown> },
+): ResourceBuilder {
+  return (mode, ctx) => (mode === 'delete' ? deleteDescriptor(opts) : builder(mode, ctx));
+}
+
 // ── shared coercion helpers (chat-actions.ts semantics) ─────────────
 
 /** Build a payload of only the fields the caller actually set —

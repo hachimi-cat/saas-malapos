@@ -32,10 +32,31 @@ const WAVE1_CRUD = [
   'blog-posts',
 ] as const;
 
+/** wave-3: the nine pages that already offered "Delete N selected" and
+ *  had no declared verb behind it. Same create+edit-repeat shape as
+ *  WAVE1_CRUD, so they ride the same drift check. */
+const WAVE3_CRUD = [
+  'plans',
+  'outlets',
+  'modifiers',
+  'warehouses',
+  'tables',
+  'suppliers',
+  'funnels',
+  'marketing-campaigns',
+  'discount-codes',
+] as const;
+
 /** Every resource that declares `actions` — the canary. A resource
  *  gaining a declaration joins this list, and the synthesized canary
  *  below shrinks by one; the two together cover the whole profile. */
-const DECLARED = [...WAVE1_CRUD, 'payouts', 'affiliate-enrollments', 'affiliate-commissions'] as const;
+const DECLARED = [
+  ...WAVE1_CRUD,
+  ...WAVE3_CRUD,
+  'payouts',
+  'affiliate-enrollments',
+  'affiliate-commissions',
+] as const;
 
 function synthesized(spec: ResourceSpec) {
   const { actions: _drop, ...rest } = spec;
@@ -43,9 +64,9 @@ function synthesized(spec: ResourceSpec) {
 }
 
 describe('no field drift — declared create/edit ≡ synthesized create/edit', () => {
-  it.each(WAVE1_CRUD.map((r) => [r] as const))('%s', (key) => {
+  it.each([...WAVE1_CRUD, ...WAVE3_CRUD].map((r) => [r] as const))('%s', (key) => {
     const spec = MALAPOS_PROFILE.resources[key]!;
-    expect(spec.actions, `${key} must declare actions in wave 1`).toBeTruthy();
+    expect(spec.actions, `${key} must declare actions`).toBeTruthy();
     const declared = resourceActions(spec);
     const synth = synthesized(spec);
     for (const mode of ['create', 'edit'] as const) {
@@ -74,7 +95,7 @@ describe('no field drift — declared create/edit ≡ synthesized create/edit', 
 });
 
 describe('wave-1 verb shapes', () => {
-  it.each(WAVE1_CRUD.map((r) => [r] as const))(
+  it.each([...WAVE1_CRUD, ...WAVE3_CRUD].map((r) => [r] as const))(
     '%s.delete: destructive + approvalRequired, id-only, no fields',
     (key) => {
       const del = resourceActions(MALAPOS_PROFILE.resources[key]!).delete!;
@@ -123,6 +144,10 @@ describe('wave-1 verb shapes', () => {
   });
 
   it('untouched resources stay synthesized — refunds keeps the pre-0.8.0 pair', () => {
+    // wave-3 moved discount-codes, modifiers, outlets, tables and
+    // suppliers onto the declared side — each had a manual batch delete
+    // on its page. `floors` stays: it has a DELETE route but no batch
+    // surface, so there is nothing to make agentic yet.
     for (const key of [
       'refunds',
       'sale-voids',
@@ -131,12 +156,7 @@ describe('wave-1 verb shapes', () => {
       'inventory-adjustments',
       'inventory-transfers',
       'stock-batches',
-      'discount-codes',
-      'modifiers',
-      'outlets',
-      'tables',
       'floors',
-      'suppliers',
       'settings',
     ]) {
       const spec = MALAPOS_PROFILE.resources[key]!;

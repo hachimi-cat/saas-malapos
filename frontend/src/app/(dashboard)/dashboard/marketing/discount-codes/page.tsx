@@ -9,7 +9,7 @@ import { Loader2, Plus, Ticket, Pencil, Trash2, CheckCircle2, Clock, Eye, EyeOff
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
-import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot, BulkVerbSlot } from '@/components/catentio/agentic-entry';
 import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
@@ -88,6 +88,12 @@ export default function DiscountCodesPage() {
   // Batch edit (agentic sheet) over the DataTable's selection.
   const [bulkEditing, setBulkEditing] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  // The rows a batch delete opened over, snapshotted at page level.
+  // NOT inside renderBulkBar: DataTable only renders that while at
+  // least one row is ticked (data-table.tsx), so a partial run whose
+  // failed row ALSO left the list would empty the selection and
+  // unmount the sheet still naming what did not go through.
+  const [bulkDeleteRows, setBulkDeleteRows] = useState<DiscountCode[] | null>(null);
   const [bulkError, setBulkError] = useState<string | null>(null);
   // The DataTable's ticked rows, mirrored up so the page assistant's
   // action picker and the bulk bar share one delete executor.
@@ -315,7 +321,9 @@ export default function DiscountCodesPage() {
       key: 'bulk-delete',
       label: selection.length > 0 ? `Delete ${selection.length} selected` : 'Delete selected',
       icon: Trash2,
-      run: () => setBulkDeleteOpen(true),
+      // Same verb either way — only the review surface differs, so
+      // this item stays put with the assistant off.
+      run: () => (assistantEnabled ? setBulkDeleteRows(selection) : setBulkDeleteOpen(true)),
       requiresSelection: true,
       destructive: true,
     },
@@ -398,6 +406,7 @@ export default function DiscountCodesPage() {
                   }}
                 />
               )}
+
             </>
           )}
         />
@@ -414,6 +423,25 @@ export default function DiscountCodesPage() {
         onDone={() => setSelection([])}
         description="Each code is deactivated — buyers can no longer redeem it; redemption history is preserved."
       />
+
+      {bulkDeleteRows && (
+        <BulkVerbSlot
+          resource="discount-codes"
+          verb="delete"
+          targets={bulkDeleteRows as unknown as Record<string, unknown>[]}
+          onClose={() => setBulkDeleteRows(null)}
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkDeleteRows(null);
+              setSelection([]);
+            }
+            await refresh();
+          }}
+        />
+      )}
 
       {editing && (
         <EditorModal

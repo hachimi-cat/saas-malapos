@@ -5,7 +5,7 @@ import { Plus, X, Pencil, Trash2, SlidersHorizontal } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
 import { rupiah } from '@/lib/money';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot, BulkVerbSlot } from '@/components/catentio/agentic-entry';
 import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import { useCatentioStatus } from '@/hooks/use-catentio';
@@ -69,6 +69,7 @@ export default function ModifiersPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkEditing, setBulkEditing] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
   const { enabled: assistantEnabled } = useCatentioStatus();
 
@@ -148,7 +149,9 @@ export default function ModifiersPage() {
       key: 'bulk-delete',
       label: bulkTargets.length > 0 ? `Delete ${bulkTargets.length} selected` : 'Delete selected',
       icon: Trash2,
-      run: () => setBulkDeleteOpen(true),
+      // Same verb either way — only the review surface differs, so
+      // this item stays put with the assistant off.
+      run: () => (assistantEnabled ? setBulkDeleting(true) : setBulkDeleteOpen(true)),
       requiresSelection: true,
       destructive: true,
     },
@@ -200,6 +203,25 @@ export default function ModifiersPage() {
             // reload and leave the sheet and the ticks alone.
             if (outcome === 'applied') {
               setBulkEditing(false);
+              setSelected(new Set());
+            }
+            await load();
+          }}
+        />
+      )}
+
+      {bulkDeleting && (
+        <BulkVerbSlot
+          resource="modifiers"
+          verb="delete"
+          targets={bulkTargets}
+          onClose={() => setBulkDeleting(false)}
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkDeleting(false);
               setSelected(new Set());
             }
             await load();

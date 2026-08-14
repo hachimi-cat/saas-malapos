@@ -26,7 +26,7 @@ import { BulkBar, BulkDeleteDialog } from '@/components/dashboard/bulk-bar';
 import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
-import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { AgenticEntry, BulkEditSlot, BulkVerbSlot } from '@/components/catentio/agentic-entry';
 import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
 import { useCatentioStatus } from '@/hooks/use-catentio';
 import { deleteMany } from '@/lib/bulk';
@@ -110,6 +110,12 @@ export default function MarketingCampaignsHubPage() {
   // Batch edit (agentic sheet) over the DataTable's selection.
   const [bulkEditing, setBulkEditing] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  // The rows a batch delete opened over, snapshotted at page level.
+  // NOT inside renderBulkBar: DataTable only renders that while at
+  // least one row is ticked (data-table.tsx), so a partial run whose
+  // failed row ALSO left the list would empty the selection and
+  // unmount the sheet still naming what did not go through.
+  const [bulkDeleteRows, setBulkDeleteRows] = useState<Campaign[] | null>(null);
   const [bulkError, setBulkError] = useState<string | null>(null);
   // The DataTable's ticked rows, mirrored up so the page assistant's
   // action picker and the bulk bar share one delete executor.
@@ -263,7 +269,9 @@ export default function MarketingCampaignsHubPage() {
       key: 'bulk-delete',
       label: selection.length > 0 ? `Delete ${selection.length} selected` : 'Delete selected',
       icon: Trash2,
-      run: () => setBulkDeleteOpen(true),
+      // Same verb either way — only the review surface differs, so
+      // this item stays put with the assistant off.
+      run: () => (assistantEnabled ? setBulkDeleteRows(selection) : setBulkDeleteOpen(true)),
       requiresSelection: true,
       destructive: true,
     },
@@ -419,6 +427,7 @@ export default function MarketingCampaignsHubPage() {
                   }}
                 />
               )}
+
             </>
           )}
         />
@@ -435,6 +444,25 @@ export default function MarketingCampaignsHubPage() {
         onDone={() => setSelection([])}
         description="The campaign umbrellas are removed — linked briefs, codes and posts stay, they just lose the grouping. This cannot be undone."
       />
+
+      {bulkDeleteRows && (
+        <BulkVerbSlot
+          resource="marketing-campaigns"
+          verb="delete"
+          targets={bulkDeleteRows as unknown as Record<string, unknown>[]}
+          onClose={() => setBulkDeleteRows(null)}
+          onApplied={async (outcome) => {
+            // A partial run leaves the sheet OPEN over the records that
+            // did not go through — only the list behind it is stale, so
+            // reload and leave the sheet and the ticks alone.
+            if (outcome === 'applied') {
+              setBulkDeleteRows(null);
+              setSelection([]);
+            }
+            await load();
+          }}
+        />
+      )}
 
       {showForm && (
         <Dialog open onOpenChange={(o) => !o && setShowForm(false)}>

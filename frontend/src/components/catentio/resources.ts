@@ -44,7 +44,11 @@ export type { Fields, ResourceContext, ResourceBuilder, ResourceWithResult } fro
 export { buildAgentPrompt, defined, strOrNull } from './resource-helpers';
 
 import type { Fields, ResourceContext, ResourceBuilder, ResourceWithResult } from './resource-helpers';
-import { str } from './resource-helpers';
+import { str, withDelete } from './resource-helpers';
+import { api } from '@/lib/api';
+import { plansApi } from '@/lib/payments-api';
+import { warehousesApi } from '@/lib/fulfillment-api';
+import { discountCodesApi, marketingFetch } from '@/lib/marketing-api';
 import { CORE_BUILDERS } from './resources/core';
 import { BOOKS_BUILDERS } from './resources/books';
 import { MARKETING_BUILDERS } from './resources/marketing';
@@ -63,6 +67,51 @@ const COMPOSED: Record<string, ResourceBuilder> = {
   ...MARKETING_BUILDERS,
   ...PAYFUL_BUILDERS,
 };
+
+/**
+ * wave-3. Nine pages already offered "Delete N selected" through the
+ * manual confirm and had no declared verb behind it, so a card for one
+ * would have been dropped by the BFF sanitizer. Each `del` below is the
+ * SAME call that page's own confirm already makes — the batch sheet
+ * fans this single-record apply over the ticked rows, so there is no
+ * second write path to drift.
+ *
+ * Two of them do not really delete, which their profile blocks say:
+ * warehouses ARCHIVES in Fulkruma and discount-codes ARCHIVES in Ripllo.
+ */
+for (const [slug, label, del] of [
+  ['plans', 'billing plan', (id: string) => plansApi.delete(id)],
+  ['outlets', 'outlet', (id: string) => api.delete(`/outlets/${encodeURIComponent(id)}`)],
+  ['modifiers', 'modifier group', (id: string) => api.delete(`/modifiers/${encodeURIComponent(id)}`)],
+  ['warehouses', 'fulfillment warehouse', (id: string) => warehousesApi.delete(id)],
+  ['tables', 'dine-in table', (id: string) => api.delete(`/tables/${encodeURIComponent(id)}`)],
+  ['suppliers', 'supplier', (id: string) => api.delete(`/suppliers/${encodeURIComponent(id)}`)],
+  ['funnels', 'marketing funnel', (id: string) => marketingDelete(`funnels/${encodeURIComponent(id)}`)],
+  ['marketing-campaigns', 'marketing campaign', (id: string) => marketingDelete(`marketing-campaigns/${encodeURIComponent(id)}`)],
+  ['discount-codes', 'discount code', (id: string) => discountCodesApi.archive(id)],
+] as const) {
+  COMPOSED[slug] = withDelete(COMPOSED[slug]!, { slug, label, del });
+}
+
+/** The marketing pages' own delete: `marketingFetch` does not throw on a
+ *  non-2xx, so the proxy's envelope message has to be surfaced as an
+ *  Error or a failed row would count as deleted. */
+async function marketingDelete(path: string): Promise<void> {
+  const r = await marketingFetch(`/api/v1/account/marketing/${path}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!r.ok) {
+    let message = `delete failed (${r.status})`;
+    try {
+      const body = (await r.json()) as { error?: { message?: string } };
+      if (body?.error?.message) message = body.error.message;
+    } catch {
+      /* keep the status-code message */
+    }
+    throw new Error(message);
+  }
+}
 
 // Fail LOUD at module init, not on first sheet open: a group module
 // that renames or drops a key would otherwise surface as "not a

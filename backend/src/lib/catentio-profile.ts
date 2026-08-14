@@ -153,6 +153,15 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'sortOrder', type: 'number', create: true, edit: true, description: 'position among modifier groups, 0-based' },
         { key: 'modifiers', type: 'object[]', create: true, edit: false, description: "CREATE ONLY — the options inside the group, each { name (≤80 chars), price (extra charge in WHOLE Indonesian rupiah, 0 for free), sortOrder }, e.g. [{ \"name\": \"Less sugar\", \"price\": 0 }, { \"name\": \"Extra shot\", \"price\": 5000 }]" },
       ],
+      // wave-3 — the page already offered a manual batch delete.
+      // `actions` is exhaustive once present, so create/edit repeat
+      // the synthesized pair exactly (the no-drift test proves it).
+      actions: {
+        create: { label: 'Create', fields: ['name', 'minSelect', 'maxSelect', 'sortOrder', 'modifiers'], requiresFields: ['name'] },
+        edit: { label: 'Edit', fields: ['name', 'minSelect', 'maxSelect', 'sortOrder'], requiresId: true },
+        // Deletes the whole GROUP and the options inside it.
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     outlets: {
       label: 'outlet',
@@ -168,6 +177,16 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'receiptFooter', type: 'string', create: true, edit: true, nullable: true, description: 'text printed at the foot of this outlet\'s receipts (≤500 chars), or null' },
         { key: 'isActive', type: 'boolean', create: false, edit: true, description: 'whether the outlet can be picked on the sell screen' },
       ],
+      // wave-3 — the page already offered a manual batch delete.
+      // `actions` is exhaustive once present, so create/edit repeat
+      // the synthesized pair exactly (the no-drift test proves it).
+      actions: {
+        create: { label: 'Create', fields: ['name', 'address', 'phone', 'timezone', 'taxRateBps', 'taxInclusive', 'receiptHeader', 'receiptFooter'], requiresFields: ['name'] },
+        edit: { label: 'Edit', fields: ['name', 'address', 'phone', 'timezone', 'taxRateBps', 'taxInclusive', 'receiptHeader', 'receiptFooter', 'isActive'], requiresId: true },
+        // Refused while anything still points at the outlet; `isActive`
+        // false is the reversible way to take one off the sell screen.
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     tables: {
       label: 'dine-in table',
@@ -186,6 +205,16 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'height', type: 'number', create: true, edit: true, description: 'height on the floor map in grid cells, 1-12' },
         { key: 'isActive', type: 'boolean', create: false, edit: true, description: 'whether the table shows on the floor map and can seat a bill' },
       ],
+      // wave-3 — the page already offered a manual batch delete.
+      // `actions` is exhaustive once present, so create/edit repeat
+      // the synthesized pair exactly (the no-drift test proves it).
+      actions: {
+        create: { label: 'Create', fields: ['outletId', 'floorId', 'label', 'zone', 'seats', 'sortOrder', 'posX', 'posY', 'shape', 'width', 'height'], requiresFields: ['outletId', 'label'] },
+        edit: { label: 'Edit', fields: ['floorId', 'label', 'zone', 'seats', 'sortOrder', 'posX', 'posY', 'shape', 'width', 'height', 'isActive'], requiresId: true },
+        // Refused once any transaction has been rung up on the table —
+        // that sale has to keep resolving. `isActive` false retires it.
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     floors: {
       label: 'floor',
@@ -208,6 +237,16 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'note', type: 'string', create: true, edit: true, nullable: true, description: 'free note about the vendor (≤1000 chars), or null' },
         { key: 'isActive', type: 'boolean', create: false, edit: true, description: 'whether the supplier can be picked on new purchase orders' },
       ],
+      // wave-3 — the page already offered a manual batch delete.
+      // `actions` is exhaustive once present, so create/edit repeat
+      // the synthesized pair exactly (the no-drift test proves it).
+      actions: {
+        create: { label: 'Create', fields: ['name', 'contact', 'phone', 'email', 'address', 'note'], requiresFields: ['name'] },
+        edit: { label: 'Edit', fields: ['name', 'contact', 'phone', 'email', 'address', 'note', 'isActive'], requiresId: true },
+        // Refused while purchase orders reference the supplier;
+        // `isActive` false is the reversible retire.
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     customers: {
       label: 'customer',
@@ -335,6 +374,15 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'status', type: 'string', create: true, edit: true, description: "campaign status — read the account's existing campaigns first and use the same status values they carry" },
         { key: 'budgetIdr', type: 'number', create: true, edit: true, nullable: true, description: 'campaign budget in WHOLE Indonesian rupiah (5000000 = Rp 5.000.000), or null' },
       ],
+      // wave-3 — the page already offered a manual batch delete.
+      // `actions` is exhaustive once present, so create/edit repeat
+      // the synthesized pair exactly (the no-drift test proves it).
+      actions: {
+        create: { label: 'Create', fields: ['name', 'goal', 'description', 'status', 'budgetIdr'], requiresFields: ['name', 'goal'] },
+        edit: { label: 'Edit', fields: ['name', 'goal', 'description', 'status', 'budgetIdr'], requiresId: true },
+        // Proxied to Ripllo, which owns the campaign and its stats.
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     funnels: {
       label: 'marketing funnel',
@@ -344,6 +392,15 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'triggerKind', type: 'string', create: true, edit: false, description: "what starts the funnel for a contact — read the account's existing funnels first and use the same trigger kinds they carry (Ripllo rejects a create without one; its config starts empty)" },
         { key: 'status', type: 'string', create: true, edit: true, description: "'draft' (not running), 'active' (sending to real contacts) or 'paused'" },
       ],
+      // wave-3 — the page already offered a manual batch delete.
+      // `actions` is exhaustive once present, so create/edit repeat
+      // the synthesized pair exactly (the no-drift test proves it).
+      actions: {
+        create: { label: 'Create', fields: ['name', 'triggerKind', 'status'], requiresFields: ['name', 'triggerKind'] },
+        edit: { label: 'Edit', fields: ['name', 'status'], requiresId: true },
+        // Proxied to Ripllo, which owns the funnel and its runs.
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     warehouses: {
       label: 'fulfillment warehouse',
@@ -356,6 +413,16 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'phone', type: 'string', create: true, edit: true, nullable: true, description: 'phone number (≤30 chars), or null' },
         { key: 'isDefault', type: 'boolean', create: true, edit: true, description: 'use this warehouse by default for new stock and shipments' },
       ],
+      // wave-3 — the page already offered a manual batch delete.
+      // `actions` is exhaustive once present, so create/edit repeat
+      // the synthesized pair exactly (the no-drift test proves it).
+      actions: {
+        create: { label: 'Create', fields: ['name', 'address', 'city', 'postal', 'phone', 'isDefault'], requiresFields: ['name'] },
+        edit: { label: 'Edit', fields: ['name', 'address', 'city', 'postal', 'phone', 'isDefault'], requiresId: true },
+        // ARCHIVES it in Fulkruma (client.warehouses.archive) — the
+        // stock history pointing at it has to keep resolving.
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     // Edit-only singleton (PATCH /api/v1/delivery/origin) — the pickup
     // address couriers collect from. No local zod; the route forwards
@@ -499,6 +566,16 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'active', type: 'boolean', create: true, edit: true, description: 'whether the code can currently be redeemed' },
         { key: 'public', type: 'boolean', create: true, edit: true, description: 'whether the code may be shown publicly (e.g. on storefront banners) rather than shared privately' },
       ],
+      // wave-3 — the page already offered a manual batch delete.
+      // `actions` is exhaustive once present, so create/edit repeat
+      // the synthesized pair exactly (the no-drift test proves it).
+      actions: {
+        create: { label: 'Create', fields: ['code', 'description', 'type', 'value', 'scope', 'productIds', 'tagFilter', 'minPurchaseAmount', 'maxUsesTotal', 'maxUsesPerCustomer', 'startsAt', 'expiresAt', 'active', 'public'], requiresFields: ['code', 'type', 'value'] },
+        edit: { label: 'Edit', fields: ['description', 'type', 'value', 'scope', 'productIds', 'tagFilter', 'minPurchaseAmount', 'maxUsesTotal', 'maxUsesPerCustomer', 'startsAt', 'expiresAt', 'active', 'public'], requiresId: true },
+        // ARCHIVES it in Ripllo — orders already redeemed point at the
+        // code. `active` false is the reversible way to stop it redeeming.
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     // Edit-only singleton (PUT /api/v1/marketing/loyalty/program).
     'loyalty-program': {
@@ -593,6 +670,17 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'active', type: 'boolean', create: false, edit: true, description: 'whether the plan can be subscribed to; false retires it without touching existing subscribers' },
         { key: 'metadata', type: 'object', create: false, edit: true, description: 'free-form key/value pairs stored on the plan' },
       ],
+      // wave-3 — the page already offered a manual batch delete.
+      // `actions` is exhaustive once present, so create/edit repeat
+      // the synthesized pair exactly (the no-drift test proves it).
+      actions: {
+        create: { label: 'Create', fields: ['name', 'amount', 'currency', 'interval'], requiresFields: ['name', 'amount'] },
+        edit: { label: 'Edit', fields: ['name', 'description', 'active', 'metadata'], requiresId: true },
+        // ARCHIVES the plan (payment/plans DELETE -> archive): the
+        // subscribers already on it keep billing. Money resource, so the
+        // whole thing is approvalRequired already.
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
     },
     prices: {
       label: 'plan price',

@@ -71,6 +71,16 @@ export const RESOURCE_EXTRA_ACTIONS: Partial<Record<AssistantResource, readonly 
   payouts: ['mark-paid'],
   'affiliate-enrollments': ['approve'],
   'affiliate-commissions': ['approve', 'void'],
+  // wave-3 — the nine pages that already offered a manual batch delete.
+  plans: ['delete'],
+  outlets: ['delete'],
+  modifiers: ['delete'],
+  warehouses: ['delete'],
+  tables: ['delete'],
+  suppliers: ['delete'],
+  funnels: ['delete'],
+  'marketing-campaigns': ['delete'],
+  'discount-codes': ['delete'],
 };
 
 /** Resources whose profile declares NO create/edit — only verbs. The
@@ -106,10 +116,13 @@ export function resourceSupports(resource: AssistantResource, mode: string): boo
  * of `resourceSupports`, so a page cannot quietly offer a batch verb
  * nothing can apply.
  *
- * Undeclared resources' batch items (tables, outlets, modifiers,
- * plans, discount-codes, purchase orders, funnels/campaigns…) are
- * deliberately absent: they stay the hand-built manual dialogs until
- * their resource declares the verb.
+ * Wave-3 declared the verb for the nine that had stayed manual (plans,
+ * outlets, modifiers, warehouses, tables, suppliers, funnels,
+ * marketing-campaigns, discount-codes), so each is listed below. What is
+ * still deliberately absent is anything whose resource has no declared
+ * verb behind it — `floors` has a DELETE route but no batch surface, and
+ * purchase ORDERS never had one either (the purchasing page's batch
+ * delete acts on suppliers).
  */
 export const BULK_VERBS: Partial<Record<AssistantResource, readonly string[]>> = {
   categories: ['delete'],
@@ -119,6 +132,16 @@ export const BULK_VERBS: Partial<Record<AssistantResource, readonly string[]>> =
   'blog-posts': ['publish', 'unpublish', 'delete'],
   'affiliate-enrollments': ['approve'],
   'affiliate-commissions': ['approve', 'void'],
+  // wave-3 — the nine pages that already offered a manual batch delete.
+  plans: ['delete'],
+  outlets: ['delete'],
+  modifiers: ['delete'],
+  warehouses: ['delete'],
+  tables: ['delete'],
+  suppliers: ['delete'],
+  funnels: ['delete'],
+  'marketing-campaigns': ['delete'],
+  'discount-codes': ['delete'],
 };
 
 export function supportsBulkVerb(resource: AssistantResource, verb: string): boolean {

@@ -139,7 +139,7 @@ const MOUNTABLE = Object.entries(BULK_VERBS).flatMap(([resource, verbs]) =>
 const FIELDLESS = MOUNTABLE.filter(([name]) => name !== 'products.set-category');
 
 describe('BulkVerbSlot — what it can mount', () => {
-  it('covers all eleven pairs (guards the derivation itself)', () => {
+  it('covers all twenty pairs (guards the derivation itself)', () => {
     expect(MOUNTABLE.map(([name]) => name)).toEqual([
       'categories.delete',
       'products.set-category',
@@ -152,8 +152,18 @@ describe('BulkVerbSlot — what it can mount', () => {
       'affiliate-enrollments.approve',
       'affiliate-commissions.approve',
       'affiliate-commissions.void',
+      // wave-3: the nine pages whose batch delete was manual-only.
+      'plans.delete',
+      'outlets.delete',
+      'modifiers.delete',
+      'warehouses.delete',
+      'tables.delete',
+      'suppliers.delete',
+      'funnels.delete',
+      'marketing-campaigns.delete',
+      'discount-codes.delete',
     ]);
-    expect(FIELDLESS).toHaveLength(10);
+    expect(FIELDLESS).toHaveLength(19);
   });
 });
 
@@ -174,11 +184,17 @@ describe('a batch verb sheet is applicable the moment it opens', () => {
     expect(first!.name).toBe(BATCH_TARGETS_FIELD);
     expect(String(first!.kind)).toBe('static');
     expect(first!.required).toBeFalsy();
-    // It names WHO, in the merchant's own nouns.
-    expect(first!.label).toMatch(/^2 .+s selected$/);
-    expect(buildBulkVerbResource(resource, verb, [TARGETS[0]!]).fields[0]!.label).toMatch(
-      /^1 [^s].* selected$/,
-    );
+    // It names WHO, in the merchant's own nouns, and one row reads as
+    // one record. Asserted as the RELATIONSHIP between the two labels:
+    // this used to be `/^1 [^s].* selected$/`, which encoded "singular"
+    // as "the noun does not start with s" and passed only because no
+    // noun did — until wave-3 added `supplier`.
+    const plural = first!.label;
+    const singular = buildBulkVerbResource(resource, verb, [TARGETS[0]!]).fields[0]!.label;
+    expect(plural).toMatch(/^2 .+s selected$/);
+    expect(singular).toMatch(/^1 .+ selected$/);
+    expect(singular).not.toMatch(/s selected$/);
+    expect(plural).toBe(singular.replace(/^1 (.*) selected$/, '2 $1s selected'));
   });
 
   it('the seed is what makes the draft non-empty — nothing else can', () => {
