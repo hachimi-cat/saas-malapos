@@ -43,12 +43,16 @@ export async function registerFeatureFlags(): Promise<void> {
 /**
  * Is the catentio pilot on for this user?
  *
- * NOT YET CALLED ANYWHERE, and deliberately so: the embedded catentio
- * layer this gates is not built in this product yet. The flag is staged
- * ahead of it — off, with the two pilot accounts allowlisted — so that
- * when the integration lands it is one import and one `if`, and nobody
- * has to remember to add the gate afterwards. Delete this helper if the
- * pilot is abandoned; do not leave it here reading a flag nobody flips.
+ * The gate on the embedded catentio layer, read at
+ * `routes/catentio.ts:63` (`flagEnabled`). The comment here used to say
+ * this was NOT YET CALLED ANYWHERE and that the layer was not built —
+ * true when the flag was staged ahead of the work, and wrong since the
+ * integration landed. It is load-bearing now: the flag is OFF in prod
+ * with the two pilot accounts allowlisted, so this is what decides
+ * whether a given user sees the assistant at all.
+ *
+ * Delete this helper if the pilot is abandoned; do not leave it here
+ * reading a flag nobody flips.
  */
 export async function catentioPilotEnabled(
   huudisUserId: string | null | undefined,
