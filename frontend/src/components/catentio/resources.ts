@@ -608,6 +608,23 @@ export function batchTargetsInitial(names: string): Fields {
 }
 
 /**
+ * English plural for a descriptor label. `${label}s` gave "2 categorys"
+ * — harmless in a header, not in the confirm dialog, which is the one
+ * screen a merchant reads before N records go.
+ *
+ * Consonant + y → -ies; a sibilant ending → -es; otherwise +s. Every
+ * label in the registry is a plain noun phrase ("modifier group",
+ * "dine-in table"), so the head word is the last one and these three
+ * rules cover all of them — asserted per pair in
+ * catentio-batch-verb-applicable.test.ts.
+ */
+function plural(label: string): string {
+  if (/[^aeiou]y$/i.test(label)) return `${label.slice(0, -1)}ies`;
+  if (/(s|x|z|ch|sh)$/i.test(label)) return `${label}es`;
+  return `${label}s`;
+}
+
+/**
  * `buildBulkEditResource`, generalized past edit — the wave-2 half of
  * the batch story.
  *
@@ -658,7 +675,7 @@ export function buildBulkVerbResource(
     'a record';
 
   const n = targets.length;
-  const noun = n === 1 ? single.label : `${single.label}s`;
+  const noun = n === 1 ? single.label : plural(single.label);
   const rowSupplied = new Set(ROW_SUPPLIED_FIELDS[resource] ?? []);
   const fan = fanOut(pastVerb(verb), targets, nameRow);
 

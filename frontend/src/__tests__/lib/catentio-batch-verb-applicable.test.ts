@@ -194,7 +194,12 @@ describe('a batch verb sheet is applicable the moment it opens', () => {
     expect(plural).toMatch(/^2 .+s selected$/);
     expect(singular).toMatch(/^1 .+ selected$/);
     expect(singular).not.toMatch(/s selected$/);
-    expect(plural).toBe(singular.replace(/^1 (.*) selected$/, '2 $1s selected'));
+    // Not `singular + 's'`: "category" pluralises to "categories", so
+    // asserting the naive suffix would enshrine the very bug the
+    // confirm-dialog check below rejects. What must hold is that the
+    // count moved and the plural is a real one.
+    expect(plural).not.toBe(singular.replace(/^1 /, '2 '));
+    expect(plural.replace(/^2 | selected$/g, '')).not.toMatch(/(ys|ss|xs|zs|chs|shs)$/);
   });
 
   it.each(MOUNTABLE)('%s: the confirm names the COUNT and reads in the plural', (_n, resource, verb) => {
@@ -210,6 +215,10 @@ describe('a batch verb sheet is applicable the moment it opens', () => {
     const sentence = `${many.confirmLabel} ${many.label}?`;
     expect(sentence, `${resource}.${verb} confirm must carry the count`).toMatch(/ 2 /);
     expect(sentence, `${resource}.${verb} confirm must be plural`).toMatch(/s\?$/);
+    // …and a REAL plural: `${label}s` read "Delete 2 categorys?".
+    expect(sentence, `${resource}.${verb} confirm is mis-pluralised`).not.toMatch(
+      /(ys|ss|xs|zs|chs|shs)\?$/,
+    );
 
     // One row reads as one record — the count is still there.
     const one = buildBulkVerbResource(resource, verb, [TARGETS[0]!]);
