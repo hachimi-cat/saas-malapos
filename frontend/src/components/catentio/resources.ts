@@ -662,11 +662,21 @@ export function buildBulkVerbResource(
   const rowSupplied = new Set(ROW_SUPPLIED_FIELDS[resource] ?? []);
   const fan = fanOut(pastVerb(verb), targets, nameRow);
 
+  const act = single.confirmLabel ?? single.title ?? verb;
+
   return {
     ...single,
     // The sheet's own title is written for one record ("Delete blog
     // post"); say what is actually about to happen instead.
-    title: `${single.confirmLabel ?? single.title ?? verb} ${n} ${noun}`,
+    title: `${act} ${n} ${noun}`,
+    // Both of these were inherited from the single-record descriptor,
+    // and the package renders the destructive dialog as
+    // `${confirmLabel} ${label}?` — so ticking three suppliers and
+    // pressing the batch item put up "Delete supplier?", with no count
+    // and in the singular, on the one screen a merchant is meant to
+    // read before N records go. Live-observed on staging.
+    confirmLabel: `${act} ${n}`,
+    label: noun,
     fields: [
       {
         name: BATCH_TARGETS_FIELD,

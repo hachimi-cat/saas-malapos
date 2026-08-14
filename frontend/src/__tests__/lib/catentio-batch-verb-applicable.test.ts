@@ -197,6 +197,25 @@ describe('a batch verb sheet is applicable the moment it opens', () => {
     expect(plural).toBe(singular.replace(/^1 (.*) selected$/, '2 $1s selected'));
   });
 
+  it.each(MOUNTABLE)('%s: the confirm names the COUNT and reads in the plural', (_n, resource, verb) => {
+    // The package renders the destructive dialog as
+    // `${confirmLabel} ${label}?`, and this descriptor spreads the
+    // single-record one — so before wave-3 it inherited both, and
+    // ticking three suppliers put up "Delete supplier?": no count, and
+    // singular, on the one screen a merchant reads before N records go.
+    // Live-observed on staging. Asserted as the STRING THE MERCHANT
+    // READS, because asserting the parts is how the singular survived
+    // in the sibling products.
+    const many = buildBulkVerbResource(resource, verb, TARGETS);
+    const sentence = `${many.confirmLabel} ${many.label}?`;
+    expect(sentence, `${resource}.${verb} confirm must carry the count`).toMatch(/ 2 /);
+    expect(sentence, `${resource}.${verb} confirm must be plural`).toMatch(/s\?$/);
+
+    // One row reads as one record — the count is still there.
+    const one = buildBulkVerbResource(resource, verb, [TARGETS[0]!]);
+    expect(`${one.confirmLabel} ${one.label}?`).toMatch(/ 1 /);
+  });
+
   it('the seed is what makes the draft non-empty — nothing else can', () => {
     // The verb descriptors carry no defaultValue and the sheet does not
     // seed them anyway (seedDefaults: false), so an unseeded mount is a
