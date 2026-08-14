@@ -17,7 +17,37 @@ import { join } from 'node:path';
  * `PageAssistant`, or wear a Sparkles icon. Decorative sparkles are
  * banned with the rest — a sparkle anywhere reads as "assistant lives
  * here", which is exactly the affordance this rework removed.
+ *
+ * ONE exception, carved out by bang on 2026-08-14: *"for page that
+ * directly rendered form like ... payment providers, payment method,
+ * payment template ..., for the action item, instead of using action
+ * keyword like edit, you can use ask assistant with sparkle icon. this
+ * is only for page with open form"*.
+ *
+ * It is not a reversal. The 08-12 rule says name a button after its
+ * ACTION — and on a singleton settings page there is no action to name:
+ * the form is already open, every field is on screen, the page has its
+ * own Save, and "Edit" reveals nothing. The only thing the button
+ * offers is the assistant, so the honest label IS the mechanism.
+ *
+ * So the sweeps below are NARROWED, not dropped:
+ *   - the label + the icon may appear in exactly ONE file, the entry
+ *     component that owns them;
+ *   - only OPEN_FORM_SURFACES may mount <AskAssistantEntry, and all of
+ *     them must (asserted both ways).
+ * Both halves carry a positive control, so deleting the feature cannot
+ * make a sweep pass on an absence.
  */
+
+/** The pages that ARE the form. Exhaustive, and asserted both ways. */
+const OPEN_FORM_SURFACES = [
+  'app/(dashboard)/dashboard/payments/settings/providers/page.tsx',
+  'app/(dashboard)/dashboard/payments/settings/payment-methods/page.tsx',
+  'app/(dashboard)/dashboard/payments/settings/templates/page.tsx',
+];
+
+/** The one file allowed to spell the label and import the icon. */
+const SPARKLE_OWNER = 'components/catentio/agentic-entry.tsx';
 
 const SRC = join(__dirname, '..', '..');
 const SCANNED = [join(SRC, 'app'), join(SRC, 'components')];
@@ -116,14 +146,57 @@ describe('zero sparkles — the entry-point contract', () => {
     expect(offenders, 'PageAssistant was deleted with the picker — nothing may mount or define it').toEqual([]);
   });
 
-  it('no "Ask assistant" label survives anywhere', () => {
-    const offenders = files.filter((f) => readFileSync(f, 'utf8').includes('Ask assistant'));
-    expect(offenders, 'entries are action buttons — the label is the verb, never the mechanism').toEqual([]);
+  it('the "Ask assistant" label lives in exactly one file', () => {
+    // Read CODE, not raw source: this file's own doc comment quotes the
+    // label, and so does the entry component's.
+    const offenders = files.filter(
+      (f) => code(f).includes('Ask assistant') && !f.endsWith(join(...SPARKLE_OWNER.split('/'))),
+    );
+    expect(
+      offenders,
+      'every other entry is an action button — the label is the verb, never the mechanism',
+    ).toEqual([]);
+    // Positive control: the owner really does carry it. Without this the
+    // sweep passes just as happily if the feature were deleted.
+    expect(code(join(SRC, SPARKLE_OWNER))).toContain('Ask assistant');
   });
 
-  it('no Sparkles icon survives anywhere', () => {
-    const offenders = files.filter((f) => /\bSparkles\b/.test(readFileSync(f, 'utf8')));
-    expect(offenders, 'no sparkle icon on any app/component surface — decorative ones included').toEqual([]);
+  it('the Sparkles icon lives in exactly one file', () => {
+    const offenders = files.filter(
+      (f) => /\bSparkles\b/.test(code(f)) && !f.endsWith(join(...SPARKLE_OWNER.split('/'))),
+    );
+    expect(offenders, 'no sparkle on any other surface — decorative ones included').toEqual([]);
+    expect(code(join(SRC, SPARKLE_OWNER))).toMatch(/\bSparkles\b/);
+  });
+
+  it('only the open-form pages mount AskAssistantEntry — and all of them do', () => {
+    const mounted = files
+      .filter((f) => /<AskAssistantEntry\b/.test(code(f)))
+      .map((f) => f.slice(SRC.length + 1).split(/[\\/]/).join('/'))
+      .sort();
+    // Both directions. `toEqual` one way alone would let a page grow a
+    // sparkle over a list (an entry point the 08-12 rule bans), and the
+    // other way alone would let one of the three silently lose it.
+    expect(mounted, 'the sparkle is only for a page that IS the form').toEqual(
+      [...OPEN_FORM_SURFACES].sort(),
+    );
+  });
+
+  it('a page with a sparkle has NO manual twin behind it', () => {
+    // bang, 2026-08-14: *"for page with ask assistant button, no need to
+    // show manual form. it will only show agentic mode."* The sheet is
+    // opened with `agentOnly`, which does not merely hide the Manual
+    // pane — the package leaves it UNMOUNTED, so a form nobody can see
+    // cannot seed the shared draft and quietly overrule the plan.
+    const owner = code(join(SRC, SPARKLE_OWNER));
+    expect(owner, 'AskAssistantEntry must open the sheet agent-only').toMatch(
+      /<CatentioCrudSheet[\s\S]*?\bagentOnly\b[\s\S]*?\/>/,
+    );
+    // …and the sheet has to actually forward it.
+    const sheet = code(join(SRC, 'components/catentio/agentic-sheet.tsx'));
+    expect(sheet, 'CatentioCrudSheet must pass agentOnly through').toMatch(
+      /agentOnly=\{agentOnly\}/,
+    );
   });
 });
 

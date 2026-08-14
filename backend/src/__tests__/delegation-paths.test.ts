@@ -13,8 +13,9 @@ import { mintDelegationToken } from '@forjio/catentio-embed';
  *   - Writes additionally need DELEGATION_WRITABLE_PATHS. The books and
  *     every money surface are deliberately absent there, so even a
  *     write-bit (auto-apply) token gets a 403 on POST /sales/:id/refund.
- *   - DENIED beats everything: provider credentials
- *     (/payments/plugipay-settings) are not even readable.
+ *   - DENIED beats everything: provider CREDENTIALS (the four
+ *     secret-bearing /plugipay-settings/adapters/* paths) are not even
+ *     readable, while the merchant-facing settings beside them are.
  *
  * The middleware matches `${req.baseUrl}${req.path}`, so the handlers
  * here are registered as a catch-all (baseUrl '') and the assertion is
@@ -48,6 +49,24 @@ function makeApp() {
     res.json({ reached: true, accountId: req.auth?.accountId });
   });
   return app;
+}
+
+type Verb = 'post' | 'patch' | 'put' | 'delete';
+
+/** One write through the gate. A table of (method, path) pairs is the
+ *  readable way to state a boundary, and supertest's per-verb methods
+ *  are separate functions — so dispatch here, once, typed. */
+function send(method: Verb, path: string) {
+  const agent = request(makeApp());
+  const call =
+    method === 'post'
+      ? agent.post(path)
+      : method === 'patch'
+        ? agent.patch(path)
+        : method === 'put'
+          ? agent.put(path)
+          : agent.delete(path);
+  return call.set('Authorization', `Delegation ${token(true)}`).send({});
 }
 
 beforeEach(() => {
@@ -102,12 +121,80 @@ describe('delegation gate — read/write path split', () => {
     expect(res.status).toBe(200);
   });
 
-  it('provider credentials are not even readable: plugipay-settings → 403', async () => {
+  /*
+   * PAYMENT SETTINGS — the boundary bang chose on 2026-08-14 (storlaunch
+   * parity), replacing a blanket deny on the whole plugipay-settings
+   * prefix. Deny the credentials, allow the configuration.
+   *
+   * The four secret paths and the settings beside them live under ONE
+   * prefix, so both halves are asserted together: a deny that stopped
+   * matching, or an allow that grew to swallow the adapters, has to
+   * fail here rather than in production.
+   */
+  const SECRET_ADAPTERS = ['xendit', 'paypal', 'midtrans', 'managed'] as const;
+
+  it.each(SECRET_ADAPTERS)(
+    'provider credentials are not even readable: /adapters/%s → 403',
+    async (kind) => {
+      const res = await request(makeApp())
+        .get(`/api/v1/payments/plugipay-settings/adapters/${kind}`)
+        .set('Authorization', `Delegation ${token(true)}`);
+      expect(res.status).toBe(403);
+      expect(res.body.error.message).toMatch(/not available to delegated agents/i);
+    },
+  );
+
+  it.each(SECRET_ADAPTERS)('and cannot be WRITTEN either: PUT /adapters/%s → 403', async (kind) => {
     const res = await request(makeApp())
-      .get('/api/v1/payments/plugipay-settings/adapters')
-      .set('Authorization', `Delegation ${token(true)}`);
+      .put(`/api/v1/payments/plugipay-settings/adapters/${kind}`)
+      .set('Authorization', `Delegation ${token(true)}`)
+      .send({ secretKey: 'sk_live_should_never_reach_here' });
     expect(res.status).toBe(403);
+    // DENIED short-circuits before the writable list is consulted, so
+    // this is the allowlist's message, not the writable list's.
     expect(res.body.error.message).toMatch(/not available to delegated agents/i);
+  });
+
+  it('the settings BESIDE them are readable — the gather the sparkle needs', async () => {
+    for (const path of [
+      '/api/v1/payments/plugipay-settings/adapters',
+      '/api/v1/payments/plugipay-settings/checkout/settings',
+      '/api/v1/payments/plugipay-settings/templates',
+    ]) {
+      const res = await request(makeApp())
+        .get(path)
+        .set('Authorization', `Delegation ${token(true)}`);
+      expect(res.status, `${path} should be readable`).toBe(200);
+    }
+  });
+
+  it('the three declared settings writes pass, and nothing else under the prefix does', async () => {
+    const granted: [Verb, string][] = [
+      ['put', '/api/v1/payments/plugipay-settings/adapters/manual'],
+      ['patch', '/api/v1/payments/plugipay-settings/checkout/settings'],
+      ['post', '/api/v1/payments/plugipay-settings/templates'],
+      ['patch', '/api/v1/payments/plugipay-settings/templates/tpl_1'],
+    ];
+    for (const [method, path] of granted) {
+      const res = await send(method, path);
+      expect(res.status, `${method.toUpperCase()} ${path} should be writable`).toBe(200);
+    }
+
+    // Everything else under the same prefix stays propose-only. The two
+    // template lifecycle POSTs are the ones prefix inheritance would
+    // have handed over for free — `exact: true` on the collection POST
+    // is what keeps them out.
+    const refused: [Verb, string][] = [
+      ['post', '/api/v1/payments/plugipay-settings/templates/tpl_1/make-default'],
+      ['post', '/api/v1/payments/plugipay-settings/templates/tpl_1/duplicate'],
+      ['delete', '/api/v1/payments/plugipay-settings/templates/tpl_1'],
+      ['put', '/api/v1/payments/plugipay-settings/adapters'],
+    ];
+    for (const [method, path] of refused) {
+      const res = await send(method, path);
+      expect(res.status, `${method.toUpperCase()} ${path} must stay propose-only`).toBe(403);
+      expect(res.body.error.message).toMatch(/proposes changes here/i);
+    }
   });
 
   it('the embed floor is inherited: /api/v1/api-keys → 403 denied', async () => {

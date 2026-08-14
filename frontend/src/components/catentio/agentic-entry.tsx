@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
+import { Sparkles } from 'lucide-react';
 import { useCatentioStatus, type AssistantMode, type AssistantResource } from '@/hooks/use-catentio';
 // Type-only, so @forjio/agent-ui stays out of THIS module's runtime
 // graph — see the dynamic imports below for why that matters.
@@ -127,6 +128,84 @@ export function AgenticEntry({
           }}
           initial={initial}
           onApplied={(outcome) => onApplied?.(outcome)}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * "Ask assistant" — the entry for a page that IS the form.
+ *
+ * The rest of the portal follows bang's 2026-08-12 entry-point rule:
+ * *"there is no ask assistant label button anymore, should be action
+ * button"*. A list page has real verbs (New X, Edit, Delete), so a
+ * button labelled after the MECHANISM rather than the action was noise.
+ *
+ * A singleton settings screen is the exception bang carved out on
+ * 2026-08-14: *"for page that directly rendered form like ... payment
+ * providers, payment method, payment template ..., for the action item,
+ * instead of using action keyword like edit, you can use ask assistant
+ * with sparkle icon. this is only for page with open form"*.
+ *
+ * The reasoning holds: on those pages "Edit" is a lie. The form is
+ * already open, every field is already on screen, and the page has its
+ * own Save — there is nothing for an Edit button to reveal. What the
+ * button actually offers is the assistant, so that is what it says.
+ *
+ * ONE component rather than an `agentOnly` prop on AgenticEntry,
+ * because the three parts only make sense together: the sparkle, the
+ * label, and a sheet with no Manual tab (the manual path is the page
+ * itself). Split across props, a page could grow a sparkle that still
+ * opens a duplicate form, or an agent-only sheet still labelled Edit.
+ *
+ * No `fallback`: with the assistant off the page's own form is already
+ * the whole manual experience, so the right thing to render is nothing.
+ *
+ * malapos had NO agentic entry on these three pages at all, so this
+ * arrived with the capability rather than as a relabel of one (bang,
+ * 2026-08-14: *"add them"*).
+ */
+export function AskAssistantEntry({
+  resource,
+  mode = 'edit',
+  initial,
+  onApplied,
+  className,
+  label = 'Ask assistant',
+}: {
+  resource: AssistantResource;
+  /** Defaults to `edit` — these pages all edit one standing record. */
+  mode?: AssistantMode;
+  /** The record as it stands, so the agent reads the current values. */
+  initial?: Record<string, unknown>;
+  /** Apply writes straight through; the page refetches here (bang chose
+   *  save-straight-through over filling the page's form). */
+  onApplied?: () => void;
+  className?: string;
+  label?: string;
+}) {
+  const { enabled } = useCatentioStatus();
+  const [open, setOpen] = useState(false);
+
+  if (!enabled) return null;
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className={className}>
+        <Sparkles className="h-4 w-4" /> {label}
+      </button>
+      {open && (
+        <CatentioCrudSheet
+          resource={resource}
+          mode={mode}
+          open
+          agentOnly
+          onOpenChange={(o) => {
+            if (!o) setOpen(false);
+          }}
+          initial={initial}
+          onApplied={() => onApplied?.()}
         />
       )}
     </>

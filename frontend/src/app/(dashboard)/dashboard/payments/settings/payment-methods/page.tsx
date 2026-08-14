@@ -9,6 +9,7 @@ import {
   type PaymentMethodDef,
 } from '@/lib/plugipay-settings-api';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AskAssistantEntry } from '@/components/catentio/agentic-entry';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -51,8 +52,13 @@ export default function PaymentMethodsSettingsPage() {
   const [order, setOrder] = React.useState<string[]>([]);
   const [methodAdapter, setMethodAdapter] = React.useState<Record<string, string>>({});
 
-  React.useEffect(() => {
-    plugipaySettingsApi
+  // Extracted from the mount effect so the assistant can re-read what
+  // it just wrote. bang chose save-straight-through over filling this
+  // page's form, so the refetch is the whole reconciliation — including
+  // the local Sets and the order array, which the assistant's PATCH
+  // moves out from under.
+  const load = React.useCallback(() => {
+    return plugipaySettingsApi
       .getCheckoutSettings()
       .then((s) => {
         setSettings(s);
@@ -63,6 +69,10 @@ export default function PaymentMethodsSettingsPage() {
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false));
   }, []);
+
+  React.useEffect(() => {
+    void load();
+  }, [load]);
 
   function toggle(id: string) {
     setError(null);
@@ -155,10 +165,25 @@ export default function PaymentMethodsSettingsPage() {
           </span>
         }
         action={
-          <Button type="button" onClick={save} disabled={saving}>
-            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Save changes
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* "Ask assistant", not "Edit": every method, its order and
+                the receipt branding are already on screen with their own
+                Save, so there is nothing an Edit button would reveal
+                (bang, 2026-08-14). `methodAdapter` — which provider
+                routes each method — is deliberately NOT a declared field:
+                it decides where a buyer's money goes, and the per-method
+                Select below is where that changes. */}
+            <AskAssistantEntry
+              resource="checkout-settings"
+              initial={(settings ?? undefined) as Record<string, unknown> | undefined}
+              onApplied={load}
+              className="inline-flex items-center gap-2 whitespace-nowrap rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+            />
+            <Button type="button" onClick={save} disabled={saving}>
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Save changes
+            </Button>
+          </div>
         }
       />
 

@@ -100,6 +100,12 @@ export interface CatentioCrudSheetProps {
    *  names). */
   initial?: Record<string, unknown>;
   onApplied?: (outcome: ApplyOutcome) => void;
+  /** Drop the Manual tab entirely — for a page that IS the form (see
+   *  AskAssistantEntry). The package does not merely HIDE the pane: a
+   *  hidden manual editor would still seed the shared draft from its
+   *  defaultValues and still evaluate visibleWhen, so a form nobody can
+   *  see could win an argument with the reviewed plan. */
+  agentOnly?: boolean;
 }
 
 export function CatentioCrudSheet({
@@ -109,6 +115,7 @@ export function CatentioCrudSheet({
   onOpenChange,
   initial,
   onApplied,
+  agentOnly,
 }: CatentioCrudSheetProps) {
   // Module state gates whole panels the draft knows nothing about
   // (payments/fulfillment/marketing blocks follow the partner modules),
@@ -135,6 +142,7 @@ export function CatentioCrudSheet({
       open={open}
       onOpenChange={onOpenChange}
       transport={transport}
+      agentOnly={agentOnly}
       initial={initial}
       onApplied={(result) => onApplied?.(outcomeOf(result))}
       fieldRenderers={fieldRenderers}

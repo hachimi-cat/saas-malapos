@@ -61,6 +61,13 @@ export const ASSISTANT_RESOURCES = [
   'checkout-sessions',
   'subscriptions',
   'payouts',
+  // payments SETTINGS — the three open-form pages under
+  // /dashboard/payments/settings. They reach the assistant through
+  // AskAssistantEntry (a sparkle, no duplicate manual form) rather than
+  // a "New X" button, because each page already IS the form.
+  'providers',
+  'checkout-settings',
+  'payment-templates',
   // fulfillment module (Fulkruma)
   'warehouses',
   'delivery-origin',

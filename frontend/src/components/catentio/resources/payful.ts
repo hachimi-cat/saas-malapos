@@ -14,6 +14,7 @@ import {
   warehousesApi,
   type Courier,
 } from '@/lib/fulfillment-api';
+import { plugipaySettingsApi, type TemplateKind } from '@/lib/plugipay-settings-api';
 import { api } from '@/lib/api';
 import type { AssistantMode } from '@/hooks/use-catentio';
 import {
@@ -22,6 +23,7 @@ import {
   defined,
   num,
   str,
+  strOrNull,
   verbDescriptor,
   verbTargetId,
   type Fields,
@@ -1188,6 +1190,286 @@ function fulfillmentAdjustmentsResource(): CrudResource<Fields> {
   };
 }
 
+// ── payments settings: the three open-form pages ────────────────────
+//
+// bang, 2026-08-14: *"add them"* — malapos's payments/settings pages
+// (providers, payment methods, templates) had no agentic surface at
+// all, so unlike storlaunch and plugipay there was nothing to relabel
+// as "Ask assistant". These three descriptors are that capability,
+// transcribed from storlaunch's (the pages are ports of each other and
+// both proxy the same Plugipay endpoints) with malapos's own PREFIX:
+// /payments/plugipay-settings, not storlaunch's /payment/….
+//
+// All three are EDIT-shaped. Their pages ARE the form — every field is
+// already on screen with its own Save — which is exactly the case
+// AskAssistantEntry exists for. `payment-templates` also takes a
+// create, because the templates page's left list genuinely creates.
+
+/** A read-only panel line: rides in via `initial`, never plannable. */
+const STATIC = 'static' as NonNullable<CrudSchemaField['kind']>;
+
+const TEMPLATE_KINDS = [
+  { value: 'checkout', label: 'Checkout' },
+  { value: 'receipt', label: 'Receipt' },
+  { value: 'invoice', label: 'Invoice' },
+];
+
+/** Drop the blank row "+ Add another" leaves behind — Plugipay would
+ *  otherwise store an account with no bank and no number. */
+function filledRows(v: unknown, keys: string[]): Fields[] | undefined {
+  if (v === undefined) return undefined;
+  return rows(v).filter((r) => keys.some((k) => str(r[k])));
+}
+
+/**
+ * A multi-select's value, as a list of non-empty strings.
+ *
+ * Untouched -> `undefined`, so `defined` drops the key and the PATCH
+ * leaves the stored list alone. An explicitly EMPTIED one stays `[]`:
+ * turning every payment method off is a real thing a merchant may
+ * mean, and collapsing it to "unchanged" would silently refuse them.
+ * The combobox hands back an array; a plan may send one string.
+ */
+function strList(v: unknown): string[] | undefined {
+  if (v === undefined || v === null) return undefined;
+  const raw = Array.isArray(v) ? v : [v];
+  return raw.map((x) => str(x)).filter((x): x is string => !!x);
+}
+
+/**
+ * PROVIDERS — the manual bank-transfer adapter, and nothing else.
+ *
+ * Xendit, PayPal, Midtrans and Plugipay-managed each take an API
+ * secret, and a secret typed into a chat outlives the conversation.
+ * They appear here as read-only status lines carried in by `initial`
+ * so the agent can report where they stand, and the group descriptions
+ * say plainly where the keys go. The backend agrees rather than
+ * trusting this: middleware/auth.ts grants the delegated caller
+ * `/adapters/manual` only, and denies the four secret-bearing ones.
+ */
+function providersResource(): CrudResource<Fields> {
+  return {
+    slug: 'providers',
+    label: 'payment providers',
+    groups: [
+      {
+        id: 'manual',
+        label: 'Manual bank transfer',
+        description:
+          'The one setup the assistant can change for you — the account a buyer is told to pay into is already public information.',
+      },
+      {
+        id: 'xendit',
+        label: 'Xendit',
+        description:
+          'The assistant never handles API keys: a key typed into a chat outlives the conversation. Enter the secret key on this page itself.',
+      },
+      {
+        id: 'paypal',
+        label: 'PayPal',
+        description: 'Client ID + secret are entered on this page itself, never through the assistant.',
+      },
+      {
+        id: 'midtrans',
+        label: 'Midtrans',
+        description: 'Server and client keys are entered on this page itself, never through the assistant.',
+      },
+      {
+        id: 'managed',
+        label: 'Plugipay-managed',
+        description: 'Onboarding is started from this page; the assistant can tell you where it stands.',
+      },
+    ],
+    fields: [
+      {
+        name: 'bankAccounts',
+        label: 'Accounts buyers pay into',
+        kind: 'repeater',
+        group: 'manual',
+        itemFields: [
+          { name: 'bankName', label: 'Bank', placeholder: 'BCA' },
+          { name: 'accountNumber', label: 'Account number', placeholder: '1234567890' },
+          { name: 'accountHolder', label: 'Account holder', placeholder: 'PT Warung Maju' },
+        ],
+        description: 'Replaces the whole list — read the current one back before you change it.',
+      },
+      {
+        name: 'instructions',
+        label: 'Instructions shown at checkout',
+        kind: 'textarea',
+        group: 'manual',
+        description: 'What the buyer should do after transferring.',
+      },
+      { name: 'xenditStatus', label: 'Status', kind: STATIC, group: 'xendit' },
+      { name: 'paypalStatus', label: 'Status', kind: STATIC, group: 'paypal' },
+      { name: 'midtransStatus', label: 'Status', kind: STATIC, group: 'midtrans' },
+      { name: 'managedStatus', label: 'Status', kind: STATIC, group: 'managed' },
+    ],
+    examplePrompts: [
+      'Add BCA 1234567890 under PT Warung Maju as a transfer account',
+      'Tell buyers to send the transfer receipt to our WhatsApp',
+      'Remove the Mandiri account — we closed it',
+      'Which payment providers are connected right now?',
+    ],
+    buildAgentPrompt,
+    apply: async ({ fields }) => {
+      const bankAccounts = filledRows(fields.bankAccounts, [
+        'bankName',
+        'accountNumber',
+        'accountHolder',
+      ])?.map((r) => ({
+        bankName: str(r.bankName) ?? '',
+        accountNumber: str(r.accountNumber) ?? '',
+        accountHolder: str(r.accountHolder) ?? '',
+      }));
+      const body = defined({
+        bankAccounts,
+        instructions: fields.instructions !== undefined ? strOrNull(fields.instructions) : undefined,
+      });
+      if (!Object.keys(body).length) throw new Error('Nothing to change');
+      await plugipaySettingsApi.putManual(body);
+    },
+  };
+}
+
+/**
+ * CHECKOUT SETTINGS — what the payment-methods page edits: which
+ * methods are offered, in what order, and the branding printed on
+ * checkout and receipts.
+ *
+ * `methodAdapter` (which provider routes each method) is deliberately
+ * absent. It decides where a buyer's money actually goes, the page's
+ * own per-method Select is the place to change it, and a plan that
+ * "tidied" it could silently reroute live payments.
+ */
+function checkoutSettingsResource(): CrudResource<Fields> {
+  return {
+    slug: 'checkout-settings',
+    label: 'checkout setting',
+    fields: [
+      {
+        name: 'enabledMethods',
+        label: 'Payment methods',
+        kind: 'combobox',
+        multi: true,
+        description:
+          'Replaces the full set. Only methods your connected providers actually support will work — read availableMethods first.',
+      },
+      {
+        name: 'methodOrder',
+        label: 'Display order',
+        kind: 'combobox',
+        multi: true,
+        description: 'The order buyers see them in.',
+      },
+      { name: 'brandName', label: 'Brand name', description: 'Shown on the checkout page and receipts.' },
+      { name: 'brandAccentColor', label: 'Accent colour', placeholder: '#1F6FEB', description: '6-digit hex with the leading #.' },
+      { name: 'brandTagline', label: 'Tagline' },
+      { name: 'businessPhone', label: 'Contact phone', description: 'Printed on receipts.' },
+      { name: 'businessEmail', label: 'Contact email', description: 'Printed on receipts.' },
+      { name: 'businessAddress', label: 'Address', kind: 'textarea', description: 'Printed on receipts.' },
+      { name: 'businessTaxId', label: 'Tax ID', description: 'Printed on receipts.' },
+    ],
+    examplePrompts: [
+      'Put QRIS first, then bank transfer',
+      'Set the checkout brand name to Warung Maju and the accent to #6F4E37',
+      'Print our NPWP on receipts',
+    ],
+    buildAgentPrompt,
+    apply: async ({ fields }) => {
+      const body = defined({
+        enabledMethods: strList(fields.enabledMethods),
+        methodOrder: strList(fields.methodOrder),
+        brandName: fields.brandName !== undefined ? strOrNull(fields.brandName) : undefined,
+        brandAccentColor:
+          fields.brandAccentColor !== undefined ? strOrNull(fields.brandAccentColor) : undefined,
+        brandTagline: fields.brandTagline !== undefined ? strOrNull(fields.brandTagline) : undefined,
+        businessPhone: fields.businessPhone !== undefined ? strOrNull(fields.businessPhone) : undefined,
+        businessEmail: fields.businessEmail !== undefined ? strOrNull(fields.businessEmail) : undefined,
+        businessAddress:
+          fields.businessAddress !== undefined ? strOrNull(fields.businessAddress) : undefined,
+        businessTaxId: fields.businessTaxId !== undefined ? strOrNull(fields.businessTaxId) : undefined,
+      });
+      if (!Object.keys(body).length) throw new Error('Nothing to change');
+      await plugipaySettingsApi.updateCheckoutSettings(body);
+    },
+  };
+}
+
+/**
+ * PAYMENT TEMPLATES — the invoice/receipt/checkout documents.
+ *
+ * `kind` and `isDefault` are create-only: a template's kind is fixed
+ * at birth (PATCH takes name + config and nothing else), and the
+ * default is flipped by its own make-default route, not by an edit.
+ */
+function paymentTemplatesResource(mode: AssistantMode): CrudResource<Fields> {
+  return {
+    slug: 'payment-templates',
+    label: 'payment template',
+    fields: [
+      ...(mode === 'create'
+        ? [
+            {
+              name: 'kind',
+              label: 'Kind',
+              kind: 'select',
+              required: true,
+              options: TEMPLATE_KINDS,
+              description: 'What this template renders.',
+            } satisfies CrudSchemaField,
+          ]
+        : []),
+      { name: 'name', label: 'Template name', required: mode === 'create', placeholder: 'Ramadan checkout' },
+      {
+        name: 'config',
+        label: 'Config',
+        kind: 'textarea',
+        description:
+          'JSON. Start from an existing template of the same kind rather than composing one from scratch.',
+      },
+      ...(mode === 'create'
+        ? [
+            {
+              name: 'isDefault',
+              label: 'Make it the live template',
+              kind: 'checkbox',
+              description: 'You can also flip the default later from the templates page.',
+            } satisfies CrudSchemaField,
+          ]
+        : []),
+    ],
+    examplePrompts:
+      mode === 'create'
+        ? [
+            'A receipt template called Ramadan, copied from my current default',
+            'New checkout template with our brand colours',
+            'An invoice template for wholesale orders',
+          ]
+        : ['Rename this to Ramadan 2026', 'Change the footer text', 'Copy the header from my default template'],
+    buildAgentPrompt,
+    apply: async ({ mode: applyMode, fields, initial }) => {
+      const name = str(fields.name);
+      const config = obj(fields.config);
+      if (applyMode === 'edit') {
+        const body = defined({ name, config });
+        if (!Object.keys(body).length) throw new Error('Nothing to change');
+        await plugipaySettingsApi.updateTemplate(verbTargetId(initial, 'template'), body);
+        return;
+      }
+      const kind = str(fields.kind);
+      if (!kind) throw new Error('Pick what this template renders');
+      if (!name) throw new Error('Template name is required');
+      await plugipaySettingsApi.createTemplate({
+        kind: kind as TemplateKind,
+        name,
+        config: config ?? {},
+        ...(bool(fields.isDefault) !== undefined ? { isDefault: bool(fields.isDefault) } : {}),
+      });
+    },
+  };
+}
+
 // ── the group registry ──────────────────────────────────────────────
 
 /** One builder per payments/fulfillment resource. Create-only builders
@@ -1203,6 +1485,13 @@ export const PAYFUL_BUILDERS: Record<string, ResourceBuilder> = {
   subscriptions: (mode) => (mode === 'edit' ? null : subscriptionsResource()),
   payouts: (mode) =>
     mode === 'mark-paid' ? payoutMarkPaidResource() : mode === 'create' ? payoutsResource() : null,
+  // payments SETTINGS (bang, 2026-08-14). providers and checkout-
+  // settings are singletons the merchant only ever amends — there is
+  // one manual adapter and one checkout config — so `create` answers
+  // null rather than falling into an apply that would PUT over them.
+  providers: (mode) => (mode === 'create' ? null : providersResource()),
+  'checkout-settings': (mode) => (mode === 'create' ? null : checkoutSettingsResource()),
+  'payment-templates': (mode) => paymentTemplatesResource(mode),
   // fulfillment module (Fulkruma)
   warehouses: (mode) => warehousesResource(mode),
   'delivery-origin': (mode) => (mode === 'create' ? null : deliveryOriginResource()),

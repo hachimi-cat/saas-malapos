@@ -60,6 +60,11 @@ const DELEGATION_ALLOWED_PATHS = [
   '/api/v1/payments/invoices',
   '/api/v1/payments/receipts',
   '/api/v1/payments/payouts',
+  // Payment SETTINGS — the three open-form pages. READ only by virtue
+  // of being here; the writes are the three narrow entries below. The
+  // secret-bearing adapter subpaths are denied above, and deny is
+  // computed first, so this grant cannot reach them.
+  '/api/v1/payments/plugipay-settings',
   // Fulfillment module (Fulkruma)
   '/api/v1/delivery',
   '/api/v1/fulfillment',
@@ -70,13 +75,30 @@ const DELEGATION_ALLOWED_PATHS = [
  * can never re-open one of them — the same deny-beats-allow ordering
  * that makes the runtime's native-tool deny work. The package's floor
  * is INHERITED rather than copied, so a later addition there lands here
- * for free. /payments/plugipay-settings holds the payment-provider
- * configuration passthrough (the plugipay /adapters equivalent) and is
- * the single most important entry.
+ * for free.
+ *
+ * The four SECRET-BEARING adapter paths are the single most important
+ * entries. Each one's body is an API credential (Xendit's secret key,
+ * PayPal's client secret, Midtrans's server key, the managed
+ * sub-account), and a credential that reaches a transcript outlives
+ * both the run and the review step — approving the diff does not bound
+ * the consequence the way approving a settings edit does.
+ *
+ * This used to be a blanket deny on the whole /payments/plugipay-
+ * settings prefix, which also took out the merchant-facing settings the
+ * three /dashboard/payments/settings pages edit. bang chose storlaunch
+ * parity on 2026-08-14 (its middleware/auth.ts has drawn the line here
+ * since f0dd757): deny the credentials, allow the configuration. The
+ * prefix-vs-subpath ordering below is what makes that safe — `denied`
+ * is computed first and short-circuits, so the allow entry cannot
+ * re-open these four.
  */
 const DELEGATION_DENIED_PATHS = [
   ...EMBED_DENIED_PATHS,
-  '/api/v1/payments/plugipay-settings',
+  '/api/v1/payments/plugipay-settings/adapters/xendit',
+  '/api/v1/payments/plugipay-settings/adapters/paypal',
+  '/api/v1/payments/plugipay-settings/adapters/midtrans',
+  '/api/v1/payments/plugipay-settings/adapters/managed',
   '/api/v1/payments/ledger',
   '/api/v1/payments/reports',
   '/api/v1/payments/qris',
@@ -188,6 +210,27 @@ const DELEGATION_WRITABLE_PATHS: DelegationWritableEntry[] = [
   // ── payments module (Plugipay) ───────────────────────────────────
   // payment customers — POST / + PATCH /{id}.
   { prefix: '/api/v1/payments/customers', methods: ['POST', 'PATCH'] },
+  // payment SETTINGS — the three profile-advertised writes behind the
+  // /dashboard/payments/settings sparkles, and nothing else under the
+  // passthrough. Mirrors storlaunch (its entries 218/220/223).
+  //
+  // templates — POST / + PATCH /{id}. The prefix also carries
+  // /{id}/make-default, /{id}/duplicate and DELETE /{id}; none is
+  // profile-advertised, and none is granted — POST is exact-matched to
+  // the collection root so make-default and duplicate cannot be reached
+  // by prefix inheritance.
+  { prefix: '/api/v1/payments/plugipay-settings/templates', methods: ['POST'], exact: true },
+  { prefix: '/api/v1/payments/plugipay-settings/templates', methods: ['PATCH'] },
+  // checkout settings — the PATCH singleton behind the payment-methods
+  // page. `methodAdapter` (which provider routes each method) is not a
+  // declared field, so a plan naming it is dropped by the sanitizer
+  // before it reaches here.
+  { prefix: '/api/v1/payments/plugipay-settings/checkout/settings', methods: ['PATCH'] },
+  // manual adapter — PUT, the ONLY adapter write. The other four carry
+  // API secrets and are on DELEGATION_DENIED_PATHS, which is evaluated
+  // first; this entry is deliberately the exact path rather than
+  // /adapters, so a provider added later is unwritable by default.
+  { prefix: '/api/v1/payments/plugipay-settings/adapters/manual', methods: ['PUT'] },
 ];
 
 /** True when a delegated write (method + full mounted path) matches the

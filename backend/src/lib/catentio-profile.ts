@@ -750,6 +750,72 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         'mark-paid': { label: 'Mark paid', requiresId: true, fields: ['reference'], approvalRequired: true },
       },
     },
+    // ── payments SETTINGS (bang, 2026-08-14) ─────────────────────────
+    //
+    // The three open-form pages under /dashboard/payments/settings.
+    // Each is reached by a sparkle rather than a "New X" button: the
+    // page IS the form, so there is nothing an "Edit" would reveal.
+    //
+    // All three carry `create: false` on every field they cannot mint —
+    // providers and checkout-settings are singletons, and their
+    // `actions` blocks declare edit ALONE so the engine stops
+    // synthesizing a create for them at all.
+    providers: {
+      label: 'payment providers',
+      createRequired: [],
+      fields: [
+        // Writable: the manual adapter and nothing else. Xendit, PayPal
+        // and Midtrans each take an API secret, and a secret pasted
+        // into a transcript outlives the run — the same reason API keys
+        // are absent from this profile everywhere else. The sheet ALSO
+        // shows read-only per-provider status lines (xenditStatus etc.)
+        // carried in by the page; they are not declared here on purpose,
+        // so no plan can propose them. middleware/auth.ts enforces the
+        // same split server-side: /adapters/manual is writable, the four
+        // secret-bearing adapter paths are denied outright.
+        { key: 'bankAccounts', type: 'object[]', create: false, edit: true, description: "accounts buyers transfer into at checkout; each is {bankName, accountNumber, accountHolder}. REPLACES the whole list, so read the current one first. These are the merchant's real bank details: never invent an account number, only use digits they gave you" },
+        { key: 'instructions', type: 'string', create: false, edit: true, nullable: true, description: 'what the buyer should do after transferring, shown at checkout, or null. The other providers (Xendit, PayPal, Midtrans, Plugipay-managed) are configured with API keys on the providers page itself — never propose or request a key; report their status from the sheet context instead' },
+      ],
+      actions: {
+        edit: { label: 'Edit', requiresId: false, fields: ['bankAccounts', 'instructions'] },
+      },
+    },
+    'checkout-settings': {
+      label: 'checkout setting',
+      createRequired: [],
+      fields: [
+        { key: 'enabledMethods', type: 'string[]', create: false, edit: true, description: "payment methods offered at checkout; replaces the full set. Read availableMethods first: enabling one the merchant's connected providers do not support silently breaks checkout" },
+        { key: 'methodOrder', type: 'string[]', create: false, edit: true, description: 'display order of those methods' },
+        { key: 'brandName', type: 'string', create: false, edit: true, nullable: true, description: 'name shown on the checkout page and receipts, or null' },
+        { key: 'brandAccentColor', type: 'string', create: false, edit: true, nullable: true, description: 'checkout accent colour, 6-digit hex with the leading #, or null' },
+        { key: 'brandTagline', type: 'string', create: false, edit: true, nullable: true, description: 'tagline under the brand name, or null' },
+        { key: 'businessPhone', type: 'string', create: false, edit: true, nullable: true, description: 'contact phone printed on receipts, or null' },
+        { key: 'businessEmail', type: 'string', create: false, edit: true, nullable: true, description: 'contact email printed on receipts, or null' },
+        { key: 'businessAddress', type: 'string', create: false, edit: true, nullable: true, description: 'address printed on receipts, or null' },
+        { key: 'businessTaxId', type: 'string', create: false, edit: true, nullable: true, description: 'tax id printed on receipts, or null' },
+      ],
+      actions: {
+        // `methodAdapter` — which provider routes each method — is NOT
+        // declared. It decides where a buyer's money actually goes, and
+        // the per-method Select on the payment-methods page is where
+        // that is changed.
+        edit: {
+          label: 'Edit',
+          requiresId: false,
+          fields: ['enabledMethods', 'methodOrder', 'brandName', 'brandAccentColor', 'brandTagline', 'businessPhone', 'businessEmail', 'businessAddress', 'businessTaxId'],
+        },
+      },
+    },
+    'payment-templates': {
+      label: 'payment template',
+      createRequired: ['kind', 'name'],
+      fields: [
+        { key: 'kind', type: 'string', create: true, edit: false, description: "'checkout' | 'receipt' | 'invoice' — what this template renders; fixed at creation" },
+        { key: 'name', type: 'string', create: true, edit: true, description: 'template name the merchant picks it by' },
+        { key: 'config', type: 'object', create: true, edit: true, description: 'the template body. Its shape is per-kind and lives in Plugipay — read an existing template of the same kind and change only the keys you mean to, rather than composing one from scratch' },
+        { key: 'isDefault', type: 'boolean', create: true, edit: false, description: 'make this the live template for its kind on create — the merchant can also flip the default later from the templates page' },
+      ],
+    },
     shipments: {
       label: 'shipment',
       createRequired: ['courierCode', 'courierServiceCode', 'destination', 'items'],
@@ -798,7 +864,7 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
   writablesSummary:
     'categories, products (including moving a batch of them into a category at once), modifier groups, outlets, floors and tables, suppliers, the POS customer book, POS settings, webhook subscriptions, blog posts (including publishing and unpublishing them), the feed/pixel/abandoned-cart configs, marketing campaigns and funnels, fulfillment warehouses, the shipping origin, and payment customers — and, as PROPOSALS the user approves, record deletions, purchase orders and their receipts, refunds and sale voids, gift cards, stock adjustments/transfers/batches, discount codes, the loyalty and referral programs, approving affiliate enrollments and approving or voiding affiliate commissions, billing plans and prices, payment links, subscriptions, payouts and marking them paid, shipments, licenses, and warehouse stock corrections',
   endpointsLine:
-    '- Key endpoints: GET/POST /api/v1/categories · PATCH /api/v1/categories/{id} · GET/POST /api/v1/products · PATCH /api/v1/products/{id} · POST /api/v1/products/bulk-category (moves a batch of products into one category: {"productIds": […1-500], "categoryId": "cat_… or null"}) · GET/POST /api/v1/modifiers · PATCH /api/v1/modifiers/{id} · GET/POST /api/v1/outlets · PATCH /api/v1/outlets/{id} · GET/POST /api/v1/tables (?outletId=) · PATCH /api/v1/tables/{id} · GET/POST /api/v1/floors (?outletId=) · PATCH /api/v1/floors/{id} · GET/POST /api/v1/suppliers · PATCH /api/v1/suppliers/{id} · GET/POST /api/v1/customers · PATCH /api/v1/customers/{id} · GET/PUT /api/v1/settings · GET/POST /api/v1/webhook-subscriptions · PATCH /api/v1/webhook-subscriptions/{id} · GET/POST /api/v1/account/blog/posts · PATCH /api/v1/account/blog/posts/{id} · POST /api/v1/account/blog/posts/{id}/publish · POST /api/v1/account/blog/posts/{id}/unpublish · GET/PATCH /api/v1/account/feeds · GET/PATCH /api/v1/account/pixels · GET/PATCH /api/v1/account/abandoned-cart · GET/POST /api/v1/account/marketing/marketing-campaigns · PATCH /api/v1/account/marketing/marketing-campaigns/{id} · GET/POST /api/v1/account/marketing/funnels · PATCH /api/v1/account/marketing/funnels/{id} · GET/POST /api/v1/fulfillment/warehouses · PATCH /api/v1/fulfillment/warehouses/{id} · GET/PATCH /api/v1/delivery/origin · GET/POST /api/v1/payments/customers · PATCH /api/v1/payments/customers/{id}. DELETE is never called directly — where a resource declares a delete action you PROPOSE it. PROPOSED (you gather with GET, then propose the write — never call these yourself): DELETE /api/v1/categories/{id} · DELETE /api/v1/products/{id} · DELETE /api/v1/customers/{id} · DELETE /api/v1/webhook-subscriptions/{id} · DELETE /api/v1/account/blog/posts/{id} · POST /api/v1/payments/payouts/{id}/mark-paid · POST /api/v1/purchase-orders · PATCH /api/v1/purchase-orders/{id} (DRAFT only) · POST /api/v1/purchase-orders/{id}/receive · POST /api/v1/sales/{id}/refund · POST /api/v1/sales/{id}/void · POST /api/v1/gift-cards · POST /api/v1/inventory/adjust · POST /api/v1/inventory/transfer · POST /api/v1/inventory/batches · POST /api/v1/marketing/discount-codes · PATCH /api/v1/marketing/discount-codes/{id} · PUT /api/v1/marketing/loyalty/program · PUT /api/v1/account/referrals · POST /api/v1/account/marketing/programs/{programId}/enrollments/{id}/approve · POST /api/v1/account/marketing/programs/{programId}/commissions/{id}/approve · POST /api/v1/account/marketing/programs/{programId}/commissions/{id}/void · POST /api/v1/payments/plans · PATCH /api/v1/payments/plans/{id} · POST /api/v1/payments/plans/{id}/prices · POST /api/v1/payments/checkout-sessions · POST /api/v1/payments/subscriptions · POST /api/v1/payments/payouts · POST /api/v1/fulfillment/shipments · POST /api/v1/fulfillment/licenses · POST /api/v1/fulfillment/inventory/adjust. READ these to gather first: GET /api/v1/sales and /api/v1/sales/{id} (a sale, its line items and payments), /api/v1/inventory/levels, /api/v1/inventory/movements, /api/v1/inventory/batches, /api/v1/purchase-orders, /api/v1/gift-cards, /api/v1/marketing/discount-codes, /api/v1/marketing/loyalty/program, /api/v1/account/referrals, /api/v1/account/marketing/programs (the affiliate programs and their ids), /api/v1/account/marketing/programs/{programId}/enrollments (each row carries its programId — the approve action needs it), /api/v1/account/marketing/programs/commissions?status=pending,approved, /api/v1/payments/plans, /api/v1/payments/plans/{id}/prices, /api/v1/payments/subscriptions, /api/v1/payments/customers, /api/v1/payments/payouts, /api/v1/delivery/couriers, POST /api/v1/delivery/rates, /api/v1/fulfillment/shipments, /api/v1/fulfillment/inventory/products, /api/v1/fulfillment/inventory/stock, /api/v1/fulfillment/licenses.',
+    '- Key endpoints: GET/POST /api/v1/categories · PATCH /api/v1/categories/{id} · GET/POST /api/v1/products · PATCH /api/v1/products/{id} · POST /api/v1/products/bulk-category (moves a batch of products into one category: {"productIds": […1-500], "categoryId": "cat_… or null"}) · GET/POST /api/v1/modifiers · PATCH /api/v1/modifiers/{id} · GET/POST /api/v1/outlets · PATCH /api/v1/outlets/{id} · GET/POST /api/v1/tables (?outletId=) · PATCH /api/v1/tables/{id} · GET/POST /api/v1/floors (?outletId=) · PATCH /api/v1/floors/{id} · GET/POST /api/v1/suppliers · PATCH /api/v1/suppliers/{id} · GET/POST /api/v1/customers · PATCH /api/v1/customers/{id} · GET/PUT /api/v1/settings · GET/POST /api/v1/webhook-subscriptions · PATCH /api/v1/webhook-subscriptions/{id} · GET/POST /api/v1/account/blog/posts · PATCH /api/v1/account/blog/posts/{id} · POST /api/v1/account/blog/posts/{id}/publish · POST /api/v1/account/blog/posts/{id}/unpublish · GET/PATCH /api/v1/account/feeds · GET/PATCH /api/v1/account/pixels · GET/PATCH /api/v1/account/abandoned-cart · GET/POST /api/v1/account/marketing/marketing-campaigns · PATCH /api/v1/account/marketing/marketing-campaigns/{id} · GET/POST /api/v1/account/marketing/funnels · PATCH /api/v1/account/marketing/funnels/{id} · GET/POST /api/v1/fulfillment/warehouses · PATCH /api/v1/fulfillment/warehouses/{id} · GET/PATCH /api/v1/delivery/origin · GET/POST /api/v1/payments/customers · PATCH /api/v1/payments/customers/{id} · GET /api/v1/payments/plugipay-settings/adapters (provider status; the manual adapter is written with PUT /api/v1/payments/plugipay-settings/adapters/manual — the Xendit/PayPal/Midtrans/managed adapter paths carry API secrets and are refused to you outright, so never propose or request a key) · GET/PATCH /api/v1/payments/plugipay-settings/checkout/settings · GET/POST /api/v1/payments/plugipay-settings/templates · PATCH /api/v1/payments/plugipay-settings/templates/{id}. DELETE is never called directly — where a resource declares a delete action you PROPOSE it. PROPOSED (you gather with GET, then propose the write — never call these yourself): DELETE /api/v1/categories/{id} · DELETE /api/v1/products/{id} · DELETE /api/v1/customers/{id} · DELETE /api/v1/webhook-subscriptions/{id} · DELETE /api/v1/account/blog/posts/{id} · POST /api/v1/payments/payouts/{id}/mark-paid · POST /api/v1/purchase-orders · PATCH /api/v1/purchase-orders/{id} (DRAFT only) · POST /api/v1/purchase-orders/{id}/receive · POST /api/v1/sales/{id}/refund · POST /api/v1/sales/{id}/void · POST /api/v1/gift-cards · POST /api/v1/inventory/adjust · POST /api/v1/inventory/transfer · POST /api/v1/inventory/batches · POST /api/v1/marketing/discount-codes · PATCH /api/v1/marketing/discount-codes/{id} · PUT /api/v1/marketing/loyalty/program · PUT /api/v1/account/referrals · POST /api/v1/account/marketing/programs/{programId}/enrollments/{id}/approve · POST /api/v1/account/marketing/programs/{programId}/commissions/{id}/approve · POST /api/v1/account/marketing/programs/{programId}/commissions/{id}/void · POST /api/v1/payments/plans · PATCH /api/v1/payments/plans/{id} · POST /api/v1/payments/plans/{id}/prices · POST /api/v1/payments/checkout-sessions · POST /api/v1/payments/subscriptions · POST /api/v1/payments/payouts · POST /api/v1/fulfillment/shipments · POST /api/v1/fulfillment/licenses · POST /api/v1/fulfillment/inventory/adjust. READ these to gather first: GET /api/v1/sales and /api/v1/sales/{id} (a sale, its line items and payments), /api/v1/inventory/levels, /api/v1/inventory/movements, /api/v1/inventory/batches, /api/v1/purchase-orders, /api/v1/gift-cards, /api/v1/marketing/discount-codes, /api/v1/marketing/loyalty/program, /api/v1/account/referrals, /api/v1/account/marketing/programs (the affiliate programs and their ids), /api/v1/account/marketing/programs/{programId}/enrollments (each row carries its programId — the approve action needs it), /api/v1/account/marketing/programs/commissions?status=pending,approved, /api/v1/payments/plans, /api/v1/payments/plans/{id}/prices, /api/v1/payments/subscriptions, /api/v1/payments/customers, /api/v1/payments/payouts, /api/v1/delivery/couriers, POST /api/v1/delivery/rates, /api/v1/fulfillment/shipments, /api/v1/fulfillment/inventory/products, /api/v1/fulfillment/inventory/stock, /api/v1/fulfillment/licenses.',
   extraExecuteLines: [
     '- A product that belongs to a category you just created takes that category\'s "id" as "categoryId" (create the category first, read its id from the response).',
   ],

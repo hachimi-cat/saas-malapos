@@ -50,9 +50,27 @@ const WAVE3_CRUD = [
 /** Every resource that declares `actions` — the canary. A resource
  *  gaining a declaration joins this list, and the synthesized canary
  *  below shrinks by one; the two together cover the whole profile. */
+/**
+ * The two payment-settings singletons (bang, 2026-08-14). They declare
+ * `edit` ALONE — not the create/edit pair — which is the whole point of
+ * declaring for them: there is one manual adapter and one checkout
+ * config, so the synthesized create the engine would otherwise hand out
+ * is an action that can only overwrite the singleton. Their edit fields
+ * are asserted against the synthesized ones by `settings singletons
+ * declare edit and NOTHING else` below, so the no-drift rule still
+ * holds; they are excluded from the WAVE1/WAVE3 pair sweep because that
+ * sweep requires a declared create.
+ *
+ * `payment-templates` is NOT here: it is a real collection with a real
+ * create, so it takes the synthesized pair like the wave-1 resources
+ * that declare nothing.
+ */
+const SETTINGS_SINGLETONS = ['providers', 'checkout-settings'] as const;
+
 const DECLARED = [
   ...WAVE1_CRUD,
   ...WAVE3_CRUD,
+  ...SETTINGS_SINGLETONS,
   'payouts',
   'affiliate-enrollments',
   'affiliate-commissions',
@@ -171,6 +189,49 @@ describe('wave-1 verb shapes', () => {
       .map(([key]) => key)
       .sort();
     expect(declared).toEqual([...DECLARED].sort());
+  });
+
+  it.each(SETTINGS_SINGLETONS)('%s declares edit and NOTHING else', (key) => {
+    const spec = MALAPOS_PROFILE.resources[key]!;
+    const declared = resourceActions(spec);
+    // No create. A singleton is amended, never minted — and the write
+    // behind both of these REPLACES what is there (PUT /adapters/manual,
+    // PATCH /checkout/settings), so a create action would be an
+    // overwrite wearing the wrong name.
+    expect(Object.keys(declared).sort()).toEqual(['edit']);
+    // The no-drift rule still holds for the action they DO declare:
+    // its field list is exactly the FieldSpec `edit: true` set.
+    expect(declared.edit!.fields).toEqual(synthesized(spec).edit!.fields);
+    expect(declared.edit!.requiresId).toBe(false);
+    // …and nothing is creatable, which is what makes the omission safe
+    // rather than a gap: a synthesized create here would carry no fields
+    // at all.
+    expect(spec.fields.filter((f) => f.create)).toEqual([]);
+  });
+
+  it('providers declares the manual adapter and NOT one API secret', () => {
+    // The sharpest line in this profile. Every other adapter's write
+    // body IS a credential, and a credential that reaches a transcript
+    // outlives both the run and the review step — so none of them is a
+    // field here, and middleware/auth.ts denies their paths outright
+    // (delegation-paths.test.ts pins that half).
+    const spec = MALAPOS_PROFILE.resources.providers!;
+    expect(spec.fields.map((f) => f.key).sort()).toEqual(['bankAccounts', 'instructions']);
+    const asText = JSON.stringify(spec).toLowerCase();
+    for (const secret of ['secretkey', 'clientsecret', 'serverkey', 'clientid', 'apikey']) {
+      expect(asText, `providers must not declare ${secret}`).not.toContain(`"key":"${secret}"`);
+    }
+  });
+
+  it('checkout-settings does not declare methodAdapter', () => {
+    // Which provider routes each method decides where a buyer's money
+    // actually goes. The per-method Select on the payment-methods page
+    // is where that changes; a plan naming it is dropped by the
+    // sanitizer before it can silently reroute live payments.
+    const spec = MALAPOS_PROFILE.resources['checkout-settings']!;
+    expect(spec.fields.map((f) => f.key)).not.toContain('methodAdapter');
+    // Positive control on the same read: the fields it DOES declare.
+    expect(spec.fields.map((f) => f.key)).toContain('enabledMethods');
   });
 });
 

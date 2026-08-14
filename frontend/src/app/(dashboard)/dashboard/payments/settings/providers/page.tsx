@@ -10,6 +10,7 @@ import {
   type ManualBankAccount,
 } from '@/lib/plugipay-settings-api';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AskAssistantEntry } from '@/components/catentio/agentic-entry';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -128,6 +129,11 @@ export default function ProvidersSettingsPage() {
     if (midtrans?.merchantId) setMidtransMerchantId(midtrans.merchantId);
   }, [adapters]);
 
+  // Bumped after the assistant applies, so the page re-reads what it
+  // just wrote. bang chose save-straight-through over filling this
+  // page's own form, so a refetch is the whole reconciliation.
+  const [reloadNonce, setReloadNonce] = React.useState(0);
+
   React.useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -148,7 +154,7 @@ export default function ProvidersSettingsPage() {
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load adapters'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [apiMode, resetFields]);
+  }, [apiMode, resetFields, reloadNonce]);
 
   async function refreshManaged() {
     try {
@@ -248,6 +254,32 @@ export default function ProvidersSettingsPage() {
     }
   }
 
+  // What the assistant sheet's read-only provider panels show (and what
+  // the agent answers status questions from — `initial` rides the plan
+  // request). Connection state and a key's last-4 are not secrets; the
+  // keys themselves never enter the sheet.
+  const providerStatusLine = (a?: AdapterSummary): string =>
+    !a || a.status === 'unconfigured'
+      ? 'Not connected.'
+      : a.status === 'error'
+        ? `Connected, but erroring${a.lastErrorCode ? ` — ${a.lastErrorCode}` : ''}.`
+        : `Connected${a.secretKeyLast4 ? ` — key ending ${a.secretKeyLast4}` : ''}.`;
+
+  const assistantInitial = React.useMemo(
+    () => ({
+      bankAccounts: manualBankAccounts,
+      instructions: manualInstructions,
+      xenditStatus: providerStatusLine(adapters?.xendit),
+      paypalStatus: providerStatusLine(adapters?.paypal),
+      midtransStatus: providerStatusLine(adapters?.midtrans),
+      managedStatus: managed
+        ? `Onboarding ${managed.kybStatus.replace(/_/g, ' ')} — capabilities ${managed.capabilitiesStatus.replace(/_/g, ' ')}.`
+        : 'Not started.',
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [manualBankAccounts, manualInstructions, adapters, managed],
+  );
+
   const midtransPrefixWarning =
     midtransServerKey.startsWith('SB-') && formMode === 'live'
       ? 'This looks like a sandbox key (SB-…) but the Live tab is selected.'
@@ -269,6 +301,25 @@ export default function ProvidersSettingsPage() {
           <span className="block max-w-[62ch]">
             Pick how you want to process payments. Each provider keeps separate Sandbox and Live credentials — switch the tab inside a provider to edit each set.
           </span>
+        }
+        action={
+          // The sheet presents EVERY provider: the manual adapter is the
+          // writable part, and Xendit/PayPal/Midtrans/managed render as
+          // read-only status panels carried in by `assistantInitial` —
+          // their every write includes an API secret, and a secret typed
+          // into a transcript outlives the run. The backend agrees:
+          // middleware/auth.ts denies those four paths outright.
+          //
+          // "Ask assistant", not "Edit": this page IS the form, so there
+          // is nothing an Edit button would reveal (bang, 2026-08-14).
+          // It renders nothing with the assistant off — the page's own
+          // form is already the whole manual experience.
+          <AskAssistantEntry
+            resource="providers"
+            initial={assistantInitial}
+            onApplied={() => setReloadNonce((n) => n + 1)}
+            className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          />
         }
       />
 

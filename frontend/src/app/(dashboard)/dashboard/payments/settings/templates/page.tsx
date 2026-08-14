@@ -21,6 +21,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AskAssistantEntry } from '@/components/catentio/agentic-entry';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -441,6 +442,21 @@ function TemplateEditor({
         <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
           <CardTitle className="text-base font-semibold font-display">{template.name}</CardTitle>
           <div className="flex items-center gap-2">
+            {/* MASTER-DETAIL: the sparkle belongs to the RIGHT pane, the
+                open form. The left list keeps its plain "New template" —
+                creating one is a real action with a name of its own, and
+                is exactly what the entry-point rule says to label after
+                the action. This pane is the page's "open form" case:
+                every field is on screen with its own Save below.
+
+                `id` rides in `initial` because the apply PATCHes the
+                template the merchant OPENED, never one a plan names. */}
+            <AskAssistantEntry
+              resource="payment-templates"
+              initial={{ id: template.id, kind: template.kind, name: template.name, ...cfg }}
+              onApplied={onSaved}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            />
             {!template.isDefault && (
               <Button type="button" variant="ghost" size="sm" onClick={onMakeDefault} disabled={busy} className="gap-1.5 text-muted-foreground">
                 <Star className="h-3.5 w-3.5" /> Make default
