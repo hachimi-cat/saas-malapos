@@ -35,7 +35,16 @@ export function DatePicker({
   const selected = parsed && isValid(parsed) ? parsed : undefined;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    // `modal` matters when this picker is used inside the agentic sheet,
+    // which is a Radix Dialog. Dialog mounts RemoveScroll with
+    // `shards: [contentRef]`, so the allowed region is the dialog's own
+    // content; this popover portals its calendar to <body>, outside it.
+    // react-remove-scroll honours only the LAST lock on its stack and
+    // Radix Popover mounts its own ONLY when `modal` is set (default
+    // false) — so without this the calendar belongs to no lock at all.
+    // Ported from storlaunch a50a1b1, where bang confirmed the fix on
+    // real iPad Safari after it could not be reproduced in any harness.
+    <Popover open={open} onOpenChange={setOpen} modal>
       <PopoverTrigger asChild>
         <button
           id={id}
