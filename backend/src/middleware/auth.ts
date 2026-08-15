@@ -202,6 +202,24 @@ const DELEGATION_WRITABLE_PATHS: DelegationWritableEntry[] = [
   // proposing them at all). POST only; the proxy also forwards DELETE,
   // which stays excluded like every other disconnect.
   { prefix: '/api/v1/account/marketing/channels', methods: ['POST'] },
+  // programs — POST / + PATCH /{id}. `exact` is NOT used because the
+  // grant must not reach the enrollment and commission verbs under
+  // /programs/{id}/… — those are declared approvalRequired and are
+  // POSTs, so they are excluded by METHOD-path pairing instead: the
+  // rows below pin every one of them at false, and the entry grants
+  // only what create/edit actually call.
+  { prefix: '/api/v1/account/marketing/programs', methods: ['PATCH'] },
+  { prefix: '/api/v1/account/marketing/programs', methods: ['POST'], exact: true },
+  // creator briefs — ripllo's `campaigns`. POST on the root only:
+  // /campaigns/{id}/invitations and /applications/{id}/accept|reject
+  // all reach a real person and stay propose-only.
+  { prefix: '/api/v1/account/marketing/campaigns', methods: ['POST'], exact: true },
+  { prefix: '/api/v1/account/marketing/campaigns', methods: ['PATCH'] },
+  // contacts — POST / + PATCH /{id}; DELETE stays a proposed action.
+  { prefix: '/api/v1/account/marketing/contacts', methods: ['POST', 'PATCH'] },
+  // contact-lists — POST only. There is no update endpoint upstream,
+  // and the member add/remove subpaths are not declared actions.
+  { prefix: '/api/v1/account/marketing/contact-lists', methods: ['POST'], exact: true },
   // broadcasts — CREATE only, and that is the whole point: creating a
   // broadcast does not send it. Ripllo's send is POST
   // /broadcasts/{id}/send, which reaches real people and is

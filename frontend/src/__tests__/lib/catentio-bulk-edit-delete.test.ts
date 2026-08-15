@@ -141,6 +141,14 @@ const EDIT_PATCH: Record<string, Record<string, unknown>> = {
   'marketing-campaigns': { name: 'Ramadan 2027' },
   'blog-posts': { title: 'Judul v2' },
   funnels: { name: 'Sambutan v2' },
+  // Ripllo marketing, 2026-08-15. commissionRate is a FRACTION —
+  // 0.15 is 15%; closing a brief IS the edit that ends one, since
+  // ripllo has no DELETE for a brief; and patching only lastName
+  // leaves the contact's email untouched, which is the point of
+  // ripllo's partial PATCH.
+  programs: { commissionRate: 0.15 },
+  'creator-briefs': { status: 'closed' },
+  contacts: { firstName: 'Dewi' },
 };
 
 /** Two records, carrying at least one field EVERY bulk-editable form
@@ -152,6 +160,11 @@ const TARGETS: Record<string, unknown>[] = [
   {
     id: 'row_1',
     name: 'First',
+    // contacts renders none of the generic keys below; these two give
+    // its rows something to be seeded FROM, the same way `title` and
+    // `label` serve the other forms.
+    email: 'first@example.com',
+    firstName: 'First',
     label: 'First',
     title: 'First',
     description: 'First',
@@ -162,6 +175,8 @@ const TARGETS: Record<string, unknown>[] = [
   {
     id: 'row_2',
     name: 'Second',
+    email: 'second@example.com',
+    firstName: 'Second',
     label: 'Second',
     title: 'Second',
     description: 'Second',
@@ -257,7 +272,8 @@ describe('payment-templates — one instruction, all three kinds', () => {
 
 describe('buildBulkEditResource', () => {
   it('covers exactly the intended resources (canary)', () => {
-    expect(BULK_EDIT_RESOURCES).toHaveLength(15);
+    // 18 since programs, creator-briefs and contacts joined 2026-08-15.
+    expect(BULK_EDIT_RESOURCES).toHaveLength(18);
     // Singletons (settings, loyalty/referral programs, feeds, pixels,
     // abandoned-cart, delivery-origin) are absent: there is one record,
     // nothing to select. Create-only resources (refunds, gift-cards,

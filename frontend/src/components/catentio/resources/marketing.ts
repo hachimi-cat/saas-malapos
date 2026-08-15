@@ -19,8 +19,10 @@ import {
   num,
   numOrNull,
   str,
+  strOrNull,
   verbDescriptor,
   verbTargetId,
+  withDelete,
   type Fields,
   type ResourceBuilder,
 } from '../resource-helpers';
@@ -140,6 +142,19 @@ async function loadChannelOptions(): Promise<{ value: string; label: string }[]>
       .map((c) => ({ value: c.provider, label: `${c.displayName} (${c.provider})` }));
   } catch {
     return [];
+  }
+}
+
+/** DELETE through the marketing passthrough — `ripllo` above is
+ *  POST|PATCH only, and a delete descriptor needs the verb. */
+async function ripploDelete(path: string): Promise<void> {
+  const r = await marketingFetch(`/api/v1/account/marketing/${path}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!r.ok) {
+    const b = (await r.json().catch(() => null)) as { error?: { message?: string } } | null;
+    throw new Error(b?.error?.message ?? `Could not delete — ${path}`);
   }
 }
 
@@ -924,6 +939,233 @@ const campaignInvitationsResource: ResourceBuilder = () => ({
   },
 });
 
+// ── programs (marketing/programs/page.tsx) ──────────────────────────
+
+const programsBase: ResourceBuilder = (mode) => ({
+  slug: 'programs',
+  label: 'affiliate program',
+  fields: [
+    { name: 'name', label: 'Name', required: mode === 'create', placeholder: 'Warung Mekar affiliates', description: RIPLLO_NOTE },
+    { name: 'description', label: 'Description', kind: 'textarea' },
+    { name: 'targetUrl', label: 'Target URL', placeholder: 'https://warungmekar.id', description: 'Where affiliate links point. Empty means your storefront.' },
+    { name: 'commissionModel', group: 'commission', label: 'Commission model', required: mode === 'create', description: 'Match what your other programs use.' },
+    {
+      name: 'commissionRate', group: 'commission',
+      label: 'Commission rate',
+      kind: 'number',
+      required: mode === 'create',
+      placeholder: '0.1',
+      description: 'A FRACTION, not a percent — 0.1 is 10%.',
+    },
+    { name: 'cookieDays', group: 'terms', label: 'Attribution window (days)', kind: 'number', placeholder: '30' },
+    { name: 'autoApprove', label: 'Auto-approve applicants', kind: 'checkbox' },
+    { name: 'minFollowerCount', group: 'terms', label: 'Minimum followers', kind: 'number', description: 'Leave empty for no minimum.' },
+    { name: 'requiresKyc', label: 'Require identity verification', kind: 'checkbox' },
+    { name: 'platformFeeRate', label: 'Platform fee', kind: 'number', placeholder: '0.05', description: 'A fraction, same as the commission rate.' },
+    ...(mode === 'edit'
+      ? [{ name: 'status', label: 'Status', description: 'Match what your other programs use.' } as CrudSchemaField]
+      : []),
+  ],
+  groups: [
+    { id: 'commission', tone: 'plain', columns: 2 },
+    { id: 'terms', tone: 'plain', columns: 2 },
+  ],
+  examplePrompts:
+    mode === 'create'
+      ? ['An affiliate program at 10% commission, 30-day window', 'Creator program, 15% commission, auto-approve, KYC required']
+      : ['Raise the commission to 15%', 'Turn on auto-approve'],
+  buildAgentPrompt,
+  apply: async ({ mode: applyMode, fields, initial }) => {
+    const body = defined({
+      name: str(fields.name),
+      description: strOrNull(fields.description),
+      targetUrl: strOrNull(fields.targetUrl),
+      commissionModel: str(fields.commissionModel),
+      commissionRate: num(fields.commissionRate),
+      cookieDays: num(fields.cookieDays),
+      autoApprove: bool(fields.autoApprove),
+      minFollowerCount: numOrNull(fields.minFollowerCount),
+      requiresKyc: bool(fields.requiresKyc),
+      platformFeeRate: num(fields.platformFeeRate),
+      status: str(fields.status),
+    });
+    if (applyMode === 'edit') {
+      await ripllo('PATCH', `programs/${encodeURIComponent(verbTargetId(initial, 'program'))}`, body);
+      return;
+    }
+    if (!body.name) throw new Error('Name is required');
+    if (!body.commissionModel) throw new Error('Commission model is required');
+    if (body.commissionRate === undefined) throw new Error('Commission rate is required');
+    await ripllo('POST', 'programs', { ...body, status: body.status ?? 'open' });
+  },
+});
+
+const programsResource = withDelete(programsBase, {
+  slug: 'programs',
+  label: 'affiliate program',
+  del: (id) => ripploDelete(`programs/${encodeURIComponent(id)}`),
+});
+
+// ── creator briefs — ripllo `campaigns` (model: CreatorBrief) ───────
+
+const BRIEF_PRICING_MODELS = [
+  { value: 'flat', label: 'Flat fee' },
+  { value: 'cpm', label: 'CPM (per 1.000 views)' },
+  { value: 'hybrid', label: 'Hybrid — flat + CPM' },
+];
+
+const BRIEF_DISCOVERY_MODES = [
+  { value: 'public', label: 'Public — any verified creator may apply' },
+  { value: 'invite_only', label: 'Invite only' },
+];
+
+const BRIEF_STATUSES = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'open', label: 'Open — accepting applications' },
+  { value: 'closed', label: 'Closed' },
+  { value: 'archived', label: 'Archived' },
+];
+
+/** No delete arm: ripllo serves POST /campaigns and PATCH
+ *  /campaigns/{id} and nothing else. Ending a brief is closing it. */
+const creatorBriefsResource: ResourceBuilder = (mode) => ({
+  slug: 'creator-briefs',
+  label: 'creator brief',
+  fields: [
+    { name: 'name', label: 'Name', required: mode === 'create', placeholder: 'Ramadan unboxing', description: RIPLLO_NOTE },
+    {
+      name: 'brief',
+      label: 'The brief',
+      kind: 'textarea',
+      required: mode === 'create',
+      description: 'What you are asking the creator to make, and who it is for. Up to 10000 characters.',
+    },
+    { name: 'budgetIdr', group: 'terms', label: 'Budget (Rp)', kind: 'number', placeholder: '5000000', description: 'Whole rupiah.' },
+    { name: 'pricingModel', group: 'terms', label: 'Pricing model', kind: 'select', options: BRIEF_PRICING_MODELS },
+    { name: 'discoveryMode', group: 'terms', label: 'Who can apply', kind: 'select', options: BRIEF_DISCOVERY_MODES },
+    {
+      name: 'platformFeeRate', group: 'terms',
+      label: 'Platform fee',
+      kind: 'number',
+      placeholder: '0.15',
+      description: 'A FRACTION, not a percent — 0.15 is 15%.',
+    },
+    { name: 'status', label: 'Status', kind: 'select', options: BRIEF_STATUSES, description: 'A brief only takes applications while it is open.' },
+  ],
+  groups: [{ id: 'terms', tone: 'plain', columns: 2 }],
+  examplePrompts:
+    mode === 'create'
+      ? ['A brief for Ramadan unboxing videos, Rp 5.000.000, open to anyone', 'Invite-only brief for our cold brew launch at a flat Rp 2.500.000']
+      : ['Close this brief', 'Raise the budget to Rp 8.000.000'],
+  buildAgentPrompt,
+  apply: async ({ mode: applyMode, fields, initial }) => {
+    const body = defined({
+      name: str(fields.name),
+      brief: str(fields.brief),
+      budgetIdr: num(fields.budgetIdr),
+      pricingModel: str(fields.pricingModel),
+      discoveryMode: str(fields.discoveryMode),
+      platformFeeRate: num(fields.platformFeeRate),
+      status: str(fields.status),
+    });
+    if (applyMode === 'edit') {
+      await ripllo('PATCH', `campaigns/${encodeURIComponent(verbTargetId(initial, 'creator brief'))}`, body);
+      return;
+    }
+    if (!body.name) throw new Error('Name is required');
+    if (!body.brief) throw new Error('The brief itself is required');
+    await ripllo('POST', 'campaigns', { ...body, status: body.status ?? 'open', deliverables: [] });
+  },
+});
+
+// ── contacts + contact lists (marketing/audience/page.tsx) ──────────
+
+const contactsBase: ResourceBuilder = () => ({
+  slug: 'contacts',
+  label: 'contact',
+  fields: [
+    { name: 'email', label: 'Email', placeholder: 'dewi@example.com', description: `${RIPLLO_NOTE} Email or phone — at least one.` },
+    { name: 'phone', label: 'Phone', placeholder: '+62 812 3456 7890' },
+    { name: 'firstName', label: 'First name', placeholder: 'Dewi' },
+    { name: 'lastName', label: 'Last name', placeholder: 'Rahmawati' },
+  ],
+  examplePrompts: [
+    'Add Dewi Rahmawati, dewi@example.com',
+    'New contact on +62 812 3456 7890',
+    'Fix the spelling of this name',
+  ],
+  buildAgentPrompt,
+  apply: async ({ mode: applyMode, fields, initial }) => {
+    if (applyMode === 'edit') {
+      const body = defined({
+        email: strOrNull(fields.email),
+        phone: strOrNull(fields.phone),
+        firstName: strOrNull(fields.firstName),
+        lastName: strOrNull(fields.lastName),
+      });
+      // Ripllo keeps email-or-phone at CREATE only and its PATCH is
+      // partial, so an edit could blank the last one and leave a
+      // contact nothing can reach. Guard only when the plan TOUCHES
+      // one: `initial` is whatever the page handed over, so checking
+      // the merged record unconditionally would block an unrelated
+      // name edit on a row that carries neither.
+      if ('email' in body || 'phone' in body) {
+        const mergedEmail = 'email' in body ? body.email : initial?.email;
+        const mergedPhone = 'phone' in body ? body.phone : initial?.phone;
+        if (!mergedEmail && !mergedPhone) {
+          throw new Error('A contact needs an email or a phone — this would leave neither');
+        }
+      }
+      await ripllo('PATCH', `contacts/${encodeURIComponent(verbTargetId(initial, 'contact'))}`, body);
+      return;
+    }
+    const email = strOrNull(fields.email);
+    const phone = strOrNull(fields.phone);
+    if (!email && !phone) throw new Error('Email or phone is required');
+    await ripllo('POST', 'contacts', defined({
+      email,
+      phone,
+      firstName: strOrNull(fields.firstName),
+      lastName: strOrNull(fields.lastName),
+      source: 'manual',
+    }));
+  },
+});
+
+const contactsResource = withDelete(contactsBase, {
+  slug: 'contacts',
+  label: 'contact',
+  del: (id) => ripploDelete(`contacts/${encodeURIComponent(id)}`),
+});
+
+/** Create and delete only — ripllo has NO update endpoint for a list
+ *  (POST / GET / DELETE plus member add/remove). A declared edit would
+ *  render a form with nothing to call. */
+const contactListsBase: ResourceBuilder = () => ({
+  slug: 'contact-lists',
+  label: 'contact list',
+  fields: [
+    { name: 'name', label: 'Name', required: true, placeholder: 'Newsletter subscribers', description: RIPLLO_NOTE },
+    { name: 'description', label: 'Description', kind: 'textarea' },
+  ],
+  examplePrompts: ['A list called Newsletter subscribers', 'Create a VIP customers list'],
+  buildAgentPrompt,
+  apply: async ({ fields }) => {
+    const name = str(fields.name);
+    if (!name) throw new Error('Name is required');
+    await ripllo('POST', 'contact-lists', defined({
+      name,
+      description: strOrNull(fields.description),
+    }));
+  },
+});
+
+const contactListsResource = withDelete(contactListsBase, {
+  slug: 'contact-lists',
+  label: 'contact list',
+  del: (id) => ripploDelete(`contact-lists/${encodeURIComponent(id)}`),
+});
+
 export const MARKETING_BUILDERS: Record<string, ResourceBuilder> = {
   'blog-posts': blogPostsResource,
   feeds: feedsResource,
@@ -936,4 +1178,8 @@ export const MARKETING_BUILDERS: Record<string, ResourceBuilder> = {
   channels: channelsResource,
   broadcasts: broadcastsResource,
   'campaign-invitations': campaignInvitationsResource,
+  programs: programsResource,
+  'creator-briefs': creatorBriefsResource,
+  contacts: contactsResource,
+  'contact-lists': contactListsResource,
 };

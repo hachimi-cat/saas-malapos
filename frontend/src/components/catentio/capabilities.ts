@@ -29,6 +29,12 @@ export const BULK: Partial<
   'payment-customers': { noun: 'payment customer', rowKeys: ['email'] },
   warehouses: { noun: 'warehouse', rowKeys: ['name'] },
   licenses: { noun: 'license', rowKeys: ['customerId'] },
+  // Ripllo marketing, 2026-08-15 — bang's batch. contact-lists is
+  // here for batch CREATE only; it takes no edit (see below).
+  programs: { noun: 'affiliate program', rowKeys: ['name'] },
+  'creator-briefs': { noun: 'creator brief', rowKeys: ['name'] },
+  contacts: { noun: 'contact', rowKeys: ['email', 'phone'] },
+  'contact-lists': { noun: 'contact list', rowKeys: ['name'] },
 };
 
 /** How to say N of them. Every batch surface that names the noun goes
@@ -67,6 +73,15 @@ export const BULK_EDIT_RESOURCES: AssistantResource[] = [
   'marketing-campaigns',
   'blog-posts',
   'funnels',
+  // 2026-08-15. Each builder genuinely branches on mode:
+  // programs and contacts PATCH by id, creator-briefs PATCHes
+  // ripllo's /campaigns/{id}.
+  'programs',
+  'creator-briefs',
+  'contacts',
+  // NOT 'contact-lists': ripllo has no update endpoint for a list
+  // at all, so its builder cannot branch on mode and an edit sheet
+  // would open over nothing. Structural, not an oversight.
 ];
 
 /**
@@ -77,6 +92,11 @@ export const BULK_EDIT_RESOURCES: AssistantResource[] = [
  * renders and then fails on Apply — keep the two in step.
  */
 export const RESOURCE_EXTRA_ACTIONS: Partial<Record<AssistantResource, readonly string[]>> = {
+  // Ripllo marketing deletes, 2026-08-15. creator-briefs has none:
+  // ripllo serves no DELETE for a brief, so closing one IS the end.
+  programs: ['delete'],
+  contacts: ['delete'],
+  'contact-lists': ['delete'],
   categories: ['delete'],
   products: ['set-category', 'delete'],
   customers: ['delete'],
@@ -111,7 +131,24 @@ const VERB_ONLY_RESOURCES: readonly AssistantResource[] = [
  *  side; this is the frontend's own fail-loud gate, so an unknown verb
  *  rejects cleanly instead of falling into a builder whose apply
  *  treats "not edit" as create. */
+/**
+ * Resources whose profile declares CREATE but no EDIT — the gate must
+ * refuse `edit` for them, or the sheet opens over a builder that ignores
+ * mode and whose apply CREATES: "editing" three ticked rows would mint
+ * three new records.
+ *
+ * Added 2026-08-15 with `contact-lists`, the first such resource here.
+ * Ripllo exposes POST / GET / DELETE and member add/remove for a list —
+ * there is no update endpoint at all, so this is upstream's shape rather
+ * than a gap to fill later. Pinned by
+ * contact-lists-has-no-update.test.ts. storlaunch has carried the same
+ * list since wave-3; malapos simply had no create-only resource until
+ * now.
+ */
+const CREATE_ONLY_RESOURCES: readonly AssistantResource[] = ['contact-lists'];
+
 export function resourceSupports(resource: AssistantResource, mode: string): boolean {
+  if (mode === 'edit' && CREATE_ONLY_RESOURCES.includes(resource)) return false;
   if (mode === 'create' || mode === 'edit') {
     return !VERB_ONLY_RESOURCES.includes(resource);
   }

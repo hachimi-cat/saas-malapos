@@ -370,6 +370,99 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
     // at all because the resources were never declared here. Field sets
     // are transcribed from storlaunch's declarations, which are in turn
     // transcribed from ripllo's zod — same upstream, same shapes.
+    // The affiliate PROGRAM itself. malapos already declared the two
+    // approval queues (affiliate-enrollments / affiliate-commissions);
+    // the program they hang off was never declared, so the page had a
+    // New button and nothing else. Ripllo serves POST /programs,
+    // PATCH /programs/{id} and DELETE /programs/{id}.
+    programs: {
+      label: 'affiliate program',
+      createRequired: ['name', 'commissionModel', 'commissionRate'],
+      fields: [
+        { key: 'name', type: 'string', create: true, edit: true, description: 'program name. Needs the Marketing module' },
+        { key: 'description', type: 'string', create: true, edit: true, nullable: true, description: 'what affiliates are promoting, or null' },
+        { key: 'targetUrl', type: 'string', create: true, edit: true, nullable: true, description: 'where affiliate links point, or null for the storefront' },
+        { key: 'commissionModel', type: 'string', create: true, edit: true, description: 'how commission is calculated — read the accepted values back from an existing program' },
+        { key: 'commissionRate', type: 'number', create: true, edit: true, description: 'a FRACTION, not a percent: 0.1 means 10%. The dashboard form divides the percent by 100 before sending, so sending 10 here promises affiliates 1000%' },
+        { key: 'cookieDays', type: 'number', create: true, edit: true, description: 'attribution window in days' },
+        { key: 'autoApprove', type: 'boolean', create: true, edit: true, description: 'admit applicants without manual review' },
+        { key: 'minFollowerCount', type: 'number', create: true, edit: true, nullable: true, description: 'minimum follower count to apply, or null for no minimum' },
+        { key: 'requiresKyc', type: 'boolean', create: true, edit: true, description: 'require identity verification before payout' },
+        { key: 'platformFeeRate', type: 'number', create: true, edit: true, description: 'platform fee as a FRACTION, same convention as commissionRate' },
+        { key: 'status', type: 'string', create: false, edit: true, description: 'program status — read the accepted values back from an existing program' },
+        { key: 'marketingCampaignId', type: 'string', create: true, edit: true, nullable: true, description: 'attach to a marketing campaign by id, or null to detach' },
+      ],
+      // Spelled out only so `delete` can join; create/edit repeat what
+      // the engine was already synthesizing (the no-drift test proves
+      // it).
+      actions: {
+        create: {
+          label: 'Create',
+          fields: ['name', 'description', 'targetUrl', 'commissionModel', 'commissionRate', 'cookieDays', 'autoApprove', 'minFollowerCount', 'requiresKyc', 'platformFeeRate', 'marketingCampaignId'],
+          requiresFields: ['name', 'commissionModel', 'commissionRate'],
+        },
+        edit: {
+          label: 'Edit',
+          fields: ['name', 'description', 'targetUrl', 'commissionModel', 'commissionRate', 'cookieDays', 'autoApprove', 'minFollowerCount', 'requiresKyc', 'platformFeeRate', 'status', 'marketingCampaignId'],
+          requiresId: true,
+        },
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
+    },
+    // The creator BRIEF — ripllo's `campaigns` collection, whose Prisma
+    // model is literally CreatorBrief. NOT `marketing-campaigns` above,
+    // which is the campaign HUB a brief can hang under.
+    //
+    // No actions block: ripllo serves POST / and PATCH /{id} but no
+    // delete, so engine synthesis IS the vocabulary. `deliverables` is
+    // undeclared — nested objects with their own schema, managed on the
+    // brief's own screen.
+    'creator-briefs': {
+      label: 'creator brief',
+      createRequired: ['name', 'brief'],
+      fields: [
+        { key: 'name', type: 'string', create: true, edit: true, description: 'what the merchant calls this brief. Needs the Marketing module' },
+        { key: 'brief', type: 'string', create: true, edit: true, description: 'the brief itself, up to 10000 chars: what the creator is being asked to make, and for whom' },
+        { key: 'budgetIdr', type: 'number', create: true, edit: true, description: 'total budget in WHOLE Indonesian rupiah, 0 or more' },
+        { key: 'pricingModel', type: 'string', create: true, edit: true, description: "'flat' | 'cpm' | 'hybrid'" },
+        { key: 'discoveryMode', type: 'string', create: true, edit: true, description: "'public' (any verified creator may apply) or 'invite_only'" },
+        { key: 'platformFeeRate', type: 'number', create: true, edit: true, description: 'platform fee as a FRACTION between 0 and 0.5 — 0.15 is 15%' },
+        { key: 'status', type: 'string', create: true, edit: true, description: "'draft' | 'open' | 'closed' | 'archived'. A brief only takes applications while it is open" },
+        { key: 'marketingCampaignId', type: 'string', create: true, edit: true, nullable: true, description: 'roll this brief up under a marketing campaign by id, or null to detach' },
+      ],
+    },
+    contacts: {
+      label: 'contact',
+      createRequired: [],
+      fields: [
+        { key: 'email', type: 'string', create: true, edit: true, nullable: true, description: 'contact email, or null. At least one of email or phone is required, on an edit as well as a create: PATCH is partial, so blanking the only one left would leave a contact nothing can reach. Needs the Marketing module' },
+        { key: 'phone', type: 'string', create: true, edit: true, nullable: true, description: 'contact phone, or null. At least one of email or phone is required' },
+        { key: 'firstName', type: 'string', create: true, edit: true, nullable: true, description: 'first name, or null' },
+        { key: 'lastName', type: 'string', create: true, edit: true, nullable: true, description: 'last name, or null' },
+      ],
+      actions: {
+        create: { label: 'Create', fields: ['email', 'phone', 'firstName', 'lastName'] },
+        edit: { label: 'Edit', fields: ['email', 'phone', 'firstName', 'lastName'], requiresId: true },
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
+    },
+    // NO `edit`, and structurally so: ripllo exposes contact-lists as
+    // POST / GET / DELETE plus member add/remove — there is no update
+    // endpoint for the list itself, so a declared edit would render a
+    // form with nothing to call on Apply. Checked against saas-ripllo
+    // routes/contact-lists.ts, 2026-08-15.
+    'contact-lists': {
+      label: 'contact list',
+      createRequired: ['name'],
+      fields: [
+        { key: 'name', type: 'string', create: true, edit: false, description: 'list name. Needs the Marketing module' },
+        { key: 'description', type: 'string', create: true, edit: false, nullable: true, description: 'what this list is for, or null' },
+      ],
+      actions: {
+        create: { label: 'Create', fields: ['name', 'description'], requiresFields: ['name'] },
+        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+      },
+    },
     channels: {
       label: 'messaging channel',
       createRequired: ['provider', 'displayName'],

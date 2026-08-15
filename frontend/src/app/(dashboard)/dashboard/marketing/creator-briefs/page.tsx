@@ -2,8 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Lock, Plus, Loader2 } from 'lucide-react';
+import { Lock, Plus, Loader2, Pencil} from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AgenticEntry, BulkEditSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
@@ -47,6 +51,9 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [selection, setSelection] = useState<Campaign[]>([]);
+  const [bulkEditTargets, setBulkEditTargets] = useState<Campaign[] | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
   const [working, setWorking] = useState(false);
   const [form, setForm] = useState({
     name: '', brief: '', budgetIdr: '', pricingModel: 'flat',
@@ -103,6 +110,20 @@ export default function CampaignsPage() {
     }
   }
 
+  // Bulk EDIT and nothing else. Ripllo serves POST /campaigns and
+  // PATCH /campaigns/{id} but no DELETE, so "Delete selected" would be
+  // an item with no endpoint behind it. Ending a brief is closing it,
+  // which is a status edit.
+  const pageActions: PageAction[] = assistantEnabled
+    ? [{
+        key: 'bulk-edit',
+        label: selection.length > 0 ? `Bulk edit ${selection.length} selected` : 'Bulk edit',
+        icon: Pencil,
+        run: () => setBulkEditTargets(selection),
+        requiresSelection: true,
+      }]
+    : [];
+
   const enabled = plan?.isForjioInternal || plan?.plan === 'growth' || plan?.plan === 'scale';
 
   return (
@@ -110,7 +131,26 @@ export default function CampaignsPage() {
       <PageHeader
         title="Creator briefs"
         description="Brief paid creator collabs. Public + invite-only. Optionally link a brief to a parent Campaign for roll-up reporting."
-        action={enabled ? <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New brief</Button> : undefined}
+        action={
+          enabled ? (
+            <>
+              <ActionsDropdown
+                actions={pageActions}
+                selectionCount={selection.length}
+                noun="creator brief"
+              />
+              <AgenticEntry
+                resource="creator-briefs"
+                mode="create"
+                onApplied={load}
+                className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+                fallback={<Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4" /> New brief</Button>}
+              >
+                <Plus className="h-4 w-4" /> New brief
+              </AgenticEntry>
+            </>
+          ) : undefined
+        }
       />
 
       {error && <ErrorBox>{error}</ErrorBox>}
@@ -182,9 +222,23 @@ export default function CampaignsPage() {
               header: '',
               align: 'right',
               cell: (c) => (
-                <Link href={`/dashboard/marketing/creator-briefs/${c.id}`} className="text-primary hover:underline text-xs">
-                  Manage
-                </Link>
+                <span className="inline-flex items-center gap-3">
+                  <Link href={`/dashboard/marketing/creator-briefs/${c.id}`} className="text-primary hover:underline text-xs">
+                    Manage
+                  </Link>
+                  <AgenticEntry
+                    resource="creator-briefs"
+                    mode="edit"
+                    initial={{ ...c }}
+                    onApplied={load}
+                    title="Edit"
+                    aria-label={`Edit creator brief ${c.name}`}
+                    className="inline-flex items-center text-muted-foreground hover:text-foreground"
+                    fallback={null}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </AgenticEntry>
+                </span>
               ),
             },
           ] as Column<Campaign>[]}
@@ -202,9 +256,24 @@ export default function CampaignsPage() {
             },
           ] as FilterDef<Campaign>[]}
           rowKey={(c) => c.id}
+          onSelectionChange={setSelection}
+          renderBulkBar={
+            assistantEnabled
+              ? (rows, clear) => <BulkBar count={rows.length} noun="creator brief" onClear={clear} />
+              : undefined
+          }
           searchPlaceholder="Search name, brief…"
           defaultSort={{ key: 'name', dir: 'asc' }}
           empty="No briefs match."
+        />
+      )}
+
+      {bulkEditTargets && (
+        <BulkEditSlot
+          resource="creator-briefs"
+          targets={bulkEditTargets.map((c) => ({ ...c }))}
+          onClose={() => setBulkEditTargets(null)}
+          onApplied={load}
         />
       )}
 

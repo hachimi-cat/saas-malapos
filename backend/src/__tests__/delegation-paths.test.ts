@@ -268,6 +268,16 @@ describe('delegation gate — method axis', () => {
     // 2026-08-15 — the Ripllo surfaces behind the channels and compose
     // sheets. Channels is configuration; a broadcast is a DRAFT.
     ['post', '/api/v1/account/marketing/channels', true],
+    // programs, creator briefs and contacts — 2026-08-15.
+    ['post', '/api/v1/account/marketing/programs', true],
+    ['patch', '/api/v1/account/marketing/programs/prog_1', true],
+    ['post', '/api/v1/account/marketing/campaigns', true],
+    ['patch', '/api/v1/account/marketing/campaigns/cmp_1', true],
+    ['post', '/api/v1/account/marketing/contacts', true],
+    ['patch', '/api/v1/account/marketing/contacts/ct_1', true],
+    ['post', '/api/v1/account/marketing/contact-lists', true],
+    // The `exact` boundaries those POST grants stop at:
+    ['post', '/api/v1/account/marketing/contact-lists/cl_1/members', false],
     ['post', '/api/v1/account/marketing/broadcasts', true],
     // …and the three things deliberately left out beside them, each
     // because it reaches a real person:

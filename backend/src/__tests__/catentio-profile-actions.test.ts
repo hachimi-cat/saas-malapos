@@ -74,6 +74,16 @@ const DECLARED = [
   'payouts',
   'affiliate-enrollments',
   'affiliate-commissions',
+  // wave-4 (2026-08-15), the malapos half of bang's marketing batch.
+  // `programs` spells out its actions only so `delete` can join (ripllo
+  // has served DELETE /programs/{id} all along); `contacts` gained a
+  // real edit over PATCH /contacts/{id}; `contact-lists` declares
+  // create+delete and NO edit, because ripllo has no update endpoint
+  // for a list at all. creator-briefs is deliberately NOT here — it
+  // declares no actions block, so engine synthesis stays.
+  'programs',
+  'contacts',
+  'contact-lists',
 ] as const;
 
 function synthesized(spec: ResourceSpec) {

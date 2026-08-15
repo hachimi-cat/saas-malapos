@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Plus, List as ListIcon, Upload, ShieldOff, Trash2 } from 'lucide-react';
+import { Loader2, Plus, List as ListIcon, Upload, ShieldOff, Trash2, Pencil} from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AgenticEntry, BulkEditSlot, BulkVerbSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
@@ -65,6 +69,11 @@ export default function AudiencePage() {
   const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState<'contact' | 'list' | null>(null);
   const [showImport, setShowImport] = useState(false);
+
+  const [contactSelection, setContactSelection] = useState<Contact[]>([]);
+  const [bulkEditTargets, setBulkEditTargets] = useState<Contact[] | null>(null);
+  const [bulkDeleteTargets, setBulkDeleteTargets] = useState<Contact[] | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
 
   async function loadContacts() {
     try {
@@ -140,6 +149,48 @@ export default function AudiencePage() {
         <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</span>
       ),
     },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      // Row halves of the two batch verbs on the Actions dropdown.
+      // Until 2026-08-15 `contacts` had no declared edit at all, so this
+      // table had no row controls whatsoever.
+      cell: (c) => (
+        <span className="inline-flex items-center gap-1">
+          <AgenticEntry
+            resource="contacts"
+            mode="edit"
+            initial={{
+              id: c.id,
+              email: c.email ?? null,
+              phone: c.phone ?? null,
+              firstName: c.firstName ?? null,
+              lastName: c.lastName ?? null,
+            }}
+            onApplied={loadContacts}
+            title="Edit"
+            aria-label={`Edit contact ${c.email ?? c.id}`}
+            className="inline-flex items-center rounded p-1 text-muted-foreground hover:text-foreground"
+            fallback={null}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </AgenticEntry>
+          <AgenticEntry
+            resource="contacts"
+            mode="delete"
+            initial={{ id: c.id, email: c.email ?? undefined }}
+            onApplied={loadContacts}
+            title="Delete"
+            aria-label={`Delete contact ${c.email ?? c.id}`}
+            className="inline-flex items-center rounded p-1 text-muted-foreground hover:text-destructive"
+            fallback={null}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </AgenticEntry>
+        </span>
+      ),
+    },
   ];
 
   const suppressionColumns: Column<Suppression>[] = [
@@ -198,6 +249,26 @@ export default function AudiencePage() {
     },
   ];
 
+  const contactActions: PageAction[] = assistantEnabled
+    ? [
+        {
+          key: 'bulk-edit',
+          label: contactSelection.length > 0 ? `Bulk edit ${contactSelection.length} selected` : 'Bulk edit',
+          icon: Pencil,
+          run: () => setBulkEditTargets(contactSelection),
+          requiresSelection: true,
+        },
+        {
+          key: 'bulk-delete',
+          label: contactSelection.length > 0 ? `Delete ${contactSelection.length} selected` : 'Delete selected',
+          icon: Trash2,
+          run: () => setBulkDeleteTargets(contactSelection),
+          requiresSelection: true,
+          destructive: true,
+        },
+      ]
+    : [];
+
   return (
     <div>
       <PageHeader
@@ -210,9 +281,30 @@ export default function AudiencePage() {
                 <Upload size={14} /> Import CSV
               </Button>
             )}
-            <Button size="sm" onClick={() => setShowAdd(tab === 'contacts' ? 'contact' : 'list')}>
+            {/* Batch verbs are CONTACTS ONLY. Ripllo has no update
+                endpoint for a contact LIST — POST, GET, DELETE and
+                member add/remove, nothing else — so a Bulk edit item on
+                the lists tab would open a sheet with nothing to call. */}
+            {tab === 'contacts' && (
+              <ActionsDropdown
+                actions={contactActions}
+                selectionCount={contactSelection.length}
+                noun="contact"
+              />
+            )}
+            <AgenticEntry
+              resource={tab === 'contacts' ? 'contacts' : 'contact-lists'}
+              mode="create"
+              onApplied={tab === 'contacts' ? loadContacts : loadLists}
+              className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              fallback={
+                <Button size="sm" onClick={() => setShowAdd(tab === 'contacts' ? 'contact' : 'list')}>
+                  <Plus size={14} /> {tab === 'contacts' ? 'Add contact' : 'New list'}
+                </Button>
+              }
+            >
               <Plus size={14} /> {tab === 'contacts' ? 'Add contact' : 'New list'}
-            </Button>
+            </AgenticEntry>
           </>
         }
       />
@@ -236,6 +328,12 @@ export default function AudiencePage() {
             rows={contacts}
             columns={contactColumns}
             rowKey={(c) => c.id}
+            onSelectionChange={setContactSelection}
+            renderBulkBar={
+              assistantEnabled
+                ? (rows, clear) => <BulkBar count={rows.length} noun="contact" onClear={clear} />
+                : undefined
+            }
             searchPlaceholder="Search by email, name, or phone…"
             defaultSort={{ key: 'createdAt', dir: 'desc' }}
             empty="No contacts match."
@@ -286,6 +384,25 @@ export default function AudiencePage() {
         </>
       </TabsContent>
       </Tabs>
+
+      {bulkEditTargets && (
+        <BulkEditSlot
+          resource="contacts"
+          targets={bulkEditTargets.map((c) => ({ ...c }))}
+          onClose={() => setBulkEditTargets(null)}
+          onApplied={loadContacts}
+        />
+      )}
+
+      {bulkDeleteTargets && (
+        <BulkVerbSlot
+          resource="contacts"
+          verb="delete"
+          targets={bulkDeleteTargets.map((c) => ({ ...c }))}
+          onClose={() => setBulkDeleteTargets(null)}
+          onApplied={loadContacts}
+        />
+      )}
 
       {showAdd === 'contact' && <AddContactModal onClose={() => setShowAdd(null)} onSaved={async () => { setShowAdd(null); await loadContacts(); }} />}
       {showAdd === 'list' && <AddListModal onClose={() => setShowAdd(null)} onSaved={async () => { setShowAdd(null); await loadLists(); }} />}

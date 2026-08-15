@@ -3,8 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Lock, Plus, Loader2 } from 'lucide-react';
+import { Lock, Plus, Loader2, Pencil, Trash2} from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AgenticEntry, BulkEditSlot, BulkVerbSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { ErrorBox } from '@/components/dashboard/ui';
 import { marketingFetch } from '@/lib/marketing-api';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
@@ -56,6 +60,10 @@ export default function ProgramsPage() {
   const [programs, setPrograms] = useState<Program[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [selection, setSelection] = useState<Program[]>([]);
+  const [bulkEditTargets, setBulkEditTargets] = useState<Program[] | null>(null);
+  const [bulkDeleteTargets, setBulkDeleteTargets] = useState<Program[] | null>(null);
+  const { enabled: assistantEnabled } = useCatentioStatus();
   const [working, setWorking] = useState(false);
   const [form, setForm] = useState({
     name: '', description: '', targetUrl: '', commissionModel: 'perf_redemption', commissionRate: 10,
@@ -124,6 +132,27 @@ export default function ProgramsPage() {
     }
   }
 
+  // Both halves of every verb: single at the row, batch here.
+  const pageActions: PageAction[] = assistantEnabled
+    ? [
+        {
+          key: 'bulk-edit',
+          label: selection.length > 0 ? `Bulk edit ${selection.length} selected` : 'Bulk edit',
+          icon: Pencil,
+          run: () => setBulkEditTargets(selection),
+          requiresSelection: true,
+        },
+        {
+          key: 'bulk-delete',
+          label: selection.length > 0 ? `Delete ${selection.length} selected` : 'Delete selected',
+          icon: Trash2,
+          run: () => setBulkDeleteTargets(selection),
+          requiresSelection: true,
+          destructive: true,
+        },
+      ]
+    : [];
+
   const enabled = plan?.isForjioInternal || plan?.plan === 'starter' || plan?.plan === 'growth' || plan?.plan === 'scale';
 
   return (
@@ -131,7 +160,26 @@ export default function ProgramsPage() {
       <PageHeader
         title="Affiliate Programs"
         description="Self-serve commission-only programs. Auto-mint discount + referral attribution per affiliator."
-        action={enabled ? <Button onClick={() => setShowForm(true)}><Plus size={14} /> New program</Button> : undefined}
+        action={
+          enabled ? (
+            <>
+              <ActionsDropdown
+                actions={pageActions}
+                selectionCount={selection.length}
+                noun="affiliate program"
+              />
+              <AgenticEntry
+                resource="programs"
+                mode="create"
+                onApplied={load}
+                className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+                fallback={<Button onClick={() => setShowForm(true)}><Plus size={14} /> New program</Button>}
+              >
+                <Plus className="h-4 w-4" /> New program
+              </AgenticEntry>
+            </>
+          ) : undefined
+        }
       />
 
       {error && <ErrorBox>{error}</ErrorBox>}
@@ -207,9 +255,39 @@ export default function ProgramsPage() {
               header: '',
               align: 'right',
               cell: (p) => (
-                <Link href={`/dashboard/marketing/programs/${p.id}`} className="text-primary hover:underline text-xs">
-                  Manage
-                </Link>
+                <span className="inline-flex items-center gap-3">
+                  <Link href={`/dashboard/marketing/programs/${p.id}`} className="text-primary hover:underline text-xs">
+                    Manage
+                  </Link>
+                  {/* Row halves of the two batch verbs above. Ripllo has
+                      served DELETE /programs/{id} all along; the verb
+                      was simply never declared, so nothing could offer
+                      it. */}
+                  <AgenticEntry
+                    resource="programs"
+                    mode="edit"
+                    initial={{ ...p }}
+                    onApplied={load}
+                    title="Edit"
+                    aria-label={`Edit affiliate program ${p.name}`}
+                    className="inline-flex items-center text-muted-foreground hover:text-foreground"
+                    fallback={null}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </AgenticEntry>
+                  <AgenticEntry
+                    resource="programs"
+                    mode="delete"
+                    initial={{ id: p.id, name: p.name }}
+                    onApplied={load}
+                    title="Delete"
+                    aria-label={`Delete affiliate program ${p.name}`}
+                    className="inline-flex items-center text-muted-foreground hover:text-destructive"
+                    fallback={null}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </AgenticEntry>
+                </span>
               ),
             },
           ] as Column<Program>[]}
@@ -227,9 +305,34 @@ export default function ProgramsPage() {
             },
           ] as FilterDef<Program>[]}
           rowKey={(p) => p.id}
+          onSelectionChange={setSelection}
+          renderBulkBar={
+            assistantEnabled
+              ? (rows, clear) => <BulkBar count={rows.length} noun="affiliate program" onClear={clear} />
+              : undefined
+          }
           searchPlaceholder="Search name, description…"
           defaultSort={{ key: 'name', dir: 'asc' }}
           empty="No programs match."
+        />
+      )}
+
+      {bulkEditTargets && (
+        <BulkEditSlot
+          resource="programs"
+          targets={bulkEditTargets.map((p) => ({ ...p }))}
+          onClose={() => setBulkEditTargets(null)}
+          onApplied={load}
+        />
+      )}
+
+      {bulkDeleteTargets && (
+        <BulkVerbSlot
+          resource="programs"
+          verb="delete"
+          targets={bulkDeleteTargets.map((p) => ({ ...p }))}
+          onClose={() => setBulkDeleteTargets(null)}
+          onApplied={load}
         />
       )}
 
