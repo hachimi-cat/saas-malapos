@@ -24,8 +24,8 @@ export interface ShipmentLabelFile {
 export const DEFAULT_SHIPMENT_LABEL_OPTIONS: ShipmentLabelOptions = {
   size: 'thermal-100x150',
   showSenderPhone: true,
-  showRecipientPhone: true,
-  maskRecipientName: false,
+  showRecipientPhone: false,
+  maskRecipientName: true,
   showShippingCost: true,
   showInsurance: true,
   showItems: true,
