@@ -18,6 +18,8 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { ShipmentLabelDialog } from '@/components/shipping/ShipmentLabelDialog';
+import type { ShipmentLabelFile, ShipmentLabelOptions } from '@/lib/shipment-label';
 
 /*
  * Fulfillment → Shipments. malapos port of storlaunch's fulfillment/
@@ -57,6 +59,7 @@ export default function ShipmentsPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelTarget, setCancelTarget] = useState<Shipment | null>(null);
+  const [labelTarget, setLabelTarget] = useState<Shipment | null>(null);
 
   async function reload() {
     setLoading(true);
@@ -89,13 +92,9 @@ export default function ShipmentsPage() {
     }
   }
 
-  async function handlePrintLabel(s: Shipment) {
-    try {
-      const res = await shipmentsApi.getLabel(s.id);
-      if (res.data?.url) window.open(res.data.url, '_blank');
-    } catch (e) {
-      alert(e instanceof ApiRequestError ? e.message : 'Label not ready yet — courier may still be processing the pickup.');
-    }
+  async function loadShipmentLabel(shipmentId: string, options: ShipmentLabelOptions): Promise<ShipmentLabelFile> {
+    const res = await shipmentsApi.getLabel(shipmentId, options);
+    return res.data;
   }
 
   async function handleConfirmPickup(s: Shipment) {
@@ -196,7 +195,14 @@ export default function ShipmentsPage() {
           <Button variant="ghost" size="icon" onClick={() => openDetail(r)} title="View detail" className="h-8 w-8 text-muted-foreground hover:text-foreground">
             <ExternalLink className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => handlePrintLabel(r)} title="Print label" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setLabelTarget(r)}
+            disabled={!r.waybillId}
+            title={r.waybillId ? 'Print resi' : 'Available after booking and AWB issuance'}
+            className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"
+          >
             <Printer className="h-3.5 w-3.5" />
           </Button>
           {['pending', 'confirmed', 'allocated', 'picking_up'].includes(r.status) && (
@@ -301,11 +307,28 @@ export default function ShipmentsPage() {
                     Open Biteship tracking →
                   </a>
                 )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setLabelTarget(detail)}
+                  disabled={!detail.waybillId}
+                  className="w-full"
+                >
+                  <Printer className="h-4 w-4" />
+                  {detail.waybillId ? 'Print resi' : 'Label available after booking'}
+                </Button>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      <ShipmentLabelDialog
+        open={!!labelTarget}
+        onOpenChange={(open) => { if (!open) setLabelTarget(null); }}
+        shipment={labelTarget}
+        loadLabel={loadShipmentLabel}
+      />
 
       {createOpen && (
         <CreateShipmentModal

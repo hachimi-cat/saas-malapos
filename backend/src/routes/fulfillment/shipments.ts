@@ -19,6 +19,18 @@ import { requireMerchantClient, handleFulkrumaError } from '../../services/fulkr
 
 const router = Router();
 
+const shipmentLabelQuerySchema = z.object({
+  size: z.enum(['a4', 'thermal-80x100', 'thermal-100x150']).default('thermal-100x150'),
+  showSenderPhone: z.enum(['true', 'false']).optional(),
+  showRecipientPhone: z.enum(['true', 'false']).optional(),
+  maskRecipientName: z.enum(['true', 'false']).optional(),
+  showShippingCost: z.enum(['true', 'false']).optional(),
+  showInsurance: z.enum(['true', 'false']).optional(),
+  showItems: z.enum(['true', 'false']).optional(),
+  showItemDescriptions: z.enum(['true', 'false']).optional(),
+  showItemSkus: z.enum(['true', 'false']).optional(),
+});
+
 router.get(
   '/',
   asyncHandler(async (req, res, next) => {
@@ -52,12 +64,18 @@ router.get(
   '/:id/label',
   asyncHandler(async (req, res, next) => {
     try {
+      const parsed = shipmentLabelQuerySchema.safeParse(req.query);
+      if (!parsed.success) return sendErr(res, req, 400, 'VALIDATION_ERROR', 'Invalid label options');
       const client = await requireMerchantClient(req.auth!.accountId as string);
-      const { shipment } = await client.shipments.get(String(req.params.id));
-      if (!shipment.labelUrl) {
-        return sendErr(res, req, 404, 'LABEL_NOT_AVAILABLE', 'Shipment label not yet generated');
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(parsed.data)) {
+        if (value !== undefined) params.set(key, String(value));
       }
-      return sendOk(res, req, { url: shipment.labelUrl });
+      const result = await client.request<{ label: unknown }>({
+        method: 'GET',
+        path: `/api/v1/shipments/${encodeURIComponent(String(req.params.id))}/label?${params.toString()}`,
+      });
+      return sendOk(res, req, result.label);
     } catch (err) {
       return handleFulkrumaError(res, req, err, next);
     }

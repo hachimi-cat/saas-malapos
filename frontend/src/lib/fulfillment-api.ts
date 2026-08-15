@@ -13,6 +13,7 @@
  */
 
 import { api } from './api';
+import { shipmentLabelQuery, type ShipmentLabelFile, type ShipmentLabelOptions } from './shipment-label';
 
 // ─── Types (mirror @forjio/fulkruma-node DTOs) ────────────────────────
 
@@ -230,7 +231,8 @@ function qs(params?: Record<string, unknown>): string {
 export const shipmentsApi = {
   list: (params?: { status?: string }) => api.get<Shipment[]>(`/fulfillment/shipments${qs(params)}`),
   get: (id: string) => api.get<Shipment>(`/fulfillment/shipments/${id}`),
-  getLabel: (id: string) => api.get<{ url: string }>(`/fulfillment/shipments/${id}/label`),
+  getLabel: (id: string, options: ShipmentLabelOptions) =>
+    api.get<ShipmentLabelFile>(`/fulfillment/shipments/${id}/label?${shipmentLabelQuery(options)}`),
   confirmPickup: (id: string) => api.post<Shipment>(`/fulfillment/shipments/${id}/confirm-pickup`, {}),
   cancel: (id: string, reason: string) =>
     api.post<Shipment>(`/fulfillment/shipments/${id}/cancel`, { reason }),

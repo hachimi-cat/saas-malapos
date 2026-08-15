@@ -25,6 +25,8 @@ import { rupiah } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { useModules } from '@/hooks/use-modules';
 import { deliveryApi, shipmentsApi, type Shipment } from '@/lib/fulfillment-api';
+import { ShipmentLabelDialog } from '@/components/shipping/ShipmentLabelDialog';
+import type { ShipmentLabelFile, ShipmentLabelOptions } from '@/lib/shipment-label';
 import { AgenticEntry } from '@/components/catentio/agentic-entry';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -533,6 +535,7 @@ function ShipmentSection({
   const [busy, setBusy] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [labelOpen, setLabelOpen] = useState(false);
 
   const reload = useCallback(async () => {
     if (!shipmentId) return;
@@ -581,15 +584,9 @@ function ShipmentSection({
     }
   }
 
-  async function viewLabel() {
-    if (!shipmentId) return;
-    try {
-      const res = await shipmentsApi.getLabel(shipmentId);
-      if (res.data?.url) window.open(res.data.url, '_blank');
-      else alert('Label not ready yet — the courier may still be processing the pickup.');
-    } catch (e) {
-      alert(e instanceof ApiRequestError ? e.message : 'Label not ready yet.');
-    }
+  async function loadShipmentLabel(id: string, options: ShipmentLabelOptions): Promise<ShipmentLabelFile> {
+    const response = await shipmentsApi.getLabel(id, options);
+    return response.data;
   }
 
   async function dispatch() {
@@ -739,8 +736,9 @@ function ShipmentSection({
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            <Button type="button" variant="outline" onClick={viewLabel}>
-              <Printer className="h-4 w-4" /> View label
+            <Button type="button" variant="outline" onClick={() => setLabelOpen(true)} disabled={!shipment.waybillId}>
+              <Printer className="h-4 w-4" />
+              {shipment.waybillId ? 'Print resi' : 'Label available after booking'}
             </Button>
             {['pending', 'confirmed', 'allocated', 'picking_up'].includes(shipment.status) && (
               <Button
@@ -787,6 +785,12 @@ function ShipmentSection({
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          <ShipmentLabelDialog
+            open={labelOpen}
+            onOpenChange={setLabelOpen}
+            shipment={shipment}
+            loadLabel={loadShipmentLabel}
+          />
         </div>
       ) : null}
       </CardContent>
