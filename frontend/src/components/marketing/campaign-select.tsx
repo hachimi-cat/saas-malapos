@@ -5,7 +5,7 @@
  *
  * Fetches /api/v1/account/marketing/marketing-campaigns/_/selector once
  * (the storlaunch BFF catch-all proxies to ripllo's
- * /api/v1/marketing-campaigns/_/selector) and renders a native <select>
+ * /api/v1/marketing-campaigns/_/selector) and renders a shadcn Select
  * mapping each non-archived MarketingCampaign to its id. "None" is the
  * default for entities that aren't tied to a campaign.
  *
@@ -29,6 +29,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { marketingFetch } from '@/lib/marketing-api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export interface CampaignOption {
   id: string;
@@ -46,11 +47,11 @@ interface Props {
   help?: string;
   /** Disable the input (e.g. during submit). */
   disabled?: boolean;
-  /** Extra Tailwind classes for the <select>. */
+  /** Extra Tailwind classes for the trigger. */
   className?: string;
   /**
    * Drop the label + help-text wrapper entirely and render just the
-   * <select>. Use this when embedding inline in a table cell so the
+   * Select. Use this when embedding inline in a table cell so the
    * row stays compact (no empty placeholders). The full labeled form
    * is the default for create/edit forms.
    */
@@ -83,19 +84,23 @@ export function CampaignSelect({ value, onChange, label = 'Campaign (optional)',
   }, []);
 
   const selectEl = (
-    <select
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}
+    <Select
+      value={value ?? 'none'}
+      onValueChange={(v) => onChange(v === 'none' ? null : v)}
       disabled={disabled || options === null}
-      className={`w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60 ${className}`}
     >
-      <option value="">None — standalone</option>
-      {(options ?? []).map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.name} {o.status !== 'live' ? `(${o.status})` : ''}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger className={`w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-60 ${className}`}>
+        <SelectValue placeholder="None — standalone" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="none">None — standalone</SelectItem>
+        {(options ?? []).map((o) => (
+          <SelectItem key={o.id} value={o.id}>
+            {o.name} {o.status !== 'live' ? `(${o.status})` : ''}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 
   if (compact) {
