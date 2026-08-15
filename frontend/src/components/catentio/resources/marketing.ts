@@ -24,6 +24,7 @@ import {
   type Fields,
   type ResourceBuilder,
 } from '../resource-helpers';
+import { providerGuide } from '@/lib/channel-providers';
 
 /**
  * Marketing-module (Ripllo proxy) descriptors — the FRONTEND mirror of
@@ -107,6 +108,39 @@ async function ripllo(method: 'POST' | 'PATCH', path: string, body: unknown): Pr
   });
   const b = (await r.json().catch(() => null)) as { error?: { message?: string } } | null;
   if (!r.ok) throw new Error(b?.error?.message ?? `Could not save — ${path}`);
+}
+
+/** An object from a JSON textarea, or from an object the plan already
+ *  sent. Returns undefined for anything unparseable, so the caller's own
+ *  "this is required" message is what the merchant sees rather than a
+ *  raw SyntaxError. */
+function objFrom(v: unknown): Record<string, unknown> | undefined {
+  if (v && typeof v === 'object' && !Array.isArray(v)) return v as Record<string, unknown>;
+  if (typeof v === 'string' && v.trim()) {
+    try {
+      const parsed = JSON.parse(v) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+/** Connected, ACTIVE channels — the only ones a broadcast can send
+ *  through. Same endpoint the compose page reads. */
+async function loadChannelOptions(): Promise<{ value: string; label: string }[]> {
+  try {
+    const r = await marketingFetch('/api/v1/account/marketing/channels', { credentials: 'include' });
+    const b = (await r.json()) as { data?: Array<{ id: string; displayName: string; provider: string; status: string }> };
+    return (b?.data ?? [])
+      .filter((c) => c.status === 'active')
+      .map((c) => ({ value: c.provider, label: `${c.displayName} (${c.provider})` }));
+  } catch {
+    return [];
+  }
 }
 
 // ── option loaders (scoped to the merchant's own workspace; a fetch
@@ -756,6 +790,140 @@ const affiliateCommissionsResource: ResourceBuilder = (mode) => {
 
 // ── the group's registry slice ──────────────────────────────────────
 
+// ── channels (marketing/channels/page.tsx provider cards) ───────────
+
+/**
+ * Setting a channel up is the job, and the credential hunt is the hard
+ * part of it. bang, 2026-08-14: *"tell them how to get key/token etc and
+ * help them to setup the channel in channels page"* — so the provider
+ * guidance is BUILT from the same catalog the page's cards render from
+ * (`@/lib/channel-providers`), never hand-listed here.
+ */
+const channelsResource: ResourceBuilder = () => ({
+  slug: 'channels',
+  label: 'messaging channel',
+  fields: [
+    {
+      name: 'provider',
+      label: 'Provider',
+      required: true,
+      description:
+        `${RIPLLO_NOTE} Which service to connect. One of these exact keys, ` +
+        `and each one's credential keys:\n${providerGuide()}`,
+    },
+    { name: 'displayName', label: 'Display name', required: true, placeholder: 'Warung Mekar mail', description: 'What you will recognise it by.' },
+    {
+      name: 'credentials',
+      label: 'Credentials',
+      kind: 'textarea',
+      description:
+        'JSON, keyed exactly as the provider line above lists. Only the ' +
+        'merchant can supply the values — never invent, guess or fill in a ' +
+        'key, token, SID or webhook URL. Explaining where in the provider ' +
+        'dashboard to find each one is the useful thing to do, and it is ' +
+        'what people usually need help with.',
+    },
+  ],
+  examplePrompts: [
+    'How do I connect Telegram, and where do I get the bot token?',
+    'Which provider should I use for order updates on WhatsApp?',
+    'Walk me through connecting SendGrid — what do I need before I start?',
+  ],
+  buildAgentPrompt,
+  apply: async ({ fields }) => {
+    const provider = str(fields.provider);
+    const displayName = str(fields.displayName);
+    const credentials = objFrom(fields.credentials);
+    if (!provider) throw new Error('Pick a provider');
+    if (!displayName) throw new Error('Display name is required');
+    if (!credentials) throw new Error('Paste the connection credentials from your provider');
+    await ripllo('POST', 'channels', { provider, displayName, credentials });
+  },
+});
+
+// ── broadcasts (marketing/compose/page.tsx) ─────────────────────────
+
+const broadcastsResource: ResourceBuilder = () => ({
+  slug: 'broadcasts',
+  label: 'broadcast',
+  fields: [
+    { name: 'name', label: 'Name', required: true, placeholder: 'Ramadan sale announcement', description: `${RIPLLO_NOTE} Internal only.` },
+    {
+      name: 'providers',
+      label: 'Send through',
+      kind: 'combobox',
+      multi: true,
+      required: true,
+      loadOptions: loadChannelOptions,
+      description: 'Only connected, active channels.',
+    },
+    {
+      name: 'content',
+      label: 'Message',
+      kind: 'textarea',
+      required: true,
+      description: 'JSON, keyed per channel kind — email subject and html, text for SMS and chat.',
+    },
+    {
+      name: 'audience',
+      label: 'Audience',
+      kind: 'textarea',
+      description: '{"listIds": ["…"]} — which contact lists receive it.',
+    },
+  ],
+  examplePrompts: [
+    'Draft a Ramadan sale announcement for my newsletter list',
+    'A restock message for the VIP list',
+    'Announce the new cold brew to everyone',
+  ],
+  buildAgentPrompt,
+  apply: async ({ fields }) => {
+    const name = str(fields.name);
+    const providers = strArr(fields.providers);
+    const content = objFrom(fields.content);
+    const audience = objFrom(fields.audience);
+    if (!name) throw new Error('Name is required');
+    if (!providers?.length) throw new Error('Pick at least one channel');
+    if (!content) throw new Error('The message is required');
+    // Creating a broadcast does NOT send it — the compose page's
+    // separate /send step does, and that is left to the merchant.
+    await ripllo('POST', 'broadcasts', defined({ name, providers, content, audience }));
+  },
+});
+
+// ── campaign-invitations (marketing/creators/page.tsx) ──────────────
+
+const campaignInvitationsResource: ResourceBuilder = () => ({
+  slug: 'campaign-invitations',
+  label: 'creator invitation',
+  fields: [
+    { name: 'campaignId', label: 'Brief', required: true, description: `${RIPLLO_NOTE} Which creator brief to invite into.` },
+    { name: 'creatorId', label: 'Creator', required: true, description: 'From the creators directory.' },
+    {
+      name: 'message',
+      label: 'Message',
+      kind: 'textarea',
+      description: 'Sent to a real person outside your workspace, under your name.',
+    },
+  ],
+  examplePrompts: [
+    'Which creators here suit a cold-brew launch?',
+    'Invite the top three food creators to my Ramadan brief',
+    'Write a friendly invitation mentioning our coffee range',
+  ],
+  buildAgentPrompt,
+  apply: async ({ fields }) => {
+    const campaignId = str(fields.campaignId);
+    const creatorId = str(fields.creatorId);
+    if (!campaignId) throw new Error('Pick the brief to invite into');
+    if (!creatorId) throw new Error('Pick the creator to invite');
+    await ripllo('POST', `campaigns/${encodeURIComponent(campaignId)}/invitations`, defined({
+      creatorId,
+      message: str(fields.message),
+    }));
+  },
+});
+
 export const MARKETING_BUILDERS: Record<string, ResourceBuilder> = {
   'blog-posts': blogPostsResource,
   feeds: feedsResource,
@@ -765,4 +933,7 @@ export const MARKETING_BUILDERS: Record<string, ResourceBuilder> = {
   funnels: funnelsResource,
   'affiliate-enrollments': affiliateEnrollmentsResource,
   'affiliate-commissions': affiliateCommissionsResource,
+  channels: channelsResource,
+  broadcasts: broadcastsResource,
+  'campaign-invitations': campaignInvitationsResource,
 };

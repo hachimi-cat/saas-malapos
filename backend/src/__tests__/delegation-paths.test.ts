@@ -265,6 +265,18 @@ describe('delegation gate — method axis', () => {
     ['put', '/api/v1/settings', true],
     ['patch', '/api/v1/account/feeds', true],
     ['post', '/api/v1/account/marketing/funnels', true],
+    // 2026-08-15 — the Ripllo surfaces behind the channels and compose
+    // sheets. Channels is configuration; a broadcast is a DRAFT.
+    ['post', '/api/v1/account/marketing/channels', true],
+    ['post', '/api/v1/account/marketing/broadcasts', true],
+    // …and the three things deliberately left out beside them, each
+    // because it reaches a real person:
+    //   sending a broadcast (exact keeps the grant to the root),
+    ['post', '/api/v1/account/marketing/broadcasts/bc_1/send', false],
+    //   inviting a creator under the merchant's name,
+    ['post', '/api/v1/account/marketing/campaigns/cmp_1/invitations', false],
+    //   and accepting an application, which spins up a collaboration.
+    ['post', '/api/v1/account/marketing/campaigns/cmp_1/applications/app_1/accept', false],
     ['patch', '/api/v1/delivery/origin', true],
     ['post', '/api/v1/delivery/rates', true],
     // WAVE 2 — the reconciled bulk route. It rode the products prefix

@@ -197,6 +197,24 @@ const DELEGATION_WRITABLE_PATHS: DelegationWritableEntry[] = [
   // passthrough; the proxy forwards DELETE too, which stays excluded.
   { prefix: '/api/v1/account/marketing/marketing-campaigns', methods: ['POST', 'PATCH'] },
   { prefix: '/api/v1/account/marketing/funnels', methods: ['POST', 'PATCH'] },
+  // channels — connecting a send channel is configuration, and the
+  // credentials are the merchant's own (the profile forbids the agent
+  // proposing them at all). POST only; the proxy also forwards DELETE,
+  // which stays excluded like every other disconnect.
+  { prefix: '/api/v1/account/marketing/channels', methods: ['POST'] },
+  // broadcasts — CREATE only, and that is the whole point: creating a
+  // broadcast does not send it. Ripllo's send is POST
+  // /broadcasts/{id}/send, which reaches real people and is
+  // deliberately NOT granted, so `exact` keeps the grant to the
+  // collection root.
+  { prefix: '/api/v1/account/marketing/broadcasts', methods: ['POST'], exact: true },
+  // NOT granted, on purpose: POST /campaigns/{id}/invitations. An
+  // invitation goes to a real person outside the workspace under the
+  // merchant's name, so it stays propose-only — the sheet's Apply runs
+  // in the merchant's OWN browser session and is unaffected; this list
+  // only gates the agent's auto-apply. Same reasoning keeps
+  // /campaigns/{id}/applications/{id}/accept|reject out, which a
+  // non-exact `campaigns` prefix would have swept in by accident.
 
   // ── fulfillment module (Fulkruma) ────────────────────────────────
   // shipping origin — PATCH singleton.

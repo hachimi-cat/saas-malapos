@@ -56,6 +56,14 @@ const OPEN_FORM_SURFACES = [
   // *"malapos: fulfillment shipping page doesn't have ask assistant
   // button"* — this one had no entry at all, not the wrong one.
   'app/(dashboard)/dashboard/fulfillment/shipping/page.tsx',
+  // Consultative entries, 2026-08-15. Not single-record forms, but
+  // bang asked for the same agent-only sheet on them: *"it should
+  // open the agentic sheet without the manual input"*. Each keeps
+  // its own manual path on the page — the provider cards on
+  // channels, the composer itself, the per-card Invite on creators.
+  'app/(dashboard)/dashboard/marketing/channels/page.tsx',
+  'app/(dashboard)/dashboard/marketing/compose/page.tsx',
+  'app/(dashboard)/dashboard/marketing/creators/page.tsx',
 ];
 
 /** The one file allowed to spell the label and import the icon. */

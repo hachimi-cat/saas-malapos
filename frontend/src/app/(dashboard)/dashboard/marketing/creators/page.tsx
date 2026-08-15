@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Camera, Loader2, Mail, Search, SlidersHorizontal, X } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AskAssistantEntry } from '@/components/catentio/agentic-entry';
 import { marketingFetch } from '@/lib/marketing-api';
 import { CreatorAvatar } from '@/components/marketplace/creator-avatar';
 import { Button } from '@/components/ui/button';
@@ -113,6 +114,20 @@ export default function MerchantCreatorDirectory() {
       <PageHeader
         title="Creator directory"
         description="Browse every verified creator on Ripllo. Invite them to an open campaign or open their profile."
+        action={
+          // bang, 2026-08-14: *"marketing > creators need ask
+          // assistant button to consult which creators best to do their
+          // campaign"*. Consulting and acting are one conversation, so
+          // the sheet is the INVITATION descriptor: the agent reads the
+          // directory, argues for a shortlist, and the thing it can
+          // apply is the invite it just made the case for.
+          <AskAssistantEntry
+            resource="campaign-invitations"
+            mode="create"
+            onApplied={() => { void load(true); }}
+            className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          />
+        }
       />
 
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}

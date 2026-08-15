@@ -6,7 +6,15 @@ import {
   Send, Hash, Bell, Zap, Webhook, Check, Video,
 } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AskAssistantEntry } from '@/components/catentio/agentic-entry';
 import { marketingFetch } from '@/lib/marketing-api';
+import {
+  PROVIDERS,
+  CATEGORIES,
+  PROVIDER_BY_KEY,
+  type Provider,
+  type ProviderMeta,
+} from '@/lib/channel-providers';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,13 +38,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-type Provider =
-  | 'email_resend' | 'email_sendgrid' | 'email_mailgun' | 'email_postmark' | 'email_ses'
-  | 'sms_twilio' | 'sms_vonage'
-  | 'whatsapp_cloud' | 'telegram_bot' | 'line_business' | 'discord_webhook' | 'slack_webhook'
-  | 'push_onesignal' | 'push_fcm'
-  | 'meta_business' | 'linkedin' | 'tiktok_business' | 'twitter' | 'youtube' | 'pinterest' | 'threads'
-  | 'webhook_generic';
+
 
 interface Channel {
   id: string;
@@ -52,115 +54,36 @@ interface Channel {
   createdAt: string;
 }
 
-interface ProviderField {
-  key: string;
-  label: string;
-  placeholder?: string;
-  type?: 'text' | 'password';
-}
-
-interface ProviderMeta {
-  key: Provider;
-  label: string;
-  category: 'Email' | 'SMS' | 'Messaging' | 'Push' | 'Social' | 'Generic';
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  blurb: string;
-  authKind: 'api_key' | 'oauth' | 'webhook_url';
-  fields?: ProviderField[];
-}
-
-const PROVIDERS: ProviderMeta[] = [
-  // Email
-  { key: 'email_resend', label: 'Resend', category: 'Email', icon: Mail, blurb: 'Modern transactional + marketing email API.', authKind: 'api_key', fields: [
-    { key: 'apiKey', label: 'API key', placeholder: 're_…', type: 'password' },
-    { key: 'fromEmail', label: 'From address', placeholder: 'hello@yourstore.com' },
-    { key: 'fromName', label: 'From name', placeholder: 'Your Store' },
-  ] },
-  { key: 'email_sendgrid', label: 'SendGrid', category: 'Email', icon: Mail, blurb: 'Twilio SendGrid email send.', authKind: 'api_key', fields: [
-    { key: 'apiKey', label: 'API key', placeholder: 'SG.…', type: 'password' },
-    { key: 'fromEmail', label: 'From address' },
-    { key: 'fromName', label: 'From name' },
-  ] },
-  { key: 'email_mailgun', label: 'Mailgun', category: 'Email', icon: Mail, blurb: 'Mailgun European/US sending domain.', authKind: 'api_key', fields: [
-    { key: 'apiKey', label: 'API key', placeholder: 'key-…', type: 'password' },
-    { key: 'domain', label: 'Sending domain', placeholder: 'mg.yourstore.com' },
-    { key: 'region', label: 'Region (us / eu)', placeholder: 'us' },
-    { key: 'fromEmail', label: 'From address' },
-    { key: 'fromName', label: 'From name' },
-  ] },
-  { key: 'email_postmark', label: 'Postmark', category: 'Email', icon: Mail, blurb: 'Transactional email — high deliverability.', authKind: 'api_key', fields: [
-    { key: 'serverToken', label: 'Server token', type: 'password' },
-    { key: 'fromEmail', label: 'From address' },
-    { key: 'fromName', label: 'From name' },
-  ] },
-  { key: 'email_ses', label: 'AWS SES', category: 'Email', icon: Mail, blurb: 'Amazon Simple Email Service.', authKind: 'api_key', fields: [
-    { key: 'accessKeyId', label: 'Access key ID' },
-    { key: 'secretAccessKey', label: 'Secret access key', type: 'password' },
-    { key: 'region', label: 'AWS region', placeholder: 'ap-southeast-1' },
-    { key: 'fromEmail', label: 'From address' },
-    { key: 'fromName', label: 'From name' },
-  ] },
-  // SMS
-  { key: 'sms_twilio', label: 'Twilio SMS', category: 'SMS', icon: Phone, blurb: 'SMS via Twilio messaging service.', authKind: 'api_key', fields: [
-    { key: 'accountSid', label: 'Account SID' },
-    { key: 'authToken', label: 'Auth token', type: 'password' },
-    { key: 'messagingServiceSid', label: 'Messaging service SID' },
-  ] },
-  { key: 'sms_vonage', label: 'Vonage SMS', category: 'SMS', icon: Phone, blurb: 'Vonage (formerly Nexmo) SMS API.', authKind: 'api_key', fields: [
-    { key: 'apiKey', label: 'API key' },
-    { key: 'apiSecret', label: 'API secret', type: 'password' },
-    { key: 'fromNumber', label: 'From number / sender ID', placeholder: '+62…' },
-  ] },
-  // Messaging
-  { key: 'whatsapp_cloud', label: 'WhatsApp', category: 'Messaging', icon: MessageCircle, blurb: 'WA Cloud API — campaign + transactional.', authKind: 'api_key', fields: [
-    { key: 'phoneNumberId', label: 'Phone number ID' },
-    { key: 'accessToken', label: 'Access token', type: 'password' },
-    { key: 'businessAccountId', label: 'Business account ID' },
-  ] },
-  { key: 'telegram_bot', label: 'Telegram', category: 'Messaging', icon: Send, blurb: 'Bot API — broadcast to subscribers + DM.', authKind: 'api_key', fields: [
-    { key: 'botToken', label: 'Bot token (from @BotFather)', type: 'password' },
-    { key: 'defaultChatId', label: 'Default chat / channel ID', placeholder: '@yourchannel or -100…' },
-  ] },
-  { key: 'line_business', label: 'LINE Business', category: 'Messaging', icon: MessageCircle, blurb: 'LINE Official Account messaging API.', authKind: 'api_key', fields: [
-    { key: 'channelId', label: 'Channel ID' },
-    { key: 'channelAccessToken', label: 'Channel access token', type: 'password' },
-    { key: 'channelSecret', label: 'Channel secret', type: 'password' },
-  ] },
-  { key: 'discord_webhook', label: 'Discord', category: 'Messaging', icon: Hash, blurb: 'Webhook to a single Discord channel.', authKind: 'webhook_url', fields: [
-    { key: 'webhookUrl', label: 'Webhook URL', placeholder: 'https://discord.com/api/webhooks/…', type: 'password' },
-  ] },
-  { key: 'slack_webhook', label: 'Slack', category: 'Messaging', icon: Hash, blurb: 'Incoming webhook to a Slack channel.', authKind: 'webhook_url', fields: [
-    { key: 'webhookUrl', label: 'Incoming webhook URL', placeholder: 'https://hooks.slack.com/services/…', type: 'password' },
-  ] },
-  // Push
-  { key: 'push_onesignal', label: 'OneSignal', category: 'Push', icon: Bell, blurb: 'Web + mobile push notifications.', authKind: 'api_key', fields: [
-    { key: 'appId', label: 'App ID' },
-    { key: 'restApiKey', label: 'REST API key', type: 'password' },
-  ] },
-  { key: 'push_fcm', label: 'Firebase Cloud Messaging', category: 'Push', icon: Bell, blurb: 'Mobile push via FCM (HTTP v1).', authKind: 'api_key', fields: [
-    { key: 'projectId', label: 'Project ID' },
-    { key: 'serviceAccountJson', label: 'Service account JSON', placeholder: 'paste full JSON here', type: 'password' },
-  ] },
-  // Social
-  { key: 'meta_business', label: 'Meta (FB + IG)', category: 'Social', icon: Globe, blurb: 'Page posts + IG Business posts via Graph API.', authKind: 'oauth' },
-  { key: 'linkedin', label: 'LinkedIn', category: 'Social', icon: Briefcase, blurb: 'Personal + Company page posts.', authKind: 'oauth' },
-  { key: 'tiktok_business', label: 'TikTok', category: 'Social', icon: Music2, blurb: 'Business account posts via TikTok API.', authKind: 'api_key', fields: [
-    { key: 'accessToken', label: 'Access token', type: 'password' },
-    { key: 'advertiserId', label: 'Advertiser ID' },
-  ] },
-  { key: 'twitter', label: 'X (Twitter)', category: 'Social', icon: Zap, blurb: 'Post to X via the v2 API.', authKind: 'oauth' },
-  { key: 'youtube', label: 'YouTube', category: 'Social', icon: Video, blurb: 'Channel posts (Community tab).', authKind: 'oauth' },
-  { key: 'pinterest', label: 'Pinterest', category: 'Social', icon: Globe, blurb: 'Pin to boards via Pinterest API.', authKind: 'oauth' },
-  { key: 'threads', label: 'Threads', category: 'Social', icon: Hash, blurb: 'Threads posts via Meta Graph.', authKind: 'oauth' },
-  // Generic
-  { key: 'webhook_generic', label: 'Generic webhook', category: 'Generic', icon: Webhook, blurb: 'POST to any URL — for in-house tools / Zapier-style hooks.', authKind: 'webhook_url', fields: [
-    { key: 'webhookUrl', label: 'Webhook URL', placeholder: 'https://your-endpoint.example.com/hook', type: 'password' },
-    { key: 'authHeader', label: 'Authorization header (optional)', placeholder: 'Bearer …', type: 'password' },
-  ] },
-];
-
-const PROVIDER_BY_KEY = Object.fromEntries(PROVIDERS.map((p) => [p.key, p])) as Record<Provider, ProviderMeta>;
-const CATEGORIES: ProviderMeta['category'][] = ['Email', 'SMS', 'Messaging', 'Push', 'Social', 'Generic'];
+/**
+ * Icons live here, not in the catalog: they are React components and
+ * `@/lib/channel-providers` is a plain module the assistant descriptor
+ * imports too. Keyed by provider, so a new provider that forgets an
+ * icon is a type error rather than a blank card.
+ */
+const PROVIDER_ICONS: Record<Provider, React.ComponentType<{ size?: number; className?: string }>> = {
+  email_resend: Mail,
+  email_sendgrid: Mail,
+  email_mailgun: Mail,
+  email_postmark: Mail,
+  email_ses: Mail,
+  sms_twilio: Phone,
+  sms_vonage: Phone,
+  whatsapp_cloud: MessageCircle,
+  telegram_bot: Send,
+  line_business: MessageCircle,
+  discord_webhook: Hash,
+  slack_webhook: Hash,
+  push_onesignal: Bell,
+  push_fcm: Bell,
+  meta_business: Globe,
+  linkedin: Briefcase,
+  tiktok_business: Music2,
+  twitter: Zap,
+  youtube: Video,
+  pinterest: Globe,
+  threads: Hash,
+  webhook_generic: Webhook,
+};
 
 export default function ChannelsPage() {
   const [channels, setChannels] = useState<Channel[] | null>(null);
@@ -198,6 +121,25 @@ export default function ChannelsPage() {
       <PageHeader
         title="Channels"
         description="Connect the send channels you use. Email, SMS, messaging apps, push, social."
+        action={
+          // "Ask assistant", not "New channel". bang, 2026-08-14:
+          // *"marketing > channels doesn't have ask assistant button. at
+          // least we need this to ask how to setup each channels"*, and
+          // on behaviour: *"it should open the agentic sheet without the
+          // manual input"*.
+          //
+          // Nothing manual is lost: connecting has always been the
+          // per-provider cards below, each with its own field list. The
+          // agent proposes provider + display name and explains where
+          // each credential comes from; the values stay the merchant's
+          // to paste.
+          <AskAssistantEntry
+            resource="channels"
+            mode="create"
+            onApplied={() => { void load(); }}
+            className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          />
+        }
       />
 
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}
@@ -213,7 +155,7 @@ export default function ChannelsPage() {
           <ul>
             {channels.map((c) => {
               const meta = PROVIDER_BY_KEY[c.provider];
-              const Icon = meta?.icon ?? Plug;
+              const Icon = PROVIDER_ICONS[c.provider] ?? Plug;
               return (
                 <li key={c.id} className="flex items-center gap-3 border-b border-border px-5 py-3.5 last:border-b-0">
                   <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground"><Icon size={16} /></span>
@@ -270,7 +212,7 @@ export default function ChannelsPage() {
               <Card className="overflow-hidden">
                 <ul>
                   {inCat.map((p) => {
-                    const Icon = p.icon;
+                    const Icon = PROVIDER_ICONS[p.key];
                     const connected = connectedKeys.has(p.key);
                     const isOauth = p.authKind === 'oauth';
                     return (

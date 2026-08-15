@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, Send, Plug, Users, FlaskConical } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AskAssistantEntry } from '@/components/catentio/agentic-entry';
 import { marketingFetch } from '@/lib/marketing-api';
 import { resolveProviders } from '@/lib/compose-providers';
 import { Button } from '@/components/ui/button';
@@ -192,6 +193,21 @@ export default function ComposePage() {
       <PageHeader
         title="Compose"
         description="Write once, fan out across the channels you pick. Audience comes from your lists."
+        action={
+          // "Ask assistant", not "New broadcast" — bang, 2026-08-14:
+          // *"marketing > compose doesn't have ask assistant button"*.
+          // This page IS the composer, so a Manual tab would be a second
+          // copy of the form behind it.
+          //
+          // Drafts only. Sending stays the merchant's explicit act on
+          // the page's own Send: it reaches real people.
+          <AskAssistantEntry
+            resource="broadcasts"
+            mode="create"
+            onApplied={() => { void loadAll(); }}
+            className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          />
+        }
       />
 
       {error && <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive px-4 py-2 text-sm">{error}</div>}

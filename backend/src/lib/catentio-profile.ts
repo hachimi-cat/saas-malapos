@@ -364,6 +364,40 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'marketingCampaignId', type: 'string', create: false, edit: true, nullable: true, description: 'the marketing campaign the recovery emails are attributed to, by id, or null' },
       ],
     },
+    // ── Ripllo marketing, reached through the catch-all proxy ────────
+    // These three arrived 2026-08-15 with the malapos half of bang's
+    // batch: the channels, compose and creators pages had no assistant
+    // at all because the resources were never declared here. Field sets
+    // are transcribed from storlaunch's declarations, which are in turn
+    // transcribed from ripllo's zod — same upstream, same shapes.
+    channels: {
+      label: 'messaging channel',
+      createRequired: ['provider', 'displayName'],
+      fields: [
+        { key: 'provider', type: 'string', create: true, edit: false, description: 'which provider to connect — read the supported list back from the channels collection. Needs the Marketing module' },
+        { key: 'displayName', type: 'string', create: true, edit: false, description: 'the label the merchant will recognise this connection by' },
+        { key: 'credentials', type: 'object', create: true, edit: false, description: 'the provider secrets (API keys, tokens, sender ids). NEVER propose or invent these — they belong to the merchant and only they can supply them. Propose provider and displayName, explain where each key is found in the provider dashboard, and leave the values for them to fill in' },
+      ],
+    },
+    broadcasts: {
+      label: 'broadcast',
+      createRequired: ['name', 'providers', 'content'],
+      fields: [
+        { key: 'name', type: 'string', create: true, edit: false, description: 'internal name for this blast. Needs the Marketing module' },
+        { key: 'providers', type: 'string[]', create: true, edit: false, description: 'ids of connected, ACTIVE channels to send through — read them from the channels collection; an inactive or unknown one fails the send' },
+        { key: 'content', type: 'object', create: true, edit: false, description: 'the message body, keyed per provider kind (email subject/html, text for SMS/chat). Mirror the shape of a previous broadcast rather than inventing keys' },
+        { key: 'audience', type: 'object', create: true, edit: false, description: '{ listIds: [...] } — which contact lists receive it. Creating a broadcast does NOT send it; sending is a separate explicit step, and it reaches real people, so never trigger it unasked' },
+      ],
+    },
+    'campaign-invitations': {
+      label: 'creator invitation',
+      createRequired: ['campaignId', 'creatorId'],
+      fields: [
+        { key: 'campaignId', type: 'string', create: true, edit: false, description: 'id of the creator brief/campaign to invite into. Needs the Marketing module' },
+        { key: 'creatorId', type: 'string', create: true, edit: false, description: 'id of the creator from the creators directory — look it up, never guess' },
+        { key: 'message', type: 'string', create: true, edit: false, description: "the invitation message. It is sent to a real person outside the workspace under the merchant's name, so keep to what the merchant actually wants to say" },
+      ],
+    },
     'marketing-campaigns': {
       label: 'marketing campaign',
       createRequired: ['name', 'goal'],

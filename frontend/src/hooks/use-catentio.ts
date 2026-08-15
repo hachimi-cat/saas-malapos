@@ -49,6 +49,12 @@ export const ASSISTANT_RESOURCES = [
   'abandoned-cart',
   'marketing-campaigns',
   'funnels',
+  // Ripllo marketing surfaces declared 2026-08-15 for the malapos
+  // half of bang's batch — channels, compose and creators had no
+  // assistant because these were never declared.
+  'channels',
+  'broadcasts',
+  'campaign-invitations',
   // affiliate approval queue (Ripllo) — verb-only: an affiliator
   // enrolls themselves and a commission is earned by a sale, so these
   // are reviewed, never authored (see MALAPOS_PROFILE).
