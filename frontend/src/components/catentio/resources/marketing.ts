@@ -1166,6 +1166,87 @@ const contactListsResource = withDelete(contactListsBase, {
   del: (id) => ripploDelete(`contact-lists/${encodeURIComponent(id)}`),
 });
 
+// ── creator contracts — ripllo `collaborations` (verb-only) ─────────
+
+/**
+ * A contract is born from accepting a creator's application and ripllo
+ * serves no PATCH, so there is no create and no edit — approve, cancel
+ * and dispute ARE the vocabulary (bang, 2026-08-15).
+ *
+ * All three end the contract, so all three are proposals the merchant
+ * applies themselves. Nothing had to be carved out of the delegation
+ * list here: malapos grants the marketing proxy per collection and none
+ * of them is /collaborations.
+ */
+const collaborationsResource: ResourceBuilder = (mode) => {
+  if (mode === 'cancel') {
+    return verbDescriptor({
+      slug: 'collaborations',
+      label: 'creator contract',
+      title: 'Cancel creator contract',
+      confirmLabel: 'Cancel contract',
+      destructive: true,
+      fields: [
+        {
+          name: 'reason',
+          label: 'Reason',
+          kind: 'textarea',
+          required: true,
+          description: 'The creator reads this, under your name. Max 2000 characters.',
+        },
+      ],
+      examplePrompts: ['Cancel this contract — the campaign was pulled'],
+      apply: async ({ fields, initial }) => {
+        // `required` is NOT the guard: the package's check is
+        // `merged[f.name] == null`, so '' and '   ' both sail past it,
+        // and ripllo's cancelSchema is `z.string().max(2000)` — an
+        // empty reason is ACCEPTED upstream and shown to the creator.
+        // On a batch that is N contracts cancelled with a blank
+        // explanation, so trim and refuse here.
+        const reason = str(fields.reason)?.trim();
+        if (!reason) throw new Error('A reason is required — the creator sees it');
+        await ripllo('POST', `collaborations/${encodeURIComponent(verbTargetId(initial, 'contract'))}/cancel`, { reason });
+      },
+    });
+  }
+  if (mode === 'dispute') {
+    return verbDescriptor({
+      slug: 'collaborations',
+      label: 'creator contract',
+      title: 'Dispute creator contract',
+      confirmLabel: 'Open dispute',
+      fields: [
+        {
+          name: 'notes',
+          label: 'What is wrong',
+          kind: 'textarea',
+          required: true,
+          description: 'The creator reads this too. Between 20 and 5000 characters.',
+        },
+      ],
+      examplePrompts: ['Dispute this — the video never went live'],
+      apply: async ({ fields, initial }) => {
+        const notes = str(fields.notes)?.trim();
+        if (!notes) throw new Error('Say what the dispute is about — the creator sees it');
+        if (notes.length < 20) throw new Error('Ripllo needs at least 20 characters of explanation');
+        await ripllo('POST', `collaborations/${encodeURIComponent(verbTargetId(initial, 'contract'))}/dispute`, { notes });
+      },
+    });
+  }
+  return verbDescriptor({
+    slug: 'collaborations',
+    label: 'creator contract',
+    title: 'Approve creator contract',
+    confirmLabel: 'Approve and pay',
+    examplePrompts: ['Approve this contract', 'Approve — the work is all signed off'],
+    // Ripllo 409s unless EVERY deliverable is already approved, so this
+    // is the last step rather than a step: it releases the payout.
+    apply: async ({ initial }) => {
+      await ripllo('POST', `collaborations/${encodeURIComponent(verbTargetId(initial, 'contract'))}/approve`, {});
+    },
+  });
+};
+
 export const MARKETING_BUILDERS: Record<string, ResourceBuilder> = {
   'blog-posts': blogPostsResource,
   feeds: feedsResource,
@@ -1182,4 +1263,5 @@ export const MARKETING_BUILDERS: Record<string, ResourceBuilder> = {
   'creator-briefs': creatorBriefsResource,
   contacts: contactsResource,
   'contact-lists': contactListsResource,
+  collaborations: collaborationsResource,
 };

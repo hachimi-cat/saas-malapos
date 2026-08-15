@@ -136,12 +136,18 @@ const MOUNTABLE = Object.entries(BULK_VERBS).flatMap(([resource, verbs]) =>
 );
 
 /** The verbs that ask the merchant for NOTHING — the ones the empty
- *  draft killed outright. products.set-category is the only wave-2 verb
- *  with an argument of its own, and it is asserted separately below. */
-const FIELDLESS = MOUNTABLE.filter(([name]) => name !== 'products.set-category');
+ *  draft killed outright.
+ *
+ *  Three verbs have an argument of their own and are asserted
+ *  separately below: products.set-category, and the two contract verbs
+ *  that write words the CREATOR reads. One reason fanned across N
+ *  contracts is coherent — the sheet asks once — but it means Apply
+ *  cannot be live on open for them. */
+const ASKS = ['products.set-category', 'collaborations.cancel', 'collaborations.dispute'];
+const FIELDLESS = MOUNTABLE.filter(([name]) => !ASKS.includes(name));
 
 describe('BulkVerbSlot — what it can mount', () => {
-  it('covers all twenty pairs (guards the derivation itself)', () => {
+  it('covers every mountable pair (guards the derivation itself)', () => {
     expect(MOUNTABLE.map(([name]) => name)).toEqual([
       'categories.delete',
       'products.set-category',
@@ -164,8 +170,14 @@ describe('BulkVerbSlot — what it can mount', () => {
       'funnels.delete',
       'marketing-campaigns.delete',
       'discount-codes.delete',
+      // Creator contracts, 2026-08-15 — a verb-only resource, so
+      // these three ARE its whole batch vocabulary.
+      'collaborations.approve',
+      'collaborations.cancel',
+      'collaborations.dispute',
     ]);
-    expect(FIELDLESS).toHaveLength(19);
+    // 20 = 23 mountable pairs minus the three that ask (ASKS).
+    expect(FIELDLESS).toHaveLength(20);
   });
 });
 
@@ -348,6 +360,55 @@ describe('a fieldless verb runs on open — no field left for the merchant to fi
           .toBeFalsy();
       }
     }
+  });
+});
+
+describe('creator contracts — the two verbs that write words the creator reads', () => {
+  /*
+   * `required` is NOT the guard, and reading it as though it were is how
+   * a blank explanation reaches a real person. The package's check is
+   * `merged[f.name] == null`, so an EMPTY STRING sails past it — and
+   * ripllo's cancelSchema is `z.string().max(2000)`, which ACCEPTS one.
+   * On a batch that is N contracts cancelled with a blank reason shown
+   * to the creator under the merchant's name.
+   *
+   * Dispute is safer upstream (`z.string().min(20)`) but is pinned the
+   * same way, so the refusal is ours and immediate rather than a 400
+   * after the merchant has pressed the button.
+   */
+  it.each([
+    ['an empty string', ''],
+    ['whitespace only', '   '],
+  ])('cancel with a blank reason (%s) is refused', async (_label, value) => {
+    const descriptor = buildBulkVerbResource('collaborations', 'cancel', TARGETS);
+    const sheet = openSheet(descriptor, 'cancel', batchTargetsInitial(NAMES));
+    await expect(sheet.pressApply({ reason: value })).rejects.toThrow(/reason is required/i);
+    expect(reqs, 'a blank reason must never reach ripllo').toHaveLength(0);
+  });
+
+  it('dispute refuses anything under ripllo’s 20-character floor', async () => {
+    const descriptor = buildBulkVerbResource('collaborations', 'dispute', TARGETS);
+    const sheet = openSheet(descriptor, 'dispute', batchTargetsInitial(NAMES));
+    await expect(sheet.pressApply({ notes: '   ' })).rejects.toThrow(/what the dispute is about/i);
+    await expect(sheet.pressApply({ notes: 'too short' })).rejects.toThrow(/20 characters/i);
+    expect(reqs).toHaveLength(0);
+  });
+
+  it('a real answer fans out to every ticked row', async () => {
+    // The converse — without it the two refusals above would pass just
+    // as happily on a verb that refuses everything.
+    const descriptor = buildBulkVerbResource('collaborations', 'cancel', TARGETS);
+    const sheet = openSheet(descriptor, 'cancel', batchTargetsInitial(NAMES));
+    await expect(
+      sheet.pressApply({ reason: 'The campaign was pulled by the brand.' }),
+    ).resolves.not.toThrow();
+    expect(reqs).toHaveLength(TARGETS.length);
+    for (const r of reqs) expect(r.url).toMatch(/\/cancel$/);
+  });
+
+  it('approve asks for nothing — it is the last step, not a form', async () => {
+    const descriptor = buildBulkVerbResource('collaborations', 'approve', TARGETS);
+    expect(descriptor.fields.every((f) => !f.required)).toBe(true);
   });
 });
 

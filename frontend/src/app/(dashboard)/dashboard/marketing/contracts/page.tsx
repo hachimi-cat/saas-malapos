@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Check, Ban, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import { marketingFetch } from '@/lib/marketing-api';
+import { AgenticEntry, BulkVerbSlot } from '@/components/catentio/agentic-entry';
+import { ActionsDropdown, type PageAction } from '@/components/dashboard/actions-dropdown';
+import { BulkBar } from '@/components/dashboard/bulk-bar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useCatentioStatus } from '@/hooks/use-catentio';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,6 +44,12 @@ export default function ContractsPage() {
   const [rows, setRows] = useState<Collab[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('awaiting_review');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // A SNAPSHOT, not the derived selection — a partial failure reloads
+  // the list under the open sheet, and a derived list would shrink and
+  // unmount the sheet still naming the contract that refused.
+  const [bulkVerb, setBulkVerb] = useState<{ verb: 'approve' | 'cancel' | 'dispute'; rows: Collab[] } | null>(null);
+  const { enabled: assistantOn } = useCatentioStatus();
 
   async function load() {
     setRows(null);
@@ -58,11 +69,60 @@ export default function ContractsPage() {
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter]);
 
+  // Counted against the CURRENT list, so a row that left the filter
+  // drops out instead of being acted on invisibly.
+  const selectedRows = (rows ?? []).filter((c) => selectedIds.has(c.id));
+  const clearSelection = () => setSelectedIds(new Set());
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Verb-only: no create, no edit. Each item is proposed on a card the
+  // merchant applies — approve releases the creator's payout.
+  const pageActions: PageAction[] = assistantOn
+    ? [
+        {
+          key: 'approve',
+          label: selectedRows.length > 0 ? `Approve ${selectedRows.length} selected` : 'Approve selected',
+          icon: Check,
+          run: () => setBulkVerb({ verb: 'approve', rows: selectedRows }),
+          requiresSelection: true,
+        },
+        {
+          key: 'dispute',
+          label: selectedRows.length > 0 ? `Dispute ${selectedRows.length} selected` : 'Dispute selected',
+          icon: AlertTriangle,
+          run: () => setBulkVerb({ verb: 'dispute', rows: selectedRows }),
+          requiresSelection: true,
+        },
+        {
+          key: 'cancel',
+          label: selectedRows.length > 0 ? `Cancel ${selectedRows.length} selected` : 'Cancel selected',
+          icon: Ban,
+          run: () => setBulkVerb({ verb: 'cancel', rows: selectedRows }),
+          requiresSelection: true,
+          destructive: true,
+        },
+      ]
+    : [];
+
   return (
     <div>
       <PageHeader
         title="Contracts"
         description="Active creator collaborations across every campaign. Default view is drafts awaiting your review — toggle filters to see in-progress or all."
+        action={
+          <ActionsDropdown
+            actions={pageActions}
+            selectionCount={selectedRows.length}
+            noun="contract"
+          />
+        }
       />
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
@@ -95,7 +155,19 @@ export default function ContractsPage() {
             >
               <Card className="p-5 transition hover:border-primary">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+                  {/* The card IS a Link — kill the click's navigation
+                      default here, keep the checkbox toggle. */}
+                  <span
+                    className="flex shrink-0 items-center pt-0.5"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  >
+                    <Checkbox
+                      checked={selectedIds.has(c.id)}
+                      onCheckedChange={() => toggleSelected(c.id)}
+                      aria-label={`Select contract ${c.campaign?.name ?? c.id}`}
+                    />
+                  </span>
+                  <div className="min-w-0 flex-1">
                     <p className="font-semibold">{c.campaign?.name ?? 'Campaign'}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       Creator <span className="font-mono">{c.creatorId.replace('crt_', '')}</span> · {c._count?.deliverables ?? 0} deliverable(s)
@@ -104,6 +176,50 @@ export default function ContractsPage() {
                   <Badge variant="outline" className={`rounded-full text-xs font-medium capitalize ${STATUS_TONE[c.status] ?? 'bg-secondary text-muted-foreground'}`}>
                     {c.status.replace(/_/g, ' ')}
                   </Badge>
+                  {/* Row halves of the three batch verbs. `fallback={null}`
+                      — with the assistant off the manual path is the
+                      contract's own screen, one click away on this card. */}
+                  <span
+                    className="flex shrink-0 items-center gap-1"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  >
+                    <AgenticEntry
+                      resource="collaborations"
+                      mode="approve"
+                      initial={{ id: c.id, campaign: c.campaign?.name }}
+                      onApplied={load}
+                      title="Approve"
+                      aria-label={`Approve contract ${c.campaign?.name ?? c.id}`}
+                      className="inline-flex items-center rounded p-1 text-muted-foreground hover:text-emerald-500"
+                      fallback={null}
+                    >
+                      <Check className="h-4 w-4" />
+                    </AgenticEntry>
+                    <AgenticEntry
+                      resource="collaborations"
+                      mode="dispute"
+                      initial={{ id: c.id, campaign: c.campaign?.name }}
+                      onApplied={load}
+                      title="Dispute"
+                      aria-label={`Dispute contract ${c.campaign?.name ?? c.id}`}
+                      className="inline-flex items-center rounded p-1 text-muted-foreground hover:text-amber-500"
+                      fallback={null}
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                    </AgenticEntry>
+                    <AgenticEntry
+                      resource="collaborations"
+                      mode="cancel"
+                      initial={{ id: c.id, campaign: c.campaign?.name }}
+                      onApplied={load}
+                      title="Cancel"
+                      aria-label={`Cancel contract ${c.campaign?.name ?? c.id}`}
+                      className="inline-flex items-center rounded p-1 text-muted-foreground hover:text-destructive"
+                      fallback={null}
+                    >
+                      <Ban className="h-4 w-4" />
+                    </AgenticEntry>
+                  </span>
                 </div>
                 <div className="mt-3 grid gap-3 border-t border-border pt-3 text-sm sm:grid-cols-3">
                   <Stat label="Gross" value={`Rp ${c.agreedTotalIdr.toLocaleString()}`} />
@@ -114,6 +230,18 @@ export default function ContractsPage() {
             </Link>
           ))}
         </div>
+      )}
+
+      <BulkBar count={selectedRows.length} noun="contract" onClear={clearSelection} />
+
+      {bulkVerb && (
+        <BulkVerbSlot
+          resource="collaborations"
+          verb={bulkVerb.verb}
+          targets={bulkVerb.rows.map((c) => ({ ...c }))}
+          onClose={() => setBulkVerb(null)}
+          onApplied={load}
+        />
       )}
     </div>
   );

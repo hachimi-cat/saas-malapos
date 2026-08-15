@@ -97,6 +97,11 @@ describe('BULK_VERBS — what a list page may offer over a selection', () => {
       funnels: ['delete'],
       'marketing-campaigns': ['delete'],
       'discount-codes': ['delete'],
+      // Creator contracts, 2026-08-15. Verb-only resource — these
+      // three ARE its whole batch vocabulary, and cancel/dispute are
+      // the only batch verbs besides products.set-category that ask
+      // the merchant for anything.
+      collaborations: ['approve', 'cancel', 'dispute'],
     });
   });
 

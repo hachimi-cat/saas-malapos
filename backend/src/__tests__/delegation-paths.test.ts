@@ -278,6 +278,14 @@ describe('delegation gate — method axis', () => {
     ['post', '/api/v1/account/marketing/contact-lists', true],
     // The `exact` boundaries those POST grants stop at:
     ['post', '/api/v1/account/marketing/contact-lists/cl_1/members', false],
+    // Creator contracts, 2026-08-15. Declared approvalRequired verbs —
+    // and unreachable here WITHOUT a carve-out, because malapos grants
+    // the marketing proxy per collection and none of them is
+    // /collaborations. storlaunch needed an `except` for the same three;
+    // this product gets it for free from the narrower posture.
+    ['post', '/api/v1/account/marketing/collaborations/col_1/approve', false],
+    ['post', '/api/v1/account/marketing/collaborations/col_1/cancel', false],
+    ['post', '/api/v1/account/marketing/collaborations/col_1/dispute', false],
     ['post', '/api/v1/account/marketing/broadcasts', true],
     // …and the three things deliberately left out beside them, each
     // because it reaches a real person:

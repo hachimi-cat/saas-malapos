@@ -409,6 +409,34 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
       },
     },
+    // Creator CONTRACTS — ripllo's `collaborations`. Verb-only: a
+    // contract is born from accepting a creator's application and ripllo
+    // serves no PATCH, so there is no create and no edit (bang,
+    // 2026-08-15: *"no create and no edit then. verb only"*).
+    //
+    // All three verbs END the contract, so all three are proposals the
+    // merchant's own session applies. Unlike storlaunch, nothing here
+    // had to be carved out of the writable list: malapos grants the
+    // marketing proxy per COLLECTION, and no entry covers
+    // /collaborations — so these are unreachable to a delegated caller
+    // by construction. delegation-paths.test.ts pins that.
+    //
+    // The per-deliverable approve/reject are NOT declared: they are
+    // judgements about whether submitted work is acceptable, made while
+    // looking at the work on the contract's own screen.
+    collaborations: {
+      label: 'creator contract',
+      createRequired: [],
+      fields: [
+        { key: 'reason', type: 'string', create: false, edit: false, description: "why the contract is being cancelled (≤2000 chars). It is shown to the creator under the merchant's name, so use their words, never invent a reason. Needs the Marketing module" },
+        { key: 'notes', type: 'string', create: false, edit: false, description: 'what the dispute is about (20-5000 chars). Also shown to the creator; never invent it' },
+      ],
+      actions: {
+        approve: { label: 'Approve', requiresId: true, fields: [], approvalRequired: true },
+        cancel: { label: 'Cancel', requiresId: true, fields: ['reason'], requiresFields: ['reason'], approvalRequired: true, destructive: true },
+        dispute: { label: 'Dispute', requiresId: true, fields: ['notes'], requiresFields: ['notes'], approvalRequired: true },
+      },
+    },
     // The creator BRIEF — ripllo's `campaigns` collection, whose Prisma
     // model is literally CreatorBrief. NOT `marketing-campaigns` above,
     // which is the campaign HUB a brief can hang under.

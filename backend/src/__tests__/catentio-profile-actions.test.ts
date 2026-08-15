@@ -84,6 +84,8 @@ const DECLARED = [
   'programs',
   'contacts',
   'contact-lists',
+  // Verb-only (approve/cancel/dispute) — no create, no edit.
+  'collaborations',
 ] as const;
 
 function synthesized(spec: ResourceSpec) {

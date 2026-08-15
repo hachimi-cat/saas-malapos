@@ -40,9 +40,18 @@ export const BULK: Partial<
 /** How to say N of them. Every batch surface that names the noun goes
  *  through here, so "3 categorys" cannot come back one sentence at a
  *  time. */
+/**
+ * Nouns for resources that take batch VERBS but no batch create, so they
+ * have no `BULK` entry to read a noun from. Without this a verb sheet
+ * over three contracts says "3 records".
+ */
+const VERB_NOUN: Partial<Record<AssistantResource, string>> = {
+  collaborations: 'contract',
+};
+
 export function pluralNoun(resource: AssistantResource, n: number, fallback?: string): string {
   const bulk = BULK[resource];
-  const noun = bulk?.noun ?? fallback ?? 'record';
+  const noun = bulk?.noun ?? VERB_NOUN[resource] ?? fallback ?? 'record';
   if (n === 1) return noun;
   return bulk?.plural ?? `${noun}s`;
 }
@@ -97,6 +106,9 @@ export const RESOURCE_EXTRA_ACTIONS: Partial<Record<AssistantResource, readonly 
   programs: ['delete'],
   contacts: ['delete'],
   'contact-lists': ['delete'],
+  // Verb-only, so ALL of its vocabulary lives here. approve
+  // releases the creator's payout; each is proposed on a card.
+  collaborations: ['approve', 'cancel', 'dispute'],
   categories: ['delete'],
   products: ['set-category', 'delete'],
   customers: ['delete'],
@@ -124,6 +136,9 @@ export const RESOURCE_EXTRA_ACTIONS: Partial<Record<AssistantResource, readonly 
 const VERB_ONLY_RESOURCES: readonly AssistantResource[] = [
   'affiliate-enrollments',
   'affiliate-commissions',
+  // A contract is born from accepting a creator application and
+  // ripllo serves no PATCH — nothing to create or edit.
+  'collaborations',
 ];
 
 /** May this (resource, mode) pair reach the descriptor registry at
@@ -193,6 +208,11 @@ export const BULK_VERBS: Partial<Record<AssistantResource, readonly string[]>> =
   funnels: ['delete'],
   'marketing-campaigns': ['delete'],
   'discount-codes': ['delete'],
+  // Creator contracts, 2026-08-15. Verb-only resource, so these three
+  // ARE its batch vocabulary — there is no bulk create or bulk edit to
+  // sit beside them. Without this entry `supportsBulkVerb` refuses and
+  // the batch sheet never opens.
+  collaborations: ['approve', 'cancel', 'dispute'],
 };
 
 export function supportsBulkVerb(resource: AssistantResource, verb: string): boolean {

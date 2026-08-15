@@ -59,6 +59,7 @@ export const ASSISTANT_RESOURCES = [
   'creator-briefs',
   'contacts',
   'contact-lists',
+  'collaborations',
   // affiliate approval queue (Ripllo) — verb-only: an affiliator
   // enrolls themselves and a commission is earned by a sale, so these
   // are reviewed, never authored (see MALAPOS_PROFILE).
