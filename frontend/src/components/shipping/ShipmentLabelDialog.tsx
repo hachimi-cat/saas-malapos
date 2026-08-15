@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DEFAULT_SHIPMENT_LABEL_OPTIONS, shipmentLabelBlobUrl, type ShipmentLabelFile, type ShipmentLabelOptions, type ShipmentLabelSize } from '@/lib/shipment-label';
 
-export interface ShipmentLabelTarget { id: string; waybillId: string | null; courierCode: string; courierServiceCode: string; }
+export interface ShipmentLabelTarget { id: string; biteshipOrderId: string | null; waybillId: string | null; courierCode: string; courierServiceCode: string; }
 interface Props { open: boolean; onOpenChange: (open: boolean) => void; shipment: ShipmentLabelTarget | null; loadLabel: (shipmentId: string, options: ShipmentLabelOptions) => Promise<ShipmentLabelFile>; }
 const formats: Array<{ value: ShipmentLabelSize; title: string; note: string }> = [
   { value: 'a4', title: 'A4', note: 'Standard office printer' },
@@ -25,15 +25,16 @@ export function ShipmentLabelDialog({ open, onOpenChange, shipment, loadLabel }:
   const previewUrlRef = React.useRef<string | null>(null);
   const loaderRef = React.useRef(loadLabel);
   const optionKey = JSON.stringify(options);
+  const displayedWaybill = preview?.file.waybillId ?? shipment?.waybillId;
   React.useEffect(() => { loaderRef.current = loadLabel; }, [loadLabel]);
   React.useEffect(() => { const saved = window.localStorage.getItem('forjio_shipment_label_size'); if (formats.some((format) => format.value === saved)) setOptions((current) => ({ ...current, size: saved as ShipmentLabelSize })); return () => { if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current); }; }, []);
   React.useEffect(() => {
-    if (!open || !shipment?.waybillId) return;
+    if (!open || (!shipment?.waybillId && !shipment?.biteshipOrderId)) return;
     let cancelled = false; setLoading(true); setError(null);
     void loaderRef.current(shipment.id, options).then((file) => { if (cancelled) return; const url = shipmentLabelBlobUrl(file); if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current); previewUrlRef.current = url; setPreview({ url, file }); }).catch((cause: unknown) => { if (!cancelled) { setPreview(null); setError(cause instanceof Error ? cause.message : 'Could not generate the shipping label'); } }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, shipment?.id, shipment?.waybillId, optionKey]);
+  }, [open, shipment?.id, shipment?.waybillId, shipment?.biteshipOrderId, optionKey]);
   function setSize(size: ShipmentLabelSize) { window.localStorage.setItem('forjio_shipment_label_size', size); setOptions((current) => ({ ...current, size })); }
   function setFlag(key: keyof Omit<ShipmentLabelOptions, 'size'>, checked: boolean) { setOptions((current) => ({ ...current, [key]: checked })); }
   function printLabel() { if (!preview) return; try { const frame = iframeRef.current?.contentWindow; if (!frame) throw new Error(); frame.focus(); frame.print(); } catch { if (!window.open(preview.url, '_blank', 'noopener,noreferrer')) toast.error('Your browser blocked the label tab. Allow pop-ups and try again.'); } }
@@ -41,7 +42,7 @@ export function ShipmentLabelDialog({ open, onOpenChange, shipment, loadLabel }:
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] w-[min(960px,calc(100vw-2rem))] max-w-none overflow-hidden p-0">
-        <DialogHeader className="border-b border-border px-6 py-4"><DialogTitle>Print resi</DialogTitle><DialogDescription>{shipment?.waybillId ? `${shipment.courierCode.toUpperCase()} ${shipment.courierServiceCode.toUpperCase()} · AWB ${shipment.waybillId}` : 'Available after the courier is booked and an AWB is issued.'}</DialogDescription></DialogHeader>
+        <DialogHeader className="border-b border-border px-6 py-4"><DialogTitle>Print resi</DialogTitle><DialogDescription>{displayedWaybill ? `${shipment?.courierCode.toUpperCase()} ${shipment?.courierServiceCode.toUpperCase()} · AWB ${displayedWaybill}` : shipment?.biteshipOrderId ? 'Checking Biteship for the issued AWB…' : 'Available after the courier is booked and an AWB is issued.'}</DialogDescription></DialogHeader>
         <div className="grid min-h-0 flex-1 md:grid-cols-[280px_1fr]">
           <div className="max-h-[64vh] space-y-5 overflow-y-auto border-b border-border p-5 md:border-b-0 md:border-r">
             <section><h3 className="text-sm font-semibold">Label size</h3><p className="mb-3 text-xs text-muted-foreground">Use the paper loaded in your printer.</p><div className="space-y-2">{formats.map((format) => <button key={format.value} type="button" onClick={() => setSize(format.value)} className={`w-full rounded-lg border p-3 text-left transition ${options.size === format.value ? 'border-primary bg-primary/5 text-primary' : 'border-border hover:bg-muted/50'}`}><span className="block text-sm font-medium">{format.title}</span><span className="block text-xs text-muted-foreground">{format.note}</span></button>)}</div></section>

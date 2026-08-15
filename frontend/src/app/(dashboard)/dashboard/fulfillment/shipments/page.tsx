@@ -199,8 +199,8 @@ export default function ShipmentsPage() {
             variant="ghost"
             size="icon"
             onClick={() => setLabelTarget(r)}
-            disabled={!r.waybillId}
-            title={r.waybillId ? 'Print resi' : 'Available after booking and AWB issuance'}
+            disabled={!r.waybillId && !r.biteshipOrderId}
+            title={r.waybillId || r.biteshipOrderId ? 'Print resi' : 'Available after booking and AWB issuance'}
             className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"
           >
             <Printer className="h-3.5 w-3.5" />
@@ -311,11 +311,11 @@ export default function ShipmentsPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setLabelTarget(detail)}
-                  disabled={!detail.waybillId}
+                  disabled={!detail.waybillId && !detail.biteshipOrderId}
                   className="w-full"
                 >
                   <Printer className="h-4 w-4" />
-                  {detail.waybillId ? 'Print resi' : 'Label available after booking'}
+                  {detail.waybillId || detail.biteshipOrderId ? 'Print resi' : 'Label available after booking'}
                 </Button>
               </div>
             </>

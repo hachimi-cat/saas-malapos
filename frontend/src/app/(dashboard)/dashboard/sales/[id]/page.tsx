@@ -736,9 +736,9 @@ function ShipmentSection({
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            <Button type="button" variant="outline" onClick={() => setLabelOpen(true)} disabled={!shipment.waybillId}>
+            <Button type="button" variant="outline" onClick={() => setLabelOpen(true)} disabled={!shipment.waybillId && !shipment.biteshipOrderId}>
               <Printer className="h-4 w-4" />
-              {shipment.waybillId ? 'Print resi' : 'Label available after booking'}
+              {shipment.waybillId || shipment.biteshipOrderId ? 'Print resi' : 'Label available after booking'}
             </Button>
             {['pending', 'confirmed', 'allocated', 'picking_up'].includes(shipment.status) && (
               <Button

@@ -37,7 +37,7 @@ export interface Shipment {
   checkoutSessionId: string | null;
   customerId: string | null;
   customerEmail: string | null;
-  biteshipOrderId: string;
+  biteshipOrderId: string | null;
   biteshipTrackingId: string | null;
   waybillId: string | null;
   courierCode: string;
