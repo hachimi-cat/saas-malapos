@@ -101,3 +101,75 @@ describe('dates use the shadcn picker, not the browser one', () => {
     expect(code(doc)).not.toMatch(/type=["']date["']/);
   });
 });
+
+/**
+ * A popover inside the agentic sheet has to survive the sheet's own
+ * modal lock.
+ *
+ * Radix's modal Dialog sets `pointer-events: none` on <body> while it is
+ * open and re-enables it only inside the dialog's own subtree. Our
+ * Popover portals to <body>, so it lands OUTSIDE that subtree and
+ * inherits the lock. The calendar then renders perfectly — visible, in
+ * the viewport, opacity 1 — and is completely inert. Measured on real
+ * WebKit at iPad Pro 11: `pointer-events: none` on the popper content
+ * AND on every day cell, `elementFromPoint` over the calendar returning
+ * a SHEET element, and tapping a day timing out.
+ *
+ * That is what bang hit — 2026-08-14: *"portfolio completed date field
+ * in the sheet cannot be clicked in ipad safari"*. It was never
+ * iPad-specific: desktop Chromium failed identically. Every
+ * `customKind('date')` in every sheet was dead.
+ *
+ * `pointer-events-auto` on the CONTENT is the whole fix: the property
+ * inherits, but an explicit `auto` on a descendant re-enables hit
+ * testing regardless of an ancestor's `none`.
+ */
+describe('a popover survives the sheet\'s modal pointer-events lock', () => {
+  const popover = readFileSync(join(SRC, 'components', 'ui', 'popover.tsx'), 'utf8');
+
+  it('PopoverContent re-enables pointer events', () => {
+    expect(popover).toMatch(/pointer-events-auto/);
+  });
+
+  it('it is on the CONTENT, which is what the lock reaches', () => {
+    // Not on the Portal and not on the Root: the inherited `none` comes
+    // down through the popper wrapper, so the re-enable has to sit on an
+    // element inside it. Assert it travels with the content's class list.
+    const contentClasses = popover.slice(popover.indexOf('PopoverPrimitive.Content'));
+    expect(contentClasses).toMatch(/pointer-events-auto/);
+  });
+});
+
+/**
+ * The sheet's date trigger is a BUTTON, so it does not inherit the
+ * manual editor's input styling the way the text fields do — it has to
+ * be told. Left alone it kept `date-picker.tsx`'s page-sized default
+ * (`h-9`, 36px) and stood 6px taller than the field beside it. bang,
+ * 2026-08-14: *"its height should be the same as client input field"*.
+ *
+ * Measured in the live sheet on an iPad: the manual editor renders every
+ * text input as `h-auto px-2 py-1 text-[11.5px]` on top of Input's own
+ * `md:text-sm`, which lands at 30px. The trigger needs the SAME set,
+ * `md:text-sm` included — without it the font drops to 11.5px at iPad
+ * width and the button shrinks to 27px, missing from the other side.
+ */
+describe('the sheet\'s date trigger matches the sheet\'s other fields', () => {
+  const sheet = readFileSync(join(SRC, 'components', 'catentio', 'agentic-sheet.tsx'), 'utf8');
+  const datePicker = sheet.slice(sheet.indexOf('<DatePicker'), sheet.indexOf('<DatePicker') + 800);
+
+  it('carries the manual editor\'s compact field metrics', () => {
+    for (const cls of ['h-auto', 'px-2', 'py-1', 'text-[11.5px]']) {
+      expect(datePicker, `date trigger missing ${cls}`).toContain(cls);
+    }
+  });
+
+  it('keeps md:text-sm, or it undershoots instead of overshooting', () => {
+    // The half that is easy to drop. Input carries `md:text-sm`; at iPad
+    // width that is what decides the font size and therefore the height.
+    expect(datePicker).toContain('md:text-sm');
+  });
+
+  it('does NOT pin a fixed height — h-9 is the page-level size', () => {
+    expect(datePicker).not.toMatch(/className="[^"]*\bh-9\b/);
+  });
+});

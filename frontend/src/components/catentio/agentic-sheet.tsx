@@ -54,6 +54,14 @@ function DateField({ field, value, onChange }: FieldRendererProps) {
       id={`crud-${field.name}`}
       value={raw.length > 10 ? raw.slice(0, 10) : raw}
       onChange={onChange}
+      // Match the sheet's OWN fields, not the standalone form's. The
+      // manual editor renders every text input as `h-auto px-2 py-1`
+      // (30px on an iPad); the picker's default is `h-9` (36px), so it
+      // stood 6px taller than the field beside it — bang, 2026-08-14:
+      // *"its height should be the same as client input field"*. The
+      // page-level <DatePicker> keeps h-9, which is what matches the
+      // full-size <Input> there.
+      className="h-auto px-2 py-1 text-[11.5px] md:text-sm"
     />
   );
 }
