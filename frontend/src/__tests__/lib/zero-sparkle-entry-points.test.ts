@@ -44,6 +44,18 @@ const OPEN_FORM_SURFACES = [
   'app/(dashboard)/dashboard/payments/settings/providers/page.tsx',
   'app/(dashboard)/dashboard/payments/settings/payment-methods/page.tsx',
   'app/(dashboard)/dashboard/payments/settings/templates/page.tsx',
+  // bang, 2026-08-14, naming them for BOTH products: *"marketing > pixel
+  // and tracking … edit action instead of ask assistant"*, and the same
+  // for abandoned cart, loyalty program and referrals. storlaunch got
+  // them in bc61a59; these are the malapos halves. Each carried an
+  // `AgenticSheetSlot mode="edit"` behind a Pencil labelled "Edit".
+  'app/(dashboard)/dashboard/marketing/pixels/page.tsx',
+  'app/(dashboard)/dashboard/marketing/abandoned-cart/page.tsx',
+  'app/(dashboard)/dashboard/marketing/referrals/page.tsx',
+  'app/(dashboard)/dashboard/marketing/loyalty/page.tsx',
+  // *"malapos: fulfillment shipping page doesn't have ask assistant
+  // button"* — this one had no entry at all, not the wrong one.
+  'app/(dashboard)/dashboard/fulfillment/shipping/page.tsx',
 ];
 
 /** The one file allowed to spell the label and import the icon. */
@@ -197,6 +209,66 @@ describe('zero sparkles — the entry-point contract', () => {
     expect(sheet, 'CatentioCrudSheet must pass agentOnly through').toMatch(
       /agentOnly=\{agentOnly\}/,
     );
+  });
+
+  /**
+   * The element's attributes, brace-aware.
+   *
+   * A non-greedy `/<AgenticSheetSlot([\s\S]*?)>/` stops at the first `>`
+   * — and `initial={form as unknown as Record<string, unknown>}` holds
+   * one, so every slot carrying a generic type reads as having no
+   * attributes past it. On storlaunch the first version of this guard
+   * passed on a page it should have failed; that was found by
+   * red-check, not by review.
+   */
+  function slotAttrs(src: string): string[] {
+    const out: string[] = [];
+    for (const m of src.matchAll(/<AgenticSheetSlot\b/g)) {
+      let depth = 0;
+      for (let i = m.index! + '<AgenticSheetSlot'.length; i < src.length; i++) {
+        const ch = src[i];
+        if (ch === '{') depth++;
+        else if (ch === '}') depth--;
+        else if (ch === '>' && depth === 0) {
+          out.push(src.slice(m.index!, i));
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
+  it('no open-form page offers an Edit action', () => {
+    // The complement of the mount sweep above. That one proves the
+    // sparkle is THERE; this one proves the "Edit" button it replaced is
+    // GONE — a page could mount both and satisfy the other test alone.
+    //
+    // Scoped to OPEN_FORM_SURFACES and to `mode="edit"` deliberately. A
+    // CREATE slot beside a form is a real action with a real name, and
+    // `mode="edit"` elsewhere is fine: a DETAIL page whose manual path
+    // lives on another screen is exactly where naming the action is
+    // right, per bang's 08-12 ban. What he objected to is an "Edit"
+    // button on a form that is already open.
+    const offenders = OPEN_FORM_SURFACES.filter((rel) =>
+      slotAttrs(code(join(SRC, rel))).some((a) => /mode="edit"/.test(a)),
+    );
+    expect(
+      offenders,
+      'the page IS the form — use <AskAssistantEntry>, not an Edit action',
+    ).toEqual([]);
+  });
+
+  it('positive control: the brace-aware scan sees a generic-typed slot', () => {
+    // Without this, the guard above could pass because `slotAttrs`
+    // silently returned nothing — an absence reading as a clean result.
+    // This is the exact shape the four malapos pages carried.
+    const sample = `<AgenticSheetSlot
+        resource="pixels"
+        mode="edit"
+        initial={form as unknown as Record<string, unknown>}
+      />`;
+    expect(slotAttrs(sample)).toHaveLength(1);
+    expect(slotAttrs(sample)[0]).toContain('mode="edit"');
   });
 });
 

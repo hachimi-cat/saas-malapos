@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Loader2, Save, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
 import { shippingApi, type ShippingOrigin } from '@/lib/fulfillment-api';
 import { ApiRequestError } from '@/lib/api';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { AskAssistantEntry } from '@/components/catentio/agentic-entry';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -58,8 +59,10 @@ export default function ShippingSettingsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    Promise.all([
+  /** Extracted from the mount effect so the assistant can re-read the
+   *  saved origin after it applies a change. */
+  const load = useCallback(() => {
+    return Promise.all([
       shippingApi.getOrigin(),
       shippingApi.listCouriers().catch(() => {
         setCatalogError('Could not fetch the live courier list. Showing saved selections only.');
@@ -82,6 +85,10 @@ export default function ShippingSettingsPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const hasInputs = useMemo(() => Boolean(origin.address || contact.contactName), [origin.address, contact.contactName]);
 
@@ -131,6 +138,35 @@ export default function ShippingSettingsPage() {
       <PageHeader
         title="Shipping"
         description="Configure your pickup origin and the couriers enabled for this workspace. Powered by Fulkruma → Biteship."
+        action={
+          // "Ask assistant", not "Edit": this page IS the form — every
+          // field is already on screen with its own Save, so an Edit
+          // button reveals nothing (bang, 2026-08-14). Agent-only for
+          // the same reason: a Manual tab here is a second copy of the
+          // page behind it.
+          //
+          // `initial` carries EXACTLY the four fields `delivery-origin`
+          // declares, and no more. The courier checkboxes below are not
+          // among them, so they stay a manual choice — showing the agent
+          // a `couriers` key it cannot return is what makes a plan come
+          // back empty (see the batch-assistant fix, 2026-08-14).
+          //
+          // The descriptor PATCHes /delivery/origin while this page
+          // reads /fulfillment/shipping/origin. Both call Fulkruma's
+          // shipping.setOrigin/origin for the same account — one store,
+          // two mounts — so `load` sees the assistant's write.
+          <AskAssistantEntry
+            resource="delivery-origin"
+            initial={{
+              contactName: contact.contactName,
+              contactPhone: contact.contactPhone,
+              address: origin.address ?? '',
+              postal: origin.postal ?? '',
+            }}
+            onApplied={load}
+            className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          />
+        }
       />
 
       {error && (

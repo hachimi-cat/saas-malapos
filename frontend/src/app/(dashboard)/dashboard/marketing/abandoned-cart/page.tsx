@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { abandonedCartApi, discountCodesApi, type AbandonedCartConfig, type AbandonedCartReminder, type AbandonedCartStats, type DiscountCode } from '@/lib/marketing-api';
-import { Loader2, Save, MailX, CheckCircle2, Clock, ShoppingBag, Pencil } from 'lucide-react';
+import { Loader2, Save, MailX, CheckCircle2, Clock, ShoppingBag } from 'lucide-react';
 import { DataTable, type Column } from '@/components/data-table';
 import { CampaignSelect } from '@/components/marketing/campaign-select';
 import { PageHeader } from '@/components/dashboard/page-header';
-import { AgenticSheetSlot } from '@/components/catentio/agentic-entry';
-import { useCatentioStatus } from '@/hooks/use-catentio';
+import { AskAssistantEntry } from '@/components/catentio/agentic-entry';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -44,10 +43,6 @@ export default function AbandonedCartPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  // The agentic sheet over this settings "form that IS the page".
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const { enabled: assistantEnabled } = useCatentioStatus();
-
   async function load() {
     try {
       const [configRes, remindersRes, statsRes, codesRes] = await Promise.all([
@@ -124,21 +119,21 @@ export default function AbandonedCartPage() {
           </>
         }
         action={
-          assistantEnabled ? (
-            <Button type="button" variant="outline" onClick={() => setSheetOpen(true)}>
-              <Pencil className="h-4 w-4" /> Edit
-            </Button>
-          ) : undefined
+          // The page IS the form, so the entry is the sparkle, not an
+          // "Edit" action. bang, 2026-08-14: *"still using edit action
+          // instead of ask assistant despite of that page being an open
+          // form page"*. An action picker exists to choose BETWEEN
+          // actions; where there is one record and one verb, the only
+          // thing left to ask is what to change — so the sheet opens
+          // agent-only, with no Manual tab competing with the form
+          // already on screen.
+          <AskAssistantEntry
+            resource="abandoned-cart"
+            initial={form as unknown as Record<string, unknown>}
+            onApplied={() => { void load(); }}
+            className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+          />
         }
-      />
-
-      <AgenticSheetSlot
-        resource="abandoned-cart"
-        mode="edit"
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        initial={form as unknown as Record<string, unknown>}
-        onApplied={() => { void load(); }}
       />
 
       {error && <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
