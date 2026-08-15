@@ -26,11 +26,20 @@ import { join } from 'node:path';
  */
 
 const SRC = join(__dirname, '..', '..');
-const SCANNED = [join(SRC, 'app'), join(SRC, 'components')];
+// The whole of src/, not just app/ + components/. The sibling sweeps
+// scan those two directories only, which leaves lib/*.tsx unguarded —
+// markdown.tsx, i18n.tsx and admin-auth.tsx all render JSX and none of
+// them would have been read. They are clean today; the point is that
+// nothing would have said so. A sweep that covers most of the tree is
+// the same shape of gap as a guard family missing a member.
+const SCANNED = [SRC];
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
+    // Skip the test tree: this file's own source carries the banned
+    // pattern as an executable regex, so scanning it would self-trip.
+    if (entry === '__tests__') continue;
     if (statSync(full).isDirectory()) walk(full, out);
     else if (entry.endsWith('.tsx') || entry.endsWith('.ts')) out.push(full);
   }
