@@ -19,7 +19,22 @@ import glob
 import sys
 
 bad = []
-for path in sorted(glob.glob(".github/workflows/*.yml") + glob.glob(".github/workflows/*.yaml")):
+# `.depllo-ci.yml` is the file that actually runs — the .github/workflows/*
+# pair has been dispatch-only since the Depllo migration. Scanning only the
+# latter meant this guard printed OK forever while the live pipeline was
+# never inspected at all. The 2026-07-14 incident this script exists for
+# happened in the pipeline it wasn't reading.
+TARGETS = sorted(
+    glob.glob(".github/workflows/*.yml")
+    + glob.glob(".github/workflows/*.yaml")
+    + glob.glob(".depllo-ci.yml")
+    + glob.glob(".gitlab-ci.yml")
+)
+if not TARGETS:
+    print("no workflow files found to check -- refusing to pass vacuously")
+    sys.exit(1)
+
+for path in TARGETS:
     with open(path, encoding="utf-8") as fh:
         lines = fh.read().split("\n")
     for i, line in enumerate(lines[:-1]):
@@ -38,4 +53,4 @@ if bad:
     print("\nMove the comment ABOVE the env block. See the header of this script.")
     sys.exit(1)
 
-print("workflow shell continuations OK")
+print(f"workflow shell continuations OK ({len(TARGETS)} files: {', '.join(TARGETS)})")
