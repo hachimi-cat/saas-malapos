@@ -469,7 +469,14 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'lastName', type: 'string', create: true, edit: true, nullable: true, description: 'last name, or null' },
       ],
       actions: {
-        create: { label: 'Create', fields: ['email', 'phone', 'firstName', 'lastName'] },
+        // approvalRequired since 2026-08-19: creating a contact with
+        // source 'manual' fires ripllo's signup_form funnel trigger,
+        // which enrols that person into every active funnel and starts
+        // sending — the same reach-a-real-person class as a broadcast
+        // send. The agent proposes, the merchant applies. Edit fires
+        // nothing and stays direct. The auth half is the PATCH-only
+        // grant in middleware/auth.ts.
+        create: { label: 'Create', fields: ['email', 'phone', 'firstName', 'lastName'], approvalRequired: true },
         edit: { label: 'Edit', fields: ['email', 'phone', 'firstName', 'lastName'], requiresId: true },
         delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
       },
@@ -1030,6 +1037,7 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
     // and emits action cards when it is not), so state both.
     'Malapos keeps price on a product\'s VARIANT, not on the product row. When you propose a product action, put the money in the flat "price" field above and a single default variant is created for you. When you call POST /api/v1/products yourself, the body needs a variants array instead: {"name": …, "categoryId": …, "variants": [{"name": "Default", "price": 25000}]}.',
     'The payment (/api/v1/payments/*), marketing (/api/v1/marketing/*, /api/v1/account/*) and fulfillment (/api/v1/fulfillment/*, /api/v1/delivery/*) surfaces belong to optional modules. When a module is off, its endpoints answer 409 with PAYMENT_MODULE_DISABLED, MARKETING_MODULE_DISABLED or FULFILLMENT_MODULE_DISABLED — do not retry; tell the user which module to enable on the Modules page.',
+    'Creating a CONTACT is proposed on a card for the merchant to apply, even in auto-apply mode — a new contact with source "manual" enrols that person into every active signup funnel and starts sending, so it reaches a real person the moment it exists. Editing an existing contact fires nothing and is direct.',
   ],
   crossRefContractLines: [
     '- A products action that belongs to a category proposed EARLIER in this same reply sets "categoryId": "$1" ($n = 1-based index of that action).',

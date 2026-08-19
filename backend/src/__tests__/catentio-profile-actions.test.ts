@@ -109,6 +109,24 @@ describe('no field drift — declared create/edit ≡ synthesized create/edit', 
     }
   });
 
+  it('contacts: create is approvalRequired (a tightening, not drift) and edit stays direct', () => {
+    // 2026-08-19. A contact CREATE with source 'manual' fires ripllo's
+    // signup_form funnel trigger — every active funnel enrols the person
+    // and starts sending. That is the reach-a-real-person class this
+    // profile has always proposed rather than applied. The FIELDS still
+    // match synthesis exactly; only the approval bit is tightened, and
+    // only on create. The auth half is the PATCH-only grant in
+    // middleware/auth.ts (delegation-paths.test.ts owns that).
+    const spec = MALAPOS_PROFILE.resources.contacts!;
+    const declared = resourceActions(spec);
+    const synth = synthesized(spec);
+    expect(declared.create!.fields).toEqual(synth.create!.fields);
+    expect(declared.edit!.fields).toEqual(synth.edit!.fields);
+    expect(declared.create!.approvalRequired).toBe(true);
+    expect(synth.create!.approvalRequired).toBe(false); // the control — synthesis would NOT have tightened it
+    expect(declared.edit!.approvalRequired).toBe(false);
+  });
+
   it('payouts: declared create ≡ synthesized create (approval inherited); zero-field edit dropped', () => {
     const spec = MALAPOS_PROFILE.resources.payouts!;
     const declared = resourceActions(spec);

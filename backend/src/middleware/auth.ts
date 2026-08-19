@@ -215,8 +215,20 @@ const DELEGATION_WRITABLE_PATHS: DelegationWritableEntry[] = [
   // all reach a real person and stay propose-only.
   { prefix: '/api/v1/account/marketing/campaigns', methods: ['POST'], exact: true },
   { prefix: '/api/v1/account/marketing/campaigns', methods: ['PATCH'] },
-  // contacts — POST / + PATCH /{id}; DELETE stays a proposed action.
-  { prefix: '/api/v1/account/marketing/contacts', methods: ['POST', 'PATCH'] },
+  // contacts — PATCH /{id} only, since 2026-08-19. POST left this entry
+  // because a contact CREATE is not data entry: ripllo's contacts.ts
+  // fires the `signup_form` funnel trigger for a new contact whose
+  // source is 'manual' — which is exactly what our descriptor stamps —
+  // and every active funnel with that trigger enrols the person and
+  // starts sending. That is the same reach-a-real-person class as a
+  // broadcast send or an invitation, and this list has always kept
+  // those propose-only. This entry's own comment reasoned only about
+  // DELETE; the trigger sat one hop past the proxy. Create is now
+  // `approvalRequired` in the profile (the prompt half) and refused
+  // here (the auth half): the agent proposes the contact on a card and
+  // the merchant's own session applies it. Editing a typo on an
+  // existing contact fires nothing and stays direct.
+  { prefix: '/api/v1/account/marketing/contacts', methods: ['PATCH'] },
   // contact-lists — POST only. There is no update endpoint upstream,
   // and the member add/remove subpaths are not declared actions.
   { prefix: '/api/v1/account/marketing/contact-lists', methods: ['POST'], exact: true },

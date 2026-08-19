@@ -273,7 +273,10 @@ describe('delegation gate — method axis', () => {
     ['patch', '/api/v1/account/marketing/programs/prog_1', true],
     ['post', '/api/v1/account/marketing/campaigns', true],
     ['patch', '/api/v1/account/marketing/campaigns/cmp_1', true],
-    ['post', '/api/v1/account/marketing/contacts', true],
+    // 2026-08-19 — contact CREATE is propose-only: ripllo fires the
+    // signup_form funnel trigger for a new manual contact, which enrols
+    // a real person and starts sending. Edit fires nothing.
+    ['post', '/api/v1/account/marketing/contacts', false],
     ['patch', '/api/v1/account/marketing/contacts/ct_1', true],
     ['post', '/api/v1/account/marketing/contact-lists', true],
     // The `exact` boundaries those POST grants stop at:
