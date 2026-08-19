@@ -131,14 +131,26 @@ export function deleteDescriptor(opts: {
   slug: string;
   label: string;
   del: (id: string) => Promise<unknown>;
+  /**
+   * The honest verb when the route does something other than delete.
+   * Four of the marketing-module "deletes" are status changes upstream:
+   * ripllo ARCHIVES a marketing campaign, a funnel or a discount code,
+   * CLOSES an affiliate programme, and UNSUBSCRIBES a contact from every
+   * channel (the row stays). The `delete` slug is the wire and the batch
+   * vocabulary; the chrome must say what the merchant is about to do.
+   * Defaults stay "Delete" for the real deletes.
+   */
+  title?: string;
+  confirmLabel?: string;
 }): ResourceWithResult {
+  const confirmLabel = opts.confirmLabel ?? 'Delete';
   return verbDescriptor({
     slug: opts.slug,
     label: opts.label,
-    title: `Delete ${opts.label}`,
-    confirmLabel: 'Delete',
+    title: opts.title ?? `Delete ${opts.label}`,
+    confirmLabel,
     destructive: true,
-    examplePrompts: [`Delete this ${opts.label}`],
+    examplePrompts: [`${confirmLabel} this ${opts.label}`],
     apply: ({ initial }) => opts.del(verbTargetId(initial, opts.label)),
   });
 }
@@ -158,7 +170,7 @@ export function deleteDescriptor(opts: {
  */
 export function withDelete(
   builder: ResourceBuilder,
-  opts: { slug: string; label: string; del: (id: string) => Promise<unknown> },
+  opts: { slug: string; label: string; del: (id: string) => Promise<unknown>; title?: string; confirmLabel?: string },
 ): ResourceBuilder {
   return (mode, ctx) => (mode === 'delete' ? deleteDescriptor(opts) : builder(mode, ctx));
 }

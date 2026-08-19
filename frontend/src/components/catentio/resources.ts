@@ -80,18 +80,22 @@ const COMPOSED: Record<string, ResourceBuilder> = {
  * Two of them do not really delete, which their profile blocks say:
  * warehouses ARCHIVES in Fulkruma and discount-codes ARCHIVES in Ripllo.
  */
-for (const [slug, label, del] of [
-  ['plans', 'billing plan', (id: string) => plansApi.delete(id)],
-  ['outlets', 'outlet', (id: string) => api.delete(`/outlets/${encodeURIComponent(id)}`)],
-  ['modifiers', 'modifier group', (id: string) => api.delete(`/modifiers/${encodeURIComponent(id)}`)],
-  ['warehouses', 'fulfillment warehouse', (id: string) => warehousesApi.delete(id)],
-  ['tables', 'dine-in table', (id: string) => api.delete(`/tables/${encodeURIComponent(id)}`)],
-  ['suppliers', 'supplier', (id: string) => api.delete(`/suppliers/${encodeURIComponent(id)}`)],
-  ['funnels', 'marketing funnel', (id: string) => marketingDelete(`funnels/${encodeURIComponent(id)}`)],
-  ['marketing-campaigns', 'marketing campaign', (id: string) => marketingDelete(`marketing-campaigns/${encodeURIComponent(id)}`)],
-  ['discount-codes', 'discount code', (id: string) => discountCodesApi.archive(id)],
+for (const [slug, label, del, chrome] of [
+  ['plans', 'billing plan', (id: string) => plansApi.delete(id), undefined],
+  ['outlets', 'outlet', (id: string) => api.delete(`/outlets/${encodeURIComponent(id)}`), undefined],
+  ['modifiers', 'modifier group', (id: string) => api.delete(`/modifiers/${encodeURIComponent(id)}`), undefined],
+  ['warehouses', 'fulfillment warehouse', (id: string) => warehousesApi.delete(id), undefined],
+  ['tables', 'dine-in table', (id: string) => api.delete(`/tables/${encodeURIComponent(id)}`), undefined],
+  ['suppliers', 'supplier', (id: string) => api.delete(`/suppliers/${encodeURIComponent(id)}`), undefined],
+  // The three Ripllo-side "deletes" that are status changes upstream —
+  // funnels and campaigns are ARCHIVED (status='archived'), a discount
+  // code is archived (active=false) — carry the honest chrome; the
+  // profile's ActionSpecs say the same.
+  ['funnels', 'marketing funnel', (id: string) => marketingDelete(`funnels/${encodeURIComponent(id)}`), { title: 'Archive marketing funnel', confirmLabel: 'Archive' }],
+  ['marketing-campaigns', 'marketing campaign', (id: string) => marketingDelete(`marketing-campaigns/${encodeURIComponent(id)}`), { title: 'Archive marketing campaign', confirmLabel: 'Archive' }],
+  ['discount-codes', 'discount code', (id: string) => discountCodesApi.archive(id), { title: 'Archive discount code', confirmLabel: 'Archive' }],
 ] as const) {
-  COMPOSED[slug] = withDelete(COMPOSED[slug]!, { slug, label, del });
+  COMPOSED[slug] = withDelete(COMPOSED[slug]!, { slug, label, del, ...(chrome ?? {}) });
 }
 
 /** The marketing pages' own delete: `marketingFetch` does not throw on a

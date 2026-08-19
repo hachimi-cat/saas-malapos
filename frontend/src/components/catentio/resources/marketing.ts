@@ -1000,9 +1000,13 @@ const programsBase: ResourceBuilder = (mode) => ({
   },
 });
 
+// Ripllo's DELETE /programs/{id} sets status='closed' — existing
+// affiliates and commissions stay — so the card says Close.
 const programsResource = withDelete(programsBase, {
   slug: 'programs',
   label: 'affiliate program',
+  title: 'Close affiliate program',
+  confirmLabel: 'Close',
   del: (id) => ripploDelete(`programs/${encodeURIComponent(id)}`),
 });
 
@@ -1132,9 +1136,15 @@ const contactsBase: ResourceBuilder = () => ({
   },
 });
 
+// Ripllo's DELETE /contacts/{id} is NOT a delete: it marks the contact
+// unsubscribed on every channel and keeps the row (hard delete is
+// admin-only). The card must say so — a merchant approving "Delete
+// contact" and finding the row still there is the wrong surprise.
 const contactsResource = withDelete(contactsBase, {
   slug: 'contacts',
   label: 'contact',
+  title: 'Unsubscribe contact',
+  confirmLabel: 'Unsubscribe',
   del: (id) => ripploDelete(`contacts/${encodeURIComponent(id)}`),
 });
 

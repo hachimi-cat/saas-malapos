@@ -406,7 +406,9 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
           fields: ['name', 'description', 'targetUrl', 'commissionModel', 'commissionRate', 'cookieDays', 'autoApprove', 'minFollowerCount', 'requiresKyc', 'platformFeeRate', 'status', 'marketingCampaignId'],
           requiresId: true,
         },
-        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+        // Ripllo's DELETE /programs/{id} sets status='closed' (programs.ts
+        // :172) — existing affiliates and commissions stay. Honest label.
+        delete: { label: 'Close', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
       },
     },
     // Creator CONTRACTS — ripllo's `collaborations`. Verb-only: a
@@ -478,7 +480,12 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         // grant in middleware/auth.ts.
         create: { label: 'Create', fields: ['email', 'phone', 'firstName', 'lastName'], approvalRequired: true },
         edit: { label: 'Edit', fields: ['email', 'phone', 'firstName', 'lastName'], requiresId: true },
-        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+        // Ripllo's DELETE /contacts/{id} is NOT a delete: it marks the
+        // contact unsubscribed on every channel and keeps the row (hard
+        // delete is admin-only — saas-ripllo routes/contacts.ts:313). The
+        // verb keeps its `delete` slug (the wire and the batch vocabulary)
+        // and carries the honest label, so the card says what happens.
+        delete: { label: 'Unsubscribe', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
       },
     },
     // NO `edit`, and structurally so: ripllo exposes contact-lists as
@@ -517,9 +524,19 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         { key: 'audience', type: 'object', create: true, edit: false, description: '{ listIds: [...] } — which contact lists receive it. Creating a broadcast does NOT send it; sending is a separate explicit step, and it reaches real people, so never trigger it unasked' },
       ],
     },
+    // PROPOSED since 2026-08-19: the gate has refused
+    // POST /account/marketing/campaigns/{id}/invitations all along
+    // (middleware/auth.ts — an invitation emails a real person under the
+    // merchant's name), but this block never said so, so an auto-apply
+    // run was told it could invite directly and met a 403. The prompt
+    // half and the auth half now agree: the agent proposes the
+    // invitation on a card and the merchant's own session sends it. Found
+    // while porting the module onto ripllo (its profile takes the same
+    // position; storlaunch still writes invitations directly).
     'campaign-invitations': {
       label: 'creator invitation',
       createRequired: ['campaignId', 'creatorId'],
+      approvalRequired: true,
       fields: [
         { key: 'campaignId', type: 'string', create: true, edit: false, description: 'id of the creator brief/campaign to invite into. Needs the Marketing module' },
         { key: 'creatorId', type: 'string', create: true, edit: false, description: 'id of the creator from the creators directory — look it up, never guess' },
@@ -542,8 +559,9 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
       actions: {
         create: { label: 'Create', fields: ['name', 'goal', 'description', 'status', 'budgetIdr'], requiresFields: ['name', 'goal'] },
         edit: { label: 'Edit', fields: ['name', 'goal', 'description', 'status', 'budgetIdr'], requiresId: true },
-        // Proxied to Ripllo, which owns the campaign and its stats.
-        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+        // Proxied to Ripllo, whose DELETE /marketing-campaigns/{id} is a
+        // soft-delete (status='archived'; linked records keep their data).
+        delete: { label: 'Archive', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
       },
     },
     funnels: {
@@ -560,8 +578,9 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
       actions: {
         create: { label: 'Create', fields: ['name', 'triggerKind', 'status'], requiresFields: ['name', 'triggerKind'] },
         edit: { label: 'Edit', fields: ['name', 'status'], requiresId: true },
-        // Proxied to Ripllo, which owns the funnel and its runs.
-        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+        // Proxied to Ripllo, whose DELETE /funnels/{id} sets
+        // status='archived' (in-flight enrolments are not torn down).
+        delete: { label: 'Archive', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
       },
     },
     warehouses: {
@@ -736,7 +755,10 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
         edit: { label: 'Edit', fields: ['description', 'type', 'value', 'scope', 'productIds', 'tagFilter', 'minPurchaseAmount', 'maxUsesTotal', 'maxUsesPerCustomer', 'startsAt', 'expiresAt', 'active', 'public'], requiresId: true },
         // ARCHIVES it in Ripllo — orders already redeemed point at the
         // code. `active` false is the reversible way to stop it redeeming.
-        delete: { label: 'Delete', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
+        // routes/marketing.ts archives the code (active=false; redemptions
+        // keep their history) — the honest label, same as the list page's
+        // own button.
+        delete: { label: 'Archive', requiresId: true, destructive: true, approvalRequired: true, fields: [] },
       },
     },
     // Edit-only singleton (PUT /api/v1/marketing/loyalty/program).
@@ -1026,7 +1048,7 @@ export const MALAPOS_PROFILE: ProductAgentProfile<MalaposLimits> = {
   writablesSummary:
     'categories, products (including moving a batch of them into a category at once), modifier groups, outlets, floors and tables, suppliers, the POS customer book, POS settings, webhook subscriptions, blog posts (including publishing and unpublishing them), the feed/pixel/abandoned-cart configs, marketing campaigns and funnels, fulfillment warehouses, the shipping origin, and payment customers — and, as PROPOSALS the user approves, record deletions, purchase orders and their receipts, refunds and sale voids, gift cards, stock adjustments/transfers/batches, discount codes, the loyalty and referral programs, approving affiliate enrollments and approving or voiding affiliate commissions, billing plans and prices, payment links, subscriptions, payouts and marking them paid, shipments, licenses, and warehouse stock corrections',
   endpointsLine:
-    '- Key endpoints: GET/POST /api/v1/categories · PATCH /api/v1/categories/{id} · GET/POST /api/v1/products · PATCH /api/v1/products/{id} · POST /api/v1/products/bulk-category (moves a batch of products into one category: {"productIds": […1-500], "categoryId": "cat_… or null"}) · GET/POST /api/v1/modifiers · PATCH /api/v1/modifiers/{id} · GET/POST /api/v1/outlets · PATCH /api/v1/outlets/{id} · GET/POST /api/v1/tables (?outletId=) · PATCH /api/v1/tables/{id} · GET/POST /api/v1/floors (?outletId=) · PATCH /api/v1/floors/{id} · GET/POST /api/v1/suppliers · PATCH /api/v1/suppliers/{id} · GET/POST /api/v1/customers · PATCH /api/v1/customers/{id} · GET/PUT /api/v1/settings · GET/POST /api/v1/webhook-subscriptions · PATCH /api/v1/webhook-subscriptions/{id} · GET/POST /api/v1/account/blog/posts · PATCH /api/v1/account/blog/posts/{id} · POST /api/v1/account/blog/posts/{id}/publish · POST /api/v1/account/blog/posts/{id}/unpublish · GET/PATCH /api/v1/account/feeds · GET/PATCH /api/v1/account/pixels · GET/PATCH /api/v1/account/abandoned-cart · GET/POST /api/v1/account/marketing/marketing-campaigns · PATCH /api/v1/account/marketing/marketing-campaigns/{id} · GET/POST /api/v1/account/marketing/funnels · PATCH /api/v1/account/marketing/funnels/{id} · GET/POST /api/v1/fulfillment/warehouses · PATCH /api/v1/fulfillment/warehouses/{id} · GET/PATCH /api/v1/delivery/origin · GET/POST /api/v1/payments/customers · PATCH /api/v1/payments/customers/{id} · GET /api/v1/payments/plugipay-settings/adapters (provider status; the manual adapter is written with PUT /api/v1/payments/plugipay-settings/adapters/manual — the Xendit/PayPal/Midtrans/managed adapter paths carry API secrets and are refused to you outright, so never propose or request a key) · GET/PATCH /api/v1/payments/plugipay-settings/checkout/settings · GET/POST /api/v1/payments/plugipay-settings/templates · PATCH /api/v1/payments/plugipay-settings/templates/{id}. DELETE is never called directly — where a resource declares a delete action you PROPOSE it. PROPOSED (you gather with GET, then propose the write — never call these yourself): DELETE /api/v1/categories/{id} · DELETE /api/v1/products/{id} · DELETE /api/v1/customers/{id} · DELETE /api/v1/webhook-subscriptions/{id} · DELETE /api/v1/account/blog/posts/{id} · POST /api/v1/payments/payouts/{id}/mark-paid · POST /api/v1/purchase-orders · PATCH /api/v1/purchase-orders/{id} (DRAFT only) · POST /api/v1/purchase-orders/{id}/receive · POST /api/v1/sales/{id}/refund · POST /api/v1/sales/{id}/void · POST /api/v1/gift-cards · POST /api/v1/inventory/adjust · POST /api/v1/inventory/transfer · POST /api/v1/inventory/batches · POST /api/v1/marketing/discount-codes · PATCH /api/v1/marketing/discount-codes/{id} · PUT /api/v1/marketing/loyalty/program · PUT /api/v1/account/referrals · POST /api/v1/account/marketing/programs/{programId}/enrollments/{id}/approve · POST /api/v1/account/marketing/programs/{programId}/commissions/{id}/approve · POST /api/v1/account/marketing/programs/{programId}/commissions/{id}/void · POST /api/v1/payments/plans · PATCH /api/v1/payments/plans/{id} · POST /api/v1/payments/plans/{id}/prices · POST /api/v1/payments/checkout-sessions · POST /api/v1/payments/subscriptions · POST /api/v1/payments/payouts · POST /api/v1/fulfillment/shipments · POST /api/v1/fulfillment/licenses · POST /api/v1/fulfillment/inventory/adjust. READ these to gather first: GET /api/v1/sales and /api/v1/sales/{id} (a sale, its line items and payments), /api/v1/inventory/levels, /api/v1/inventory/movements, /api/v1/inventory/batches, /api/v1/purchase-orders, /api/v1/gift-cards, /api/v1/marketing/discount-codes, /api/v1/marketing/loyalty/program, /api/v1/account/referrals, /api/v1/account/marketing/programs (the affiliate programs and their ids), /api/v1/account/marketing/programs/{programId}/enrollments (each row carries its programId — the approve action needs it), /api/v1/account/marketing/programs/commissions?status=pending,approved, /api/v1/payments/plans, /api/v1/payments/plans/{id}/prices, /api/v1/payments/subscriptions, /api/v1/payments/customers, /api/v1/payments/payouts, /api/v1/delivery/couriers, POST /api/v1/delivery/rates, /api/v1/fulfillment/shipments, /api/v1/fulfillment/inventory/products, /api/v1/fulfillment/inventory/stock, /api/v1/fulfillment/licenses.',
+    '- Key endpoints: GET/POST /api/v1/categories · PATCH /api/v1/categories/{id} · GET/POST /api/v1/products · PATCH /api/v1/products/{id} · POST /api/v1/products/bulk-category (moves a batch of products into one category: {"productIds": […1-500], "categoryId": "cat_… or null"}) · GET/POST /api/v1/modifiers · PATCH /api/v1/modifiers/{id} · GET/POST /api/v1/outlets · PATCH /api/v1/outlets/{id} · GET/POST /api/v1/tables (?outletId=) · PATCH /api/v1/tables/{id} · GET/POST /api/v1/floors (?outletId=) · PATCH /api/v1/floors/{id} · GET/POST /api/v1/suppliers · PATCH /api/v1/suppliers/{id} · GET/POST /api/v1/customers · PATCH /api/v1/customers/{id} · GET/PUT /api/v1/settings · GET/POST /api/v1/webhook-subscriptions · PATCH /api/v1/webhook-subscriptions/{id} · GET/POST /api/v1/account/blog/posts · PATCH /api/v1/account/blog/posts/{id} · POST /api/v1/account/blog/posts/{id}/publish · POST /api/v1/account/blog/posts/{id}/unpublish · GET/PATCH /api/v1/account/feeds · GET/PATCH /api/v1/account/pixels · GET/PATCH /api/v1/account/abandoned-cart · GET/POST /api/v1/account/marketing/marketing-campaigns · PATCH /api/v1/account/marketing/marketing-campaigns/{id} · GET/POST /api/v1/account/marketing/funnels · PATCH /api/v1/account/marketing/funnels/{id} · GET/POST /api/v1/fulfillment/warehouses · PATCH /api/v1/fulfillment/warehouses/{id} · GET/PATCH /api/v1/delivery/origin · GET/POST /api/v1/payments/customers · PATCH /api/v1/payments/customers/{id} · GET /api/v1/payments/plugipay-settings/adapters (provider status; the manual adapter is written with PUT /api/v1/payments/plugipay-settings/adapters/manual — the Xendit/PayPal/Midtrans/managed adapter paths carry API secrets and are refused to you outright, so never propose or request a key) · GET/PATCH /api/v1/payments/plugipay-settings/checkout/settings · GET/POST /api/v1/payments/plugipay-settings/templates · PATCH /api/v1/payments/plugipay-settings/templates/{id}. DELETE is never called directly — where a resource declares a delete action you PROPOSE it. PROPOSED (you gather with GET, then propose the write — never call these yourself): DELETE /api/v1/categories/{id} · DELETE /api/v1/products/{id} · DELETE /api/v1/customers/{id} · DELETE /api/v1/webhook-subscriptions/{id} · DELETE /api/v1/account/blog/posts/{id} · POST /api/v1/payments/payouts/{id}/mark-paid · POST /api/v1/purchase-orders · PATCH /api/v1/purchase-orders/{id} (DRAFT only) · POST /api/v1/purchase-orders/{id}/receive · POST /api/v1/sales/{id}/refund · POST /api/v1/sales/{id}/void · POST /api/v1/gift-cards · POST /api/v1/inventory/adjust · POST /api/v1/inventory/transfer · POST /api/v1/inventory/batches · POST /api/v1/marketing/discount-codes · PATCH /api/v1/marketing/discount-codes/{id} · PUT /api/v1/marketing/loyalty/program · PUT /api/v1/account/referrals · POST /api/v1/account/marketing/programs/{programId}/enrollments/{id}/approve · POST /api/v1/account/marketing/programs/{programId}/commissions/{id}/approve · POST /api/v1/account/marketing/programs/{programId}/commissions/{id}/void · POST /api/v1/account/marketing/campaigns/{id}/invitations (a creator invitation — emails a real person under the merchant\'s name) · POST /api/v1/payments/plans · PATCH /api/v1/payments/plans/{id} · POST /api/v1/payments/plans/{id}/prices · POST /api/v1/payments/checkout-sessions · POST /api/v1/payments/subscriptions · POST /api/v1/payments/payouts · POST /api/v1/fulfillment/shipments · POST /api/v1/fulfillment/licenses · POST /api/v1/fulfillment/inventory/adjust. READ these to gather first: GET /api/v1/sales and /api/v1/sales/{id} (a sale, its line items and payments), /api/v1/inventory/levels, /api/v1/inventory/movements, /api/v1/inventory/batches, /api/v1/purchase-orders, /api/v1/gift-cards, /api/v1/marketing/discount-codes, /api/v1/marketing/loyalty/program, /api/v1/account/referrals, /api/v1/account/marketing/programs (the affiliate programs and their ids), /api/v1/account/marketing/programs/{programId}/enrollments (each row carries its programId — the approve action needs it), /api/v1/account/marketing/programs/commissions?status=pending,approved, /api/v1/payments/plans, /api/v1/payments/plans/{id}/prices, /api/v1/payments/subscriptions, /api/v1/payments/customers, /api/v1/payments/payouts, /api/v1/delivery/couriers, POST /api/v1/delivery/rates, /api/v1/fulfillment/shipments, /api/v1/fulfillment/inventory/products, /api/v1/fulfillment/inventory/stock, /api/v1/fulfillment/licenses.',
   extraExecuteLines: [
     '- A product that belongs to a category you just created takes that category\'s "id" as "categoryId" (create the category first, read its id from the response).',
   ],

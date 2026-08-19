@@ -262,6 +262,24 @@ describe('buildBulkVerbResource — one plan turn, N applies', () => {
     );
   });
 
+  it('a "delete" that is a status change upstream says what it really does', () => {
+    // Ripllo archives a campaign / funnel and unsubscribes a contact;
+    // closes a programme; our discount-code route archives. The batch
+    // sheet's title, confirm and destructive confirm line all read off
+    // the descriptor's own chrome, so one honest title fixes all three.
+    expect(buildBulkVerbResource('marketing-campaigns', 'delete', TARGETS).title).toBe('Archive 2 marketing campaigns');
+    expect(buildBulkVerbResource('funnels', 'delete', TARGETS).title).toBe('Archive 2 marketing funnels');
+    expect(buildBulkVerbResource('discount-codes', 'delete', TARGETS).title).toBe('Archive 2 discount codes');
+    // contacts and programs offer no BATCH verb (not in BULK_VERBS) —
+    // their single-record delete sheet carries the same honest chrome.
+    expect(buildCrudResource('contacts', 'delete').title).toBe('Unsubscribe contact');
+    expect(buildCrudResource('contacts', 'delete').confirmLabel).toBe('Unsubscribe');
+    expect(buildCrudResource('programs', 'delete').title).toBe('Close affiliate program');
+    expect(buildBulkVerbResource('funnels', 'delete', TARGETS).confirmLabel).toBe('Archive 2');
+    // control — a real delete still says Delete
+    expect(buildBulkVerbResource('categories', 'delete', TARGETS).title).toBe('Delete 2 categories');
+  });
+
   it('the affiliate applies read the program off the ROW, never a guess', async () => {
     // A row with no programId is a failure with a named cause, not a
     // POST to /programs/undefined/….

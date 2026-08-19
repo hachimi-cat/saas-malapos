@@ -142,13 +142,28 @@ describe('no field drift — declared create/edit ≡ synthesized create/edit', 
   });
 });
 
+/**
+ * The honest label for each declared `delete`. Four of them are status
+ * changes upstream, not deletes — found 2026-08-19 while porting the
+ * marketing module onto ripllo and reading its routers: ripllo ARCHIVES
+ * a marketing campaign and a funnel (status='archived'), and
+ * `discountCodes.archive` (our own route) does what it says. A card
+ * labelled "Delete" over a row that is still there afterwards is the
+ * wrong surprise. Everything else is a real delete and stays "Delete".
+ */
+const DELETE_LABEL: Partial<Record<string, string>> = {
+  funnels: 'Archive',
+  'marketing-campaigns': 'Archive',
+  'discount-codes': 'Archive',
+};
+
 describe('wave-1 verb shapes', () => {
   it.each([...WAVE1_CRUD, ...WAVE3_CRUD].map((r) => [r] as const))(
     '%s.delete: destructive + approvalRequired, id-only, no fields',
     (key) => {
       const del = resourceActions(MALAPOS_PROFILE.resources[key]!).delete!;
       expect(del).toMatchObject({
-        label: 'Delete',
+        label: DELETE_LABEL[key] ?? 'Delete',
         requiresId: true,
         destructive: true,
         approvalRequired: true,
@@ -157,6 +172,29 @@ describe('wave-1 verb shapes', () => {
       });
     },
   );
+
+  it('the two Ripllo-side deletes that are not deletes carry the honest label too', () => {
+    // DELETE /contacts/{id} unsubscribes on every channel and keeps the
+    // row; DELETE /programs/{id} closes the programme. Not in the CRUD
+    // sweep above (contacts' create is tightened; programs is wave-4).
+    expect(resourceActions(MALAPOS_PROFILE.resources.contacts!).delete!.label).toBe('Unsubscribe');
+    expect(resourceActions(MALAPOS_PROFILE.resources.programs!).delete!.label).toBe('Close');
+    // control — a real delete is still "Delete"
+    expect(resourceActions(MALAPOS_PROFILE.resources['contact-lists']!).delete!.label).toBe('Delete');
+  });
+
+  it('campaign-invitations is approvalRequired — the prompt half finally matches the gate', () => {
+    // middleware/auth.ts has refused POST /account/marketing/campaigns/
+    // {id}/invitations since the grant was written (delegation-paths
+    // .test.ts pins it false); the profile never said so, so an
+    // auto-apply run was told it could invite directly and met a 403.
+    expect(MALAPOS_PROFILE.resources['campaign-invitations']!.approvalRequired).toBe(true);
+    for (const a of Object.values(resourceActions(MALAPOS_PROFILE.resources['campaign-invitations']!))) {
+      expect(a.approvalRequired).toBe(true);
+    }
+    expect(MALAPOS_PROFILE.endpointsLine.indexOf('/campaigns/{id}/invitations'))
+      .toBeGreaterThan(MALAPOS_PROFILE.endpointsLine.indexOf('PROPOSED'));
+  });
 
   it('blog-posts publish/unpublish: direct id-only verbs', () => {
     const actions = resourceActions(MALAPOS_PROFILE.resources['blog-posts']!);
