@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Truck, Printer, X, RotateCcw, CheckCircle2, ExternalLink, Plus, Trash2, UserSearch } from 'lucide-react';
-import { shipmentsApi, shippingApi, type Shipment, type Rate, type ShippingOrigin } from '@/lib/fulfillment-api';
+import { Loader2, Truck, Printer, X, RotateCcw, RefreshCw, CheckCircle2, ExternalLink, Plus, Trash2, UserSearch } from 'lucide-react';
+import { shipmentsApi, shippingApi, normalizeRates, canCancelShipment, canRebookShipment, type Shipment, type Rate, type ShippingOrigin } from '@/lib/fulfillment-api';
 import { api, ApiRequestError } from '@/lib/api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { DataTable, type Column, type FilterDef } from '@/components/data-table';
@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { ShipmentLabelDialog } from '@/components/shipping/ShipmentLabelDialog';
+import { RebookShipmentDialog } from '@/components/shipping/RebookShipmentDialog';
 import type { ShipmentLabelFile, ShipmentLabelOptions } from '@/lib/shipment-label';
 
 /*
@@ -54,12 +55,14 @@ export default function ShipmentsPage() {
   const [loading, setLoading] = useState(true);
   const [moduleOff, setModuleOff] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [detail, setDetail] = useState<Shipment | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelTarget, setCancelTarget] = useState<Shipment | null>(null);
   const [labelTarget, setLabelTarget] = useState<Shipment | null>(null);
+  const [rebookTarget, setRebookTarget] = useState<Shipment | null>(null);
 
   async function reload() {
     setLoading(true);
@@ -83,12 +86,23 @@ export default function ShipmentsPage() {
   async function cancelShipment(s: Shipment, reason: string) {
     if (!reason.trim()) return;
     setCancelOpen(false);
+    setError('');
     try {
-      await shipmentsApi.cancel(s.id, reason);
+      const { data } = await shipmentsApi.cancel(s.id, reason);
+      // The refund is the part the merchant cares about — say the number
+      // rather than a bare "cancelled".
+      if (data.refunded > 0) {
+        setNotice(`Shipment cancelled — ${formatCurrency(data.refunded)} shipping credit refunded.`);
+      } else {
+        setNotice('Shipment cancelled.');
+      }
+      if (data.courierError) {
+        setError(`Biteship couldn't confirm the cancellation: ${data.courierError}`);
+      }
       await reload();
       if (detail?.id === s.id) setDetail(null);
     } catch (e) {
-      alert(e instanceof ApiRequestError ? e.message : 'Failed to cancel shipment');
+      setError(e instanceof ApiRequestError ? e.message : 'Failed to cancel shipment');
     }
   }
 
@@ -205,8 +219,16 @@ export default function ShipmentsPage() {
           >
             <Printer className="h-3.5 w-3.5" />
           </Button>
-          {['pending', 'confirmed', 'allocated', 'picking_up'].includes(r.status) && (
-            <Button variant="ghost" size="icon" onClick={() => { setCancelTarget(r); setCancelReason(''); setCancelOpen(true); }} title="Cancel" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+          {/* A dead shipment gets "Rebook" instead of "Cancel" — the two
+              gates are disjoint, so exactly one shows. Both mirror
+              Fulkruma's server-side gates, so neither can 409. */}
+          {canRebookShipment(r) && (
+            <Button variant="outline" size="sm" onClick={() => setRebookTarget(r)} title="Rebook this parcel with a courier">
+              <RefreshCw className="h-3.5 w-3.5" /> Rebook
+            </Button>
+          )}
+          {canCancelShipment(r) && (
+            <Button variant="ghost" size="icon" onClick={() => { setCancelTarget(r); setCancelReason(''); setCancelOpen(true); }} title="Cancel shipment" className="h-8 w-8 text-muted-foreground hover:text-destructive">
               <X className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -250,6 +272,7 @@ export default function ShipmentsPage() {
       />
 
       {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+      {notice && <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-500">{notice}</div>}
 
       {loading ? (
         <Card className="flex h-48 items-center justify-center">
@@ -322,6 +345,18 @@ export default function ShipmentsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <RebookShipmentDialog
+        open={!!rebookTarget}
+        onOpenChange={(open) => { if (!open) setRebookTarget(null); }}
+        shipment={rebookTarget}
+        onRebooked={(replacement) => {
+          setRebookTarget(null);
+          if (detail?.id === replacement.replacesShipmentId) setDetail(null);
+          setNotice('Rebooked — click "Book courier" on the new shipment when the parcel is ready.');
+          void reload();
+        }}
+      />
 
       <ShipmentLabelDialog
         open={!!labelTarget}
@@ -485,9 +520,7 @@ function CreateShipmentModal({
         destination: destinationPayload(),
         items: itemsPayload(),
       });
-      // Fulkruma returns either an array of rates or an object wrapping
-      // `pricing` — accept both shapes (mirrors the sell-flow delivery modal).
-      const list = Array.isArray(data) ? data : ((data?.pricing as Rate[]) ?? []);
+      const list = normalizeRates(data);
       setRates(list);
       if (list.length === 0) setError('No courier rates available for this destination.');
     } catch (e) {

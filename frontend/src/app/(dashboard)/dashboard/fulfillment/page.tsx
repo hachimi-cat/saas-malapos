@@ -12,6 +12,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { api, ApiRequestError } from '@/lib/api';
+import { normalizeRates, type Rate } from '@/lib/fulfillment-api';
 import { rupiah } from '@/lib/money';
 import { FulfillmentModuleOff } from '@/components/fulfillment/module-off';
 import { PageHeader } from '@/components/dashboard/page-header';
@@ -59,15 +60,6 @@ type RecentSale = {
   createdAt: string;
 };
 
-type Rate = {
-  courierCode: string;
-  courierServiceCode: string;
-  courierName?: string;
-  serviceName?: string;
-  description?: string;
-  price: number;
-  duration?: string;
-};
 
 function statusClass(status: string): string {
   const s = status.toLowerCase();
@@ -280,7 +272,7 @@ function CreateDeliveryModal({
     setRates([]);
     setPicked(null);
     try {
-      const { data } = await api.post<{ pricing?: Rate[] } | Rate[]>('/delivery/rates', {
+      const { data } = await api.post<unknown>('/delivery/rates', {
         destination: {
           contactName: dest.contactName,
           contactPhone: dest.contactPhone,
@@ -289,9 +281,7 @@ function CreateDeliveryModal({
         },
         items: [{ name: 'Order', weight: Number(weight) || 1000, quantity: 1 }],
       });
-      // Fulkruma returns either an array of rates or an object wrapping
-      // `pricing` — accept both shapes.
-      const list = Array.isArray(data) ? data : ((data?.pricing as Rate[]) ?? []);
+      const list = normalizeRates(data);
       setRates(list);
       if (list.length === 0) setError('No courier rates available for this destination.');
     } catch (e) {

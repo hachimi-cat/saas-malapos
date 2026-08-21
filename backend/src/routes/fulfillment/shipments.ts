@@ -174,20 +174,89 @@ router.post(
   }),
 );
 
+// Cancel a booking the courier hasn't collected. Fulkruma calls it off
+// at Biteship and refunds the shipping credit confirm-pickup debited;
+// the sale that dispatched it follows the new status.
 router.post(
   '/:id/cancel',
   asyncHandler(async (req, res, next) => {
     try {
       const accountId = req.auth!.accountId as string;
       const reason =
-        typeof req.body?.reason === 'string' ? req.body.reason : 'Merchant cancelled';
+        typeof req.body?.reason === 'string' && req.body.reason.trim()
+          ? req.body.reason.trim()
+          : 'Merchant cancelled';
+      const shipmentId = String(req.params.id);
       const client = await requireMerchantClient(accountId);
-      const { shipment } = await client.shipments.cancel(String(req.params.id), reason);
-      await prisma.transaction.updateMany({
-        where: { accountId, fulkrumaShipmentId: shipment.id },
-        data: { deliveryStatus: shipment.status },
+      // Escape hatch rather than client.shipments.cancel: the installed
+      // @forjio/fulkruma-node 0.4.0 types the response as `{ shipment }`
+      // and drops the refund fields. Swap to the typed method once the
+      // SDK bump lands (it already carries them upstream).
+      const result = await client.request<{
+        shipment: { id: string; status: string };
+        refunded?: number;
+        courierError?: string | null;
+      }>({
+        method: 'POST',
+        path: `/api/v1/shipments/${encodeURIComponent(shipmentId)}/cancel`,
+        body: { reason },
       });
-      return sendOk(res, req, shipment);
+      await prisma.transaction.updateMany({
+        where: { accountId, fulkrumaShipmentId: result.shipment.id },
+        data: { deliveryStatus: result.shipment.status },
+      });
+      return sendOk(res, req, {
+        ...result.shipment,
+        refunded: result.refunded ?? 0,
+        courierError: result.courierError ?? null,
+      });
+    } catch (err) {
+      return handleFulkrumaError(res, req, err, next);
+    }
+  }),
+);
+
+// "Reorder" — Fulkruma mints a replacement shipment from the dead one's
+// origin / destination / item snapshots, optionally on a different
+// courier. The originating sale is repointed at the new draft so the
+// sale screen's "Book courier" dispatches the RIGHT shipment.
+const rebookSchema = z.object({
+  courierCode: z.string().min(1).optional(),
+  courierServiceCode: z.string().min(1).optional(),
+  courierType: z.string().min(1).optional(),
+  price: z.number().int().min(0).optional(),
+  insured: z.boolean().optional(),
+  insurance: z.number().int().min(0).optional(),
+});
+
+router.post(
+  '/:id/rebook',
+  asyncHandler(async (req, res, next) => {
+    const accountId = req.auth!.accountId as string;
+    let body: z.infer<typeof rebookSchema>;
+    try {
+      body = rebookSchema.parse(req.body ?? {});
+    } catch {
+      return sendErr(res, req, 400, 'VALIDATION_ERROR', 'Invalid rebook payload');
+    }
+    const previousId = String(req.params.id);
+    try {
+      const client = await requireMerchantClient(accountId);
+      // Same reason as cancel above — `rebook` lands in the SDK with the
+      // next publish; until then go over the generic request path.
+      const { shipment, draftCreateError } = await client.request<{
+        shipment: { id: string; status: string };
+        draftCreateError: string | null;
+      }>({
+        method: 'POST',
+        path: `/api/v1/shipments/${encodeURIComponent(previousId)}/rebook`,
+        body,
+      });
+      await prisma.transaction.updateMany({
+        where: { accountId, fulkrumaShipmentId: previousId },
+        data: { fulkrumaShipmentId: shipment.id, deliveryStatus: shipment.status },
+      });
+      return sendCreated(res, req, { ...shipment, previousShipmentId: previousId, draftCreateError });
     } catch (err) {
       return handleFulkrumaError(res, req, err, next);
     }

@@ -17,18 +17,71 @@ import { shipmentLabelQuery, type ShipmentLabelFile, type ShipmentLabelOptions }
 
 // ─── Types (mirror @forjio/fulkruma-node DTOs) ────────────────────────
 
+// 1:1 with Fulkruma's ShipmentStatus enum, which mirrors Biteship's
+// published tracking statuses plus two internal values (pending =
+// unconfirmed draft, failed = an API error before dispatch).
 export type ShipmentStatus =
   | 'pending'
   | 'confirmed'
+  | 'scheduled'
   | 'allocated'
   | 'picking_up'
   | 'picked_up'
   | 'dropping_off'
-  | 'in_transit'
+  | 'on_hold'
+  | 'return_in_transit'
   | 'delivered'
-  | 'cancelled'
+  | 'rejected'
+  | 'rejected_by_recipient'
   | 'returned'
+  | 'cancelled'
+  | 'courier_not_found'
+  | 'disposed'
   | 'failed';
+
+// ─── Cancel / rebook gates ────────────────────────────────────────────
+// Mirror of Fulkruma's server-side gates so a button is never offered
+// for a call the engine will reject with 409.
+//
+//   Cancellable — there's still a live booking to call off AND the
+//   parcel is provably at the merchant's origin. `picking_up` counts:
+//   the driver is en route TO the merchant, so nothing has moved — and
+//   that's exactly where a no-show pickup strands a shipment.
+//
+//   Rebookable — the shipment is dead and nothing is in flight, so a
+//   replacement can safely be booked from the same snapshots.
+//
+// Everything in between (picked_up → delivered) is untouchable: the
+// courier has the parcel, so neither verb is honest.
+export const CANCELLABLE_SHIPMENT_STATUSES: string[] = [
+  'pending', 'confirmed', 'scheduled', 'allocated', 'picking_up',
+];
+
+export const REBOOKABLE_SHIPMENT_STATUSES: string[] = [
+  'cancelled', 'rejected', 'rejected_by_recipient', 'courier_not_found', 'failed',
+];
+
+export function canCancelShipment(shipment: { status: string } | null | undefined): boolean {
+  return !!shipment && CANCELLABLE_SHIPMENT_STATUSES.includes(shipment.status);
+}
+
+/**
+ * Beyond the dead statuses there's one more genuinely stuck shape: a
+ * `pending` row whose Biteship draft never stuck (create failed, or the
+ * reference-id retries were exhausted). It looks bookable but "Book
+ * courier" 409s with NO_DRAFT forever, so it needs a fresh booking. A
+ * row already rebooked never qualifies again.
+ */
+export function canRebookShipment(shipment: {
+  status: string;
+  biteshipDraftOrderId?: string | null;
+  replacedByShipmentId?: string | null;
+} | null | undefined): boolean {
+  if (!shipment) return false;
+  if (shipment.replacedByShipmentId) return false;
+  if (REBOOKABLE_SHIPMENT_STATUSES.includes(shipment.status)) return true;
+  return shipment.status === 'pending' && !shipment.biteshipDraftOrderId;
+}
 
 export interface Shipment {
   id: string;
@@ -38,6 +91,7 @@ export interface Shipment {
   customerId: string | null;
   customerEmail: string | null;
   biteshipOrderId: string | null;
+  biteshipDraftOrderId: string | null;
   biteshipTrackingId: string | null;
   waybillId: string | null;
   courierCode: string;
@@ -53,6 +107,15 @@ export interface Shipment {
   destinationSnapshot: Record<string, unknown>;
   items: Array<Record<string, unknown>>;
   cancelReason: string | null;
+  cancelledAt: string | null;
+  /** Shipping credit handed back when this shipment was cancelled
+   *  before pickup. 0 / null when nothing was charged. */
+  refundedAt: string | null;
+  refundedAmount: number;
+  /** Rebook chain — the dead shipment this one replaces, and the
+   *  replacement booked for it. */
+  replacesShipmentId: string | null;
+  replacedByShipmentId: string | null;
   externalSource: string | null;
   externalRef: string | null;
   createdAt: string;
@@ -91,9 +154,50 @@ export interface Rate {
   courierServiceCode: string;
   courierName?: string;
   serviceName?: string;
+  courierType?: string;
+  serviceType?: string;
   description?: string;
   price: number;
   duration?: string;
+}
+
+/**
+ * Normalise a courier-rate response into `Rate[]`.
+ *
+ * Fulkruma answers POST /shipping/rates with `{ rates, count, hasCoords }`
+ * and passes Biteship's rate objects through verbatim — meaning
+ * snake_case keys (`courier_code`, `courier_service_code`, …). Both
+ * malapos rate pickers used to look for `{ pricing }` or a bare array
+ * and read camelCase keys, so every quote silently came back as "no
+ * rates available". Accept all three envelope shapes and map the keys
+ * once, here, so the sell flow, the ad-hoc create dialog and rebook
+ * can't drift apart again.
+ */
+export function normalizeRates(payload: unknown): Rate[] {
+  const raw: unknown = Array.isArray(payload)
+    ? payload
+    : (payload as { rates?: unknown; pricing?: unknown })?.rates
+      ?? (payload as { pricing?: unknown })?.pricing
+      ?? [];
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry) => {
+    const r = entry as Record<string, unknown>;
+    const str = (...keys: string[]): string | undefined => {
+      for (const k of keys) if (typeof r[k] === 'string' && r[k]) return r[k] as string;
+      return undefined;
+    };
+    return {
+      courierCode: str('courierCode', 'courier_code') ?? '',
+      courierServiceCode: str('courierServiceCode', 'courier_service_code') ?? '',
+      courierName: str('courierName', 'courier_name'),
+      serviceName: str('serviceName', 'courier_service_name'),
+      courierType: str('courierType', 'courier_type'),
+      serviceType: str('serviceType', 'service_type'),
+      description: str('description'),
+      duration: str('duration', 'shipment_duration_range'),
+      price: typeof r.price === 'number' ? r.price : 0,
+    };
+  }).filter((r) => r.courierCode && r.courierServiceCode);
 }
 
 export interface Warehouse {
@@ -234,8 +338,30 @@ export const shipmentsApi = {
   getLabel: (id: string, options: ShipmentLabelOptions) =>
     api.get<ShipmentLabelFile>(`/fulfillment/shipments/${id}/label?${shipmentLabelQuery(options)}`),
   confirmPickup: (id: string) => api.post<Shipment>(`/fulfillment/shipments/${id}/confirm-pickup`, {}),
+  // Cancel a booking the courier hasn't collected. `refunded` is the
+  // shipping credit handed back (0 for an unconfirmed draft, which was
+  // never charged); `courierError` is set when Biteship refused the
+  // call-off but the shipment was cancelled locally anyway.
   cancel: (id: string, reason: string) =>
-    api.post<Shipment>(`/fulfillment/shipments/${id}/cancel`, { reason }),
+    api.post<Shipment & { refunded: number; courierError: string | null }>(
+      `/fulfillment/shipments/${id}/cancel`,
+      { reason },
+    ),
+  // "Reorder" — books a replacement from the dead shipment's snapshots,
+  // optionally on a different courier, and repoints the originating sale
+  // at it. The replacement starts as an unconfirmed draft, so nothing is
+  // charged until the merchant books the courier.
+  rebook: (id: string, body: {
+    courierCode?: string;
+    courierServiceCode?: string;
+    courierType?: string;
+    price?: number;
+    insured?: boolean;
+    insurance?: number;
+  } = {}) => api.post<Shipment & { previousShipmentId: string; draftCreateError: string | null }>(
+    `/fulfillment/shipments/${id}/rebook`,
+    body,
+  ),
   create: (body: {
     transactionId?: string;
     destination: Record<string, unknown>;
@@ -272,8 +398,9 @@ export const shippingApi = {
   updateOrigin: (body: Partial<ShippingOrigin>) =>
     api.patch<ShippingOrigin>('/fulfillment/shipping/origin', body),
   listCouriers: () => api.get<Courier[] | { couriers?: Courier[]; data?: Courier[] }>('/fulfillment/shipping/couriers'),
+  // Response shape varies — always run it through normalizeRates().
   rates: (body: { destination: Record<string, unknown>; items: Array<Record<string, unknown>>; insurance?: boolean }) =>
-    api.post<{ pricing?: Rate[] } | Rate[]>('/fulfillment/shipping/rates', body),
+    api.post<unknown>('/fulfillment/shipping/rates', body),
 };
 
 export const warehousesApi = {
