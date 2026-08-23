@@ -226,10 +226,27 @@ export type BillingCurrency = 'IDR' | 'USD';
  * absent header means no Cloudflare at all (staging) — all default IDR,
  * the home market.
  */
+/**
+ * USD billing is suspended.
+ *
+ * PayPal was the only rail that could settle a USD charge, and PayPal
+ * permanently closed the Forjio account on 2026-08-23. Set this back to
+ * true to restore the preference-then-geo resolution below; it is the
+ * backend half of the frontend's USD_BILLING_ENABLED and the two should
+ * be flipped together.
+ *
+ * Typed as `boolean` so flipping it back does not make the resolution
+ * below look unreachable to the compiler.
+ */
+export const USD_BILLING_ENABLED: boolean = false;
+
 export function resolveBillingCurrency(
   explicit: unknown,
   cfCountry: unknown,
 ): BillingCurrency {
+  // Coerced, not rejected: a cached page still asking for dollars should
+  // complete in rupiah rather than fail at checkout.
+  if (!USD_BILLING_ENABLED) return 'IDR';
   const want = String(explicit ?? '').trim().toUpperCase();
   if (want === 'USD') return 'USD';
   if (want === 'IDR') return 'IDR';

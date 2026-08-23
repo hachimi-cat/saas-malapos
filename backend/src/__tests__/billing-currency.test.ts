@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BILLING_TIERS,
   TIER_DEFS,
+  USD_BILLING_ENABLED,
   isPaidTier,
   resolveBillingCurrency,
   tierDef,
@@ -10,10 +11,11 @@ import {
 /*
  * The USD rail (Phase 8). Two invariants guarded here:
  *
- * 1. resolveBillingCurrency — the explicit buyer preference always wins
- *    over the geo-route, and every "we don't know where you are" case
- *    lands on IDR, the home market. Getting this wrong charges cents
- *    where rupiah were shown (~160x apart).
+ * 1. resolveBillingCurrency — SUSPENDED as of 2026-08-23. It used to let
+ *    an explicit buyer preference beat the geo-route; with PayPal gone
+ *    there is no rail behind a dollar price, so everything lands on IDR.
+ *    Getting this wrong charges cents where rupiah were shown (~160x
+ *    apart), which is exactly why it coerces rather than guesses.
  * 2. The tier table itself — every paid tier must carry a positive USD
  *    price (the checkout refuses USD without one), and the advertised
  *    agentCredits must equal what the CP actually grants through
@@ -22,32 +24,37 @@ import {
  *    move BOTH sides.
  */
 
-describe('resolveBillingCurrency', () => {
-  it('explicit USD wins even from Indonesia', () => {
-    expect(resolveBillingCurrency('USD', 'ID')).toBe('USD');
+describe('resolveBillingCurrency — while USD billing is suspended', () => {
+  /*
+   * PayPal was the only rail that could settle a USD charge, and PayPal
+   * closed the account on 2026-08-23, so every route now lands on IDR no
+   * matter what the buyer asked for or where they are. The
+   * preference-then-geo logic still lives in the function behind
+   * USD_BILLING_ENABLED — the assertions below flip back with it.
+   */
+  it('is suspended, and says so in one place', () => {
+    expect(USD_BILLING_ENABLED).toBe(false);
   });
 
-  it('explicit IDR wins even from abroad', () => {
+  it('coerces an explicit USD preference to IDR rather than honouring it', () => {
+    // Was 'USD' before suspension — the buyer's own choice no longer wins,
+    // because there is nothing behind it.
+    expect(resolveBillingCurrency('USD', 'ID')).toBe('IDR');
+    expect(resolveBillingCurrency(' usd ', 'US')).toBe('IDR');
+  });
+
+  it('no longer geo-routes anyone abroad to USD', () => {
+    // Was 'USD' for both before suspension.
+    expect(resolveBillingCurrency(undefined, 'US')).toBe('IDR');
+    expect(resolveBillingCurrency(undefined, 'SG')).toBe('IDR');
+    expect(resolveBillingCurrency('EUR', 'US')).toBe('IDR');
+  });
+
+  it('leaves every case that already resolved to IDR untouched', () => {
     expect(resolveBillingCurrency('IDR', 'US')).toBe('IDR');
-  });
-
-  it('is case/whitespace tolerant on the explicit value', () => {
-    expect(resolveBillingCurrency(' usd ', 'ID')).toBe('USD');
     expect(resolveBillingCurrency('idr', 'DE')).toBe('IDR');
-  });
-
-  it('an unrecognised explicit value falls through to the geo-route, never silently changes currency', () => {
     expect(resolveBillingCurrency('EUR', 'ID')).toBe('IDR');
-    expect(resolveBillingCurrency('EUR', 'US')).toBe('USD');
-  });
-
-  it('geo-routes: ID → IDR, anywhere real → USD', () => {
     expect(resolveBillingCurrency(undefined, 'ID')).toBe('IDR');
-    expect(resolveBillingCurrency(undefined, 'US')).toBe('USD');
-    expect(resolveBillingCurrency(undefined, 'SG')).toBe('USD');
-  });
-
-  it("Cloudflare's unknown markers and an absent header default to IDR", () => {
     expect(resolveBillingCurrency(undefined, 'XX')).toBe('IDR');
     expect(resolveBillingCurrency(undefined, 'T1')).toBe('IDR');
     expect(resolveBillingCurrency(undefined, undefined)).toBe('IDR');

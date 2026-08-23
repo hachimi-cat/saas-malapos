@@ -24,10 +24,33 @@ import { useSyncExternalStore } from 'react';
 
 export type Currency = 'IDR' | 'USD';
 
-export const CURRENCIES: { code: Currency; label: string }[] = [
+/**
+ * USD billing is suspended.
+ *
+ * PayPal permanently closed the account that settled every USD charge on
+ * 2026-08-23, and PayPal is the only USD payment method Plugipay offers —
+ * so a price shown in dollars has nothing behind it. Until a replacement
+ * USD rail exists, every price reads in rupiah and the toggle does not
+ * render.
+ *
+ * Re-enable by setting this to true. Nothing else needs touching:
+ * detection, the stored preference, the toggle and every price that reads
+ * through this module all follow it.
+ *
+ * Typed as `boolean` rather than inferred, so flipping it back does not
+ * make the other branch look unreachable to the compiler.
+ */
+export const USD_BILLING_ENABLED: boolean = false;
+
+const ALL_CURRENCIES: { code: Currency; label: string }[] = [
   { code: 'IDR', label: 'Rupiah (IDR)' },
   { code: 'USD', label: 'US Dollar (USD)' },
 ];
+
+/** What a reader may actually choose between. One entry means there is
+ *  no choice to offer, and the picker hides itself. */
+export const CURRENCIES: { code: Currency; label: string }[] =
+  ALL_CURRENCIES.filter((c) => USD_BILLING_ENABLED || c.code === 'IDR');
 
 const STORAGE_KEY = 'malapos.currency.v1';
 
@@ -44,6 +67,7 @@ const INDONESIAN_TIMEZONES = new Set([
  *  survives a VPN and ignores UI language, so an Indonesian phone set to
  *  en-US still reads as Indonesian. Falls back to the language region. */
 export function detectCurrency(): Currency {
+  if (!USD_BILLING_ENABLED) return 'IDR';
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (tz && INDONESIAN_TIMEZONES.has(tz)) return 'IDR';
@@ -81,6 +105,10 @@ const listeners = new Set<() => void>();
 
 function snapshot(): Currency {
   if (current === null) current = readStored() ?? detectCurrency();
+  // Anyone who chose USD before it was suspended still has it in
+  // storage. Hiding the toggle alone would strand them on a currency
+  // nothing can charge, so the stored value is corrected, not trusted.
+  if (!USD_BILLING_ENABLED && current === 'USD') current = 'IDR';
   return current;
 }
 
@@ -115,9 +143,12 @@ function subscribe(onChange: () => void): () => void {
 /** Set the preference everywhere at once. Module-scoped, so its identity
  *  is stable and it is safe in a dependency array. */
 export function setCurrency(c: Currency): void {
-  current = c;
+  // Coerce rather than ignore: a stale bundle still holding the old
+  // toggle must not be able to write a currency back into storage.
+  const c2: Currency = !USD_BILLING_ENABLED && c === 'USD' ? 'IDR' : c;
+  current = c2;
   try {
-    localStorage.setItem(STORAGE_KEY, c);
+    localStorage.setItem(STORAGE_KEY, c2);
   } catch {
     // Preference is best-effort; the in-memory value still applies.
   }

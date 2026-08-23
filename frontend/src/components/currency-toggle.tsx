@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { setCurrency, useCurrency, type Currency } from '@/lib/currency';
+import { CURRENCIES, setCurrency, useCurrency, type Currency } from '@/lib/currency';
 
 /**
  * The visible currency choice — navbar, footer, billing pages
@@ -28,6 +28,11 @@ export function CurrencyToggle({
   className?: string;
 }) {
   const { currency } = useCurrency();
+
+  // Nothing to toggle between when only one currency is offered. Render
+  // nothing rather than a single dead segment — a picker with one option
+  // reads as broken, and the surrounding nav should close up around it.
+  if (CURRENCIES.length < 2) return null;
 
   return (
     <div
