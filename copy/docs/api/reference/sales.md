@@ -110,11 +110,19 @@ POST /:id/discard — abandon a PARKED sale (e.g. an unpaid dynamic-QRIS
 |---|---|---|---|
 | `id` | string | yes |  |
 
+### Body
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `reason` | string | no | max length 300; may be null |
+
 ### Example
 
 ```bash
 curl -X POST "https://malapos.com/api/v1/sales/:id/discard" \
-  -H "Authorization: Bearer sk_live_…"
+  -H "Authorization: Bearer sk_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"…"}'
 ```
 
 ## Edit an open bill (PARKED sale): replace its line items + recompute totals, optionally re-seat or attach a customer.
@@ -266,9 +274,17 @@ POST /api/v1/sales/{id}/void
 |---|---|---|---|
 | `id` | string | yes |  |
 
+### Body
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `reason` | string | no | max length 300; may be null |
+
 ### Example
 
 ```bash
 curl -X POST "https://malapos.com/api/v1/sales/:id/void" \
-  -H "Authorization: Bearer sk_live_…"
+  -H "Authorization: Bearer sk_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"…"}'
 ```

@@ -18,7 +18,7 @@ Generated from Malapos's own code: every route in this area, what it takes and h
 | `PATCH` | `/api/v1/products/{id}/variants/{vid}` | [Update a variant](#update-a-variant) |
 | `GET` | `/api/v1/products/{id}/variants/{vid}/recipe` | [List recipe](#list-recipe) |
 | `PUT` | `/api/v1/products/{id}/variants/{vid}/recipe` | [Replace-all the components of a variant + set its isComposite flag.](#replace-all-the-components-of-a-variant-set-its-iscomposite-flag) |
-| `POST` | `/api/v1/products/bulk-category` | [Bulk-assign a category to many products at once.](#bulk-assign-a-category-to-many-products-at-once) |
+| `POST` | `/api/v1/products/bulk-category` | [Create a bulk category](#create-a-bulk-category) |
 | `GET` | `/api/v1/products/lookup` | [Sell-screen lookup: exact barcode match first, else fuzzy name/sku.](#sell-screen-lookup-exact-barcode-match-first-else-fuzzy-namesku) |
 
 ## List products
@@ -278,21 +278,26 @@ curl -X PUT "https://malapos.com/api/v1/products/:id/variants/:vid/recipe" \
   -d '{"isComposite":false,"components":[]}'
 ```
 
-## Bulk-assign a category to many products at once.
+## Create a bulk category
 
 ```
 POST /api/v1/products/bulk-category
 ```
 
-Bulk-assign a category to many products at once. Categorizing an existing
-catalog one product-editor dialog at a time is the slow path; the products
-table multi-selects rows and posts them here. `categoryId: null` clears.
+### Body
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `productIds` | array of string | yes |  |
+| `categoryId` | string | yes | min length 1; may be null |
 
 ### Example
 
 ```bash
 curl -X POST "https://malapos.com/api/v1/products/bulk-category" \
-  -H "Authorization: Bearer sk_live_…"
+  -H "Authorization: Bearer sk_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"productIds":[],"categoryId":"…"}'
 ```
 
 ## Sell-screen lookup: exact barcode match first, else fuzzy name/sku.

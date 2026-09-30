@@ -221,11 +221,14 @@ router.get(
   }),
 );
 
+// Module-level so the API spec (tools/apigen) sees the body /void and /discard take.
+const saleReasonSchema = z.object({ reason: z.string().trim().max(300).nullish() });
+
 router.post(
   '/:id/void',
   asyncHandler(async (req, res) => {
     const accountId = req.auth!.accountId as string;
-    const reason = z.object({ reason: z.string().trim().max(300).nullish() }).parse(req.body ?? {}).reason ?? null;
+    const reason = saleReasonSchema.parse(req.body ?? {}).reason ?? null;
     await voidSale(accountId, String(req.params.id), reason, (req.auth!.sub as string | undefined) ?? null);
     const sale = await prisma.transaction.findUnique({
       where: { id: String(req.params.id) },
@@ -242,7 +245,7 @@ router.post(
   '/:id/discard',
   asyncHandler(async (req, res) => {
     const accountId = req.auth!.accountId as string;
-    const reason = z.object({ reason: z.string().trim().max(300).nullish() }).parse(req.body ?? {}).reason ?? null;
+    const reason = saleReasonSchema.parse(req.body ?? {}).reason ?? null;
     await discardParkedSale(accountId, String(req.params.id), reason);
     const sale = await prisma.transaction.findUnique({
       where: { id: String(req.params.id) },

@@ -1,0 +1,51 @@
+{
+  "name": "@forjio/malapos",
+  "version": "0.1.0",
+  "description": "Malapos SDK — typed JS/TS client for the malapos.com point-of-sale REST API: every route of the API as client.api.<area><Action>(). Sister to the Python + Go SDKs.",
+  "license": "UNLICENSED",
+  "private": false,
+  "author": "Forjio <support@forjio.com>",
+  "homepage": "https://malapos.com/docs/sdk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hachimi-cat/saas-malapos.git",
+    "directory": "sdks/js"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "malapos",
+    "forjio",
+    "pos",
+    "point-of-sale",
+    "sdk"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

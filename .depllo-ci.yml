@@ -70,10 +70,34 @@ apigen-check:
   image: node:22-bookworm
   script:
     - "# -- The API spec (backend/openapi.json) is made from the backend's own code;"
-    - "# -- the API reference docs and the CLI's `malapos api` commands are made from"
-    - "# -- the spec. Fail when any of them is out of date: run ./scripts/apigen.sh"
-    - "# -- and commit."
+    - "# -- the API reference docs, the CLI's `malapos api` commands and the SDKs'"
+    - "# -- client.api are made from the spec. Fail when any of them is out of date:"
+    - "# -- run ./scripts/apigen.sh and commit."
     - ./scripts/apigen.sh --check
+sdk-js:
+  stage: test
+  image: node:22-bookworm
+  script:
+    - "# -- The JS SDK: typecheck, tests (client.api path, query, body, Bearer key,"
+    - "# -- envelope + errors) and the build."
+    - (
+    - "  cd sdks/js && npm ci && npm run type-check && npm test && npm run build"
+    - )
+sdk-python-go:
+  stage: test
+  image: golang:1.22-bookworm
+  script:
+    - "# -- The Go and Python SDKs' own tests (client.API / client.api: path, query,"
+    - "# -- body, Bearer key, envelope + errors)."
+    - (
+    - "  cd sdks/go && go vet ./... && go test ./..."
+    - )
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends python3-venv >/dev/null
+    - python3 -m venv /tmp/sdk-py
+    - /tmp/sdk-py/bin/pip install -q -e "sdks/python[dev]"
+    - (
+    - "  cd sdks/python && /tmp/sdk-py/bin/python -m pytest -q"
+    - )
 build-staging:
   stage: build
   image: node:22-bookworm
@@ -81,6 +105,8 @@ build-staging:
     - lint
     - test
     - apigen-check
+    - sdk-js
+    - sdk-python-go
   timeout: 30m
   artifacts:
     paths:
@@ -112,6 +138,8 @@ build-production:
     - lint
     - test
     - apigen-check
+    - sdk-js
+    - sdk-python-go
   timeout: 30m
   artifacts:
     paths:
