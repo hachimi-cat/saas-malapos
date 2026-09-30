@@ -421,6 +421,11 @@ for (const route of found) {
     parameters: params,
     'x-forjio': { source, guards: [...new Set(guards)] },
   };
+  const takesBody = ['post', 'put', 'patch', 'delete'].includes(route.method);
+  const bodySchema = takesBody && sink.body ? zodToJsonSchema(sink.body.schema, { target: 'openApi3', $refStrategy: 'none' }) : null;
+  // A field read from the query or else the body (`req.query.x ?? req.body.x`) is given
+  // once: in the body, when the route takes one.
+  const bodyNames = new Set(bodySchema ? Object.keys(bodySchema.properties ?? {}) : takesBody && sink.readsBody ? [...(sink.bodyFields ?? [])] : []);
   if (sink.query) {
     const q = zodToJsonSchema(sink.query.schema, { target: 'openApi3', $refStrategy: 'none' });
     for (const [name, schema] of Object.entries(q.properties ?? {})) {
@@ -429,14 +434,14 @@ for (const route of found) {
   }
   if (!sink.query && sink.queryFields) {
     for (const name of [...sink.queryFields].sort()) {
-      if (!op.parameters.some((x) => x.name === name)) op.parameters.push({ name, in: 'query', required: false, schema: {} });
+      if (!op.parameters.some((x) => x.name === name) && !bodyNames.has(name)) op.parameters.push({ name, in: 'query', required: false, schema: {} });
     }
   }
-  if (['post', 'put', 'patch', 'delete'].includes(route.method)) {
+  if (takesBody) {
     if (sink.body) {
       needsBody++;
       withBody++;
-      op.requestBody = { required: true, content: { 'application/json': { schema: zodToJsonSchema(sink.body.schema, { target: 'openApi3', $refStrategy: 'none' }) } } };
+      op.requestBody = { required: true, content: { 'application/json': { schema: bodySchema } } };
       op['x-forjio'].body = 'validated';
       op['x-forjio'].bodySchema = sink.body.name;
     } else if (sink.readsBody) {
