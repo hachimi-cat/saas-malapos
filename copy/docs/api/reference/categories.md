@@ -12,7 +12,7 @@ Generated from Malapos's own code: every route in this area, what it takes and h
 | `POST` | `/api/v1/categories` | [Create a category](#create-a-category) |
 | `DELETE` | `/api/v1/categories/{id}` | [Delete a category](#delete-a-category) |
 | `PATCH` | `/api/v1/categories/{id}` | [Update a category](#update-a-category) |
-| `POST` | `/api/v1/categories/reorder` | [Bulk reorder.](#bulk-reorder) |
+| `POST` | `/api/v1/categories/reorder` | [Create a reorder](#create-a-reorder) |
 
 ## List categories
 
@@ -98,20 +98,23 @@ curl -X PATCH "https://malapos.com/api/v1/categories/:id" \
   -d '{"name":"…","sortOrder":0,"isActive":false}'
 ```
 
-## Bulk reorder.
+## Create a reorder
 
 ```
 POST /api/v1/categories/reorder
 ```
 
-Bulk reorder. The manager sends the full ordered id list and we rewrite
-`sortOrder` to match the array index — that ordering is what the sell
-screen's category chips and grouped product sections render in, so the
-merchant controls where the busiest category sits.
+### Body
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `ids` | array of string | yes |  |
 
 ### Example
 
 ```bash
 curl -X POST "https://malapos.com/api/v1/categories/reorder" \
-  -H "Authorization: Bearer sk_live_…"
+  -H "Authorization: Bearer sk_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"ids":[]}'
 ```

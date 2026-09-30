@@ -1451,7 +1451,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/categories.ts:72",
+     "source": "src/routes/categories.ts:75",
      "guards": [
       "requireAuth"
      ],
@@ -1502,7 +1502,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/categories.ts:86",
+     "source": "src/routes/categories.ts:89",
      "guards": [
       "requireAuth"
      ]
@@ -1512,26 +1512,40 @@
   "/api/v1/categories/reorder": {
    "post": {
     "operationId": "postCategoriesReorder",
-    "summary": "Bulk reorder.",
-    "description": "Bulk reorder. The manager sends the full ordered id list and we rewrite\n`sortOrder` to match the array index — that ordering is what the sell\nscreen's category chips and grouped product sections render in, so the\nmerchant controls where the busiest category sits.",
+    "summary": "Create a reorder",
     "tags": [
      "categories"
     ],
     "parameters": [],
     "x-forjio": {
-     "source": "src/routes/categories.ts:53",
+     "source": "src/routes/categories.ts:56",
      "guards": [
       "requireAuth"
      ],
-     "body": "read-unknown"
+     "body": "validated",
+     "bodySchema": "reorderCategoriesSchema"
     },
     "requestBody": {
-     "required": false,
+     "required": true,
      "content": {
       "application/json": {
        "schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+         "ids": {
+          "type": "array",
+          "items": {
+           "type": "string",
+           "minLength": 1
+          },
+          "minItems": 1,
+          "maxItems": 500
+         }
+        },
+        "required": [
+         "ids"
+        ],
+        "additionalProperties": false
        }
       }
      }
@@ -7478,7 +7492,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/products.ts:149",
+     "source": "src/routes/products.ts:150",
      "guards": [
       "requireAuth"
      ]
@@ -7501,7 +7515,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/products.ts:162",
+     "source": "src/routes/products.ts:163",
      "guards": [
       "requireAuth"
      ],
@@ -7624,7 +7638,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/products.ts:256",
+     "source": "src/routes/products.ts:257",
      "guards": [
       "requireAuth"
      ]
@@ -7649,7 +7663,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/products.ts:283",
+     "source": "src/routes/products.ts:284",
      "guards": [
       "requireAuth"
      ],
@@ -7732,7 +7746,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/products.ts:309",
+     "source": "src/routes/products.ts:310",
      "guards": [
       "requireAuth"
      ],
@@ -7810,7 +7824,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/products.ts:334",
+     "source": "src/routes/products.ts:335",
      "guards": [
       "requireAuth"
      ]
@@ -7843,7 +7857,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/products.ts:366",
+     "source": "src/routes/products.ts:367",
      "guards": [
       "requireAuth"
      ]
@@ -7875,7 +7889,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/products.ts:398",
+     "source": "src/routes/products.ts:399",
      "guards": [
       "requireAuth"
      ],
@@ -7935,26 +7949,46 @@
   "/api/v1/products/bulk-category": {
    "post": {
     "operationId": "postProductsBulkCategory",
-    "summary": "Bulk-assign a category to many products at once.",
-    "description": "Bulk-assign a category to many products at once. Categorizing an existing\ncatalog one product-editor dialog at a time is the slow path; the products\ntable multi-selects rows and posts them here. `categoryId: null` clears.",
+    "summary": "Create a bulk category",
     "tags": [
      "products"
     ],
     "parameters": [],
     "x-forjio": {
-     "source": "src/routes/products.ts:126",
+     "source": "src/routes/products.ts:132",
      "guards": [
       "requireAuth"
      ],
-     "body": "read-unknown"
+     "body": "validated",
+     "bodySchema": "bulkCategorySchema"
     },
     "requestBody": {
-     "required": false,
+     "required": true,
      "content": {
       "application/json": {
        "schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+         "productIds": {
+          "type": "array",
+          "items": {
+           "type": "string",
+           "minLength": 1
+          },
+          "minItems": 1,
+          "maxItems": 500
+         },
+         "categoryId": {
+          "type": "string",
+          "minLength": 1,
+          "nullable": true
+         }
+        },
+        "required": [
+         "productIds",
+         "categoryId"
+        ],
+        "additionalProperties": false
        }
       }
      }
@@ -8723,19 +8757,27 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/sales.ts:241",
+     "source": "src/routes/sales.ts:244",
      "guards": [
       "requireAuth"
      ],
-     "body": "read-unknown"
+     "body": "validated",
+     "bodySchema": "saleReasonSchema"
     },
     "requestBody": {
-     "required": false,
+     "required": true,
      "content": {
       "application/json": {
        "schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+         "reason": {
+          "type": "string",
+          "maxLength": 300,
+          "nullable": true
+         }
+        },
+        "additionalProperties": false
        }
       }
      }
@@ -8969,7 +9011,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/sales.ts:266",
+     "source": "src/routes/sales.ts:269",
      "guards": [
       "requireAuth"
      ],
@@ -9141,19 +9183,27 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/sales.ts:224",
+     "source": "src/routes/sales.ts:227",
      "guards": [
       "requireAuth"
      ],
-     "body": "read-unknown"
+     "body": "validated",
+     "bodySchema": "saleReasonSchema"
     },
     "requestBody": {
-     "required": false,
+     "required": true,
      "content": {
       "application/json": {
        "schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+         "reason": {
+          "type": "string",
+          "maxLength": 300,
+          "nullable": true
+         }
+        },
+        "additionalProperties": false
        }
       }
      }
@@ -10195,7 +10245,7 @@
   "routes": 280,
   "matched": 253,
   "bodies": {
-   "validated": 76,
+   "validated": 80,
    "fieldsOnly": 4,
    "takesBody": 93
   }

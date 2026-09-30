@@ -1,0 +1,25 @@
+[project]
+name = "forjio-malapos"
+version = "0.1.0"
+description = "Malapos SDK — typed Python client for the malapos.com point-of-sale REST API: every route of the API as client.api.<area>_<action>(). Sister to the JS + Go SDKs."
+authors = [{ name = "Forjio", email = "support@forjio.com" }]
+license = { text = "Proprietary" }
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[project.urls]
+Homepage = "https://malapos.com/docs/sdk"
+Repository = "https://github.com/hachimi-cat/saas-malapos"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["forjio_malapos"]

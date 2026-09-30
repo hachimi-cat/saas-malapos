@@ -726,10 +726,16 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "reorder",
     "method": "POST",
     "path": "/api/v1/categories/reorder",
-    "summary": "Bulk reorder.",
+    "summary": "Create a reorder",
     "pathParams": [],
     "query": [],
-    "body": []
+    "body": [
+     {
+      "name": "ids",
+      "kind": "array",
+      "required": true
+     }
+    ]
    },
    {
     "name": "update",
@@ -3841,10 +3847,21 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "bulk-category",
     "method": "POST",
     "path": "/api/v1/products/bulk-category",
-    "summary": "Bulk-assign a category to many products at once.",
+    "summary": "Create a bulk category",
     "pathParams": [],
     "query": [],
-    "body": []
+    "body": [
+     {
+      "name": "productIds",
+      "kind": "array",
+      "required": true
+     },
+     {
+      "name": "categoryId",
+      "kind": "string",
+      "required": true
+     }
+    ]
    },
    {
     "name": "create",
@@ -4469,7 +4486,13 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      "id"
     ],
     "query": [],
-    "body": []
+    "body": [
+     {
+      "name": "reason",
+      "kind": "string",
+      "required": false
+     }
+    ]
    },
    {
     "name": "get",
@@ -4688,7 +4711,13 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      "id"
     ],
     "query": [],
-    "body": []
+    "body": [
+     {
+      "name": "reason",
+      "kind": "string",
+      "required": false
+     }
+    ]
    }
   ]
  },

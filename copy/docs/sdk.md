@@ -4,13 +4,58 @@ title: "SDKs & CLI"
 
 # SDKs & CLI
 
-Malapos does **not** ship a product-specific JS, Python, or Go SDK yet.
-Programmatic access is the [REST API](/docs/api-reference) plus two
-things you can use today:
+Every Malapos API route is reachable from three SDKs and the CLI, all generated from the
+API spec (the backend's own code), so none of them falls behind the
+[API reference](/docs/api/reference):
 
-- **`@forjio/malapos-cli`** — the official command-line tool.
-- **`@forjio/sdk`** — the shared Forjio client (`ApiClient`), which the
-  CLI itself uses under the hood, pointed at the Malapos base URL.
+| | Package | Every route |
+|---|---|---|
+| JavaScript / TypeScript | `npm install @forjio/malapos` | `client.api.<area><Action>()` |
+| Python | `pip install forjio-malapos` | `client.api.<area>_<action>()` |
+| Go | `go get github.com/hachimi-cat/malapos-go` | `client.API.<Area><Action>(ctx, …)` |
+| CLI | `npm install -g @forjio/malapos-cli` | `malapos api <area> <action>` |
+
+The SDKs authenticate with `Authorization: Bearer <token>`: an `sk_live_…` API key
+(created under **API keys** in the dashboard; it acts in the workspace it was created in)
+or a Huudis access token. Each reads `MALAPOS_TOKEN` (and `MALAPOS_BASE_URL`, default
+`https://malapos.com`) when no token is passed.
+
+## SDKs
+
+**JavaScript / TypeScript:**
+
+```ts
+import { MalaposClient } from '@forjio/malapos';
+
+const client = new MalaposClient({ token: process.env.MALAPOS_TOKEN });
+const products = await client.api.productsList({ q: 'kopi' });
+await client.api.salesVoid(saleId, { reason: 'wrong item' });
+```
+
+**Python:**
+
+```python
+from forjio_malapos import MalaposClient
+
+client = MalaposClient(token=os.environ["MALAPOS_TOKEN"])
+products = client.api.products_list(q="kopi")
+client.api.sales_void(sale_id, reason="wrong item")
+```
+
+**Go:**
+
+```go
+import malapos "github.com/hachimi-cat/malapos-go"
+
+c := malapos.New(malapos.Config{Token: os.Getenv("MALAPOS_TOKEN")})
+products, err := c.API.ProductsList(ctx, &malapos.ProductsListArgs{Q: "kopi"})
+```
+
+Each call returns the response envelope's `data` and raises the SDK's error type
+(`MalaposError` / `*malapos.Error`) with the envelope's `error.code`, HTTP status and
+request id. List routes that page return their `cursor` and `hasMore`: on the returned
+array in JS (`page.cursor`), as a `Page` in Python (`page.cursor`, `page.has_more`), and
+through `c.DoEnvelope` in Go.
 
 ## CLI
 
@@ -51,9 +96,20 @@ export MALAPOS_TOKEN=sk_live_…
 malapos outlets list
 ```
 
+### Every route: `malapos api`
+
+`malapos api <area> <action>` has a command for every API route, with flags typed from
+the API spec (`malapos api --help` lists the areas, `malapos api products --help` their
+actions):
+
+```bash
+malapos api products list --q kopi
+malapos api sales void <saleId> --reason "wrong item"
+```
+
 ### Resource commands
 
-The shipped resource commands are read-only listers:
+The hand-written resource commands are read-only listers:
 
 ```bash
 malapos outlets list      # store locations in your workspace
@@ -93,25 +149,12 @@ takes them as `--issuer <url>` and `--client-id <id>`.
 
 ## Programmatic access (REST)
 
-For anything beyond the CLI's listers, call the REST API directly with
-a Huudis Bearer token. The full surface — sales, inventory, purchase
-orders, customers, reports, and more — is documented in the
-[API reference](/docs/api-reference). An `sk_live_…` API key (created
-under **API keys** in the dashboard) works for the same calls — send
-it as `Authorization: Bearer sk_live_…` in place of the token.
+Any HTTP client works too: send the token as `Authorization: Bearer …`.
 
 ```bash
 curl https://malapos.com/api/v1/outlets \
   -H "Authorization: Bearer $MALAPOS_TOKEN"
 ```
 
-```ts
-const res = await fetch("https://malapos.com/api/v1/products", {
-  headers: { Authorization: `Bearer ${process.env.MALAPOS_TOKEN}` },
-});
-const { data, error, meta } = await res.json();
-```
-
-If you already use `@forjio/sdk` elsewhere, you can point its
-`ApiClient` at `https://malapos.com` and call the same `/api/v1/*`
-paths — that's exactly what the CLI does internally.
+Responses are the Forjio envelope `{ data, error, meta }`. Every route, its parameters
+and body fields: [API reference](/docs/api/reference).

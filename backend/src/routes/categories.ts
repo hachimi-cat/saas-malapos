@@ -50,11 +50,14 @@ router.post(
  * screen's category chips and grouped product sections render in, so the
  * merchant controls where the busiest category sits.
  */
+// Module-level so the API spec (tools/apigen) sees the body it validates.
+const reorderCategoriesSchema = z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(500) });
+
 router.post(
   '/reorder',
   asyncHandler(async (req, res) => {
     const accountId = req.auth!.accountId as string;
-    const { ids } = z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(500) }).parse(req.body);
+    const { ids } = reorderCategoriesSchema.parse(req.body);
     if (new Set(ids).size !== ids.length) {
       throw new ApiError(400, 'VALIDATION_ERROR', 'Duplicate category ids');
     }

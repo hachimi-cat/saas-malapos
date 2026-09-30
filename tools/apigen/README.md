@@ -12,3 +12,66 @@ docs and Catent's tools are generated from it.
 The product loads with the network stopped (fetch and sockets throw). A copy of `src/` is
 loaded in which each file also hands its top-level values to a registry, so every zod
 schema and router is reachable as a real object; the copy is removed afterwards.
+
+A Next.js app's route handlers get the same from `spec-next.mjs` (statically, from the
+TypeScript). `--internal <regex>` marks routes the product calls itself (a proxy's auth
+check, a diagnostics beacon) as `x-forjio.internal`: they stay in the spec but leave the
+docs, CLI, SDKs and Catent's tools.
+
+What counts as a feature is one function, `isFeature` in `common.mjs`: not sign-in, the
+operator's admin routes (`/admin`, `/<x>-admin`, operator-only guards), plumbing and BFF
+proxies, cron calls, unsubscribe pages, a webhook another system sends in, or a route
+marked internal.
+
+## SDKs — `sdk.mjs`
+
+    node tools/apigen/sdk.mjs --lang python --spec backend/openapi.json --out sdk/python/<pkg>/api_generated.py
+    node tools/apigen/sdk.mjs --lang node   --spec backend/openapi.json --out sdk/node/src/api.generated.ts
+    node tools/apigen/sdk.mjs --lang go --package <pkg> --spec backend/openapi.json --out sdk/go/api_generated.go
+
+One method per feature route: `client.api.<area>_<action>(…)` (python),
+`client.api.<area><Action>(…)` (node), `client.API.<Area><Action>(ctx, …)` (go). Add
+`--check` to verify instead of write (a text comparison; the Go file is written
+gofmt-clean, so checking it needs no Go toolchain).
+
+The generated file only calls a hook each SDK's client writes once, in its own code, so
+the generated surface signs requests and reads responses exactly like the rest of that
+SDK:
+
+- python: `_apigen_request(method, path, *, query, body)` returning the envelope's data;
+- node: `apigenRequest(method, path, query, body)` returning the envelope's data;
+- go: `apigenRequest(ctx, method, path string, query url.Values, body map[string]any)
+  (json.RawMessage, error)` — `query` nil or the query string, `body` nil (no body) or the
+  JSON body — returning the envelope's `data`. The client sets `API: &GeneratedAPI{c: c}`
+  in its constructor.
+
+Go specifics: names are Go-cased with golint initialisms (`APIKeysCreate`,
+`ContactIDs`); each route with inputs takes an `*<Method>Args` (nil for none) whose query
+fields are tagged `query:"…"` and body fields `json:"…"`. Required fields are plain values,
+optional ones pointers (`Ptr(v)`), slices or maps that nil leaves out. `Body map[string]any`
+passes the whole body (python's `json_body`); the fields that are set replace its keys. A
+required body string, slice or map that is neither set nor in `Body` is an error before
+any request; a required number or boolean is sent as given. A body that is one of several
+shapes (anyOf / oneOf) offers every shape's fields, all optional.
+
+## Docs — `docs.mjs`
+
+    node tools/apigen/docs.mjs --spec backend/openapi.json --out copy/docs/api/reference \
+      --nav frontend/src/lib/docs-reference.generated.ts --brand <brand> --base-url https://<brand>.com \
+      --auth-header "Authorization: Bearer <your API key>" [--auth-file <rules.json>]
+
+One page per area, every feature route with its parameters, body fields and a curl
+example that carries `--auth-header`. When some routes authenticate differently — an
+app-to-app surface on client credentials, routes that also take a signing key, routes
+only a signed-in person may call — pass `--auth-file`, a JSON file of rules:
+
+    { "rules": [
+      { "prefix": "/api/v1/app/", "header": "Authorization: Basic <base64 of client_id:client_secret>",
+        "note": "Your app's OIDC client credentials." },
+      { "route": "GET /api/v1/iam/users", "note": "Also takes an access key." } ] }
+
+A rule matches a route by `route` (`<METHOD> <path>`, the spec's `{param}` spelling) or
+by path `prefix`. The example uses the `header` of the first matching rule that has one;
+the section prints every matching rule's `note` under **Authentication**. Products
+generate the file from their own code (e.g. the table that decides which routes a key may
+call), so the docs follow the code like everything else here.

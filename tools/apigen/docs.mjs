@@ -10,7 +10,7 @@
 // so the reference cannot fall behind the code; `--check` exits 1 when they are stale.
 import fs from 'node:fs';
 import path from 'node:path';
-import { isFeature } from './common.mjs';
+import { isFeature, bodyFields, formBody, isFileField } from './common.mjs';
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1] ?? true]] : acc), []),
@@ -21,7 +21,22 @@ const NAV = args.nav ?? null;
 const BRAND = args.brand ?? spec.info?.title ?? 'product';
 const CHECK = args.check === true || args.check === 'true';
 const BASE = (args['base-url'] ?? `https://${BRAND}.forjio.com`).replace(/\/$/, '');
-const AUTH = args['auth-header'] ?? 'Authorization: <your API key>';
+const DEFAULT_AUTH = args['auth-header'] ?? 'Authorization: <your API key>';
+// Routes that authenticate differently from the rest (a product's app-to-app routes, a
+// route that also takes a signing key, one only a signed-in person may call):
+// `--auth-file <json>` holds `{ "rules": [ { "route": "POST /api/v1/x/{id}" | "prefix":
+// "/api/v1/app/", "header"?: "<curl -H value>", "note"?: "<markdown>" } ] }`. A route's
+// example uses the header of the first rule that matches it and has one (else
+// --auth-header); its section says every matching rule's note, under "Authentication".
+const AUTH_RULES = args['auth-file'] ? JSON.parse(fs.readFileSync(args['auth-file'], 'utf8')).rules ?? [] : [];
+function authFor(method, p) {
+  const hits = AUTH_RULES.filter((r) =>
+    (r.route && r.route === `${method.toUpperCase()} ${p}`) || (r.prefix && p.startsWith(r.prefix)));
+  return {
+    header: hits.find((r) => r.header)?.header ?? DEFAULT_AUTH,
+    notes: hits.map((r) => r.note).filter(Boolean),
+  };
+}
 
 const human = (s) => s.replace(/[-_]/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 const cell = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n+/g, ' ');
@@ -103,6 +118,8 @@ for (const [tag, ops] of [...pages.entries()].sort(([a], [b]) => a.localeCompare
     rows.push(`| \`${o.method.toUpperCase()}\` | \`${o.path}\` | [${heading}](#${idFor(heading)}) |`);
     sections.push('', `## ${heading}`, '', '```', `${o.method.toUpperCase()} ${o.path}`, '```');
     if (op.description && op.description !== op.summary) sections.push('', op.description.trim());
+    const { header: AUTH, notes: authNotes } = authFor(o.method, o.path);
+    if (authNotes.length) sections.push('', `**Authentication:** ${authNotes.join(' ')}`);
     const params = op.parameters ?? [];
     for (const where of ['path', 'query']) {
       const ps = params.filter((x) => x.in === where);
@@ -112,18 +129,39 @@ for (const [tag, ops] of [...pages.entries()].sort(([a], [b]) => a.localeCompare
       sections.push('', `### ${h3}`, '', '| Name | Type | Required | Notes |', '|---|---|---|---|');
       for (const x of ps) sections.push(`| \`${x.name}\` | ${cell(typeOf(x.schema))} | ${x.required ? 'yes' : 'no'} | ${cell(notes(x.schema))} |`);
     }
-    const body = op.requestBody?.content?.['application/json']?.schema;
-    if (body && body.properties && Object.keys(body.properties).length) {
+    // the body's fields — for a body of several shapes (anyOf / oneOf), every shape's fields
+    const jsonBody = op.requestBody?.content?.['application/json']?.schema;
+    const fields = jsonBody ? bodyFields(jsonBody) : null;
+    const body = fields && Object.keys(fields.properties).length
+      ? (jsonBody.properties ? jsonBody : { type: 'object', properties: fields.properties, required: fields.required })
+      : null;
+    if (body) {
       const req = new Set(body.required ?? []);
       idFor('Body');
-      sections.push('', '### Body', '', '| Field | Type | Required | Notes |', '|---|---|---|---|');
+      sections.push('', '### Body', '');
+      if (!jsonBody.properties) sections.push('The body takes one of several shapes; these are the fields of all of them.', '');
+      sections.push('| Field | Type | Required | Notes |', '|---|---|---|---|');
       for (const [k, v] of Object.entries(body.properties)) sections.push(`| \`${k}\` | ${cell(typeOf(v))} | ${req.has(k) ? 'yes' : 'no'} | ${cell(notes(v))} |`);
     }
-    const ex = body && body.properties && Object.keys(body.properties).length ? example(body) : null;
+    // A file upload: the body is a multipart form, its file fields sent as files.
+    const form = formBody(op);
+    if (form) {
+      const req = new Set(form.required ?? []);
+      idFor('Body');
+      sections.push('', '### Body', '', 'Sent as `multipart/form-data` — a file upload.', '', '| Field | Type | Required | Notes |', '|---|---|---|---|');
+      for (const [k, v] of Object.entries(form.properties)) sections.push(`| \`${k}\` | ${isFileField(v) ? 'file' : cell(typeOf(v))} | ${req.has(k) ? 'yes' : 'no'} | ${cell(notes(v))} |`);
+    }
+    const formLines = form
+      ? Object.entries(form.properties)
+        .filter(([k, v]) => isFileField(v) || (form.required ?? []).includes(k))
+        .map(([k, v]) => (isFileField(v) ? `  -F "${k}=@path/to/file"` : `  -F "${k}=${example(v, 1)}"`))
+      : [];
+    const ex = body ? example(body) : null;
     const url = `${BASE}${o.path.replace(/\{(\w+)\}/g, ':$1')}`;
     idFor('Example');
-    sections.push('', '### Example', '', '```bash', `curl -X ${o.method.toUpperCase()} "${url}" \\`, `  -H "${AUTH}"` + (ex ? ' \\' : ''));
+    sections.push('', '### Example', '', '```bash', `curl -X ${o.method.toUpperCase()} "${url}" \\`, `  -H "${AUTH}"` + (ex || formLines.length ? ' \\' : ''));
     if (ex) sections.push('  -H "Content-Type: application/json" \\', `  -d '${JSON.stringify(ex)}'`);
+    formLines.forEach((line, i) => sections.push(line + (i < formLines.length - 1 ? ' \\' : '')));
     sections.push('```');
   }
   const lines = [`---\ntitle: ${human(tag)} — reference\n---\n\n# ${human(tag)}\n\nGenerated from ${human(BRAND)}'s own code: every route in this area, what it takes and how to call it.\n\n| Method | Path | What it does |\n|---|---|---|`, ...rows, ...sections];
