@@ -1,0 +1,10 @@
+{
+  "name": "@forjio/apigen",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "One API spec per Forjio product, generated from its own code; SDKs, CLI, docs and Catent tools generated from the spec.",
+  "dependencies": {
+    "zod-to-json-schema": "3.24.6"
+  }
+}

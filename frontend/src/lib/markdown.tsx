@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { marked } from 'marked';
 import matter from 'gray-matter';
+import { REFERENCE_NAV } from './docs-reference.generated';
 
 /*
  * Docs loader — reads markdown from the repo-root `copy/docs/` directory
@@ -42,6 +43,8 @@ export const DOC_NAV: DocMeta[] = [
   { slug: 'getting-started', title: 'Getting started', group: 'Getting started', href: '/docs/getting-started' },
   { slug: 'api-reference', title: 'API reference', group: 'API', href: '/docs/api-reference' },
   { slug: 'sdk', title: 'SDKs', group: 'SDKs', href: '/docs/sdk' },
+  // Every route, generated from the API spec (scripts/apigen.sh)
+  ...REFERENCE_NAV,
 ];
 
 export function docsGroups(): Array<{ heading: string; items: DocMeta[] }> {

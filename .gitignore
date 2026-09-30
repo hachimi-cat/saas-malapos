@@ -15,3 +15,6 @@ tsconfig.tsbuildinfo
 # Throwaway live-check scripts + their screenshots (gojo's probes).
 e2e/_*.mjs
 e2e/screenshots/_*.png
+
+# apigen scratch copy (scripts/apigen.sh)
+backend/.apigen/

@@ -11,6 +11,7 @@ import { Command } from 'commander';
 import { auth } from './commands/auth.js';
 import { outlets } from './commands/outlets.js';
 import { products } from './commands/products.js';
+import { buildApiCommand } from './commands/api.generated.js';
 
 export const program = new Command()
   .name('malapos')
@@ -26,6 +27,8 @@ program
 program.addCommand(auth);
 program.addCommand(outlets);
 program.addCommand(products);
+// Every route of the API, one command each (generated from the API spec: scripts/apigen.sh)
+program.addCommand(buildApiCommand());
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   const msg = err instanceof Error ? err.message : String(err);

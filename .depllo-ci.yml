@@ -65,12 +65,22 @@ test:
     - (
     - "  cd frontend && npm ci && npm test"
     - )
+apigen-check:
+  stage: test
+  image: node:22-bookworm
+  script:
+    - "# -- The API spec (backend/openapi.json) is made from the backend's own code;"
+    - "# -- the API reference docs and the CLI's `malapos api` commands are made from"
+    - "# -- the spec. Fail when any of them is out of date: run ./scripts/apigen.sh"
+    - "# -- and commit."
+    - ./scripts/apigen.sh --check
 build-staging:
   stage: build
   image: node:22-bookworm
   needs:
     - lint
     - test
+    - apigen-check
   timeout: 30m
   artifacts:
     paths:
@@ -101,6 +111,7 @@ build-production:
   needs:
     - lint
     - test
+    - apigen-check
   timeout: 30m
   artifacts:
     paths:
