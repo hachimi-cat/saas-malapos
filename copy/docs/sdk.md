@@ -18,23 +18,38 @@ things you can use today:
 npm install -g @forjio/malapos-cli
 ```
 
-Then sign in via the Huudis device flow:
+Then sign in — with your Huudis account in the browser, or with an API
+key on a server or in CI:
 
 ```bash
-malapos auth login
+malapos auth login                           # Huudis device flow
+malapos auth login --api-key - < key.txt     # or an sk_live_… API key, read from stdin
+malapos auth whoami
 ```
 
-This opens a device-flow login and saves your credentials to
-`~/.malapos/credentials` (one section per profile, mirroring the AWS
-CLI's `~/.aws/credentials` convention).
+Either way the credential is saved to `~/.malapos/credentials` (one
+section per profile, mirroring the AWS CLI's `~/.aws/credentials`
+convention; readable only by you). A Huudis session refreshes itself.
 
 ### Auth commands
 
 | Command | What it does |
 |---|---|
-| `malapos auth login` | Sign in via the OIDC device flow and save credentials |
-| `malapos auth whoami` | Show the currently signed-in identity |
-| `malapos auth logout` | Remove the active profile from `~/.malapos/credentials` |
+| `malapos auth login` | Sign in via the OIDC device flow: the CLI prints a code and opens the browser; approve it there. `--no-browser` only prints the link. |
+| `malapos auth login --api-key <key>` | Save an `sk_live_…` API key (created under **API keys** in the dashboard) to the profile instead. Pass `-` as the key to read it from stdin, so it stays out of your shell history. |
+| `malapos auth whoami` | Show what the CLI is signed in as: the Huudis user, or which key |
+| `malapos auth logout` | Remove the active profile (session or key) from `~/.malapos/credentials` |
+
+Use `--profile <name>` to keep several sign-ins side by side (for
+example `malapos --profile ci auth login --api-key -`). The
+`MALAPOS_TOKEN` environment variable — an API key or a Huudis access
+token — wins over any saved profile, so CI can skip `auth login`
+entirely:
+
+```bash
+export MALAPOS_TOKEN=sk_live_…
+malapos outlets list
+```
 
 ### Resource commands
 
@@ -73,7 +88,8 @@ MALAPOS_BASE_URL=https://staging-malapos.forjio.com malapos outlets list
 
 Two more environment variables tune the device-flow login:
 `MALAPOS_HUUDIS_ISSUER` (default `https://huudis.com`) and
-`MALAPOS_CLI_CLIENT_ID` (default `malapos-cli`).
+`MALAPOS_CLI_CLIENT_ID` (default `malapos-cli`); `auth login` also
+takes them as `--issuer <url>` and `--client-id <id>`.
 
 ## Programmatic access (REST)
 
