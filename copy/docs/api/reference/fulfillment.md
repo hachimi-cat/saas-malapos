@@ -15,8 +15,8 @@ Generated from Malapos's own code: every route in this area, what it takes and h
 | `GET` | `/api/v1/fulfillment/inventory/products` | [Fulkruma-side products (with their variants) — the inventory grid lists a row per variant/warehouse pair from these.](#fulkruma-side-products-with-their-variants-the-inventory-grid-lists-a-row-per-variantwarehouse-pair-from-these) |
 | `GET` | `/api/v1/fulfillment/inventory/stock` | [List stock](#list-stock) |
 | `GET` | `/api/v1/fulfillment/licenses` | [List licenses](#list-licenses) |
-| `POST` | `/api/v1/fulfillment/licenses` | [Create a licens](#create-a-licens) |
-| `POST` | `/api/v1/fulfillment/licenses/{id}/revoke` | [Revoke a licens](#revoke-a-licens) |
+| `POST` | `/api/v1/fulfillment/licenses` | [Create a license](#create-a-license) |
+| `POST` | `/api/v1/fulfillment/licenses/{id}/revoke` | [Revoke a license](#revoke-a-license) |
 | `GET` | `/api/v1/fulfillment/licenses/validate` | [List validate](#list-validate) |
 | `GET` | `/api/v1/fulfillment/shipments` | [List shipments](#list-shipments) |
 | `POST` | `/api/v1/fulfillment/shipments` | [Create a shipment](#create-a-shipment) |
@@ -34,9 +34,9 @@ Generated from Malapos's own code: every route in this area, what it takes and h
 | `POST` | `/api/v1/fulfillment/shipping/rates` | [Create a rate](#create-a-rate) |
 | `GET` | `/api/v1/fulfillment/shipping/track/{waybillId}` | [Public buyer tracking lives on fulkruma.com — keep the route present so the chrome never 404s, but redirect callers to the canonical tracker.](#public-buyer-tracking-lives-on-fulkrumacom-keep-the-route-present-so-the-chrome-never-404s-but-redirect-callers-to-the-canonical-tracker) |
 | `GET` | `/api/v1/fulfillment/warehouses` | [List warehouses](#list-warehouses) |
-| `POST` | `/api/v1/fulfillment/warehouses` | [Create a warehous](#create-a-warehous) |
-| `DELETE` | `/api/v1/fulfillment/warehouses/{id}` | [Delete a warehous](#delete-a-warehous) |
-| `PATCH` | `/api/v1/fulfillment/warehouses/{id}` | [Update a warehous](#update-a-warehous) |
+| `POST` | `/api/v1/fulfillment/warehouses` | [Create a warehouse](#create-a-warehouse) |
+| `DELETE` | `/api/v1/fulfillment/warehouses/{id}` | [Delete a warehouse](#delete-a-warehouse) |
+| `PATCH` | `/api/v1/fulfillment/warehouses/{id}` | [Update a warehouse](#update-a-warehouse) |
 
 ## List deliveries
 
@@ -162,7 +162,7 @@ curl -X GET "https://malapos.com/api/v1/fulfillment/licenses" \
   -H "Authorization: Bearer sk_live_…"
 ```
 
-## Create a licens
+## Create a license
 
 ```
 POST /api/v1/fulfillment/licenses
@@ -186,7 +186,7 @@ curl -X POST "https://malapos.com/api/v1/fulfillment/licenses" \
   -d '{"productId":"…","customerId":"…","maxActivations":1,"expiresAt":"…"}'
 ```
 
-## Revoke a licens
+## Revoke a license
 
 ```
 POST /api/v1/fulfillment/licenses/{id}/revoke
@@ -550,7 +550,7 @@ curl -X GET "https://malapos.com/api/v1/fulfillment/warehouses" \
   -H "Authorization: Bearer sk_live_…"
 ```
 
-## Create a warehous
+## Create a warehouse
 
 ```
 POST /api/v1/fulfillment/warehouses
@@ -576,7 +576,7 @@ curl -X POST "https://malapos.com/api/v1/fulfillment/warehouses" \
   -d '{"name":"…","address":"…","city":"…","postal":"…","phone":"…","isDefault":false}'
 ```
 
-## Delete a warehous
+## Delete a warehouse
 
 ```
 DELETE /api/v1/fulfillment/warehouses/{id}
@@ -595,7 +595,7 @@ curl -X DELETE "https://malapos.com/api/v1/fulfillment/warehouses/:id" \
   -H "Authorization: Bearer sk_live_…"
 ```
 
-## Update a warehous
+## Update a warehouse
 
 ```
 PATCH /api/v1/fulfillment/warehouses/{id}

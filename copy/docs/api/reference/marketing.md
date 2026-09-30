@@ -71,7 +71,7 @@ POST /api/v1/marketing/discount-codes
 curl -X POST "https://malapos.com/api/v1/marketing/discount-codes" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"code":"…","description":"…","type":"percent","value":0,"currency":"…","scope":"cart","productIds":[],"tagFilter":[],"minPurchaseAmount":0,"maxUsesTotal":0,"maxUsesPerCustomer":0,"startsAt":"2026-01-01T00:00:00Z","expiresAt":"2026-01-01T00:00:00Z","active":false,"public":false}'
+  -d '{"code":"…","description":"…","type":"percent","value":1,"currency":"…","scope":"cart","productIds":[],"tagFilter":[],"minPurchaseAmount":0,"maxUsesTotal":1,"maxUsesPerCustomer":1,"startsAt":"2026-01-01T00:00:00Z","expiresAt":"2026-01-01T00:00:00Z","active":false,"public":false}'
 ```
 
 ## Delete a discount code
@@ -150,7 +150,7 @@ PATCH /api/v1/marketing/discount-codes/{id}
 curl -X PATCH "https://malapos.com/api/v1/marketing/discount-codes/:id" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"code":null,"description":"…","type":"percent","value":0,"currency":"…","scope":"cart","productIds":[],"tagFilter":[],"minPurchaseAmount":0,"maxUsesTotal":0,"maxUsesPerCustomer":0,"startsAt":"2026-01-01T00:00:00Z","expiresAt":"2026-01-01T00:00:00Z","active":false,"public":false}'
+  -d '{"code":null,"description":"…","type":"percent","value":1,"currency":"…","scope":"cart","productIds":[],"tagFilter":[],"minPurchaseAmount":0,"maxUsesTotal":1,"maxUsesPerCustomer":1,"startsAt":"2026-01-01T00:00:00Z","expiresAt":"2026-01-01T00:00:00Z","active":false,"public":false}'
 ```
 
 ## Create a validate

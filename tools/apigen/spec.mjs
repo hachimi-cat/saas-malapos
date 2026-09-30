@@ -196,7 +196,8 @@ function mountPath(layer) {
   let m = src.replace('\\/?(?=\\/|$)', '').replace(/^\^/, '').replace(/\$$/, '');
   const keys = (layer.keys || []).map((k) => k.name);
   let i = 0;
-  m = m.replace(/\(\?:\(\[\^\\\/]\+\?\)\)/g, () => `:${keys[i++] ?? 'param'}`);
+  // a parameter in the mount path: `(?:([^\/]+?))`, or `(?:\/([^/]+?))` (path-to-regexp 0.1.12+)
+  m = m.replace(/\(\?:(\\\/)?\(\[\^\\?\/]\+\?\)\)/g, (_, slash) => `${slash ? '/' : ''}:${keys[i++] ?? 'param'}`);
   return m.replace(/\\\//g, '/').replace(/\\\./g, '.').replace(/\\-/g, '-');
 }
 function layerName(layer) {
@@ -205,24 +206,31 @@ function layerName(layer) {
 }
 const found = [];
 function walk(router, base, guards, routerKey) {
+  // guards: [{ name, prefix }] — a middleware mounted at a path guards only the routes under it
   let local = [...guards];
+  const guarding = (full) => local.filter((g) => full === g.prefix || full.startsWith(g.prefix.replace(/\/$/, '') + '/') || g.prefix === base || g.prefix === '').map((g) => g.name);
   for (const layer of router.stack || []) {
     if (layer.route) {
       const methods = Object.keys(layer.route.methods).filter((m) => layer.route.methods[m] && m !== '_all');
       const paths = Array.isArray(layer.route.path) ? layer.route.path : [layer.route.path];
       for (const p of paths) for (const method of methods) {
-        found.push({ method, local: String(p), full: (base + String(p)).replace(/\/+/g, '/').replace(/(.)\/$/, '$1'), routerKey, guards: local });
+        const full = (base + String(p)).replace(/\/+/g, '/').replace(/(.)\/$/, '$1');
+        found.push({ method, local: String(p), full, routerKey, guards: guarding(full) });
       }
     } else if (layer.handle && layer.handle.stack) {
       const key = whereIs.get(layer.handle) ?? routerKey;
-      walk(layer.handle, base + mountPath(layer), local, key);
+      const prefix = (base + mountPath(layer)).replace(/\/+/g, '/');
+      walk(layer.handle, base + mountPath(layer), local.filter((g) => prefix.startsWith(g.prefix.replace(/\/$/, '')) || g.prefix === base), key);
     } else {
       const n = layerName(layer);
-      if (n && !['query', 'expressInit', 'jsonParser', 'urlencodedParser', 'rawParser', 'textParser'].includes(n)) local = [...local, n];
+      if (n && !['query', 'expressInit', 'jsonParser', 'urlencodedParser', 'rawParser', 'textParser'].includes(n)) {
+        local = [...local, { name: n, prefix: (base + mountPath(layer)).replace(/\/+/g, '/') }];
+      }
     }
   }
 }
 walk(root, PREFIX, [], `${entryRel}#default`);
+for (const r of found) if (r.guards.some((g) => typeof g !== 'string')) r.guards = r.guards.map((g) => g.name ?? g);
 
 // ── 4. each route's source call, and the schemas it validates ─────────────────────────
 function isZod(v) { return v && typeof v === 'object' && v._def && typeof v.safeParse === 'function'; }
@@ -280,6 +288,10 @@ function schemasIn(fileRel, node, sink, depth = 0) {
   for (const m of text.matchAll(/\breq\.query\??\.([A-Za-z_$][\w$]*)|\breq\.query\??\[\s*['"]([^'"]+)['"]\s*\]/g)) {
     (sink.queryFields ??= new Set()).add(m[1] ?? m[2]);
   }
+  for (const alias of text.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:\(?\s*)?req\.query\b/g)) {
+    const re = new RegExp(`\\b${alias[1]}\\??\\.([A-Za-z_$][\\w$]*)|\\b${alias[1]}\\[\\s*['"]([^'"]+)['"]\\s*\\]`, 'g');
+    for (const m of text.matchAll(re)) (sink.queryFields ??= new Set()).add(m[1] ?? m[2]);
+  }
   for (const m of text.matchAll(/\{([^{}=]*)\}\s*=\s*(?:req\.query|\(req\.query)/g)) {
     for (const part of m[1].split(',')) {
       const name = part.split(':')[0].split('=')[0].replace('...', '').trim();
@@ -329,7 +341,7 @@ function singular(word) {
   if (IRREGULAR[word]) return IRREGULAR[word];
   if (/ies$/.test(word)) return word.replace(/ies$/, 'y');
   if (/(ss|us|is)$/.test(word)) return word;
-  if (/(x|ch|sh|ses)$/.test(word)) return word.replace(/es$/, '');
+  if (/(ss|x|z|ch|sh)es$/.test(word)) return word.replace(/es$/, '');
   return word.replace(/s$/, '');
 }
 const words = (seg) => seg.replace(/[-_]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
@@ -356,7 +368,7 @@ function title(method, full) {
 // A comment above a route that is only a section divider ("─── Merchant CRUD ───") says
 // nothing about the route.
 function usefulDoc(doc) {
-  const kept = doc.split('\n').filter((line) => !/^[\s─—\-=*#/|]*$/.test(line) && !/^[\s─—=-]{3,}.*[─—=-]{3,}\s*$/.test(line));
+  const kept = doc.split('\n').filter((line) => !/^[\s─—\-=*#/|]*$/.test(line) && !/^\s*(─|—|-{2,}|={2,})/.test(line) && !/──/.test(line));
   return kept.join('\n').trim();
 }
 
@@ -403,7 +415,7 @@ for (const route of found) {
   const params = [...route.full.matchAll(/:([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => ({ name: m[1], in: 'path', required: true, schema: { type: 'string' } }));
   const op = {
     operationId: `${route.method}${oaPath.replace(PREFIX, '').replace(/[{}]/g, '').replace(/[^A-Za-z0-9]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''))}`,
-    summary: (doc.split(/\n\s*\n|(?<=\.)\s/)[0] || '').replace(/^(GET|POST|PUT|PATCH|DELETE)\s+\S+\s*[—-]\s*/i, '').replace(/\s+/g, ' ').replace(/^./, (c) => c.toUpperCase()).slice(0, 200) || title(route.method, route.full),
+    summary: (doc.split(/\n\s*\n|(?<!\b(?:e\.g|i\.e|etc|vs|approx))(?<=\.)\s+(?=[A-Z])/)[0] || '').replace(/^(GET|POST|PUT|PATCH|DELETE)\s+\S+\s*[—-]\s*/i, '').replace(/\s+/g, ' ').replace(/^./, (c) => c.toUpperCase()).slice(0, 200) || title(route.method, route.full),
     description: doc ? doc.slice(0, 2000) : undefined,
     tags: [oaPath.replace(PREFIX, '').split('/').filter(Boolean)[0] ?? 'root'],
     parameters: params,

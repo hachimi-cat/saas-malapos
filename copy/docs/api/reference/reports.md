@@ -38,6 +38,14 @@ curl -X GET "https://malapos.com/api/v1/reports/low-stock" \
 GET /api/v1/reports/sales-by-day
 ```
 
+### Query parameters
+
+| Name | Type | Required | Notes |
+|---|---|---|---|
+| `days` | any | no |  |
+| `from` | any | no |  |
+| `to` | any | no |  |
+
 ### Example
 
 ```bash
@@ -63,6 +71,12 @@ curl -X GET "https://malapos.com/api/v1/reports/summary" \
 ```
 GET /api/v1/reports/top-products
 ```
+
+### Query parameters
+
+| Name | Type | Required | Notes |
+|---|---|---|---|
+| `limit` | any | no |  |
 
 ### Example
 

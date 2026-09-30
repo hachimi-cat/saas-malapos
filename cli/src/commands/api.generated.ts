@@ -628,7 +628,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "checkout",
     "method": "POST",
     "path": "/api/v1/billing/checkout",
-    "summary": "POST /checkout {tier, currency?} — create a Plugipay hosted checkout session for a paid tier; the browser redirects to data.hostedUrl.",
+    "summary": "POST /checkout {tier, currency?} — create a Plugipay hosted checkout session for a paid tier; the browser redirects to data.hostedUrl. `currency` is the buyer's saved preference (the billing page pass",
     "pathParams": [],
     "query": [],
     "body": [
@@ -1134,7 +1134,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "create-licenses",
     "method": "POST",
     "path": "/api/v1/fulfillment/licenses",
-    "summary": "Create a licens",
+    "summary": "Create a license",
     "pathParams": [],
     "query": [],
     "body": [
@@ -1229,7 +1229,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "create-warehouses",
     "method": "POST",
     "path": "/api/v1/fulfillment/warehouses",
-    "summary": "Create a warehous",
+    "summary": "Create a warehouse",
     "pathParams": [],
     "query": [],
     "body": [
@@ -1269,7 +1269,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "delete-warehouses",
     "method": "DELETE",
     "path": "/api/v1/fulfillment/warehouses/{id}",
-    "summary": "Delete a warehous",
+    "summary": "Delete a warehouse",
     "pathParams": [
      "id"
     ],
@@ -1393,7 +1393,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "licenses-revoke",
     "method": "POST",
     "path": "/api/v1/fulfillment/licenses/{id}/revoke",
-    "summary": "Revoke a licens",
+    "summary": "Revoke a license",
     "pathParams": [
      "id"
     ],
@@ -1705,7 +1705,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "update-warehouses",
     "method": "PATCH",
     "path": "/api/v1/fulfillment/warehouses/{id}",
-    "summary": "Update a warehous",
+    "summary": "Update a warehouse",
     "pathParams": [
      "id"
     ],
@@ -1868,7 +1868,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "batches",
     "method": "GET",
     "path": "/api/v1/inventory/batches",
-    "summary": "── Batches (pharmacy) ──",
+    "summary": "List batches",
     "pathParams": [],
     "query": [
      {
@@ -1908,7 +1908,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "create-batches",
     "method": "POST",
     "path": "/api/v1/inventory/batches",
-    "summary": "Create a batche",
+    "summary": "Create a batch",
     "pathParams": [],
     "query": [],
     "body": [
@@ -1968,7 +1968,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "levels",
     "method": "GET",
     "path": "/api/v1/inventory/levels",
-    "summary": "── Levels ──",
+    "summary": "List levels",
     "pathParams": [],
     "query": [
      {
@@ -1988,7 +1988,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "movements",
     "method": "GET",
     "path": "/api/v1/inventory/movements",
-    "summary": "── Movement ledger ──",
+    "summary": "List movements",
     "pathParams": [],
     "query": [
      {
@@ -2545,7 +2545,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "create-items",
     "method": "POST",
     "path": "/api/v1/modifiers/{id}/items",
-    "summary": "── Modifiers (items within a group) ──",
+    "summary": "Items a modifier",
     "pathParams": [
      "id"
     ],
@@ -2606,7 +2606,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "list",
     "method": "GET",
     "path": "/api/v1/modifiers",
-    "summary": "── Modifier groups ──",
+    "summary": "List modifiers",
     "pathParams": [],
     "query": [],
     "body": null
@@ -2615,7 +2615,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "product",
     "method": "GET",
     "path": "/api/v1/modifiers/product/{productId}",
-    "summary": "── Product attachments (ProductModifierGroup join) ──",
+    "summary": "Get a product",
     "pathParams": [
      "productId"
     ],
@@ -3596,7 +3596,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "receipts-email",
     "method": "POST",
     "path": "/api/v1/payments/receipts/{id}/email",
-    "summary": "Email a receipt to the customer.",
+    "summary": "Email a receipt to the customer. `to` optional — falls back to the receipt's customer email on the Plugipay side.",
     "pathParams": [
      "id"
     ],
@@ -3909,7 +3909,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "create-variants",
     "method": "POST",
     "path": "/api/v1/products/{id}/variants",
-    "summary": "── Variants ──",
+    "summary": "Variants a product",
     "pathParams": [
      "id"
     ],
@@ -4323,7 +4323,23 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "path": "/api/v1/reports/sales-by-day",
     "summary": "List sales by day",
     "pathParams": [],
-    "query": [],
+    "query": [
+     {
+      "name": "days",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "from",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "to",
+      "kind": "string",
+      "required": false
+     }
+    ],
     "body": null
    },
    {
@@ -4341,7 +4357,13 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "path": "/api/v1/reports/top-products",
     "summary": "List top products",
     "pathParams": [],
-    "query": [],
+    "query": [
+     {
+      "name": "limit",
+      "kind": "string",
+      "required": false
+     }
+    ],
     "body": null
    }
   ]
@@ -4442,7 +4464,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "discard",
     "method": "POST",
     "path": "/api/v1/sales/{id}/discard",
-    "summary": "Abandon a PARKED sale (e.g.",
+    "summary": "Abandon a PARKED sale (e.g. an unpaid dynamic-QRIS sale).",
     "pathParams": [
      "id"
     ],
@@ -5040,7 +5062,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "floor",
     "method": "GET",
     "path": "/api/v1/tables/floor",
-    "summary": "The live floor: every active table with its current open bill (the most-recent PARKED transaction seated at it, if any).",
+    "summary": "The live floor: every active table with its current open bill (the most-recent PARKED transaction seated at it, if any). `openBill` is null for an available table.",
     "pathParams": [],
     "query": [
      {

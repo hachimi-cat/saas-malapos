@@ -13,7 +13,7 @@ Generated from Malapos's own code: every route in this area, what it takes and h
 | `DELETE` | `/api/v1/products/{id}` | [Delete a product](#delete-a-product) |
 | `GET` | `/api/v1/products/{id}` | [Get a product](#get-a-product) |
 | `PATCH` | `/api/v1/products/{id}` | [Update a product](#update-a-product) |
-| `POST` | `/api/v1/products/{id}/variants` | [── Variants ──](#variants) |
+| `POST` | `/api/v1/products/{id}/variants` | [Variants a product](#variants-a-product) |
 | `DELETE` | `/api/v1/products/{id}/variants/{vid}` | [Delete a variant](#delete-a-variant) |
 | `PATCH` | `/api/v1/products/{id}/variants/{vid}` | [Update a variant](#update-a-variant) |
 | `GET` | `/api/v1/products/{id}/variants/{vid}/recipe` | [List recipe](#list-recipe) |
@@ -144,7 +144,7 @@ curl -X PATCH "https://malapos.com/api/v1/products/:id" \
   -d '{"name":"…","description":"…","categoryId":"…","kind":"GOODS","trackStock":false,"requiresBatch":false,"imageUrl":"…","isActive":false,"variants":[]}'
 ```
 
-## ── Variants ──
+## Variants a product
 
 ```
 POST /api/v1/products/{id}/variants

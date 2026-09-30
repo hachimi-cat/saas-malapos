@@ -199,5 +199,5 @@ POST /api/v1/customers/{id}/loyalty/redeem
 curl -X POST "https://malapos.com/api/v1/customers/:id/loyalty/redeem" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"points":0}'
+  -d '{"points":1}'
 ```

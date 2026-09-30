@@ -10,7 +10,7 @@ Generated from Malapos's own code: every route in this area, what it takes and h
 |---|---|---|
 | `GET` | `/api/v1/billing` | [Current subscription (free default when no row) + effectiveTier (what enforcement honors: lapsed/canceled fall back to free) + the tier table.](#current-subscription-free-default-when-no-row-effectivetier-what-enforcement-honors-lapsedcanceled-fall-back-to-free-the-tier-table) |
 | `POST` | `/api/v1/billing/cancel` | [Downgrade to Free.](#downgrade-to-free) |
-| `POST` | `/api/v1/billing/checkout` | [POST /checkout {tier, currency?} — create a Plugipay hosted checkout session for a paid tier; the browser redirects to data.hostedUrl.](#post-checkout-tier-currency-create-a-plugipay-hosted-checkout-session-for-a-paid-tier-the-browser-redirects-to-datahostedurl) |
+| `POST` | `/api/v1/billing/checkout` | [POST /checkout {tier, currency?} — create a Plugipay hosted checkout session for a paid tier; the browser redirects to data.hostedUrl. `currency` is the buyer's saved preference (the billing page pass](#post-checkout-tier-currency-create-a-plugipay-hosted-checkout-session-for-a-paid-tier-the-browser-redirects-to-datahostedurl-currency-is-the-buyers-saved-preference-the-billing-page-pass) |
 | `GET` | `/api/v1/billing/tiers` | [Public plan catalog.](#public-plan-catalog) |
 
 ## Current subscription (free default when no row) + effectiveTier (what enforcement honors: lapsed/canceled fall back to free) + the tier table.
@@ -47,7 +47,7 @@ curl -X POST "https://malapos.com/api/v1/billing/cancel" \
   -H "Authorization: Bearer sk_live_…"
 ```
 
-## POST /checkout {tier, currency?} — create a Plugipay hosted checkout session for a paid tier; the browser redirects to data.hostedUrl.
+## POST /checkout {tier, currency?} — create a Plugipay hosted checkout session for a paid tier; the browser redirects to data.hostedUrl. `currency` is the buyer's saved preference (the billing page pass
 
 ```
 POST /api/v1/billing/checkout

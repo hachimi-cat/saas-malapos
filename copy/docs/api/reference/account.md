@@ -435,7 +435,7 @@ PUT /api/v1/account/referrals
 curl -X PUT "https://malapos.com/api/v1/account/referrals" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"enabled":false,"rewardType":"percent","referrerValue":0,"refereeValue":0,"currency":"…","minPurchaseAmount":0,"rewardExpiryDays":1,"attributionWindowDays":1,"maxRewardsPerReferrer":0,"programTerms":"…","marketingCampaignId":"…"}'
+  -d '{"enabled":false,"rewardType":"percent","referrerValue":1,"refereeValue":1,"currency":"…","minPurchaseAmount":0,"rewardExpiryDays":1,"attributionWindowDays":1,"maxRewardsPerReferrer":1,"programTerms":"…","marketingCampaignId":"…"}'
 ```
 
 ## List attributions

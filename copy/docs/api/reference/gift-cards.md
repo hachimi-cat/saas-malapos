@@ -54,7 +54,7 @@ POST /api/v1/gift-cards
 curl -X POST "https://malapos.com/api/v1/gift-cards" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"amount":0,"customerId":"…","code":"…","note":"…"}'
+  -d '{"amount":1,"customerId":"…","code":"…","note":"…"}'
 ```
 
 ## Get a gift card

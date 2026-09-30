@@ -12,7 +12,7 @@ Generated from Malapos's own code: every route in this area, what it takes and h
 | `POST` | `/api/v1/tables` | [Create a table](#create-a-table) |
 | `DELETE` | `/api/v1/tables/{id}` | [Delete a table](#delete-a-table) |
 | `PATCH` | `/api/v1/tables/{id}` | [Update a table](#update-a-table) |
-| `GET` | `/api/v1/tables/floor` | [The live floor: every active table with its current open bill (the most-recent PARKED transaction seated at it, if any).](#the-live-floor-every-active-table-with-its-current-open-bill-the-most-recent-parked-transaction-seated-at-it-if-any) |
+| `GET` | `/api/v1/tables/floor` | [The live floor: every active table with its current open bill (the most-recent PARKED transaction seated at it, if any). `openBill` is null for an available table.](#the-live-floor-every-active-table-with-its-current-open-bill-the-most-recent-parked-transaction-seated-at-it-if-any-openbill-is-null-for-an-available-table) |
 | `PUT` | `/api/v1/tables/layout` | [Bulk-save the floor map.](#bulk-save-the-floor-map) |
 
 ## List tables
@@ -123,7 +123,7 @@ curl -X PATCH "https://malapos.com/api/v1/tables/:id" \
   -d '{"label":"…","floorId":"…","zone":"…","seats":0,"sortOrder":0,"isActive":false,"posX":0,"posY":0,"shape":"SQUARE","width":1,"height":1}'
 ```
 
-## The live floor: every active table with its current open bill (the most-recent PARKED transaction seated at it, if any).
+## The live floor: every active table with its current open bill (the most-recent PARKED transaction seated at it, if any). `openBill` is null for an available table.
 
 ```
 GET /api/v1/tables/floor

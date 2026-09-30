@@ -11,7 +11,7 @@ Generated from Malapos's own code: every route in this area, what it takes and h
 | `GET` | `/api/v1/sales` | [List sales](#list-sales) |
 | `POST` | `/api/v1/sales` | [Create a sale](#create-a-sale) |
 | `GET` | `/api/v1/sales/{id}` | [Get a sale](#get-a-sale) |
-| `POST` | `/api/v1/sales/{id}/discard` | [Abandon a PARKED sale (e.g.](#abandon-a-parked-sale-eg) |
+| `POST` | `/api/v1/sales/{id}/discard` | [Abandon a PARKED sale (e.g. an unpaid dynamic-QRIS sale).](#abandon-a-parked-sale-eg-an-unpaid-dynamic-qris-sale) |
 | `PATCH` | `/api/v1/sales/{id}/items` | [Edit an open bill (PARKED sale): replace its line items + recompute totals, optionally re-seat or attach a customer.](#edit-an-open-bill-parked-sale-replace-its-line-items-recompute-totals-optionally-re-seat-or-attach-a-customer) |
 | `POST` | `/api/v1/sales/{id}/payments` | [Record ONE tender against an open bill (PARKED) for split-bill checkout.](#record-one-tender-against-an-open-bill-parked-for-split-bill-checkout) |
 | `POST` | `/api/v1/sales/{id}/refund` | [Refund a sale](#refund-a-sale) |
@@ -94,7 +94,7 @@ curl -X GET "https://malapos.com/api/v1/sales/:id" \
   -H "Authorization: Bearer sk_live_…"
 ```
 
-## Abandon a PARKED sale (e.g.
+## Abandon a PARKED sale (e.g. an unpaid dynamic-QRIS sale).
 
 ```
 POST /api/v1/sales/{id}/discard
@@ -189,7 +189,7 @@ POST /:id/payments — record ONE tender against an open bill (PARKED) for
 curl -X POST "https://malapos.com/api/v1/sales/:id/payments" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"method":"CASH","amount":0,"tendered":0,"reference":"…","plugipayRef":"…","status":"PENDING"}'
+  -d '{"method":"CASH","amount":1,"tendered":0,"reference":"…","plugipayRef":"…","status":"PENDING"}'
 ```
 
 ## Refund a sale
@@ -220,7 +220,7 @@ POST /api/v1/sales/{id}/refund
 curl -X POST "https://malapos.com/api/v1/sales/:id/refund" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"lines":[],"amount":0,"restock":false,"refundToStoreCredit":false,"reason":"…"}'
+  -d '{"lines":[],"amount":1,"restock":false,"refundToStoreCredit":false,"reason":"…"}'
 ```
 
 ## Charge an open bill (PARKED → COMPLETED) with manual tenders, reusing the shared completion side-effects (stock + loyalty + event).

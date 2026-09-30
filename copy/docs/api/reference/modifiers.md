@@ -8,18 +8,18 @@ Generated from Malapos's own code: every route in this area, what it takes and h
 
 | Method | Path | What it does |
 |---|---|---|
-| `GET` | `/api/v1/modifiers` | [── Modifier groups ──](#modifier-groups) |
+| `GET` | `/api/v1/modifiers` | [List modifiers](#list-modifiers) |
 | `POST` | `/api/v1/modifiers` | [Create a modifier](#create-a-modifier) |
 | `DELETE` | `/api/v1/modifiers/{id}` | [Delete a modifier](#delete-a-modifier) |
 | `GET` | `/api/v1/modifiers/{id}` | [Get a modifier](#get-a-modifier) |
 | `PATCH` | `/api/v1/modifiers/{id}` | [Update a modifier](#update-a-modifier) |
-| `POST` | `/api/v1/modifiers/{id}/items` | [── Modifiers (items within a group) ──](#modifiers-items-within-a-group) |
+| `POST` | `/api/v1/modifiers/{id}/items` | [Items a modifier](#items-a-modifier) |
 | `DELETE` | `/api/v1/modifiers/{id}/items/{modId}` | [Delete an item](#delete-an-item) |
 | `PATCH` | `/api/v1/modifiers/{id}/items/{modId}` | [Update an item](#update-an-item) |
-| `GET` | `/api/v1/modifiers/product/{productId}` | [── Product attachments (ProductModifierGroup join) ──](#product-attachments-productmodifiergroup-join) |
+| `GET` | `/api/v1/modifiers/product/{productId}` | [Get a product](#get-a-product) |
 | `PUT` | `/api/v1/modifiers/product/{productId}` | [Replace a product](#replace-a-product) |
 
-## ── Modifier groups ──
+## List modifiers
 
 ```
 GET /api/v1/modifiers
@@ -125,7 +125,7 @@ curl -X PATCH "https://malapos.com/api/v1/modifiers/:id" \
   -d '{"name":"…","minSelect":0,"maxSelect":1,"sortOrder":0}'
 ```
 
-## ── Modifiers (items within a group) ──
+## Items a modifier
 
 ```
 POST /api/v1/modifiers/{id}/items
@@ -205,7 +205,7 @@ curl -X PATCH "https://malapos.com/api/v1/modifiers/:id/items/:modId" \
   -d '{"name":"…","price":0,"sortOrder":0,"isActive":false}'
 ```
 
-## ── Product attachments (ProductModifierGroup join) ──
+## Get a product
 
 ```
 GET /api/v1/modifiers/product/{productId}

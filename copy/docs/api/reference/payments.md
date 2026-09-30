@@ -48,7 +48,7 @@ Generated from Malapos's own code: every route in this area, what it takes and h
 | `GET` | `/api/v1/payments/qris/{sessionId}` | [Poll the session status so the sell screen can wait for the customer's scan to confirm.](#poll-the-session-status-so-the-sell-screen-can-wait-for-the-customers-scan-to-confirm) |
 | `GET` | `/api/v1/payments/receipts` | [List receipts](#list-receipts) |
 | `GET` | `/api/v1/payments/receipts/{id}` | [Get a receipt](#get-a-receipt) |
-| `POST` | `/api/v1/payments/receipts/{id}/email` | [Email a receipt to the customer.](#email-a-receipt-to-the-customer) |
+| `POST` | `/api/v1/payments/receipts/{id}/email` | [Email a receipt to the customer. `to` optional — falls back to the receipt's customer email on the Plugipay side.](#email-a-receipt-to-the-customer-to-optional-falls-back-to-the-receipts-customer-email-on-the-plugipay-side) |
 | `GET` | `/api/v1/payments/receipts/{id}/escpos` | [List escpos](#list-escpos) |
 | `GET` | `/api/v1/payments/receipts/{id}/html` | [List html](#list-html-2) |
 | `GET` | `/api/v1/payments/receipts/{id}/pdf` | [Binary passthroughs — PDF, HTML, ESC/POS thermal.](#binary-passthroughs-pdf-html-escpos-thermal) |
@@ -106,7 +106,7 @@ POST /api/v1/payments/checkout-sessions
 curl -X POST "https://malapos.com/api/v1/payments/checkout-sessions" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"amount":0,"currency":"IDR","paymentMethods":[],"successUrl":"…","cancelUrl":"…","customerId":"…","expiresInMinutes":0,"metadata":{}}'
+  -d '{"amount":1,"currency":"IDR","paymentMethods":[],"successUrl":"…","cancelUrl":"…","customerId":"…","expiresInMinutes":1,"metadata":{}}'
 ```
 
 ## Get a checkout session
@@ -462,7 +462,7 @@ POST /api/v1/payments/payouts
 curl -X POST "https://malapos.com/api/v1/payments/payouts" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"amount":0,"currency":"IDR","bankCode":"…","bankName":"…","bankAccountNumber":"…","bankAccountHolder":"…","note":"…"}'
+  -d '{"amount":1,"currency":"IDR","bankCode":"…","bankName":"…","bankAccountNumber":"…","bankAccountHolder":"…","note":"…"}'
 ```
 
 ## Get a payout
@@ -835,7 +835,7 @@ not tied to a sale (the cashier reconciles manually).
 curl -X POST "https://malapos.com/api/v1/payments/qris" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"transactionId":"…","amount":0,"method":"qris"}'
+  -d '{"transactionId":"…","amount":1,"method":"qris"}'
 ```
 
 ## Poll the session status so the sell screen can wait for the customer's scan to confirm.
@@ -901,7 +901,7 @@ curl -X GET "https://malapos.com/api/v1/payments/receipts/:id" \
   -H "Authorization: Bearer sk_live_…"
 ```
 
-## Email a receipt to the customer.
+## Email a receipt to the customer. `to` optional — falls back to the receipt's customer email on the Plugipay side.
 
 ```
 POST /api/v1/payments/receipts/{id}/email

@@ -9,12 +9,12 @@ Generated from Malapos's own code: every route in this area, what it takes and h
 | Method | Path | What it does |
 |---|---|---|
 | `POST` | `/api/v1/inventory/adjust` | [Create an adjust](#create-an-adjust) |
-| `GET` | `/api/v1/inventory/batches` | [── Batches (pharmacy) ──](#batches-pharmacy) |
-| `POST` | `/api/v1/inventory/batches` | [Create a batche](#create-a-batche) |
+| `GET` | `/api/v1/inventory/batches` | [List batches](#list-batches) |
+| `POST` | `/api/v1/inventory/batches` | [Create a batch](#create-a-batch) |
 | `GET` | `/api/v1/inventory/composites` | [Derived availability for COMPOSITE variants at an outlet.](#derived-availability-for-composite-variants-at-an-outlet) |
 | `GET` | `/api/v1/inventory/expiring` | [List expiring](#list-expiring) |
-| `GET` | `/api/v1/inventory/levels` | [── Levels ──](#levels) |
-| `GET` | `/api/v1/inventory/movements` | [── Movement ledger ──](#movement-ledger) |
+| `GET` | `/api/v1/inventory/levels` | [List levels](#list-levels) |
+| `GET` | `/api/v1/inventory/movements` | [List movements](#list-movements) |
 | `PUT` | `/api/v1/inventory/reorder` | [Set reorder](#set-reorder) |
 | `POST` | `/api/v1/inventory/transfer` | [Create a transfer](#create-a-transfer) |
 
@@ -42,7 +42,7 @@ curl -X POST "https://malapos.com/api/v1/inventory/adjust" \
   -d '{"outletId":"…","variantId":"…","qtyDelta":1,"reason":"…"}'
 ```
 
-## ── Batches (pharmacy) ──
+## List batches
 
 ```
 GET /api/v1/inventory/batches
@@ -63,7 +63,7 @@ curl -X GET "https://malapos.com/api/v1/inventory/batches" \
   -H "Authorization: Bearer sk_live_…"
 ```
 
-## Create a batche
+## Create a batch
 
 ```
 POST /api/v1/inventory/batches
@@ -86,7 +86,7 @@ POST /api/v1/inventory/batches
 curl -X POST "https://malapos.com/api/v1/inventory/batches" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"outletId":"…","variantId":"…","batchNo":"…","expiryDate":null,"qty":0,"cost":0}'
+  -d '{"outletId":"…","variantId":"…","batchNo":"…","expiryDate":null,"qty":1,"cost":0}'
 ```
 
 ## Derived availability for COMPOSITE variants at an outlet.
@@ -132,7 +132,7 @@ curl -X GET "https://malapos.com/api/v1/inventory/expiring" \
   -H "Authorization: Bearer sk_live_…"
 ```
 
-## ── Levels ──
+## List levels
 
 ```
 GET /api/v1/inventory/levels
@@ -152,7 +152,7 @@ curl -X GET "https://malapos.com/api/v1/inventory/levels" \
   -H "Authorization: Bearer sk_live_…"
 ```
 
-## ── Movement ledger ──
+## List movements
 
 ```
 GET /api/v1/inventory/movements
@@ -216,5 +216,5 @@ POST /api/v1/inventory/transfer
 curl -X POST "https://malapos.com/api/v1/inventory/transfer" \
   -H "Authorization: Bearer sk_live_…" \
   -H "Content-Type: application/json" \
-  -d '{"fromOutletId":"…","toOutletId":"…","variantId":"…","qty":0}'
+  -d '{"fromOutletId":"…","toOutletId":"…","variantId":"…","qty":1}'
 ```

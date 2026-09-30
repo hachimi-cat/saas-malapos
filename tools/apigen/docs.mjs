@@ -60,7 +60,11 @@ function example(schema, depth = 0) {
     return out;
   }
   if (t === 'array') return [];
-  if (t === 'integer' || t === 'number') return schema.minimum ?? 1;
+  if (t === 'integer' || t === 'number') {
+    if (schema.exclusiveMinimum === true) return (schema.minimum ?? 0) + 1;
+    if (typeof schema.exclusiveMinimum === 'number') return schema.exclusiveMinimum + 1;
+    return schema.minimum ?? 1;
+  }
   if (t === 'boolean') return false;
   if (t === 'string') return schema.format === 'date-time' ? '2026-01-01T00:00:00Z' : '…';
   return null;
@@ -69,7 +73,7 @@ function example(schema, depth = 0) {
 const pages = new Map(); // tag -> [{method, path, op}]
 for (const [p, item] of Object.entries(spec.paths ?? {})) {
   for (const [method, op] of Object.entries(item)) {
-    if (!isFeature(method, p)) continue;
+    if (!isFeature(method, p, op)) continue;
     const tag = (op.tags ?? ['root'])[0];
     if (!pages.has(tag)) pages.set(tag, []);
     pages.get(tag).push({ method, path: p, op });

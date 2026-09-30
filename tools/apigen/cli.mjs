@@ -34,7 +34,7 @@ function kind(schema) {
 const byArea = new Map();
 for (const [p, item] of Object.entries(spec.paths ?? {})) {
   for (const [method, op] of Object.entries(item)) {
-    if (!isFeature(method, p)) continue;
+    if (!isFeature(method, p, op)) continue;
     const segs = p.replace(PREFIX, '').split('/').filter(Boolean);
     const area = kebab(op.tags?.[0] ?? segs[0] ?? 'root');
     const rest = segs.slice(1).filter((s) => !s.startsWith('{'));
