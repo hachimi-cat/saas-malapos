@@ -18,6 +18,8 @@
 import { GeneratedApi } from './api.generated.js';
 
 export { GeneratedApi } from './api.generated.js';
+export { verifyWebhook } from './webhooks.js';
+export type { MalaposEventType, MalaposWebhookEvent } from './webhooks.js';
 
 export interface ApiEnvelope<T> {
   data: T | null;
