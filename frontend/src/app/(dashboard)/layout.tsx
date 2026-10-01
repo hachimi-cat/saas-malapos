@@ -2,6 +2,7 @@ import Script from 'next/script';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { DashboardShell } from '@/components/dashboard-shell';
+import { Toaster } from '@/components/ui/sonner';
 import type { SessionUser } from '@forjio/portal-ui';
 
 /*
@@ -71,6 +72,8 @@ export default async function DashboardLayout({
   return (
     <DashboardShell user={resolved.user} accountId={resolved.accountId}>
       {children}
+      {/* sonner's toasts (webhook retries, credits, shipment labels) render here. */}
+      <Toaster position="bottom-right" />
       {/* Suppuo helpdesk widget — live chat in the authenticated portal too
           (matches the family; the bubble follows the workspace brand accent).
           Handle = brand slug; rename.sh rewrites `malapos`. */}
