@@ -1,5 +1,6 @@
 import { createApp } from './app.js';
 import { startOutboxWorker } from './services/outbox-worker.js';
+import { startWebhookDeliveryWorker } from './services/webhook-delivery.js';
 import { registerFeatureFlags } from './lib/feature-flag-registry.js';
 
 const app = createApp();
@@ -9,9 +10,13 @@ app.listen(port, () => {
   console.log(`[api] ${process.env.FORJIO_SERVICE ?? 'malapos'} listening on ${port}`);
 });
 
-// Outbox worker runs alongside the API process. For production, prefer a
-// separate pm2 entry: `node dist/services/outbox-worker.js`. Tests
-// (`NODE_ENV=test`) keep the worker off so stray deliveries don't leak.
+// The outbox worker (fan-out of every event to the merchant's webhook
+// subscriptions) and the webhook delivery worker (sending, retrying and
+// recording those deliveries) run INSIDE this API process — production
+// starts only this file (pm2 `dist/index.js`); neither worker file is an
+// entrypoint of its own. OUTBOX_WORKER_ENABLED=false turns both off, which
+// stops all webhook delivery: only for a test run or a second API replica.
+// Tests (`NODE_ENV=test`) keep them off so stray deliveries don't leak.
 const outboxDefaultOff = process.env.NODE_ENV === 'test';
 const outboxEnabled = process.env.OUTBOX_WORKER_ENABLED
   ? process.env.OUTBOX_WORKER_ENABLED !== 'false'
@@ -19,6 +24,10 @@ const outboxEnabled = process.env.OUTBOX_WORKER_ENABLED
 if (outboxEnabled) {
   startOutboxWorker().catch((e) => {
     console.error('[outbox] fatal', e);
+    process.exit(1);
+  });
+  startWebhookDeliveryWorker().catch((e) => {
+    console.error('[webhooks] fatal', e);
     process.exit(1);
   });
 }

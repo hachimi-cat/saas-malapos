@@ -936,20 +936,98 @@ model ApiKey {
 
 /// A customer endpoint subscribed to malapos.* events. The signing
 /// secret (`whsec_<hex>`) is shown ONCE at creation; deliveries carry
-/// `Malapos-Signature: t=<unix>,v1=<hmac-sha256>`.
+/// `Malapos-Signature: t=<unix>,v1=<hmac-sha256>` and are sent, retried
+/// and recorded by services/webhook-delivery.ts.
 model WebhookSubscription {
-  id        String   @id // whs_<ulid>
-  accountId String
-  url       String
-  secret    String
-  /// Event-type allowlist as a JSON string array; ["*"] = everything.
-  events    Json     @default("[\"*\"]")
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String    @id // whs_<ulid>
+  accountId           String
+  url                 String
+  secret              String
+  /// Event-type allowlist as a JSON string array: exact types, prefixes
+  /// ending in `*` (`malapos.sale.*`), or ["*"] = everything.
+  events              Json      @default("[\"*\"]")
+  active              Boolean   @default(true)
+  /// Failed attempts in a row since the last 2xx. Reset by a success and
+  /// by re-enabling the endpoint.
+  consecutiveFailures Int       @default(0)
+  /// When the current run of failures started; null while healthy.
+  failingSince        DateTime?
+  /// Set when Malapos switched the endpoint off itself because it kept
+  /// failing (null for a manual pause). Cleared on re-enable.
+  disabledAt          DateTime?
+  disabledReason      String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  deliveries WebhookDelivery[]
 
   @@index([accountId, active])
   @@map("webhook_subscriptions")
+}
+
+/// pending — queued, or waiting for its next retry (`nextRetryAt`).
+/// succeeded — the endpoint answered 2xx. failed — every attempt failed,
+/// or the endpoint was switched off; terminal until retried by hand.
+enum WebhookDeliveryStatus {
+  pending
+  succeeded
+  failed
+}
+
+enum WebhookAttemptStatus {
+  succeeded
+  failed
+}
+
+/// One event delivered to one subscription (what GET
+/// /webhook-subscriptions/deliveries lists). `body` is the exact JSON
+/// sent on every attempt.
+model WebhookDelivery {
+  id             String                @id // whd_<ulid>
+  accountId      String
+  subscriptionId String
+  /// The outbox event (evt_…): the body's `id`, the same on every attempt.
+  eventId        String
+  type           String
+  body           String                @db.Text
+  status         WebhookDeliveryStatus @default(pending)
+  attempts       Int                   @default(0)
+  nextRetryAt    DateTime?
+  lastAttemptAt  DateTime?
+  deliveredAt    DateTime?
+  responseCode   Int?
+  lastError      String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  subscription WebhookSubscription      @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  attemptLog   WebhookDeliveryAttempt[]
+
+  @@unique([subscriptionId, eventId])
+  @@index([status, nextRetryAt])
+  @@index([accountId, createdAt])
+  @@map("webhook_deliveries")
+}
+
+/// One HTTP attempt at a WebhookDelivery. Append-only.
+model WebhookDeliveryAttempt {
+  id             String               @id // wda_<ulid>
+  deliveryId     String
+  accountId      String
+  subscriptionId String
+  attemptNumber  Int // 1-based
+  status         WebhookAttemptStatus
+  responseCode   Int? // null when no response came back
+  durationMs     Int
+  error          String? // why it failed: "HTTP 503", "timed out after 10000ms", "blocked: …"
+  nextRetryAt    DateTime? // the retry this failure scheduled; null on success or give-up
+  attemptedAt    DateTime             @default(now())
+
+  delivery WebhookDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@unique([deliveryId, attemptNumber])
+  @@index([accountId, attemptedAt])
+  @@map("webhook_delivery_attempts")
 }
 
 /// Operator feature flag — mandatory admin-portal standard.

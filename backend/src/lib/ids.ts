@@ -40,7 +40,9 @@ export type IdPrefix =
   | 'gce' // gift card ledger entry
   | 'bsub' // billing subscription (Plugipay-backed plan)
   | 'ak' // API key
-  | 'whs'; // webhook subscription
+  | 'whs' // webhook subscription
+  | 'whd' // webhook delivery (one event to one subscription)
+  | 'wda'; // webhook delivery attempt
 
 export function newId(prefix: IdPrefix): string {
   return `${prefix}_${ulid().toLowerCase()}`;
