@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 - `verifyWebhook({ rawBody, signature, secret })` checks a delivery's `Malapos-Signature` over the raw body (5-minute tolerance) and returns the event; throws `MalaposError` with code `INVALID_SIGNATURE`. Exports the `MalaposEventType` catalogue and `MalaposWebhookEvent`.
 - `client.api`: the webhook delivery log — `webhookSubscriptionsDeliveries({ subscriptionId?, status?, type?, limit?, cursor? })`, `webhookSubscriptionsGetDeliveries(id)` (with every attempt), `webhookSubscriptionsDeliveriesRetry(id)` — and `webhookSubscriptionsEventTypes()`. `webhookSubscriptionsUpdate(id, …)` also takes `url` and `events`.
 - Deliveries are now retried (1 min, 5 min, 25 min, 2 h, 12 h) and recorded; the envelope carries `accountId`, and each delivery has `Malapos-Event-Id`, `-Event-Type`, `-Delivery-Id` and `-Delivery-Attempt` headers. Subscriptions take prefixes (`malapos.kds.*`).

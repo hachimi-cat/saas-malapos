@@ -16,7 +16,7 @@ import { buildApiCommand } from './commands/api.generated.js';
 export const program = new Command()
   .name('malapos')
   .description('CLI for Malapos — point-of-sale for the Forjio commerce suite.')
-  .version('0.1.0');
+  .version('0.2.0');
 
 program
   .option('--json', 'machine-readable JSON output')

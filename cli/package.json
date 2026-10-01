@@ -1,6 +1,6 @@
 {
   "name": "@forjio/malapos-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI for Malapos (part of the Forjio commerce suite).",
   "type": "module",
   "main": "dist/index.js",

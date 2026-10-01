@@ -1,6 +1,6 @@
 [project]
 name = "forjio-malapos"
-version = "0.2.0"
+version = "0.3.0"
 description = "Malapos SDK — typed Python client for the malapos.com point-of-sale REST API: every route of the API as client.api.<area>_<action>(). Sister to the JS + Go SDKs."
 authors = [{ name = "Forjio", email = "support@forjio.com" }]
 license = { text = "Proprietary" }

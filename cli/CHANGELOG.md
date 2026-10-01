@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 - `malapos api webhook-subscriptions deliveries` (`--subscription-id`, `--status`, `--type`, paged), `get-deliveries <id>` (with every attempt), `deliveries-retry <id>` and `event-types`; `update <id>` also takes `--url` and `--events`.
 
 ## 0.1.0
