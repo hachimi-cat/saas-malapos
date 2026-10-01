@@ -592,8 +592,10 @@ shapes.
 |---|---|---|
 | GET | `/audit-log` | Cursor-paginated feed of the domain events your workspace has emitted, newest first; `?type=` filters to one event type |
 
-The feed is the same append-only event store that drives webhook
-delivery, so it never drifts from what was actually delivered.
+The feed is the append-only event store webhook delivery fans out from:
+it records what your workspace *emitted*. What was *delivered* to each of
+your endpoints — every attempt, its response and the next retry — is the
+webhook delivery log (`GET /webhook-subscriptions/deliveries`, below).
 
 ### API keys — `/api-keys`
 
@@ -611,16 +613,23 @@ Programmatic access tokens. The plaintext `sk_live_…` key is returned
 
 Get an HTTPS POST whenever something happens in your workspace. The
 signing secret (`whsec_…`) is shown **once** at creation. IDs are
-`whs_`-prefixed.
+`whs_`-prefixed; deliveries `whd_`.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/webhook-subscriptions` | List your endpoints |
+| GET | `/webhook-subscriptions` | List your endpoints (with `consecutiveFailures`, `failingSince`, `disabledAt`, `disabledReason`) |
 | POST | `/webhook-subscriptions` | Add an endpoint (`{ url, events }`) — response carries the one-time `secret` |
-| PATCH | `/webhook-subscriptions/:id` | Pause/resume (`{ active }`) |
-| DELETE | `/webhook-subscriptions/:id` | Remove an endpoint |
+| PATCH | `/webhook-subscriptions/:id` | Change `url` / `events`, or pause/resume (`active`) |
+| DELETE | `/webhook-subscriptions/:id` | Remove an endpoint (and its delivery log) |
+| GET | `/webhook-subscriptions/event-types` | The event catalogue below, as data |
+| GET | `/webhook-subscriptions/deliveries` | The delivery log, newest first; `?subscriptionId=` `?status=pending\|succeeded\|failed` `?type=` `?limit=` (1–100, default 20) `?cursor=` (from `meta.cursor` while `meta.hasMore`) |
+| GET | `/webhook-subscriptions/deliveries/:id` | One delivery, with every attempt (`attemptLog`) |
+| POST | `/webhook-subscriptions/deliveries/:id/retry` | Send it again now — `202`; `409 ALREADY_QUEUED` while it is pending, `409 ENDPOINT_DISABLED` while its endpoint is off |
 
-Subscribe to specific events or `["*"]` for all. Event types:
+The URL must be `https://` and may not point at a private, loopback or
+link-local address (checked when you add or change it, and again on every
+delivery). Subscribe to specific events, a prefix (`malapos.kds.*`) or
+`["*"]` for all. Event types:
 
 - `malapos.sale.completed.v1` — a sale was finalized and paid
 - `malapos.sale.voided.v1` — a recorded sale was voided
@@ -634,10 +643,38 @@ Subscribe to specific events or `["*"]` for all. Event types:
 - `malapos.shipping_credit.topped_up.v1` — fulfillment shipping credit was topped up
 - `malapos.billing.subscribed.v1` — a workspace started/upgraded a paid plan
 - `malapos.billing.canceled.v1` — a workspace canceled its subscription
+- `malapos.webhook_subscription.disabled.v1` — Malapos switched off one of your endpoints because it kept failing (sent to your *other* endpoints; `data` has `id`, `url`, `disabledAt`, `disabledReason`, `consecutiveFailures`, `failingSince`)
 
-Each delivery is a POST of `{ id, type, occurredAt, data }` with a
-`Malapos-Signature: t=<unix>,v1=<hex>` header. Recompute the HMAC-SHA256
-of `` `${t}.${rawBody}` `` with your signing secret and compare; reject
-anything older than ~5 minutes. Delivery is at-most-once in v1 (failures
-are logged, not retried) — reconcile with `GET /sales` if you need
-certainty.
+Each delivery is a POST of `{ id, type, occurredAt, accountId, data }` with
+these headers:
+
+```
+Malapos-Signature: t=<unix>,v1=<hex HMAC-SHA256(secret, "<t>.<raw body>")>
+Malapos-Event-Id: evt_…           (the body's id — the same on every attempt)
+Malapos-Event-Type: malapos.sale.completed.v1
+Malapos-Delivery-Id: whd_…
+Malapos-Delivery-Attempt: 1
+```
+
+Recompute the HMAC over the **raw** body with your signing secret and
+compare; reject anything older than ~5 minutes. The SDKs do this for you:
+`verifyWebhook` (JS), `verify_webhook` (Python), `VerifyWebhook` (Go).
+
+**Delivery.** A `2xx` within 10 seconds is success. Anything else — another
+status, a redirect (never followed), a timeout, a refused connection — is a
+failed attempt, retried 1 min, 5 min, 25 min, 2 h and 12 h later (6
+attempts in all); then the delivery is `failed` until you retry it. Every
+attempt is in the delivery log. Delivery is at-least-once: a retry can
+reach you after a slow success, so drop duplicates by the event `id`.
+Events are fanned out in the order they happened, but retries can reorder
+them — use `occurredAt` when order matters.
+
+**Endpoints that keep failing are switched off.** After 20 failed attempts
+in a row over at least 24 hours, Malapos sets `active: false` with
+`disabledAt` and `disabledReason`, marks its queued deliveries `failed` and
+sends `malapos.webhook_subscription.disabled.v1` to your other endpoints.
+Fix the receiver, `PATCH { "active": true }` (which clears the failure
+streak), then retry what you missed (`GET
+/webhook-subscriptions/deliveries?subscriptionId=…&status=failed`).
+
+The delivery log keeps finished deliveries for 30 days.

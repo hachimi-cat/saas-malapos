@@ -57,6 +57,47 @@ request id. List routes that page return their `cursor` and `hasMore`: on the re
 array in JS (`page.cursor`), as a `Page` in Python (`page.cursor`, `page.has_more`), and
 through `c.DoEnvelope` in Go.
 
+### Receiving webhooks
+
+Every delivery is signed `Malapos-Signature: t=<unix>,v1=<hex>` (see
+[Webhooks](/docs/api-reference#webhooks-webhook-subscriptions)). Verify it over the
+**raw** body with the endpoint's `whsec_…` secret — each SDK has a helper that checks the
+signature and a 5-minute timestamp window and returns the event (or throws / raises /
+returns an error with code `INVALID_SIGNATURE`):
+
+```ts
+import express from 'express';
+import { verifyWebhook } from '@forjio/malapos';
+
+app.post('/hooks/malapos', express.raw({ type: 'application/json' }), (req, res) => {
+  const event = verifyWebhook({
+    rawBody: req.body,
+    signature: req.header('Malapos-Signature'),
+    secret: process.env.MALAPOS_WEBHOOK_SECRET!,
+  });
+  if (event.type === 'malapos.sale.completed.v1') {
+    // event.data — the sale; event.id — drop duplicates by it
+  }
+  res.sendStatus(204);
+});
+```
+
+```python
+from forjio_malapos import verify_webhook
+
+event = verify_webhook(request.get_data(), request.headers.get("Malapos-Signature"),
+                       os.environ["MALAPOS_WEBHOOK_SECRET"])
+```
+
+```go
+body, _ := io.ReadAll(r.Body)
+event, err := malapos.VerifyWebhook(body, r.Header.Get(malapos.SignatureHeader), secret, nil)
+```
+
+What was delivered — every attempt, its response, the next retry — is in the delivery
+log: `client.api.webhookSubscriptionsDeliveries({ status: 'failed' })`, and
+`client.api.webhookSubscriptionsDeliveriesRetry(id)` sends one again.
+
 ## CLI
 
 ```bash
