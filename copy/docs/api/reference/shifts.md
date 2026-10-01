@@ -91,7 +91,7 @@ GET /api/v1/shifts/current
 
 | Name | Type | Required | Notes |
 |---|---|---|---|
-| `outletId` | any | no |  |
+| `outletId` | any | yes |  |
 
 ### Example
 

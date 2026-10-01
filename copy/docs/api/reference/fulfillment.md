@@ -215,7 +215,7 @@ GET /api/v1/fulfillment/licenses/validate
 
 | Name | Type | Required | Notes |
 |---|---|---|---|
-| `key` | any | no |  |
+| `key` | any | yes |  |
 | `productId` | any | no |  |
 
 ### Example
@@ -508,11 +508,21 @@ curl -X PATCH "https://malapos.com/api/v1/fulfillment/shipping/origin" \
 POST /api/v1/fulfillment/shipping/rates
 ```
 
+### Body
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `destination` | any | no |  |
+| `insurance` | any | no |  |
+| `items` | any | no |  |
+
 ### Example
 
 ```bash
 curl -X POST "https://malapos.com/api/v1/fulfillment/shipping/rates" \
-  -H "Authorization: Bearer sk_live_…"
+  -H "Authorization: Bearer sk_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"destination":null,"insurance":null,"items":null}'
 ```
 
 ## Public buyer tracking lives on fulkruma.com — keep the route present so the chrome never 404s, but redirect callers to the canonical tracker.

@@ -103,7 +103,7 @@ Derived availability for COMPOSITE variants at an outlet. Composites carry
 
 | Name | Type | Required | Notes |
 |---|---|---|---|
-| `outletId` | any | no |  |
+| `outletId` | any | yes |  |
 
 ### Example
 

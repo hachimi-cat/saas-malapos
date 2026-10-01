@@ -75,16 +75,39 @@ for (const [p, item] of Object.entries(spec.paths ?? {})) {
     });
   }
 }
-for (const r of routes) if (names.get(`${r.area}|${r.action}`) > 1 && r.action !== r.verb && r.method !== 'GET') r.action = `${r.verb} ${r.action}`;
-const taken = new Set();
-for (const r of routes) {
-  let n = `${r.area} ${r.action}`;
-  let i = 2;
-  while (taken.has(n)) n = `${r.area} ${r.action} ${i++}`;
-  taken.add(n);
-  r.fullName = n;
+// Two routes of an area with the same action name are told apart by their verb: PATCH
+// /config is "update config" next to GET /config's "config", and GET /groups/{id} is
+// "get groups" next to the list, GET /groups. A name still taken gets a number.
+// `legacyName` is the name before GET /x/{id} was "get x" (it was "x 2"): the SDKs keep
+// it as a deprecated alias (aliasesOf).
+const gets = new Map();
+for (const r of routes) if (r.method === 'GET') gets.set(`${r.area}|${r.action}`, (gets.get(`${r.area}|${r.action}`) ?? 0) + 1);
+function nameRoutes(field, legacy) {
+  const taken = new Set();
+  for (const r of routes) {
+    const key = `${r.area}|${r.action}`;
+    let action = r.action;
+    if (names.get(key) > 1 && r.action !== r.verb) {
+      if (r.method !== 'GET') action = `${r.verb} ${r.action}`;
+      else if (!legacy && r.verb === 'get' && gets.get(key) > 1) action = `get ${r.action}`;
+    }
+    let n = `${r.area} ${action}`;
+    for (let i = 2; taken.has(n); i++) n = `${r.area} ${action} ${i}`;
+    taken.add(n);
+    r[field] = n;
+  }
 }
+nameRoutes('legacyName', true);
+nameRoutes('fullName', false);
 routes.sort((a, b) => a.fullName.localeCompare(b.fullName));
+// The old names that are no longer any route's name, each with the route it now calls.
+function aliasesOf(nameOf) {
+  const current = new Set(routes.map((r) => nameOf(r.fullName)));
+  return routes
+    .filter((r) => r.legacyName !== r.fullName && !current.has(nameOf(r.legacyName)))
+    .map((r) => ({ old: nameOf(r.legacyName), route: r }))
+    .sort((a, b) => a.old.localeCompare(b.old));
+}
 const HAS_FORM = routes.some((r) => r.form);
 
 function python() {
@@ -166,6 +189,14 @@ function python() {
     }
     out.push(`        return self._call("${r.method}", f"${path}", {${q}}, ${r.body ? 'payload' : 'None'})`);
   }
+  for (const { old, route } of aliasesOf(pyName)) {
+    out.push(
+      '',
+      `    def ${old}(self, *args: Any, **kwargs: Any) -> Any:`,
+      `        """Deprecated: the old name of \`\`${pyName(route.fullName)}\`\` (${route.method} ${route.path})."""`,
+      `        return self.${pyName(route.fullName)}(*args, **kwargs)`,
+    );
+  }
   out.push('', '', 'def _q(value: Any) -> str:', '    from urllib.parse import quote', '', '    return quote(str(value), safe="")', '');
   return out.join('\n');
 }
@@ -229,6 +260,16 @@ function node() {
       out.push(`    return this.call(${JSON.stringify(r.method)}, \`${path}\`, query, ${r.body ? 'all' : r.form ? 'this.form(all)' : 'undefined'});`);
     } else out.push(`    return this.call(${JSON.stringify(r.method)}, \`${path}\`, {}, undefined);`);
     out.push('  }');
+  }
+  for (const { old, route } of aliasesOf(camel)) {
+    const now = camel(route.fullName);
+    out.push(
+      '',
+      `  /** @deprecated The old name of \`${now}\` (${route.method} ${route.path}). */`,
+      `  ${old}(...args: Parameters<GeneratedApi[${JSON.stringify(now)}]>): Promise<unknown> {`,
+      `    return this.${now}(...args);`,
+      '  }',
+    );
   }
   out.push('}', '');
   return out.join('\n');
@@ -331,6 +372,7 @@ function go() {
       '}',
     );
   }
+  const goMethods = new Map(); // route → { name, sig, args } for the deprecated aliases
   for (const r of routes) {
     let name = goPascal(r.fullName);
     for (let i = 2; taken.has(name); i++) name = `${goPascal(r.fullName)}${i}`;
@@ -407,6 +449,7 @@ function go() {
 
     const sig = ['ctx context.Context', ...pathArgs.map((p) => `${p.arg} string`)];
     if (hasArgs) sig.push(`p *${argsType}`);
+    goMethods.set(r, { name, sig, args: ['ctx', ...pathArgs.map((x) => x.arg), ...(hasArgs ? ['p'] : [])], argsType: hasArgs ? argsType : null });
     out.push('', `// ${name} calls ${r.method} ${r.path}${summary ? `: ${summary}` : ''}.`);
     out.push(`func (a *GeneratedAPI) ${name}(${sig.join(', ')}) (json.RawMessage, error) {`);
     if (hasArgs) out.push('\tif p == nil {', `\t\tp = &${argsType}{}`, '\t}');
@@ -455,6 +498,35 @@ function go() {
     if (parts.length > 1) out.push(`\tpath := ${parts.join(' + ')}`);
     if (r.form) out.push(`\treturn a.c.apigenForm(ctx, ${goStr(r.method)}, ${parts.length > 1 ? 'path' : parts[0]}, ${qf.length ? 'q' : 'nil'}, form, files)`, '}');
     else out.push(`\treturn a.c.apigenRequest(ctx, ${goStr(r.method)}, ${parts.length > 1 ? 'path' : parts[0]}, ${qf.length ? 'q' : 'nil'}, ${hasBody ? 'payload' : 'nil'})`, '}');
+  }
+  // The old names (aliasesOf), Go-cased in their old order, that no method has now.
+  const legacy = new Map();
+  const legacyTaken = new Set();
+  for (const r of [...routes].sort((x, y) => x.legacyName.localeCompare(y.legacyName))) {
+    let n = goPascal(r.legacyName);
+    for (let i = 2; legacyTaken.has(n); i++) n = `${goPascal(r.legacyName)}${i}`;
+    legacyTaken.add(n);
+    legacy.set(r, n);
+  }
+  const typeNames = new Set([...goMethods.values()].flatMap((m) => [m.name, m.argsType].filter(Boolean)));
+  const aliases = routes
+    .filter((r) => legacy.get(r) !== goMethods.get(r).name && !typeNames.has(legacy.get(r)))
+    .sort((x, y) => legacy.get(x).localeCompare(legacy.get(y)));
+  for (const r of aliases) {
+    const old = legacy.get(r);
+    const m = goMethods.get(r);
+    if (m.argsType && !typeNames.has(`${old}Args`)) {
+      out.push('', `// ${old}Args is the old name of ${m.argsType}.`, '//', `// Deprecated: use ${m.argsType}.`, `type ${old}Args = ${m.argsType}`);
+    }
+    out.push(
+      '',
+      `// ${old} is the old name of ${m.name} (${r.method} ${r.path}).`,
+      '//',
+      `// Deprecated: use ${m.name}.`,
+      `func (a *GeneratedAPI) ${old}(${m.sig.join(', ')}) (json.RawMessage, error) {`,
+      `\treturn a.${m.name}(${m.args.join(', ')})`,
+      '}',
+    );
   }
   out.push(
     '',

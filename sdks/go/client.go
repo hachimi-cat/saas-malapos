@@ -26,7 +26,7 @@ import (
 )
 
 // SDKVersion is this SDK's version.
-const SDKVersion = "0.1.0"
+const SDKVersion = "0.2.0"
 
 // Config holds the credentials and endpoint overrides; empty fields fall back to the
 // environment.

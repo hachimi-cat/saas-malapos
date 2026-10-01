@@ -27,7 +27,7 @@ GET /api/v1/tables
 |---|---|---|---|
 | `floorId` | any | no |  |
 | `includeInactive` | any | no |  |
-| `outletId` | any | no |  |
+| `outletId` | any | yes |  |
 
 ### Example
 
@@ -138,7 +138,7 @@ open bill (the most-recent PARKED transaction seated at it, if any).
 | Name | Type | Required | Notes |
 |---|---|---|---|
 | `floorId` | any | no |  |
-| `outletId` | any | no |  |
+| `outletId` | any | yes |  |
 
 ### Example
 

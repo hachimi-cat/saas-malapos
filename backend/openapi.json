@@ -587,7 +587,7 @@
      {
       "name": "url",
       "in": "query",
-      "required": false,
+      "required": true,
       "schema": {}
      }
     ],
@@ -972,7 +972,7 @@
      "guards": [
       "adminGuard"
      ],
-     "body": "read-unknown"
+     "body": "read-unvalidated"
     },
     "requestBody": {
      "required": false,
@@ -980,7 +980,13 @@
       "application/json": {
        "schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+         "allowlist": {},
+         "description": {},
+         "enabled": {},
+         "label": {},
+         "rollout": {}
+        }
        }
       }
      }
@@ -2192,7 +2198,7 @@
      "guards": [
       "requireAuth"
      ],
-     "body": "read-unknown"
+     "body": "read-unvalidated"
     },
     "requestBody": {
      "required": false,
@@ -2200,7 +2206,11 @@
       "application/json": {
        "schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+         "destination": {},
+         "insurance": {},
+         "items": {}
+        }
        }
       }
      }
@@ -2269,7 +2279,7 @@
      "guards": [
       "requireAuth"
      ],
-     "body": "read-unknown"
+     "body": "read-unvalidated"
     },
     "requestBody": {
      "required": false,
@@ -2277,7 +2287,19 @@
       "application/json": {
        "schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+         "courierCode": {},
+         "courierServiceCode": {},
+         "courierType": {},
+         "customerEmail": {},
+         "customerId": {},
+         "destination": {},
+         "insurance": {},
+         "insured": {},
+         "items": {},
+         "price": {},
+         "transactionId": {}
+        }
        }
       }
      }
@@ -2409,7 +2431,7 @@
      {
       "name": "outletId",
       "in": "query",
-      "required": false,
+      "required": true,
       "schema": {}
      }
     ],
@@ -2810,7 +2832,7 @@
      {
       "name": "key",
       "in": "query",
-      "required": false,
+      "required": true,
       "schema": {}
      },
      {
@@ -3374,7 +3396,7 @@
      "guards": [
       "requireAuth"
      ],
-     "body": "read-unknown"
+     "body": "read-unvalidated"
     },
     "requestBody": {
      "required": false,
@@ -3382,7 +3404,11 @@
       "application/json": {
        "schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+         "destination": {},
+         "insurance": {},
+         "items": {}
+        }
        }
       }
      }
@@ -3944,7 +3970,7 @@
      {
       "name": "outletId",
       "in": "query",
-      "required": false,
+      "required": true,
       "schema": {}
      }
     ],
@@ -6741,7 +6767,7 @@
      "guards": [
       "requireAuth"
      ],
-     "body": "read-unknown"
+     "body": "read-unvalidated"
     },
     "requestBody": {
      "required": false,
@@ -6749,7 +6775,12 @@
       "application/json": {
        "schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+         "currency": {},
+         "model": {},
+         "taxMode": {},
+         "unitAmount": {}
+        }
        }
       }
      }
@@ -9406,7 +9437,7 @@
      {
       "name": "outletId",
       "in": "query",
-      "required": false,
+      "required": true,
       "schema": {}
      }
     ],
@@ -9687,7 +9718,7 @@
      {
       "name": "outletId",
       "in": "query",
-      "required": false,
+      "required": true,
       "schema": {}
      }
     ],
@@ -9929,7 +9960,7 @@
      {
       "name": "outletId",
       "in": "query",
-      "required": false,
+      "required": true,
       "schema": {}
      }
     ],
@@ -10246,7 +10277,7 @@
   "matched": 253,
   "bodies": {
    "validated": 80,
-   "fieldsOnly": 4,
+   "fieldsOnly": 9,
    "takesBody": 93
   }
  }

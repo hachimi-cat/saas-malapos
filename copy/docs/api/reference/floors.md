@@ -23,7 +23,7 @@ GET /api/v1/floors
 
 | Name | Type | Required | Notes |
 |---|---|---|---|
-| `outletId` | any | no |  |
+| `outletId` | any | yes |  |
 
 ### Example
 

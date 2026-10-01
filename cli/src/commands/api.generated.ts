@@ -7,7 +7,7 @@ import { callRoute, failRoute } from '../lib/apigen-call.js';
 
 type Kind = 'string' | 'number' | 'boolean' | 'array' | 'json';
 interface Field { name: string; kind: Kind; required: boolean; choices?: string[] }
-interface Route { name: string; method: string; path: string; summary: string; pathParams: string[]; query: Field[]; body: Field[] | null }
+interface Route { name: string; aliases?: string[]; method: string; path: string; summary: string; pathParams: string[]; query: Field[]; body: Field[] | null }
 
 export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
  {
@@ -79,17 +79,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
       "required": false
      }
     ],
-    "body": null
-   },
-   {
-    "name": "blog-posts-2",
-    "method": "GET",
-    "path": "/api/v1/account/blog/posts/{id}",
-    "summary": "Get a post",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
     "body": null
    },
    {
@@ -222,6 +211,20 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      }
     ],
     "body": null
+   },
+   {
+    "name": "get-blog-posts",
+    "method": "GET",
+    "path": "/api/v1/account/blog/posts/{id}",
+    "summary": "Get a post",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "blog-posts-2"
+    ]
    },
    {
     "name": "marketing-media-avatar",
@@ -939,7 +942,77 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "summary": "Create a delivery shipment for a sale.",
     "pathParams": [],
     "query": [],
-    "body": []
+    "body": [
+     {
+      "name": "courierCode",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "courierServiceCode",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "courierType",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "customerEmail",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "customerId",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "destination",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "insurance",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "insured",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "items",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "price",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "transactionId",
+      "kind": "string",
+      "required": false
+     }
+    ]
+   },
+   {
+    "name": "get-shipments",
+    "method": "GET",
+    "path": "/api/v1/delivery/shipments/{id}",
+    "summary": "Get a shipment",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "shipments-2"
+    ]
    },
    {
     "name": "origin",
@@ -957,7 +1030,23 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "summary": "Create a rate",
     "pathParams": [],
     "query": [],
-    "body": []
+    "body": [
+     {
+      "name": "destination",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "insurance",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "items",
+      "kind": "string",
+      "required": false
+     }
+    ]
    },
    {
     "name": "sales-dispatch",
@@ -983,17 +1072,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
       "required": false
      }
     ],
-    "body": null
-   },
-   {
-    "name": "shipments-2",
-    "method": "GET",
-    "path": "/api/v1/delivery/shipments/{id}",
-    "summary": "Get a shipment",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
     "body": null
    },
    {
@@ -1104,7 +1182,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      {
       "name": "outletId",
       "kind": "string",
-      "required": false
+      "required": true
      }
     ],
     "body": null
@@ -1292,7 +1370,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "body": null
    },
    {
-    "name": "deliveries-2",
+    "name": "get-deliveries",
     "method": "GET",
     "path": "/api/v1/fulfillment/deliveries/{id}",
     "summary": "Get a delivery",
@@ -1300,7 +1378,24 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      "id"
     ],
     "query": [],
-    "body": null
+    "body": null,
+    "aliases": [
+     "deliveries-2"
+    ]
+   },
+   {
+    "name": "get-shipments",
+    "method": "GET",
+    "path": "/api/v1/fulfillment/shipments/{id}",
+    "summary": "Get a shipment",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "shipments-2"
+    ]
    },
    {
     "name": "inventory-adjust",
@@ -1416,7 +1511,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      {
       "name": "key",
       "kind": "string",
-      "required": false
+      "required": true
      },
      {
       "name": "productId",
@@ -1439,17 +1534,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
       "required": false
      }
     ],
-    "body": null
-   },
-   {
-    "name": "shipments-2",
-    "method": "GET",
-    "path": "/api/v1/fulfillment/shipments/{id}",
-    "summary": "Get a shipment",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
     "body": null
    },
    {
@@ -1685,7 +1769,23 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "summary": "Create a rate",
     "pathParams": [],
     "query": [],
-    "body": []
+    "body": [
+     {
+      "name": "destination",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "insurance",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "items",
+      "kind": "string",
+      "required": false
+     }
+    ]
    },
    {
     "name": "shipping-track",
@@ -1905,7 +2005,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      {
       "name": "outletId",
       "kind": "string",
-      "required": false
+      "required": true
      }
     ],
     "body": null
@@ -2314,17 +2414,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "body": null
    },
    {
-    "name": "discount-codes-2",
-    "method": "GET",
-    "path": "/api/v1/marketing/discount-codes/{id}",
-    "summary": "Get a discount code",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
-    "body": null
-   },
-   {
     "name": "discount-codes-validate",
     "method": "POST",
     "path": "/api/v1/marketing/discount-codes/validate",
@@ -2357,6 +2446,20 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
       "kind": "array",
       "required": false
      }
+    ]
+   },
+   {
+    "name": "get-discount-codes",
+    "method": "GET",
+    "path": "/api/v1/marketing/discount-codes/{id}",
+    "summary": "Get a discount code",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "discount-codes-2"
     ]
    },
    {
@@ -2918,17 +3021,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "body": null
    },
    {
-    "name": "checkout-sessions-2",
-    "method": "GET",
-    "path": "/api/v1/payments/checkout-sessions/{id}",
-    "summary": "Get a checkout session",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
-    "body": null
-   },
-   {
     "name": "checkout-sessions-confirm",
     "method": "POST",
     "path": "/api/v1/payments/checkout-sessions/{id}/confirm",
@@ -3115,7 +3207,28 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      "id"
     ],
     "query": [],
-    "body": []
+    "body": [
+     {
+      "name": "currency",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "model",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "taxMode",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "unitAmount",
+      "kind": "string",
+      "required": false
+     }
+    ]
    },
    {
     "name": "create-qris",
@@ -3202,17 +3315,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "body": null
    },
    {
-    "name": "customers-2",
-    "method": "GET",
-    "path": "/api/v1/payments/customers/{id}",
-    "summary": "Get a customer",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
-    "body": null
-   },
-   {
     "name": "delete-plans",
     "method": "DELETE",
     "path": "/api/v1/payments/plans/{id}",
@@ -3239,6 +3341,118 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      }
     ],
     "body": null
+   },
+   {
+    "name": "get-checkout-sessions",
+    "method": "GET",
+    "path": "/api/v1/payments/checkout-sessions/{id}",
+    "summary": "Get a checkout session",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "checkout-sessions-2"
+    ]
+   },
+   {
+    "name": "get-customers",
+    "method": "GET",
+    "path": "/api/v1/payments/customers/{id}",
+    "summary": "Get a customer",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "customers-2"
+    ]
+   },
+   {
+    "name": "get-invoices",
+    "method": "GET",
+    "path": "/api/v1/payments/invoices/{id}",
+    "summary": "Get an invoice",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "invoices-2"
+    ]
+   },
+   {
+    "name": "get-ledger-entries",
+    "method": "GET",
+    "path": "/api/v1/payments/ledger/entries/{id}",
+    "summary": "Get an entry",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "ledger-entries-2"
+    ]
+   },
+   {
+    "name": "get-payouts",
+    "method": "GET",
+    "path": "/api/v1/payments/payouts/{id}",
+    "summary": "Get a payout",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "payouts-2"
+    ]
+   },
+   {
+    "name": "get-plans",
+    "method": "GET",
+    "path": "/api/v1/payments/plans/{id}",
+    "summary": "Get a plan",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "plans-2"
+    ]
+   },
+   {
+    "name": "get-receipts",
+    "method": "GET",
+    "path": "/api/v1/payments/receipts/{id}",
+    "summary": "Get a receipt",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "receipts-2"
+    ]
+   },
+   {
+    "name": "get-subscriptions",
+    "method": "GET",
+    "path": "/api/v1/payments/subscriptions/{id}",
+    "summary": "Get a subscription",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null,
+    "aliases": [
+     "subscriptions-2"
+    ]
    },
    {
     "name": "invoices",
@@ -3268,17 +3482,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
       "required": false
      }
     ],
-    "body": null
-   },
-   {
-    "name": "invoices-2",
-    "method": "GET",
-    "path": "/api/v1/payments/invoices/{id}",
-    "summary": "Get an invoice",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
     "body": null
    },
    {
@@ -3357,17 +3560,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "body": null
    },
    {
-    "name": "ledger-entries-2",
-    "method": "GET",
-    "path": "/api/v1/payments/ledger/entries/{id}",
-    "summary": "Get an entry",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
-    "body": null
-   },
-   {
     "name": "ledger-entries-csv",
     "method": "GET",
     "path": "/api/v1/payments/ledger/entries.csv",
@@ -3408,17 +3600,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
       "required": false
      }
     ],
-    "body": null
-   },
-   {
-    "name": "payouts-2",
-    "method": "GET",
-    "path": "/api/v1/payments/payouts/{id}",
-    "summary": "Get a payout",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
     "body": null
    },
    {
@@ -3527,17 +3708,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "body": null
    },
    {
-    "name": "plans-2",
-    "method": "GET",
-    "path": "/api/v1/payments/plans/{id}",
-    "summary": "Get a plan",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
-    "body": null
-   },
-   {
     "name": "plugipay-settings-templates-preview",
     "method": "POST",
     "path": "/api/v1/payments/plugipay-settings/templates/preview",
@@ -3585,17 +3755,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
       "required": false
      }
     ],
-    "body": null
-   },
-   {
-    "name": "receipts-2",
-    "method": "GET",
-    "path": "/api/v1/payments/receipts/{id}",
-    "summary": "Get a receipt",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
     "body": null
    },
    {
@@ -3700,17 +3859,6 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
       "required": false
      }
     ],
-    "body": null
-   },
-   {
-    "name": "subscriptions-2",
-    "method": "GET",
-    "path": "/api/v1/payments/subscriptions/{id}",
-    "summary": "Get a subscription",
-    "pathParams": [
-     "id"
-    ],
-    "query": [],
     "body": null
    },
    {
@@ -4816,7 +4964,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      {
       "name": "outletId",
       "kind": "string",
-      "required": false
+      "required": true
      }
     ],
     "body": null
@@ -5102,7 +5250,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      {
       "name": "outletId",
       "kind": "string",
-      "required": false
+      "required": true
      }
     ],
     "body": null
@@ -5152,7 +5300,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      {
       "name": "outletId",
       "kind": "string",
-      "required": false
+      "required": true
      }
     ],
     "body": null
@@ -5345,7 +5493,8 @@ export function buildApiCommand(): Command {
   for (const { area, routes } of API_ROUTES) {
     const group = new Command(area).description(`${area} routes`);
     for (const route of routes) {
-      const cmd = new Command(route.name).description(`${route.summary} (${route.method} ${route.path})`);
+      for (const name of [route.name, ...(route.aliases ?? [])]) {
+      const cmd = new Command(name).description(`${route.summary} (${route.method} ${route.path})`);
       for (const p of route.pathParams) cmd.argument(`<${p}>`);
       const fields = [...route.query, ...(route.body ?? [])];
       for (const f of fields) {
@@ -5379,7 +5528,8 @@ export function buildApiCommand(): Command {
           await failRoute(command, err);
         }
       });
-      group.addCommand(cmd);
+      group.addCommand(cmd, { hidden: name !== route.name });
+      }
     }
     api.addCommand(group);
   }

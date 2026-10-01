@@ -9,9 +9,20 @@ docs and Catent's tools are generated from it.
     cd <product>/backend
     node --import tsx ../../forjio-service-template/tools/apigen/spec.mjs --out openapi.json
 
+A query field a handler reads without a schema is optional, unless the handler refuses
+the request without it (`if (!req.query.q) return …400…`, or the same test on the local
+it was read into): then it is required, in the docs, SDKs and CLI alike.
+
 The product loads with the network stopped (fetch and sockets throw). A copy of `src/` is
 loaded in which each file also hands its top-level values to a registry, so every zod
 schema and router is reachable as a real object; the copy is removed afterwards.
+
+A file upload through multer — `upload.single('file')`, `.array('photos')` or
+`.fields([{ name: … }])` among the route's middleware, `upload` a multer instance — is a
+`multipart/form-data` body: the file fields (`format: binary`; `single`'s is required
+unless the handler reads `req.file?.…`) and the text fields the handler reads. When the file
+is optional and the handler also reads a body, the route keeps its JSON body too (listed
+first, so the SDKs and CLI keep calling it with JSON) and the form is the alternative.
 
 A Next.js app's route handlers get the same from `spec-next.mjs` (statically, from the
 TypeScript). `--internal <regex>` marks routes the product calls itself (a proxy's auth
@@ -30,7 +41,11 @@ marked internal.
     node tools/apigen/sdk.mjs --lang go --package <pkg> --spec backend/openapi.json --out sdk/go/api_generated.go
 
 One method per feature route: `client.api.<area>_<action>(…)` (python),
-`client.api.<area><Action>(…)` (node), `client.API.<Area><Action>(ctx, …)` (go). Add
+`client.api.<area><Action>(…)` (node), `client.API.<Area><Action>(ctx, …)` (go). Two routes of an area with the same
+action are told apart by their verb: `PATCH /config` is `update_config` next to `GET
+/config`'s `config`, and `GET /groups/{id}` is `get_groups` next to the list, `GET /groups`
+(a name still taken gets a number). Names a route had before the second rule (`groups_2`)
+stay, as deprecated aliases of the new ones. Add
 `--check` to verify instead of write (a text comparison; the Go file is written
 gofmt-clean, so checking it needs no Go toolchain).
 
@@ -53,6 +68,22 @@ passes the whole body (python's `json_body`); the fields that are set replace it
 required body string, slice or map that is neither set nor in `Body` is an error before
 any request; a required number or boolean is sent as given. A body that is one of several
 shapes (anyOf / oneOf) offers every shape's fields, all optional.
+
+## CLI — `cli.mjs`
+
+    node tools/apigen/cli.mjs --spec backend/openapi.json --out cli/src/commands/api.generated.ts \
+      [--reserved mode,account,quiet]
+
+One command per feature route: `<brand> api <area> <action> [path params…] [--<field> value …]`,
+with `--body-json` for the whole body. The call goes through the product's
+`cli/src/lib/apigen-call.ts` (`callRoute`, and `callForm` for a file upload, whose file
+fields are paths). A field whose flag would clash with an option the command already has
+(`--help`, `--json`, `--profile`, `--on-behalf-of`, …) is given as `--field-<name>`;
+`--reserved a,b,c` adds the product CLI's own global options to that list, so e.g. a
+`mode` body field is `--field-mode` and the global `--mode` keeps working. Actions are
+named as in the SDKs (`get-groups` next to `groups`); an old name (`groups-2`) still
+works, hidden from help. Add `--check`
+to verify instead of write.
 
 ## Docs — `docs.mjs`
 

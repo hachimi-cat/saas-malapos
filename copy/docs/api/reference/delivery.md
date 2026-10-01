@@ -64,11 +64,21 @@ curl -X PATCH "https://malapos.com/api/v1/delivery/origin" \
 POST /api/v1/delivery/rates
 ```
 
+### Body
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `destination` | any | no |  |
+| `insurance` | any | no |  |
+| `items` | any | no |  |
+
 ### Example
 
 ```bash
 curl -X POST "https://malapos.com/api/v1/delivery/rates" \
-  -H "Authorization: Bearer sk_live_…"
+  -H "Authorization: Bearer sk_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"destination":null,"insurance":null,"items":null}'
 ```
 
 ## Deferred dispatch.
@@ -129,11 +139,29 @@ from the merchant's saved shipping origin (BiteshipConfig). On success
 the shipment id + status are stamped onto the Transaction (when a
 transactionId is supplied) so the POS can track delivery progress.
 
+### Body
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `courierCode` | any | no |  |
+| `courierServiceCode` | any | no |  |
+| `courierType` | any | no |  |
+| `customerEmail` | any | no |  |
+| `customerId` | any | no |  |
+| `destination` | any | no |  |
+| `insurance` | any | no |  |
+| `insured` | any | no |  |
+| `items` | any | no |  |
+| `price` | any | no |  |
+| `transactionId` | any | no |  |
+
 ### Example
 
 ```bash
 curl -X POST "https://malapos.com/api/v1/delivery/shipments" \
-  -H "Authorization: Bearer sk_live_…"
+  -H "Authorization: Bearer sk_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"courierCode":null,"courierServiceCode":null,"courierType":null,"customerEmail":null,"customerId":null,"destination":null,"insurance":null,"insured":null,"items":null,"price":null,"transactionId":null}'
 ```
 
 ## Get a shipment

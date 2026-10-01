@@ -11,7 +11,8 @@
 //  3. Express's own route table (walked from the routes entry) gives the full paths; each
 //     route is matched to its source call through the router object it belongs to.
 //  4. A schema used as `X.parse(req.body)` / `validate(X)` becomes the request body (query
-//     for req.query), converted to JSON Schema by zod-to-json-schema.
+//     for req.query), converted to JSON Schema by zod-to-json-schema. A route with multer
+//     middleware (`upload.single('file')`) takes a multipart form instead.
 // The network is stopped while the product loads: nothing is reached.
 
 import fs from 'node:fs';
@@ -278,12 +279,114 @@ function applyChain(schema, chain) {
 }
 const VALIDATE = /\b(validate\w*|zValidator|withBody|withQuery|parseBody|parseQuery|bodySchema|querySchema)\(\s*(?:['"](\w+)['"]\s*,\s*)?([A-Za-z_$][\w$]*)/g;
 
+// A schema written inside the handler — `z.object({ ids: z.array(z.string()) }).parse(req.body)`
+// — is no top-level value the registry holds: build it from its own text, when that text
+// names nothing but zod and the file's top-level values.
+function valueOf(fileRel, name) {
+  const imp = facts.get(fileRel)?.imports.get(name);
+  if (imp && !imp.from && imp.spec && !imp.spec.startsWith('.')) {
+    try {
+      const mod = requireProduct(imp.spec);
+      return imp.name === '*' ? mod : imp.name === 'default' ? (mod.default ?? mod) : mod[imp.name];
+    } catch { return undefined; }
+  }
+  return lookup(fileRel, name);
+}
+// Only zod itself, zod schemas and plain data (enum values, limits) may feed the
+// rebuilt expression: nothing it can call does anything but build a schema.
+function isZodModule(v) {
+  return !!v && (typeof v === 'object' || typeof v === 'function') && typeof v.object === 'function'
+    && typeof v.string === 'function' && typeof v.ZodType === 'function';
+}
+function plainData(v, depth = 0) {
+  if (v === null || ['string', 'number', 'boolean'].includes(typeof v)) return true;
+  if (depth > 3 || typeof v !== 'object') return false;
+  const proto = Object.getPrototypeOf(v);
+  if (!Array.isArray(v) && proto !== Object.prototype && proto !== null) return false;
+  return Object.values(v).every((x) => plainData(x, depth + 1));
+}
+function inlineSchema(fileRel, expr) {
+  const names = new Set();
+  const refs = (n) => {
+    if (ts.isIdentifier(n)) {
+      const p = n.parent;
+      const isName = (ts.isPropertyAccessExpression(p) && p.name === n) || (ts.isPropertyAssignment(p) && p.name === n);
+      if (!isName) names.add(n.text);
+    }
+    ts.forEachChild(n, refs);
+  };
+  refs(expr);
+  if (!names.size) return null;
+  const values = [];
+  for (const name of names) {
+    const v = valueOf(fileRel, name);
+    if (v === undefined || !(isZodModule(v) || isZod(v) || plainData(v))) return null;
+    values.push(v);
+  }
+  try {
+    // The expression's own text, types stripped (`as const`, generics).
+    const js = ts.transpile(`(${expr.getText()});`, { target: ts.ScriptTarget.ES2022 }).trim().replace(/;$/, '');
+    // eslint-disable-next-line no-new-func
+    const v = new Function(...names, `return (${js});`)(...values);
+    return isZod(v) ? v : null;
+  } catch { return null; }
+}
+function inlineSchemasIn(fileRel, node, sink) {
+  const visit = (n) => {
+    if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.arguments.length
+      && /^(safeParse|parse|parseAsync|safeParseAsync)$/.test(n.expression.name.text)
+      && !ts.isIdentifier(n.expression.expression)) {
+      const m = n.arguments[0].getText().match(/^\(?\s*(?:req|request)\.(body|query)\b/);
+      if (m && !sink[m[1]]) {
+        const schema = inlineSchema(fileRel, n.expression.expression);
+        if (schema) sink[m[1]] = { schema, name: 'inline' };
+      }
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(node);
+}
+
+// A query field read without a schema is required when the handler refuses the request
+// without it: `if (!req.query.x) return …400…`, or the same test on a local the field was
+// read into (`const { x } = req.query`, `const x = String(req.query.x ?? '')`). Each `||`
+// term of the test counts; a test with `&&` (one of several) proves nothing.
+const REFUSES = /\b400\b|badRequest|BAD_REQUEST|VALIDATION|validation_error|ValidationError/;
+function requiredQueryIn(text, sink) {
+  const locals = new Map();
+  for (const m of text.matchAll(/\{([^{}=]*(?:=[^{}]*)?)\}\s*=\s*(?:req\.query|\(req\.query)/g)) {
+    for (const part of m[1].split(',')) {
+      const [field, rest] = part.split(':').map((x) => x.split('=')[0].replace('...', '').trim());
+      if (/^[A-Za-z_$][\w$]*$/.test(field)) locals.set(rest && /^[A-Za-z_$][\w$]*$/.test(rest) ? rest : field, field);
+    }
+  }
+  for (const m of text.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*(?::[^=;\n]+)?=\s*[^;\n]*?\breq\.query\??\.([A-Za-z_$][\w$]*)/g)) {
+    if (!locals.has(m[1])) locals.set(m[1], m[2]);
+  }
+  for (const m of text.matchAll(/\bif\s*\(/g)) {
+    let depth = 1;
+    let i = m.index + m[0].length;
+    const start = i;
+    for (; i < text.length && depth; i++) depth += text[i] === '(' ? 1 : text[i] === ')' ? -1 : 0;
+    const test = text.slice(start, i - 1);
+    if (test.includes('&&') || !REFUSES.test(text.slice(i, i + 240).split(/\n\s*\n/)[0])) continue;
+    for (const term of test.split('||').map((x) => x.trim())) {
+      const t = term.match(/^!\s*(?:req\.query\??\.([A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*))(?:\.trim\(\))?$/)
+        ?? term.match(/^typeof\s+(?:req\.query\??\.([A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*))\s*!==?\s*['"]string['"]$/);
+      if (!t) continue;
+      const field = t[1] ?? locals.get(t[2]);
+      if (field) (sink.requiredQuery ??= new Set()).add(field);
+    }
+  }
+}
+
 function schemasIn(fileRel, node, sink, depth = 0) {
   const text = node.getText();
   for (const m of text.matchAll(PARSE)) {
     const v = lookup(fileRel, m[1]);
     if (isZod(v)) sink[m[3]] ??= { schema: applyChain(v, m[2]), name: m[1] + (m[2] || '') };
   }
+  inlineSchemasIn(fileRel, node, sink);
   // what the handler reads from the query when nothing validates it
   for (const m of text.matchAll(/\breq\.query\??\.([A-Za-z_$][\w$]*)|\breq\.query\??\[\s*['"]([^'"]+)['"]\s*\]/g)) {
     (sink.queryFields ??= new Set()).add(m[1] ?? m[2]);
@@ -298,6 +401,7 @@ function schemasIn(fileRel, node, sink, depth = 0) {
       if (/^[A-Za-z_$][\w$]*$/.test(name)) (sink.queryFields ??= new Set()).add(name);
     }
   }
+  requiredQueryIn(text, sink);
   // what the handler reads from the body when nothing validates it
   if (/\breq\.body\b/.test(text)) {
     sink.readsBody = true;
@@ -309,11 +413,19 @@ function schemasIn(fileRel, node, sink, depth = 0) {
         if (/^[A-Za-z_$][\w$]*$/.test(name)) fields.add(name);
       }
     }
-    for (const m of text.matchAll(/req\.body\s+as\s+\{([^{}]*)\}/g)) {
+    // `req.body as { a: string }` and `(req.body ?? {}) as { a: string }`
+    for (const m of text.matchAll(/req\.body(?:\s*\?\?\s*\{\s*\}\s*\))?\s+as\s+\{([^{}]*)\}/g)) {
       for (const part of m[1].split(/[;,\n]/)) {
         const f = part.match(/^\s*([A-Za-z_$][\w$]*)\??\s*:/);
         if (f) fields.add(f[1]);
       }
+    }
+    // `const body = (req.body ?? {}) as …` → `body.a`, `'a' in body`
+    for (const alias of text.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\(*\s*req\.body\b(?!\s*\??\.)/g)) {
+      const a = alias[1];
+      // a whole identifier (no backtracking into `toStrin` of `x.toString()`), not a method call
+      const re = new RegExp(`(?<![\\w$.])${a}\\??\\.([A-Za-z_$][\\w$]*)(?![\\w$])(?!\\s*\\()|['"]([A-Za-z_$][\\w$]*)['"]\\s+in\\s+${a}\\b`, 'g');
+      for (const m of text.matchAll(re)) fields.add(m[1] ?? m[2]);
     }
   }
   for (const m of text.matchAll(VALIDATE)) {
@@ -333,6 +445,44 @@ function schemasIn(fileRel, node, sink, depth = 0) {
       if (target && target.node !== node) schemasIn(target.fileRel, target.node, sink, depth + 1);
     }
   }
+}
+
+// A file upload through multer: `upload.single('file')`, `upload.array('photos')` or
+// `upload.fields([{ name: 'front' }, { name: 'back' }])` among a route's middleware makes
+// its body a multipart form — those file fields, and the text fields the handler reads.
+// `upload` must be a multer instance (the registry's value has multer's methods), or, when
+// it is no top-level value, the file must import multer.
+const MULTER_METHODS = ['single', 'array', 'fields', 'none', 'any'];
+function isMulter(fileRel, expr) {
+  if (!ts.isIdentifier(expr)) return false;
+  const v = lookup(fileRel, expr.text);
+  if (v && (typeof v === 'object' || typeof v === 'function')) return MULTER_METHODS.every((m) => typeof v[m] === 'function');
+  return [...(facts.get(fileRel)?.imports.values() ?? [])].some((imp) => imp.spec === 'multer');
+}
+function formFiles(fileRel, middleware, handlerText) {
+  const files = [];
+  for (const h of middleware) {
+    if (!ts.isCallExpression(h) || !ts.isPropertyAccessExpression(h.expression)) continue;
+    const method = h.expression.name.text;
+    if (!['single', 'array', 'fields'].includes(method) || !isMulter(fileRel, h.expression.expression)) continue;
+    if (method === 'fields') {
+      const list = h.arguments[0];
+      if (!list || !ts.isArrayLiteralExpression(list)) continue;
+      for (const el of list.elements) {
+        if (!ts.isObjectLiteralExpression(el)) continue;
+        const prop = el.properties.find((x) => ts.isPropertyAssignment(x) && x.name.getText() === 'name');
+        const name = prop ? stringValue(prop.initializer) : null;
+        if (name) files.push({ name, required: false });
+      }
+    } else {
+      const name = stringValue(h.arguments[0]);
+      // single('file'): the route is for that file, unless the handler reads it as optional
+      // (`req.file?.…`); array('photos'): zero or more
+      const optional = method !== 'single' || /\breq\.file\?\./.test(handlerText);
+      if (name) files.push({ name, required: !optional, many: method === 'array' });
+    }
+  }
+  return files;
 }
 
 // A plain title for a route whose code carries no comment: "Create a discount code".
@@ -434,10 +584,38 @@ for (const route of found) {
   }
   if (!sink.query && sink.queryFields) {
     for (const name of [...sink.queryFields].sort()) {
-      if (!op.parameters.some((x) => x.name === name) && !bodyNames.has(name)) op.parameters.push({ name, in: 'query', required: false, schema: {} });
+      if (!op.parameters.some((x) => x.name === name) && !bodyNames.has(name)) op.parameters.push({ name, in: 'query', required: !!sink.requiredQuery?.has(name), schema: {} });
     }
   }
-  if (takesBody) {
+  const form = takesBody && call ? formFiles(fileRel, call.handlers.slice(0, -1), call.handlers.map((h) => h.getText()).join('\n')) : [];
+  // A route whose file is optional and whose handler also reads a body takes either: a
+  // JSON body (below, as before) or the form, both in the spec.
+  const formAndJson = form.length > 0 && !form.some((f) => f.required) && (sink.body || sink.readsBody);
+  let formContent = null;
+  if (form.length) {
+    // multipart/form-data: the file fields (one file each), and the text fields — a
+    // validated body's, else the ones the handler reads (sent as strings)
+    const properties = {};
+    const required = [];
+    if (bodySchema) {
+      Object.assign(properties, bodySchema.properties ?? {});
+      if (!formAndJson) required.push(...(bodySchema.required ?? []));
+    } else {
+      for (const f of [...(sink.bodyFields ?? [])].sort()) properties[f] = { type: 'string' };
+    }
+    for (const f of form) {
+      properties[f.name] = { type: 'string', format: 'binary', ...(f.many ? { description: 'One or more files (send the field once per file).' } : {}) };
+      if (f.required && !required.includes(f.name)) required.push(f.name);
+    }
+    formContent = { 'multipart/form-data': { schema: { type: 'object', properties, ...(required.length ? { required } : {}) } } };
+  }
+  if (form.length && !formAndJson) {
+    needsBody++;
+    withFields++;
+    op.requestBody = { required: true, content: formContent };
+    op['x-forjio'].body = 'form';
+    if (sink.body) op['x-forjio'].bodySchema = sink.body.name;
+  } else if (takesBody) {
     if (sink.body) {
       needsBody++;
       withBody++;
@@ -453,6 +631,10 @@ for (const route of found) {
     } else if (route.method !== 'delete') {
       op['x-forjio'].body = call ? 'none' : 'unknown';
     }
+  }
+  if (formContent && formAndJson) {
+    // the JSON body first: generators take it, so the route's SDK/CLI calls stay JSON
+    op.requestBody = { ...(op.requestBody ?? { required: false }), content: { ...(op.requestBody?.content ?? {}), ...formContent } };
   }
   pathItems[oaPath] ??= {};
   pathItems[oaPath][route.method] = op;

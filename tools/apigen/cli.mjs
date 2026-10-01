@@ -10,16 +10,26 @@
 // output helpers). A file upload (a multipart form body) takes each file field as a path
 // (`--file ./sprite.png`) and goes through `callForm` with the FormData — generated only
 // for a product that has one. `--check` exits 1 when the file is stale.
+// `--reserved a,b,c` names the CLI's own global options (`--mode`, `--quiet`, …): a body
+// or query field of the same name is given as `--field-<name>` instead, so it can't be
+// taken by the global option.
 import fs from 'node:fs';
 import { isFeature, bodyFields, formBody, isFileField } from './common.mjs';
 
 const args = Object.fromEntries(
-  process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1] ?? true]] : acc), []),
+  // a flag followed by another flag (`--check --reserved …`) is a switch, not that flag's value
+  process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1] !== undefined && !all[i + 1].startsWith('--') ? all[i + 1] : true]] : acc), []),
 );
 const spec = JSON.parse(fs.readFileSync(args.spec ?? 'backend/openapi.json', 'utf8'));
 const OUT = args.out ?? 'cli/src/commands/api.generated.ts';
 const CHECK = args.check === true || args.check === 'true';
 const PREFIX = args.prefix ?? '/api/v1';
+// Flag names a field may not take: commander's and this command's own, plus the product
+// CLI's global options (--reserved).
+const BASE_RESERVED = ['help', 'version', 'json', 'profile', 'api', 'on-behalf-of', 'color', 'no-color', 'body-json'];
+const EXTRA_RESERVED = typeof args.reserved === 'string' ? args.reserved.split(',').map((x) => x.trim()).filter(Boolean) : [];
+const RESERVED = [...new Set([...BASE_RESERVED, ...EXTRA_RESERVED])];
+for (const r of RESERVED) if (!/^[a-z0-9][a-z0-9-]*$/.test(r)) throw new Error(`apigen cli: --reserved takes flag names (a-z, 0-9, -): ${r}`);
 
 const kebab = (s) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
 function kind(schema) {
@@ -67,23 +77,42 @@ for (const [p, item] of Object.entries(spec.paths ?? {})) {
     byArea.get(area).push(route);
   }
 }
-// Two routes of an area with the same action name (GET and PATCH /config): name each by
-// its verb as well ("config" / "update-config").
+// Two routes of an area with the same action name are told apart by their verb: PATCH
+// /config is "update-config" next to GET /config's "config", and GET /groups/{id}
+// "get-groups" next to the list, GET /groups. A name still taken gets a number. A route's
+// old name (GET /x/{id} was "x-2" before it was "get-x") still works, hidden from help.
+let ALIASED = false;
 for (const routes of byArea.values()) {
   const count = {};
-  for (const r of routes) count[r.name] = (count[r.name] ?? 0) + 1;
+  const gets = {};
   for (const r of routes) {
-    if (count[r.name] > 1 && r.name !== r.verb) r.name = r.method === 'GET' ? r.name : `${r.verb}-${r.name}`;
+    count[r.name] = (count[r.name] ?? 0) + 1;
+    if (r.method === 'GET') gets[r.name] = (gets[r.name] ?? 0) + 1;
   }
-  const seen = new Set();
-  for (const r of routes) {
-    let n = r.name;
-    let i = 2;
-    while (seen.has(n)) n = `${r.name}-${i++}`;
-    r.name = n;
-    seen.add(n);
+  const named = (legacy) => {
+    const seen = new Set();
+    return routes.map((r) => {
+      let base = r.name;
+      if (count[r.name] > 1 && r.name !== r.verb) {
+        if (r.method !== 'GET') base = `${r.verb}-${r.name}`;
+        else if (!legacy && r.verb === 'get' && gets[r.name] > 1) base = `get-${r.name}`;
+      }
+      let n = base;
+      for (let i = 2; seen.has(n); i++) n = `${base}-${i}`;
+      seen.add(n);
+      return n;
+    });
+  };
+  const old = named(true);
+  const now = named(false);
+  routes.forEach((r, i) => {
+    r.name = now[i];
+    if (old[i] !== now[i] && !now.includes(old[i])) {
+      r.aliases = [old[i]];
+      ALIASED = true;
+    }
     delete r.verb;
-  }
+  });
 }
 const table = [...byArea.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([area, routes]) => ({ area, routes: routes.sort((a, b) => a.name.localeCompare(b.name)) }));
 
@@ -102,7 +131,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = ${JSON.strin
 
 // A field whose flag would clash with this command's own options or the CLI's global ones
 // is given as --field-<name>.
-const RESERVED = new Set(['help', 'version', 'json', 'profile', 'api', 'on-behalf-of', 'color', 'no-color', 'body-json']);
+const RESERVED = new Set([${RESERVED.map((x) => `'${x}'`).join(', ')}]);
 const plain = (name: string): string => name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/_/g, '-').toLowerCase();
 const flag = (name: string): string => (RESERVED.has(plain(name)) ? \`field-\${plain(name)}\` : plain(name));
 const camel = (name: string): string => flag(name).replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
@@ -203,6 +232,19 @@ if (table.some((a) => a.routes.some((r) => r.form))) {
   ];
   for (const [from, to] of edits) {
     if (!text.includes(from)) throw new Error(`apigen cli: form edit did not apply: ${from}`);
+    text = text.replace(from, to);
+  }
+}
+// A renamed route answers to its old name too (route.aliases), as a command hidden from
+// help. Only a spec with such a route gets this code.
+if (ALIASED) {
+  const edits = [
+    ['interface Route { name: string;', 'interface Route { name: string; aliases?: string[];'],
+    ['    for (const route of routes) {\n      const cmd = new Command(route.name)', '    for (const route of routes) {\n      for (const name of [route.name, ...(route.aliases ?? [])]) {\n      const cmd = new Command(name)'],
+    ['      group.addCommand(cmd);\n    }\n', '      group.addCommand(cmd, { hidden: name !== route.name });\n      }\n    }\n'],
+  ];
+  for (const [from, to] of edits) {
+    if (!text.includes(from)) throw new Error(`apigen cli: alias edit did not apply: ${from}`);
     text = text.replace(from, to);
   }
 }

@@ -36,10 +36,6 @@ class GeneratedApi:
         """List posts (GET /api/v1/account/blog/posts)."""
         return self._call("GET", f"/api/v1/account/blog/posts", {"status": status, "limit": limit, "cursor": cursor}, None)
 
-    def account_blog_posts_2(self, id_: str) -> Any:
-        """Get a post (GET /api/v1/account/blog/posts/{id})."""
-        return self._call("GET", f"/api/v1/account/blog/posts/{_q(id_)}", {}, None)
-
     def account_blog_posts_publish(self, id_: str) -> Any:
         """Publish a post (POST /api/v1/account/blog/posts/{id}/publish)."""
         return self._call("POST", f"/api/v1/account/blog/posts/{_q(id_)}/publish", {}, None)
@@ -95,6 +91,10 @@ class GeneratedApi:
     def account_feeds_preview(self, *, format_: Optional[Any] = None) -> Any:
         """List preview (GET /api/v1/account/feeds/preview)."""
         return self._call("GET", f"/api/v1/account/feeds/preview", {"format": format_}, None)
+
+    def account_get_blog_posts(self, id_: str) -> Any:
+        """Get a post (GET /api/v1/account/blog/posts/{id})."""
+        return self._call("GET", f"/api/v1/account/blog/posts/{_q(id_)}", {}, None)
 
     def account_marketing_media_avatar(self, *, key: Optional[Any] = None) -> Any:
         """Resolve the creator's signed S3 avatar URL via Ripllo's public uploads endpoint, then stream the bytes. (GET /api/v1/account/marketing-media/avatar)."""
@@ -420,18 +420,54 @@ class GeneratedApi:
         """List couriers (GET /api/v1/delivery/couriers)."""
         return self._call("GET", f"/api/v1/delivery/couriers", {}, None)
 
-    def delivery_create_shipments(self, *, json_body: Optional[Dict[str, Any]] = None) -> Any:
-        """Create a delivery shipment for a sale. (POST /api/v1/delivery/shipments)."""
+    def delivery_create_shipments(self, *, courier_code: Optional[Any] = None, courier_service_code: Optional[Any] = None, courier_type: Optional[Any] = None, customer_email: Optional[Any] = None, customer_id: Optional[Any] = None, destination: Optional[Any] = None, insurance: Optional[Any] = None, insured: Optional[Any] = None, items: Optional[Any] = None, price: Optional[Any] = None, transaction_id: Optional[Any] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
+        """Create a delivery shipment for a sale. (POST /api/v1/delivery/shipments).
+        
+        Body fields are keyword arguments; `json_body=` passes the whole body (fields override it)."""
         payload: Dict[str, Any] = dict(json_body or {})
+        if courier_code is not None:
+            payload["courierCode"] = courier_code
+        if courier_service_code is not None:
+            payload["courierServiceCode"] = courier_service_code
+        if courier_type is not None:
+            payload["courierType"] = courier_type
+        if customer_email is not None:
+            payload["customerEmail"] = customer_email
+        if customer_id is not None:
+            payload["customerId"] = customer_id
+        if destination is not None:
+            payload["destination"] = destination
+        if insurance is not None:
+            payload["insurance"] = insurance
+        if insured is not None:
+            payload["insured"] = insured
+        if items is not None:
+            payload["items"] = items
+        if price is not None:
+            payload["price"] = price
+        if transaction_id is not None:
+            payload["transactionId"] = transaction_id
         return self._call("POST", f"/api/v1/delivery/shipments", {}, payload)
+
+    def delivery_get_shipments(self, id_: str) -> Any:
+        """Get a shipment (GET /api/v1/delivery/shipments/{id})."""
+        return self._call("GET", f"/api/v1/delivery/shipments/{_q(id_)}", {}, None)
 
     def delivery_origin(self) -> Any:
         """List origin (GET /api/v1/delivery/origin)."""
         return self._call("GET", f"/api/v1/delivery/origin", {}, None)
 
-    def delivery_rates(self, *, json_body: Optional[Dict[str, Any]] = None) -> Any:
-        """Create a rate (POST /api/v1/delivery/rates)."""
+    def delivery_rates(self, *, destination: Optional[Any] = None, insurance: Optional[Any] = None, items: Optional[Any] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
+        """Create a rate (POST /api/v1/delivery/rates).
+        
+        Body fields are keyword arguments; `json_body=` passes the whole body (fields override it)."""
         payload: Dict[str, Any] = dict(json_body or {})
+        if destination is not None:
+            payload["destination"] = destination
+        if insurance is not None:
+            payload["insurance"] = insurance
+        if items is not None:
+            payload["items"] = items
         return self._call("POST", f"/api/v1/delivery/rates", {}, payload)
 
     def delivery_sales_dispatch(self, id_: str) -> Any:
@@ -441,10 +477,6 @@ class GeneratedApi:
     def delivery_shipments(self, *, status: Optional[Any] = None) -> Any:
         """List shipments (GET /api/v1/delivery/shipments)."""
         return self._call("GET", f"/api/v1/delivery/shipments", {"status": status}, None)
-
-    def delivery_shipments_2(self, id_: str) -> Any:
-        """Get a shipment (GET /api/v1/delivery/shipments/{id})."""
-        return self._call("GET", f"/api/v1/delivery/shipments/{_q(id_)}", {}, None)
 
     def delivery_shipments_cancel(self, id_: str, *, reason: Optional[Any] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
         """Cancel a shipment (POST /api/v1/delivery/shipments/{id}/cancel).
@@ -489,7 +521,7 @@ class GeneratedApi:
         """Remove a floor. (DELETE /api/v1/floors/{id})."""
         return self._call("DELETE", f"/api/v1/floors/{_q(id_)}", {}, None)
 
-    def floors_list(self, *, outlet_id: Optional[Any] = None) -> Any:
+    def floors_list(self, *, outlet_id: Any) -> Any:
         """List floors (GET /api/v1/floors)."""
         return self._call("GET", f"/api/v1/floors", {"outletId": outlet_id}, None)
 
@@ -589,9 +621,13 @@ class GeneratedApi:
         """List deliveries (GET /api/v1/fulfillment/deliveries)."""
         return self._call("GET", f"/api/v1/fulfillment/deliveries", {}, None)
 
-    def fulfillment_deliveries_2(self, id_: str) -> Any:
+    def fulfillment_get_deliveries(self, id_: str) -> Any:
         """Get a delivery (GET /api/v1/fulfillment/deliveries/{id})."""
         return self._call("GET", f"/api/v1/fulfillment/deliveries/{_q(id_)}", {}, None)
+
+    def fulfillment_get_shipments(self, id_: str) -> Any:
+        """Get a shipment (GET /api/v1/fulfillment/shipments/{id})."""
+        return self._call("GET", f"/api/v1/fulfillment/shipments/{_q(id_)}", {}, None)
 
     def fulfillment_inventory_adjust(self, *, variant_id: Optional[str] = None, warehouse_id: Optional[str] = None, delta: Optional[int] = None, reason: Optional[str] = None, note: Optional[str] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
         """Create an adjust (POST /api/v1/fulfillment/inventory/adjust).
@@ -639,17 +675,13 @@ class GeneratedApi:
         """Revoke a license (POST /api/v1/fulfillment/licenses/{id}/revoke)."""
         return self._call("POST", f"/api/v1/fulfillment/licenses/{_q(id_)}/revoke", {}, None)
 
-    def fulfillment_licenses_validate(self, *, key: Optional[Any] = None, product_id: Optional[Any] = None) -> Any:
+    def fulfillment_licenses_validate(self, *, key: Any, product_id: Optional[Any] = None) -> Any:
         """List validate (GET /api/v1/fulfillment/licenses/validate)."""
         return self._call("GET", f"/api/v1/fulfillment/licenses/validate", {"key": key, "productId": product_id}, None)
 
     def fulfillment_shipments(self, *, status: Optional[Any] = None) -> Any:
         """List shipments (GET /api/v1/fulfillment/shipments)."""
         return self._call("GET", f"/api/v1/fulfillment/shipments", {"status": status}, None)
-
-    def fulfillment_shipments_2(self, id_: str) -> Any:
-        """Get a shipment (GET /api/v1/fulfillment/shipments/{id})."""
-        return self._call("GET", f"/api/v1/fulfillment/shipments/{_q(id_)}", {}, None)
 
     def fulfillment_shipments_cancel(self, id_: str, *, reason: Optional[Any] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
         """Cancel a booking the courier hasn't collected. (POST /api/v1/fulfillment/shipments/{id}/cancel).
@@ -695,9 +727,17 @@ class GeneratedApi:
         """List origin (GET /api/v1/fulfillment/shipping/origin)."""
         return self._call("GET", f"/api/v1/fulfillment/shipping/origin", {}, None)
 
-    def fulfillment_shipping_rates(self, *, json_body: Optional[Dict[str, Any]] = None) -> Any:
-        """Create a rate (POST /api/v1/fulfillment/shipping/rates)."""
+    def fulfillment_shipping_rates(self, *, destination: Optional[Any] = None, insurance: Optional[Any] = None, items: Optional[Any] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
+        """Create a rate (POST /api/v1/fulfillment/shipping/rates).
+        
+        Body fields are keyword arguments; `json_body=` passes the whole body (fields override it)."""
         payload: Dict[str, Any] = dict(json_body or {})
+        if destination is not None:
+            payload["destination"] = destination
+        if insurance is not None:
+            payload["insurance"] = insurance
+        if items is not None:
+            payload["items"] = items
         return self._call("POST", f"/api/v1/fulfillment/shipping/rates", {}, payload)
 
     def fulfillment_shipping_track(self, waybill_id: str) -> Any:
@@ -805,7 +845,7 @@ class GeneratedApi:
         """List batches (GET /api/v1/inventory/batches)."""
         return self._call("GET", f"/api/v1/inventory/batches", {"all": all_, "outletId": outlet_id, "variantId": variant_id}, None)
 
-    def inventory_composites(self, *, outlet_id: Optional[Any] = None) -> Any:
+    def inventory_composites(self, *, outlet_id: Any) -> Any:
         """Derived availability for COMPOSITE variants at an outlet. (GET /api/v1/inventory/composites)."""
         return self._call("GET", f"/api/v1/inventory/composites", {"outletId": outlet_id}, None)
 
@@ -973,10 +1013,6 @@ class GeneratedApi:
         """List discount codes (GET /api/v1/marketing/discount-codes)."""
         return self._call("GET", f"/api/v1/marketing/discount-codes", {"active": active, "cursor": cursor, "limit": limit}, None)
 
-    def marketing_discount_codes_2(self, id_: str) -> Any:
-        """Get a discount code (GET /api/v1/marketing/discount-codes/{id})."""
-        return self._call("GET", f"/api/v1/marketing/discount-codes/{_q(id_)}", {}, None)
-
     def marketing_discount_codes_validate(self, *, code: Optional[str] = None, subtotal: Optional[int] = None, customer_id: Optional[str] = None, shipping_cost: Optional[int] = None, items: Optional[List[Any]] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
         """Create a validate (POST /api/v1/marketing/discount-codes/validate).
         
@@ -997,6 +1033,10 @@ class GeneratedApi:
         if "subtotal" not in payload:
             raise ValueError("marketing_discount_codes_validate needs subtotal")
         return self._call("POST", f"/api/v1/marketing/discount-codes/validate", {}, payload)
+
+    def marketing_get_discount_codes(self, id_: str) -> Any:
+        """Get a discount code (GET /api/v1/marketing/discount-codes/{id})."""
+        return self._call("GET", f"/api/v1/marketing/discount-codes/{_q(id_)}", {}, None)
 
     def marketing_loyalty_members(self, customer_id: str) -> Any:
         """Member lookup — balance + recent ledger for one customer. (GET /api/v1/marketing/loyalty/members/{customerId})."""
@@ -1240,10 +1280,6 @@ class GeneratedApi:
         """List checkout sessions (GET /api/v1/payments/checkout-sessions)."""
         return self._call("GET", f"/api/v1/payments/checkout-sessions", {"limit": limit, "status": status, "customerId": customer_id}, None)
 
-    def payments_checkout_sessions_2(self, id_: str) -> Any:
-        """Get a checkout session (GET /api/v1/payments/checkout-sessions/{id})."""
-        return self._call("GET", f"/api/v1/payments/checkout-sessions/{_q(id_)}", {}, None)
-
     def payments_checkout_sessions_confirm(self, id_: str) -> Any:
         """Manual-adapter confirm — flips a pending_review session to completed. (POST /api/v1/payments/checkout-sessions/{id}/confirm)."""
         return self._call("POST", f"/api/v1/payments/checkout-sessions/{_q(id_)}/confirm", {}, None)
@@ -1339,9 +1375,19 @@ class GeneratedApi:
             raise ValueError("payments_create_plans needs amount")
         return self._call("POST", f"/api/v1/payments/plans", {}, payload)
 
-    def payments_create_plans_prices(self, id_: str, *, json_body: Optional[Dict[str, Any]] = None) -> Any:
-        """Add a new price (currency variant) to an existing plan. (POST /api/v1/payments/plans/{id}/prices)."""
+    def payments_create_plans_prices(self, id_: str, *, currency: Optional[Any] = None, model: Optional[Any] = None, tax_mode: Optional[Any] = None, unit_amount: Optional[Any] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
+        """Add a new price (currency variant) to an existing plan. (POST /api/v1/payments/plans/{id}/prices).
+        
+        Body fields are keyword arguments; `json_body=` passes the whole body (fields override it)."""
         payload: Dict[str, Any] = dict(json_body or {})
+        if currency is not None:
+            payload["currency"] = currency
+        if model is not None:
+            payload["model"] = model
+        if tax_mode is not None:
+            payload["taxMode"] = tax_mode
+        if unit_amount is not None:
+            payload["unitAmount"] = unit_amount
         return self._call("POST", f"/api/v1/payments/plans/{_q(id_)}/prices", {}, payload)
 
     def payments_create_qris(self, *, transaction_id: Optional[str] = None, amount: Optional[int] = None, method: Optional[str] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
@@ -1381,10 +1427,6 @@ class GeneratedApi:
         """List customers (GET /api/v1/payments/customers)."""
         return self._call("GET", f"/api/v1/payments/customers", {"limit": limit, "cursor": cursor, "email": email}, None)
 
-    def payments_customers_2(self, id_: str) -> Any:
-        """Get a customer (GET /api/v1/payments/customers/{id})."""
-        return self._call("GET", f"/api/v1/payments/customers/{_q(id_)}", {}, None)
-
     def payments_delete_plans(self, id_: str) -> Any:
         """Delete a plan (DELETE /api/v1/payments/plans/{id})."""
         return self._call("DELETE", f"/api/v1/payments/plans/{_q(id_)}", {}, None)
@@ -1393,13 +1435,41 @@ class GeneratedApi:
         """Delete a subscription (DELETE /api/v1/payments/subscriptions/{id})."""
         return self._call("DELETE", f"/api/v1/payments/subscriptions/{_q(id_)}", {"immediate": immediate}, None)
 
+    def payments_get_checkout_sessions(self, id_: str) -> Any:
+        """Get a checkout session (GET /api/v1/payments/checkout-sessions/{id})."""
+        return self._call("GET", f"/api/v1/payments/checkout-sessions/{_q(id_)}", {}, None)
+
+    def payments_get_customers(self, id_: str) -> Any:
+        """Get a customer (GET /api/v1/payments/customers/{id})."""
+        return self._call("GET", f"/api/v1/payments/customers/{_q(id_)}", {}, None)
+
+    def payments_get_invoices(self, id_: str) -> Any:
+        """Get an invoice (GET /api/v1/payments/invoices/{id})."""
+        return self._call("GET", f"/api/v1/payments/invoices/{_q(id_)}", {}, None)
+
+    def payments_get_ledger_entries(self, id_: str) -> Any:
+        """Get an entry (GET /api/v1/payments/ledger/entries/{id})."""
+        return self._call("GET", f"/api/v1/payments/ledger/entries/{_q(id_)}", {}, None)
+
+    def payments_get_payouts(self, id_: str) -> Any:
+        """Get a payout (GET /api/v1/payments/payouts/{id})."""
+        return self._call("GET", f"/api/v1/payments/payouts/{_q(id_)}", {}, None)
+
+    def payments_get_plans(self, id_: str) -> Any:
+        """Get a plan (GET /api/v1/payments/plans/{id})."""
+        return self._call("GET", f"/api/v1/payments/plans/{_q(id_)}", {}, None)
+
+    def payments_get_receipts(self, id_: str) -> Any:
+        """Get a receipt (GET /api/v1/payments/receipts/{id})."""
+        return self._call("GET", f"/api/v1/payments/receipts/{_q(id_)}", {}, None)
+
+    def payments_get_subscriptions(self, id_: str) -> Any:
+        """Get a subscription (GET /api/v1/payments/subscriptions/{id})."""
+        return self._call("GET", f"/api/v1/payments/subscriptions/{_q(id_)}", {}, None)
+
     def payments_invoices(self, *, limit: Optional[int] = None, cursor: Optional[str] = None, status: Optional[str] = None, customer_id: Optional[str] = None) -> Any:
         """List invoices (GET /api/v1/payments/invoices)."""
         return self._call("GET", f"/api/v1/payments/invoices", {"limit": limit, "cursor": cursor, "status": status, "customerId": customer_id}, None)
-
-    def payments_invoices_2(self, id_: str) -> Any:
-        """Get an invoice (GET /api/v1/payments/invoices/{id})."""
-        return self._call("GET", f"/api/v1/payments/invoices/{_q(id_)}", {}, None)
 
     def payments_invoices_export_csv(self) -> Any:
         """CSV export — up to 10k rows via paginated SDK fetch. (GET /api/v1/payments/invoices/export.csv)."""
@@ -1421,10 +1491,6 @@ class GeneratedApi:
         """List entries (GET /api/v1/payments/ledger/entries)."""
         return self._call("GET", f"/api/v1/payments/ledger/entries", {"code": code, "cursor": cursor, "limit": limit, "sourceId": source_id, "sourceType": source_type}, None)
 
-    def payments_ledger_entries_2(self, id_: str) -> Any:
-        """Get an entry (GET /api/v1/payments/ledger/entries/{id})."""
-        return self._call("GET", f"/api/v1/payments/ledger/entries/{_q(id_)}", {}, None)
-
     def payments_ledger_entries_csv(self) -> Any:
         """CSV export — up to 10k rows. (GET /api/v1/payments/ledger/entries.csv)."""
         return self._call("GET", f"/api/v1/payments/ledger/entries.csv", {}, None)
@@ -1436,10 +1502,6 @@ class GeneratedApi:
     def payments_payouts(self, *, cursor: Optional[Any] = None, limit: Optional[Any] = None, status: Optional[Any] = None) -> Any:
         """List payouts (GET /api/v1/payments/payouts)."""
         return self._call("GET", f"/api/v1/payments/payouts", {"cursor": cursor, "limit": limit, "status": status}, None)
-
-    def payments_payouts_2(self, id_: str) -> Any:
-        """Get a payout (GET /api/v1/payments/payouts/{id})."""
-        return self._call("GET", f"/api/v1/payments/payouts/{_q(id_)}", {}, None)
 
     def payments_payouts_balance(self) -> Any:
         """List balance (GET /api/v1/payments/payouts/balance)."""
@@ -1486,10 +1548,6 @@ class GeneratedApi:
         """List plans (GET /api/v1/payments/plans)."""
         return self._call("GET", f"/api/v1/payments/plans", {"limit": limit, "cursor": cursor, "active": active}, None)
 
-    def payments_plans_2(self, id_: str) -> Any:
-        """Get a plan (GET /api/v1/payments/plans/{id})."""
-        return self._call("GET", f"/api/v1/payments/plans/{_q(id_)}", {}, None)
-
     def payments_plugipay_settings_templates_preview(self, *, json_body: Optional[Dict[str, Any]] = None) -> Any:
         """Template preview returns raw HTML (not envelope JSON) — route through the raw-passthrough helper so the catch-all below doesn't JSON-parse it. (POST /api/v1/payments/plugipay-settings/templates/preview)."""
         payload: Dict[str, Any] = dict(json_body or {})
@@ -1502,10 +1560,6 @@ class GeneratedApi:
     def payments_receipts(self, *, cursor: Optional[Any] = None, customer_id: Optional[Any] = None, limit: Optional[Any] = None, source_type: Optional[Any] = None) -> Any:
         """List receipts (GET /api/v1/payments/receipts)."""
         return self._call("GET", f"/api/v1/payments/receipts", {"cursor": cursor, "customerId": customer_id, "limit": limit, "sourceType": source_type}, None)
-
-    def payments_receipts_2(self, id_: str) -> Any:
-        """Get a receipt (GET /api/v1/payments/receipts/{id})."""
-        return self._call("GET", f"/api/v1/payments/receipts/{_q(id_)}", {}, None)
 
     def payments_receipts_email(self, id_: str, *, to: Optional[Any] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
         """Email a receipt to the customer. `to` optional — falls back to the receipt's customer email on the Plugipay side. (POST /api/v1/payments/receipts/{id}/email).
@@ -1539,10 +1593,6 @@ class GeneratedApi:
     def payments_subscriptions(self, *, limit: Optional[int] = None, status: Optional[str] = None, customer_id: Optional[str] = None, plan_id: Optional[str] = None) -> Any:
         """List subscriptions (GET /api/v1/payments/subscriptions)."""
         return self._call("GET", f"/api/v1/payments/subscriptions", {"limit": limit, "status": status, "customerId": customer_id, "planId": plan_id}, None)
-
-    def payments_subscriptions_2(self, id_: str) -> Any:
-        """Get a subscription (GET /api/v1/payments/subscriptions/{id})."""
-        return self._call("GET", f"/api/v1/payments/subscriptions/{_q(id_)}", {}, None)
 
     def payments_update_customers(self, id_: str, *, email: Optional[str] = None, name: Optional[str] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
         """Update a customer (PATCH /api/v1/payments/customers/{id}).
@@ -2015,7 +2065,7 @@ class GeneratedApi:
             raise ValueError("shifts_close needs counted_cash")
         return self._call("POST", f"/api/v1/shifts/{_q(id_)}/close", {}, payload)
 
-    def shifts_current(self, *, outlet_id: Optional[Any] = None) -> Any:
+    def shifts_current(self, *, outlet_id: Any) -> Any:
         """List current (GET /api/v1/shifts/current)."""
         return self._call("GET", f"/api/v1/shifts/current", {"outletId": outlet_id}, None)
 
@@ -2134,7 +2184,7 @@ class GeneratedApi:
         """Delete a table (DELETE /api/v1/tables/{id})."""
         return self._call("DELETE", f"/api/v1/tables/{_q(id_)}", {}, None)
 
-    def tables_floor(self, *, floor_id: Optional[Any] = None, outlet_id: Optional[Any] = None) -> Any:
+    def tables_floor(self, *, floor_id: Optional[Any] = None, outlet_id: Any) -> Any:
         """The live floor: every active table with its current open bill (the most-recent PARKED transaction seated at it, if any). `openBill` is null for an available table. (GET /api/v1/tables/floor)."""
         return self._call("GET", f"/api/v1/tables/floor", {"floorId": floor_id, "outletId": outlet_id}, None)
 
@@ -2155,7 +2205,7 @@ class GeneratedApi:
             raise ValueError("tables_layout needs tables")
         return self._call("PUT", f"/api/v1/tables/layout", {}, payload)
 
-    def tables_list(self, *, floor_id: Optional[Any] = None, include_inactive: Optional[Any] = None, outlet_id: Optional[Any] = None) -> Any:
+    def tables_list(self, *, floor_id: Optional[Any] = None, include_inactive: Optional[Any] = None, outlet_id: Any) -> Any:
         """List tables (GET /api/v1/tables)."""
         return self._call("GET", f"/api/v1/tables", {"floorId": floor_id, "includeInactive": include_inactive, "outletId": outlet_id}, None)
 
@@ -2233,6 +2283,58 @@ class GeneratedApi:
         if "active" not in payload:
             raise ValueError("webhook_subscriptions_update needs active")
         return self._call("PATCH", f"/api/v1/webhook-subscriptions/{_q(id_)}", {}, payload)
+
+    def account_blog_posts_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``account_get_blog_posts`` (GET /api/v1/account/blog/posts/{id})."""
+        return self.account_get_blog_posts(*args, **kwargs)
+
+    def delivery_shipments_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``delivery_get_shipments`` (GET /api/v1/delivery/shipments/{id})."""
+        return self.delivery_get_shipments(*args, **kwargs)
+
+    def fulfillment_deliveries_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``fulfillment_get_deliveries`` (GET /api/v1/fulfillment/deliveries/{id})."""
+        return self.fulfillment_get_deliveries(*args, **kwargs)
+
+    def fulfillment_shipments_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``fulfillment_get_shipments`` (GET /api/v1/fulfillment/shipments/{id})."""
+        return self.fulfillment_get_shipments(*args, **kwargs)
+
+    def marketing_discount_codes_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``marketing_get_discount_codes`` (GET /api/v1/marketing/discount-codes/{id})."""
+        return self.marketing_get_discount_codes(*args, **kwargs)
+
+    def payments_checkout_sessions_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``payments_get_checkout_sessions`` (GET /api/v1/payments/checkout-sessions/{id})."""
+        return self.payments_get_checkout_sessions(*args, **kwargs)
+
+    def payments_customers_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``payments_get_customers`` (GET /api/v1/payments/customers/{id})."""
+        return self.payments_get_customers(*args, **kwargs)
+
+    def payments_invoices_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``payments_get_invoices`` (GET /api/v1/payments/invoices/{id})."""
+        return self.payments_get_invoices(*args, **kwargs)
+
+    def payments_ledger_entries_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``payments_get_ledger_entries`` (GET /api/v1/payments/ledger/entries/{id})."""
+        return self.payments_get_ledger_entries(*args, **kwargs)
+
+    def payments_payouts_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``payments_get_payouts`` (GET /api/v1/payments/payouts/{id})."""
+        return self.payments_get_payouts(*args, **kwargs)
+
+    def payments_plans_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``payments_get_plans`` (GET /api/v1/payments/plans/{id})."""
+        return self.payments_get_plans(*args, **kwargs)
+
+    def payments_receipts_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``payments_get_receipts`` (GET /api/v1/payments/receipts/{id})."""
+        return self.payments_get_receipts(*args, **kwargs)
+
+    def payments_subscriptions_2(self, *args: Any, **kwargs: Any) -> Any:
+        """Deprecated: the old name of ``payments_get_subscriptions`` (GET /api/v1/payments/subscriptions/{id})."""
+        return self.payments_get_subscriptions(*args, **kwargs)
 
 
 def _q(value: Any) -> str:

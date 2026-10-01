@@ -760,11 +760,22 @@ POST /api/v1/payments/plans/{id}/prices
 |---|---|---|---|
 | `id` | string | yes |  |
 
+### Body
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `currency` | any | no |  |
+| `model` | any | no |  |
+| `taxMode` | any | no |  |
+| `unitAmount` | any | no |  |
+
 ### Example
 
 ```bash
 curl -X POST "https://malapos.com/api/v1/payments/plans/:id/prices" \
-  -H "Authorization: Bearer sk_live_…"
+  -H "Authorization: Bearer sk_live_…" \
+  -H "Content-Type: application/json" \
+  -d '{"currency":null,"model":null,"taxMode":null,"unitAmount":null}'
 ```
 
 ## Archive/unarchive an individual price.

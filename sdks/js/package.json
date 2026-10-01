@@ -1,6 +1,6 @@
 {
   "name": "@forjio/malapos",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Malapos SDK — typed JS/TS client for the malapos.com point-of-sale REST API: every route of the API as client.api.<area><Action>(). Sister to the Python + Go SDKs.",
   "license": "UNLICENSED",
   "private": false,
