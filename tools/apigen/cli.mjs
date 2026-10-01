@@ -82,7 +82,14 @@ for (const [p, item] of Object.entries(spec.paths ?? {})) {
 // "get-groups" next to the list, GET /groups. A name still taken gets a number. A route's
 // old name (GET /x/{id} was "x-2" before it was "get-x") still works, hidden from help.
 let ALIASED = false;
-for (const routes of byArea.values()) {
+// Only an old name the file being replaced has (a command someone may run) is kept, never
+// one a route added since would have had.
+const PREVIOUS = new Set();
+try {
+  const prev = fs.readFileSync(OUT, 'utf8').match(/API_ROUTES: Array<[^>]+>\s*=\s*(\[[\s\S]*?\]);\n/);
+  for (const a of prev ? JSON.parse(prev[1]) : []) for (const r of a.routes) for (const n of [r.name, ...(r.aliases ?? [])]) PREVIOUS.add(`${a.area}|${n}`);
+} catch { /* no previous file: nothing to keep */ }
+for (const [area, routes] of byArea.entries()) {
   const count = {};
   const gets = {};
   for (const r of routes) {
@@ -107,7 +114,7 @@ for (const routes of byArea.values()) {
   const now = named(false);
   routes.forEach((r, i) => {
     r.name = now[i];
-    if (old[i] !== now[i] && !now.includes(old[i])) {
+    if (old[i] !== now[i] && !now.includes(old[i]) && PREVIOUS.has(`${area}|${old[i]}`)) {
       r.aliases = [old[i]];
       ALIASED = true;
     }

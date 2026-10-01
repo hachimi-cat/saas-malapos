@@ -35,4 +35,4 @@ Every Malapos feature, route by route, generated from the product's own code (th
 | [Suppliers](/docs/api/reference/suppliers) | 5 |
 | [Tables](/docs/api/reference/tables) | 6 |
 | [Uploads](/docs/api/reference/uploads) | 1 |
-| [Webhook subscriptions](/docs/api/reference/webhook-subscriptions) | 4 |
+| [Webhook subscriptions](/docs/api/reference/webhook-subscriptions) | 8 |

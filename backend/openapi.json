@@ -10115,7 +10115,7 @@
     ],
     "parameters": [],
     "x-forjio": {
-     "source": "src/routes/webhook-subscriptions.ts:38",
+     "source": "src/routes/webhook-subscriptions.ts:93",
      "guards": [
       "requireAuth",
       "rateLimit"
@@ -10124,13 +10124,14 @@
    },
    "post": {
     "operationId": "postWebhookSubscriptions",
-    "summary": "Create a webhook subscription",
+    "summary": "Add an endpoint.",
+    "description": "Add an endpoint. The URL must be https (in production) and must not point\n at a private, loopback or link-local address.",
     "tags": [
      "webhook-subscriptions"
     ],
     "parameters": [],
     "x-forjio": {
-     "source": "src/routes/webhook-subscriptions.ts:56",
+     "source": "src/routes/webhook-subscriptions.ts:123",
      "guards": [
       "requireAuth",
       "rateLimit"
@@ -10173,7 +10174,8 @@
   "/api/v1/webhook-subscriptions/{id}": {
    "patch": {
     "operationId": "patchWebhookSubscriptionsId",
-    "summary": "Update a webhook subscription",
+    "summary": "Update an endpoint. `active: false` pauses it (its queued deliveries become failed); `active: true` re-enables it — also after Malapos switched it off for failing — and clears its failure streak.",
+    "description": "Update an endpoint. `active: false` pauses it (its queued deliveries become\nfailed); `active: true` re-enables it — also after Malapos switched it off\nfor failing — and clears its failure streak. A new `url` goes through the\nsame checks as on create; the signing secret stays the same.",
     "tags": [
      "webhook-subscriptions"
     ],
@@ -10188,7 +10190,7 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/webhook-subscriptions.ts:81",
+     "source": "src/routes/webhook-subscriptions.ts:239",
      "guards": [
       "requireAuth",
       "rateLimit"
@@ -10205,11 +10207,22 @@
         "properties": {
          "active": {
           "type": "boolean"
+         },
+         "url": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 2000,
+          "pattern": "^http"
+         },
+         "events": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "minItems": 1,
+          "maxItems": 20
          }
         },
-        "required": [
-         "active"
-        ],
         "additionalProperties": false
        }
       }
@@ -10233,7 +10246,150 @@
      }
     ],
     "x-forjio": {
-     "source": "src/routes/webhook-subscriptions.ts:100",
+     "source": "src/routes/webhook-subscriptions.ts:270",
+     "guards": [
+      "requireAuth",
+      "rateLimit"
+     ]
+    }
+   }
+  },
+  "/api/v1/webhook-subscriptions/deliveries": {
+   "get": {
+    "operationId": "getWebhookSubscriptionsDeliveries",
+    "summary": "List webhook deliveries.",
+    "description": "List webhook deliveries. Newest first: one row per event per endpoint, with\nits status (pending, succeeded, failed), attempt count, next retry, the body\nsent and every attempt made (`attemptLog`). Filter by `subscriptionId`,\n`status` or `type`; page with `limit` (1-100, default 20) and `meta.cursor`\nwhile `meta.hasMore`.",
+    "tags": [
+     "webhook-subscriptions"
+    ],
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 100,
+       "default": 20
+      }
+     },
+     {
+      "name": "cursor",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "minLength": 1
+      }
+     },
+     {
+      "name": "subscriptionId",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "minLength": 1
+      }
+     },
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "pending",
+        "succeeded",
+        "failed"
+       ]
+      }
+     },
+     {
+      "name": "type",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "minLength": 1
+      }
+     }
+    ],
+    "x-forjio": {
+     "source": "src/routes/webhook-subscriptions.ts:161",
+     "guards": [
+      "requireAuth",
+      "rateLimit"
+     ]
+    }
+   }
+  },
+  "/api/v1/webhook-subscriptions/deliveries/{id}": {
+   "get": {
+    "operationId": "getWebhookSubscriptionsDeliveriesId",
+    "summary": "Get a webhook delivery, with every attempt made at it.",
+    "description": "Get a webhook delivery, with every attempt made at it.",
+    "tags": [
+     "webhook-subscriptions"
+    ],
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "x-forjio": {
+     "source": "src/routes/webhook-subscriptions.ts:192",
+     "guards": [
+      "requireAuth",
+      "rateLimit"
+     ]
+    }
+   }
+  },
+  "/api/v1/webhook-subscriptions/deliveries/{id}/retry": {
+   "post": {
+    "operationId": "postWebhookSubscriptionsDeliveriesIdRetry",
+    "summary": "Retry a webhook delivery.",
+    "description": "Retry a webhook delivery. Queues one more attempt now at a failed delivery\n(or sends a succeeded one again); it goes out within seconds — read it back\nwith GET /webhook-subscriptions/deliveries/:id. 202 with the delivery\n`pending`; 409 ALREADY_QUEUED when it is pending already, 409\nENDPOINT_DISABLED when its endpoint is off.",
+    "tags": [
+     "webhook-subscriptions"
+    ],
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "x-forjio": {
+     "source": "src/routes/webhook-subscriptions.ts:212",
+     "guards": [
+      "requireAuth",
+      "rateLimit"
+     ],
+     "body": "none"
+    }
+   }
+  },
+  "/api/v1/webhook-subscriptions/event-types": {
+   "get": {
+    "operationId": "getWebhookSubscriptionsEventTypes",
+    "summary": "The event types a subscription can name: every malapos.*.v1 type Malapos sends, with what it means.",
+    "description": "The event types a subscription can name: every malapos.*.v1 type Malapos\n sends, with what it means.",
+    "tags": [
+     "webhook-subscriptions"
+    ],
+    "parameters": [],
+    "x-forjio": {
+     "source": "src/routes/webhook-subscriptions.ts:108",
      "guards": [
       "requireAuth",
       "rateLimit"
@@ -10273,8 +10429,8 @@
   }
  },
  "x-apigen": {
-  "routes": 280,
-  "matched": 253,
+  "routes": 284,
+  "matched": 257,
   "bodies": {
    "validated": 80,
    "fieldsOnly": 9,

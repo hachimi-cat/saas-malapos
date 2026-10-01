@@ -5411,7 +5411,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "create",
     "method": "POST",
     "path": "/api/v1/webhook-subscriptions",
-    "summary": "Create a webhook subscription",
+    "summary": "Add an endpoint.",
     "pathParams": [],
     "query": [],
     "body": [
@@ -5439,6 +5439,77 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "body": null
    },
    {
+    "name": "deliveries",
+    "method": "GET",
+    "path": "/api/v1/webhook-subscriptions/deliveries",
+    "summary": "List webhook deliveries.",
+    "pathParams": [],
+    "query": [
+     {
+      "name": "limit",
+      "kind": "number",
+      "required": false
+     },
+     {
+      "name": "cursor",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "subscriptionId",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "status",
+      "kind": "string",
+      "required": false,
+      "choices": [
+       "pending",
+       "succeeded",
+       "failed"
+      ]
+     },
+     {
+      "name": "type",
+      "kind": "string",
+      "required": false
+     }
+    ],
+    "body": null
+   },
+   {
+    "name": "deliveries-retry",
+    "method": "POST",
+    "path": "/api/v1/webhook-subscriptions/deliveries/{id}/retry",
+    "summary": "Retry a webhook delivery.",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null
+   },
+   {
+    "name": "event-types",
+    "method": "GET",
+    "path": "/api/v1/webhook-subscriptions/event-types",
+    "summary": "The event types a subscription can name: every malapos.*.v1 type Malapos sends, with what it means.",
+    "pathParams": [],
+    "query": [],
+    "body": null
+   },
+   {
+    "name": "get-deliveries",
+    "method": "GET",
+    "path": "/api/v1/webhook-subscriptions/deliveries/{id}",
+    "summary": "Get a webhook delivery, with every attempt made at it.",
+    "pathParams": [
+     "id"
+    ],
+    "query": [],
+    "body": null
+   },
+   {
     "name": "list",
     "method": "GET",
     "path": "/api/v1/webhook-subscriptions",
@@ -5451,7 +5522,7 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
     "name": "update",
     "method": "PATCH",
     "path": "/api/v1/webhook-subscriptions/{id}",
-    "summary": "Update a webhook subscription",
+    "summary": "Update an endpoint. `active: false` pauses it (its queued deliveries become failed); `active: true` re-enables it — also after Malapos switched it off for failing — and clears its failure streak.",
     "pathParams": [
      "id"
     ],
@@ -5460,7 +5531,17 @@ export const API_ROUTES: Array<{ area: string; routes: Route[] }> = [
      {
       "name": "active",
       "kind": "boolean",
-      "required": true
+      "required": false
+     },
+     {
+      "name": "url",
+      "kind": "string",
+      "required": false
+     },
+     {
+      "name": "events",
+      "kind": "array",
+      "required": false
      }
     ]
    }

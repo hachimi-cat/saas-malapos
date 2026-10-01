@@ -277,7 +277,8 @@ function applyChain(schema, chain) {
   }
   return current;
 }
-const VALIDATE = /\b(validate\w*|zValidator|withBody|withQuery|parseBody|parseQuery|bodySchema|querySchema)\(\s*(?:['"](\w+)['"]\s*,\s*)?([A-Za-z_$][\w$]*)/g;
+// `validate(schema, req.query)`: what the second argument names wins over the helper's name
+const VALIDATE = /\b(validate\w*|zValidator|withBody|withQuery|parseBody|parseQuery|bodySchema|querySchema)\(\s*(?:['"](\w+)['"]\s*,\s*)?([A-Za-z_$][\w$]*)(?:\s*,\s*(?:req|request)\.(body|query|params)\b)?/g;
 
 // A schema written inside the handler — `z.object({ ids: z.array(z.string()) }).parse(req.body)`
 // — is no top-level value the registry holds: build it from its own text, when that text
@@ -432,7 +433,7 @@ function schemasIn(fileRel, node, sink, depth = 0) {
     const v = lookup(fileRel, m[3]);
     if (!isZod(v)) continue;
     const hint = `${m[1]} ${m[2] ?? ''}`.toLowerCase();
-    const role = hint.includes('query') ? 'query' : hint.includes('param') ? 'params' : 'body';
+    const role = m[4] ?? (hint.includes('query') ? 'query' : hint.includes('param') ? 'params' : 'body');
     sink[role] ??= { schema: v, name: m[3] };
   }
   // handlers written elsewhere: follow a named function one or two files deep

@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 
 class GeneratedApi:
-    """All 240 feature routes of the Malapos API."""
+    """All 244 feature routes of the Malapos API."""
 
     def __init__(self, client: Any) -> None:
         self._client = client
@@ -2253,7 +2253,7 @@ class GeneratedApi:
         return self._call("POST", f"/api/v1/uploads/sign", {}, payload)
 
     def webhook_subscriptions_create(self, *, url: Optional[str] = None, events: Optional[List[Any]] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
-        """Create a webhook subscription (POST /api/v1/webhook-subscriptions).
+        """Add an endpoint. (POST /api/v1/webhook-subscriptions).
         
         Body fields are keyword arguments; `json_body=` passes the whole body (fields override it)."""
         payload: Dict[str, Any] = dict(json_body or {})
@@ -2269,19 +2269,37 @@ class GeneratedApi:
         """Delete a webhook subscription (DELETE /api/v1/webhook-subscriptions/{id})."""
         return self._call("DELETE", f"/api/v1/webhook-subscriptions/{_q(id_)}", {}, None)
 
+    def webhook_subscriptions_deliveries(self, *, limit: Optional[int] = None, cursor: Optional[str] = None, subscription_id: Optional[str] = None, status: Optional[str] = None, type_: Optional[str] = None) -> Any:
+        """List webhook deliveries. (GET /api/v1/webhook-subscriptions/deliveries)."""
+        return self._call("GET", f"/api/v1/webhook-subscriptions/deliveries", {"limit": limit, "cursor": cursor, "subscriptionId": subscription_id, "status": status, "type": type_}, None)
+
+    def webhook_subscriptions_deliveries_retry(self, id_: str) -> Any:
+        """Retry a webhook delivery. (POST /api/v1/webhook-subscriptions/deliveries/{id}/retry)."""
+        return self._call("POST", f"/api/v1/webhook-subscriptions/deliveries/{_q(id_)}/retry", {}, None)
+
+    def webhook_subscriptions_event_types(self) -> Any:
+        """The event types a subscription can name: every malapos.*.v1 type Malapos sends, with what it means. (GET /api/v1/webhook-subscriptions/event-types)."""
+        return self._call("GET", f"/api/v1/webhook-subscriptions/event-types", {}, None)
+
+    def webhook_subscriptions_get_deliveries(self, id_: str) -> Any:
+        """Get a webhook delivery, with every attempt made at it. (GET /api/v1/webhook-subscriptions/deliveries/{id})."""
+        return self._call("GET", f"/api/v1/webhook-subscriptions/deliveries/{_q(id_)}", {}, None)
+
     def webhook_subscriptions_list(self) -> Any:
         """List webhook subscriptions (GET /api/v1/webhook-subscriptions)."""
         return self._call("GET", f"/api/v1/webhook-subscriptions", {}, None)
 
-    def webhook_subscriptions_update(self, id_: str, *, active: Optional[bool] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
-        """Update a webhook subscription (PATCH /api/v1/webhook-subscriptions/{id}).
+    def webhook_subscriptions_update(self, id_: str, *, active: Optional[bool] = None, url: Optional[str] = None, events: Optional[List[Any]] = None, json_body: Optional[Dict[str, Any]] = None) -> Any:
+        """Update an endpoint. `active: false` pauses it (its queued deliveries become failed); `active: true` re-enables it — also after Malapos switched it off for failing — and clears its failure streak. (PATCH /api/v1/webhook-subscriptions/{id}).
         
         Body fields are keyword arguments; `json_body=` passes the whole body (fields override it)."""
         payload: Dict[str, Any] = dict(json_body or {})
         if active is not None:
             payload["active"] = active
-        if "active" not in payload:
-            raise ValueError("webhook_subscriptions_update needs active")
+        if url is not None:
+            payload["url"] = url
+        if events is not None:
+            payload["events"] = events
         return self._call("PATCH", f"/api/v1/webhook-subscriptions/{_q(id_)}", {}, payload)
 
     def account_blog_posts_2(self, *args: Any, **kwargs: Any) -> Any:

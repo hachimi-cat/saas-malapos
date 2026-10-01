@@ -18,7 +18,7 @@ type apigenTransport interface {
 	apigenRequest(ctx context.Context, method, path string, query url.Values, body map[string]any) (json.RawMessage, error)
 }
 
-// GeneratedAPI has all 240 feature routes of the Malapos API, one method each
+// GeneratedAPI has all 244 feature routes of the Malapos API, one method each
 // (generated from the API spec). A method takes the path parameters, then an *<Method>Args
 // with the query fields (tagged query) and the JSON body fields (tagged json): required
 // fields are plain values, optional ones pointers, slices or maps that nil leaves out,
@@ -5945,7 +5945,7 @@ type WebhookSubscriptionsCreateArgs struct {
 	Body map[string]any `json:"-"`
 }
 
-// WebhookSubscriptionsCreate calls POST /api/v1/webhook-subscriptions: Create a webhook subscription.
+// WebhookSubscriptionsCreate calls POST /api/v1/webhook-subscriptions: Add an endpoint.
 func (a *GeneratedAPI) WebhookSubscriptionsCreate(ctx context.Context, p *WebhookSubscriptionsCreateArgs) (json.RawMessage, error) {
 	if p == nil {
 		p = &WebhookSubscriptionsCreateArgs{}
@@ -5969,6 +5969,65 @@ func (a *GeneratedAPI) WebhookSubscriptionsDelete(ctx context.Context, id string
 	return a.c.apigenRequest(ctx, "DELETE", path, nil, nil)
 }
 
+// WebhookSubscriptionsDeliveriesArgs are the inputs of GeneratedAPI.WebhookSubscriptionsDeliveries.
+type WebhookSubscriptionsDeliveriesArgs struct {
+	// Limit is "limit" in the query.
+	Limit *int `query:"limit"`
+
+	// Cursor is "cursor" in the query.
+	Cursor *string `query:"cursor"`
+
+	// SubscriptionID is "subscriptionId" in the query.
+	SubscriptionID *string `query:"subscriptionId"`
+
+	// Status is "status" in the query. One of: pending, succeeded, failed.
+	Status *string `query:"status"`
+
+	// Type is "type" in the query.
+	Type *string `query:"type"`
+}
+
+// WebhookSubscriptionsDeliveries calls GET /api/v1/webhook-subscriptions/deliveries: List webhook deliveries.
+func (a *GeneratedAPI) WebhookSubscriptionsDeliveries(ctx context.Context, p *WebhookSubscriptionsDeliveriesArgs) (json.RawMessage, error) {
+	if p == nil {
+		p = &WebhookSubscriptionsDeliveriesArgs{}
+	}
+	q := url.Values{}
+	if p.Limit != nil {
+		q.Set("limit", apigenQueryValue(*p.Limit))
+	}
+	if p.Cursor != nil {
+		q.Set("cursor", apigenQueryValue(*p.Cursor))
+	}
+	if p.SubscriptionID != nil {
+		q.Set("subscriptionId", apigenQueryValue(*p.SubscriptionID))
+	}
+	if p.Status != nil {
+		q.Set("status", apigenQueryValue(*p.Status))
+	}
+	if p.Type != nil {
+		q.Set("type", apigenQueryValue(*p.Type))
+	}
+	return a.c.apigenRequest(ctx, "GET", "/api/v1/webhook-subscriptions/deliveries", q, nil)
+}
+
+// WebhookSubscriptionsDeliveriesRetry calls POST /api/v1/webhook-subscriptions/deliveries/{id}/retry: Retry a webhook delivery.
+func (a *GeneratedAPI) WebhookSubscriptionsDeliveriesRetry(ctx context.Context, id string) (json.RawMessage, error) {
+	path := "/api/v1/webhook-subscriptions/deliveries/" + url.PathEscape(id) + "/retry"
+	return a.c.apigenRequest(ctx, "POST", path, nil, nil)
+}
+
+// WebhookSubscriptionsEventTypes calls GET /api/v1/webhook-subscriptions/event-types: The event types a subscription can name: every malapos.*.v1 type Malapos sends, with what it means.
+func (a *GeneratedAPI) WebhookSubscriptionsEventTypes(ctx context.Context) (json.RawMessage, error) {
+	return a.c.apigenRequest(ctx, "GET", "/api/v1/webhook-subscriptions/event-types", nil, nil)
+}
+
+// WebhookSubscriptionsGetDeliveries calls GET /api/v1/webhook-subscriptions/deliveries/{id}: Get a webhook delivery, with every attempt made at it.
+func (a *GeneratedAPI) WebhookSubscriptionsGetDeliveries(ctx context.Context, id string) (json.RawMessage, error) {
+	path := "/api/v1/webhook-subscriptions/deliveries/" + url.PathEscape(id)
+	return a.c.apigenRequest(ctx, "GET", path, nil, nil)
+}
+
 // WebhookSubscriptionsList calls GET /api/v1/webhook-subscriptions: List webhook subscriptions.
 func (a *GeneratedAPI) WebhookSubscriptionsList(ctx context.Context) (json.RawMessage, error) {
 	return a.c.apigenRequest(ctx, "GET", "/api/v1/webhook-subscriptions", nil, nil)
@@ -5976,22 +6035,34 @@ func (a *GeneratedAPI) WebhookSubscriptionsList(ctx context.Context) (json.RawMe
 
 // WebhookSubscriptionsUpdateArgs are the inputs of GeneratedAPI.WebhookSubscriptionsUpdate.
 type WebhookSubscriptionsUpdateArgs struct {
-	// Active is "active" in the body, required.
-	Active bool `json:"active"`
+	// Active is "active" in the body.
+	Active *bool `json:"active,omitempty"`
+
+	// URL is "url" in the body.
+	URL *string `json:"url,omitempty"`
+
+	// Events is "events" in the body.
+	Events []string `json:"events,omitempty"`
 
 	// Body is the whole JSON body, for what the fields above do not cover; the fields
 	// that are set replace its keys.
 	Body map[string]any `json:"-"`
 }
 
-// WebhookSubscriptionsUpdate calls PATCH /api/v1/webhook-subscriptions/{id}: Update a webhook subscription.
+// WebhookSubscriptionsUpdate calls PATCH /api/v1/webhook-subscriptions/{id}: Update an endpoint. `active: false` pauses it (its queued deliveries become failed); `active: true` re-enables it — also after Malapos switched it off for failing — and clears its failure streak.
 func (a *GeneratedAPI) WebhookSubscriptionsUpdate(ctx context.Context, id string, p *WebhookSubscriptionsUpdateArgs) (json.RawMessage, error) {
 	if p == nil {
 		p = &WebhookSubscriptionsUpdateArgs{}
 	}
 	payload := apigenBody(p.Body)
-	if _, ok := payload["active"]; !ok || p.Active {
-		payload["active"] = p.Active
+	if p.Active != nil {
+		payload["active"] = *p.Active
+	}
+	if p.URL != nil {
+		payload["url"] = *p.URL
+	}
+	if p.Events != nil {
+		payload["events"] = p.Events
 	}
 	path := "/api/v1/webhook-subscriptions/" + url.PathEscape(id)
 	return a.c.apigenRequest(ctx, "PATCH", path, nil, payload)

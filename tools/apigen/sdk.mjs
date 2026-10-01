@@ -100,11 +100,14 @@ function nameRoutes(field, legacy) {
 nameRoutes('legacyName', true);
 nameRoutes('fullName', false);
 routes.sort((a, b) => a.fullName.localeCompare(b.fullName));
-// The old names that are no longer any route's name, each with the route it now calls.
-function aliasesOf(nameOf) {
+// The old names that are no longer any route's name, each with the route it now calls —
+// only those the file being replaced has (a method someone may call), never one a route
+// added since would have had. `has(name)` tests the file for a method of that name.
+const PREVIOUS = OUT && fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : '';
+function aliasesOf(nameOf, has) {
   const current = new Set(routes.map((r) => nameOf(r.fullName)));
   return routes
-    .filter((r) => r.legacyName !== r.fullName && !current.has(nameOf(r.legacyName)))
+    .filter((r) => r.legacyName !== r.fullName && !current.has(nameOf(r.legacyName)) && has(nameOf(r.legacyName)))
     .map((r) => ({ old: nameOf(r.legacyName), route: r }))
     .sort((a, b) => a.old.localeCompare(b.old));
 }
@@ -189,7 +192,7 @@ function python() {
     }
     out.push(`        return self._call("${r.method}", f"${path}", {${q}}, ${r.body ? 'payload' : 'None'})`);
   }
-  for (const { old, route } of aliasesOf(pyName)) {
+  for (const { old, route } of aliasesOf(pyName, (n) => new RegExp(`^    def ${n}\\(`, 'm').test(PREVIOUS))) {
     out.push(
       '',
       `    def ${old}(self, *args: Any, **kwargs: Any) -> Any:`,
@@ -261,7 +264,7 @@ function node() {
     } else out.push(`    return this.call(${JSON.stringify(r.method)}, \`${path}\`, {}, undefined);`);
     out.push('  }');
   }
-  for (const { old, route } of aliasesOf(camel)) {
+  for (const { old, route } of aliasesOf(camel, (n) => new RegExp(`^  ${n}\\(`, 'm').test(PREVIOUS))) {
     const now = camel(route.fullName);
     out.push(
       '',
@@ -510,7 +513,8 @@ function go() {
   }
   const typeNames = new Set([...goMethods.values()].flatMap((m) => [m.name, m.argsType].filter(Boolean)));
   const aliases = routes
-    .filter((r) => legacy.get(r) !== goMethods.get(r).name && !typeNames.has(legacy.get(r)))
+    .filter((r) => legacy.get(r) !== goMethods.get(r).name && !typeNames.has(legacy.get(r))
+      && new RegExp(`^func \\(a \\*GeneratedAPI\\) ${legacy.get(r)}\\(`, 'm').test(PREVIOUS))
     .sort((x, y) => legacy.get(x).localeCompare(legacy.get(y)));
   for (const r of aliases) {
     const old = legacy.get(r);
