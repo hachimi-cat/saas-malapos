@@ -98,39 +98,6 @@ sdk-python-go:
     - (
     - "  cd sdks/python && /tmp/sdk-py/bin/python -m pytest -q"
     - )
-build-staging:
-  stage: build
-  image: node:22-bookworm
-  needs:
-    - lint
-    - test
-    - apigen-check
-    - sdk-js
-    - sdk-python-go
-  timeout: 30m
-  artifacts:
-    paths:
-      - backend/dist/
-      - backend/package.json
-      - backend/package-lock.json
-      - backend/prisma/
-      - frontend/.next/
-      - frontend/public/
-      - frontend/package.json
-      - frontend/package-lock.json
-      - frontend/next.config.*
-  script:
-    - "# -- Build backend"
-    - (
-    - "  cd backend && npm ci && npx prisma generate && npm run build"
-    - )
-    - "# -- Build frontend (staging)"
-    - export NEXT_PUBLIC_API_URL="/api/v1"
-    - export NEXT_PUBLIC_MIDTRANS_CLIENT_KEY="$MIDTRANS_CLIENT_KEY"
-    - export NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$GOOGLE_MAPS_API_KEY"
-    - (
-    - "  cd frontend && npm ci && npm run build"
-    - )
 build-production:
   stage: build
   image: node:22-bookworm
@@ -165,103 +132,11 @@ build-production:
     - (
     - "  cd frontend && npm ci && npm run build"
     - )
-deploy-staging:
-  resource_group: staging
-  stage: deploy
-  image: node:22-bookworm
-  needs:
-    - build-staging
-  dependencies:
-    - build-staging
-  timeout: 30m
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE != "pull_request"
-  script:
-    - apt-get update -qq && apt-get install -y -qq --no-install-recommends
-      rsync openssh-client >/dev/null
-    - |-
-      # Assemble the exact GHA deploy payload (artifact contents only —
-      # NOT the full clone) so rsync --delete ships dist + manifests, not src.
-      # Critical paths are asserted; optional ones (public/, next.config.*)
-      # are skipped when absent rather than failing the deploy.
-      [ -d backend/dist ] || { echo "FATAL: backend/dist missing"; exit 1; }
-      [ -d frontend/.next ] || { echo "FATAL: frontend/.next missing"; exit 1; }
-      mkdir -p /tmp/payload
-      for p in backend/dist backend/package.json backend/package-lock.json backend/prisma copy \
-               frontend/.next frontend/public frontend/package.json frontend/package-lock.json frontend/next.config.*; do
-        { [ -e "$p" ] && cp -r --parents "$p" /tmp/payload/; } || echo "skip (absent): $p"
-      done
-    - |-
-      rsync -az --delete \
-        --exclude node_modules --exclude .git --exclude .env --exclude .npmrc --exclude frontend/.next/cache \
-        -e "ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30" \
-        /tmp/payload/backend /tmp/payload/frontend /tmp/payload/copy root@$STAGING_HOST:/opt/saas/malapos/
-    - |-
-      ssh -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30 root@$STAGING_HOST 'bash -se' <<'SCRIPT'
-      cd /opt/saas/malapos/backend
-      # Staging is uniformly NON-VERIFYING — strip any captcha secret so e2e never blocks.
-      sed -i '/^TURNSTILE_SECRET_KEY=/d; /^TURNSTILE_ALLOWED_HOSTNAMES=/d' .env 2>/dev/null || true
-      npm ci --omit=dev
-      npx prisma migrate deploy
-      pm2 restart malapos || pm2 start dist/index.js --name malapos -i 1
-      cd /opt/saas/malapos/frontend
-      npm ci --omit=dev
-      pm2 restart malapos-frontend || pm2 start npm --name malapos-frontend -- start
-      pm2 save
-      echo "Waiting for backend health..."
-      for i in $(seq 1 30); do
-        curl -sf http://localhost:4191/api/v1/health >/dev/null 2>&1 && { echo "backend healthy after ${i}s"; break; }
-        sleep 1
-      done
-      echo "Waiting for frontend..."
-      for i in $(seq 1 30); do
-        curl -sf http://localhost:3190/ >/dev/null 2>&1 && { echo "frontend healthy after ${i}s"; break; }
-        sleep 1
-      done
-      SCRIPT
-e2e-staging:
-  resource_group: staging
-  stage: deploy
-  image: node:22-bookworm
-  needs:
-    - deploy-staging
-  dependencies: []
-  timeout: 45m
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE != "pull_request"
-  script:
-    - |-
-      echo "Waiting for staging (backend + frontend)..."
-      for i in $(seq 1 30); do
-        curl -sf "http://$STAGING_HOST/api/v1/health" >/dev/null 2>&1 && { echo "backend healthy"; break; }
-        sleep 3
-      done
-      for i in $(seq 1 20); do
-        STATUS=$(curl -so /dev/null -w '%{http_code}' "http://$STAGING_HOST/" 2>/dev/null || echo 000)
-        [ "$STATUS" = "200" ] && { echo "frontend serving"; break; }
-        sleep 3
-      done
-      sleep 5
-    - (
-    - "  cd e2e && npm ci && npx playwright install chromium --with-deps"
-    - )
-    - |-
-      # Signs in for real as gojo (the designated E2E identity) against
-      # staging; GOJO_HUUDIS_PASSWORD arrives as a masked project variable.
-      cd e2e
-      GOJO_HUUDIS_EMAIL=gojo@forjio.com \
-      BACKEND_URL="http://$STAGING_HOST/api/v1" \
-      FRONTEND_URL="http://$STAGING_HOST" \
-      E2E_BYPASS_SECRET="$E2E_BYPASS_SECRET" \
-      PW_SKIP_WEBSERVER=1 \
-      npx playwright test --reporter=list --config=playwright.ci.config.ts
 deploy-production:
   resource_group: production
   stage: deploy
   image: node:22-bookworm
-  needs:
-    - e2e-staging
-    - build-production
+  needs: [build-production]
   dependencies:
     - build-production
   timeout: 30m
@@ -313,3 +188,22 @@ deploy-production:
         sleep 1
       done
       SCRIPT
+verify-production:
+  # Read-only, from outside, after every production deploy. It replaces the staging
+  # e2e (no more staging, bang 22 Oct 2026): the site must answer 200 within 2 minutes.
+  resource_group: production
+  stage: deploy
+  image: node:22-bookworm
+  needs: [deploy-production]
+  dependencies: []
+  timeout: 10m
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE != "pull_request"
+  script:
+    - |-
+      for i in $(seq 1 24); do
+        STATUS=$(curl -sL -o /dev/null -w '%{http_code}' "https://$PRODUCTION_HOST/" 2>/dev/null || echo 000)
+        [ "$STATUS" = "200" ] && { echo "production answers 200"; exit 0; }
+        sleep 5
+      done
+      echo "production still answers $STATUS after 2 minutes"; exit 1
