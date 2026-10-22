@@ -46,28 +46,24 @@ copy this file into the forked repo and replace `MALAPOS` /
 | `frontend/` | Next.js 15 App Router. Marketing at `/`, dashboard at `/dashboard`, OIDC at `/callback`. Built-in admin portal at `/admin/*` (the `(admin)` route group: login/forgot/reset + a gated `(portal)` dashboard via `@forjio/portal-ui` `brandTag="Admin"`; admin BFF proxy at `app/api/v1/console/[...path]`). `src/lib/api.ts` (client fetch) + `src/lib/api-server.ts` (RSC cookie forwarding). Error + loading boundaries at `src/app/(dashboard)/` and `src/app/(admin)/admin/(portal)/`. |
 | `deploy/` | `nginx/<brand>.conf` — reference vhost. `^~ /api/v1/console/` → frontend (admin BFF proxy), everything else under `/api/v1/` → backend, default → frontend. `scripts/install.sh` symlinks it into `sites-enabled`. |
 | `cli/` | Commander-based CLI. `auth login/whoami/logout` ship; session via `@forjio/sdk` `Session` at `~/.malapos/credentials` (INI, AWS-style profiles — see `src/lib/context.ts`). |
-| `e2e/` | Playwright. `playwright.config.ts` (local dev) + `playwright.ci.config.ts` (CI against staging — see ci-cd.yml). Health smoke ships; add per-flow tests per milestone. |
+| `e2e/` | Playwright. `playwright.config.ts` (local dev) + `playwright.ci.config.ts` (run locally; there is no staging, so CI does not run them). Health smoke ships; add per-flow tests per milestone. |
 
-### CI/CD — shared staging E2E pattern
+### CI/CD — no staging
 
-- `.github/workflows/ci-cd.yml` carries the `malapos` /
-  `malapos` / `:4191` / `:3190` placeholders — `scripts/rename.sh`
-  rewrites them when forking; the rest is mechanical.
-- Job sequence: `lint → test → build → deploy-staging → e2e-staging →
-  deploy-production → release`.
-- **Frontend deploys as a dynamic Next app** (`next start` under pm2,
-  the pawpado/ripllo model): the Build job ships `.next/`
-  (`include-hidden-files: true` on upload-artifact — without it the
-  dotdir is silently dropped) and the deploy step runs
+- **There is no staging** (bang, 22 Oct 2026: "no more staging server";
+  the shared staging box was destroyed on 11 Oct 2026). Never add a
+  staging job, a `STAGING_HOST` secret or a `staging-<brand>` DNS record.
+- Depllo runs `.depllo-ci.yml` on every push to master: checks → build →
+  `deploy-production` → `verify-production` (read-only: the site must
+  answer 200 within two minutes). `.github/workflows/ci-cd.yml` is the
+  manual (workflow_dispatch) fallback.
+- `deploy-production` rsyncs over ssh with `SSH_PRIVATE_KEY`; its public
+  half is in root's `authorized_keys` on the production box
+  (prod-share-v2, 139.59.218.224). Without it every deploy fails with
+  "Permission denied (publickey)".
+- **Frontend deploys as a dynamic Next app** (`next start` under pm2):
+  the build job ships `.next/` and the deploy step runs
   `npm ci --omit=dev` + `pm2 start npm -- start`. No static `out/`.
-- **E2E reaches staging at `http://${{ secrets.STAGING_HOST }}/`** over
-  PUBLIC http — set the secret to **`staging-<brand>.forjio.com`** (an A
-  record → the SHARED staging box; nginx :80, UFW open), with
-  `E2E_BYPASS_SECRET` gating auth. Staging lives on the shared box (the
-  2026-06-15 consolidation), NOT a per-product droplet, and NOT Tailscale.
-  Requires secrets `E2E_BYPASS_SECRET` + `SSH_PRIVATE_KEY` +
-  `STAGING_HOST` + `PRODUCTION_HOST`. (No `TS_AUTHKEY`.) Register the
-  product on the shared box per the spawn-product skill's Phase 1 step 8.
 
 ### Backend conventions
 
@@ -130,8 +126,8 @@ copy this file into the forked repo and replace `MALAPOS` /
   runs with `--passWithNoTests` so scaffolding doesn't break CI
   before coverage ramps.
 - E2E in `e2e/tests/` (Playwright). Run locally against
-  `localhost:3190/4000`; CI hits `${{ secrets.STAGING_HOST }}` =
-  `staging-<brand>.forjio.com` (the shared box, public http).
+  `localhost:3190/4000`. There is no staging, so CI does not run them;
+  after each production deploy `verify-production` checks the site.
   `e2e/package-lock.json` is committed — CI's `npm ci` requires it.
 - CLI tests in `cli/src/__tests__/`.
 - `npm run type-check` at each dir = `tsc --noEmit`. CI's
